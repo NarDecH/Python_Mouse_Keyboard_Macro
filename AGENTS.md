@@ -1,0 +1,103 @@
+# AGENTS.md — Python Mouse Keyboard Macro
+
+> เวอร์ชันปัจจุบัน: v1.4 — ดู `docs/CHANGELOG.md`
+
+แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
+
+## ภาพรวมโปรเจกต์
+
+- **ชื่อ:** Auto Mouse & Keyboard Macro v1.4
+- **ไฟล์หลัก:** `auto_macro.py` (ไฟล์เดียวจบ — GUI + engine ในไฟล์เดียว)
+- **แรงบันดาลใจ:** โปรแกรม "Auto Mouse v1.3" (ดูรูปตัวอย่าง `pic.png` / `docs/images/pic.png`)
+- **หน้าที่:** บันทึกและเล่นซ้ำการคลิกเมาส์ + การกดคีย์ตามสคริปต์ที่ผู้ใช้ตั้งไว้
+- **ฟีเจอร์เสริม v1.4:** Global Hotkey, คลิกตามภาพ (OpenCV), โปรไฟล์หลายสคริปต์,
+  เล่นอัตโนมัติตามเวลา (schedule), unit tests (`test_auto_macro.py`)
+
+## เทคโนโลยี
+
+| ส่วน | เทคโนโลยี |
+|---|---|
+| ภาษา | Python 3.8+ (แนะนำ 3.12 ขึ้นไป — เครื่องพัฒนาใช้ 3.14) |
+| GUI | Tkinter (มากับ Python, ไม่ต้องติดตั้งเพิ่ม) + ttk.Treeview |
+| ควบคุมเมาส์/คีย์บอร์ด | `pynput` >= 1.7.6 |
+| Image Click (ตัวเลือก) | `opencv-python` + `Pillow` (ไม่ติดตั้งก็ใช้ส่วนอื่นได้) |
+| Build .exe | PyInstaller (ไฟล์ spec: `auto_macro.spec`) |
+| ทดสอบ | `unittest` (รัน: `py -m unittest test_auto_macro -v`) |
+| Platform เป้าหมาย | Windows (โค้ดรองรับ Linux/macOS ด้วยไลบรารีเดียวกัน) |
+
+## โครงสร้างไฟล์
+
+```
+├── auto_macro.py        # โปรแกรมหลักทั้งหมด (GUI, recorder, player)
+├── test_auto_macro.py   # unit tests (unittest)
+├── auto_macro.spec      # PyInstaller spec → build dist/AutoMouseMacro.exe
+├── build.bat            # สคริปต์ build .exe อัตโนมัติ
+├── run.bat              # รันโปรแกรมจากซอร์สด้วย py
+├── requirements.txt     # pynput + opencv-python + Pillow
+├── pic.png              # รูปตัวอย่างต้นแบบ
+├── docs/
+│   ├── README.md / .html
+│   ├── RESEARCH.md / .html
+│   ├── CHANGELOG.md / .html
+│   └── images/pic.png
+└── dist/AutoMouseMacro.exe   # ผลลัพธ์ build (สร้างโดย build.bat)
+```
+
+> ไฟล์ runtime ที่โปรแกรมสร้างเอง (ไม่ commit): `macro_conf.json`, `macro_profiles.json`,
+> `__pycache__/`, `build/`, `dist/` — ดู `.gitignore`
+
+## คำสั่งที่ใช้บ่อย
+
+```bash
+py -m pip install -r requirements.txt   # ติดตั้งไลบรารี
+py auto_macro.py                        # รันจากซอร์ส (หรือ run.bat)
+py -m unittest test_auto_macro -v       # รัน unit tests
+build.bat                               # build .exe (หรือ: py -m PyInstaller auto_macro.spec --noconfirm --clean)
+```
+
+> เครื่องนี้ `python` ใน PATH เป็น stub ของ Windows Store — **ใช้ `py` launcher แทนเสมอ**
+
+## สถาปัตยกรรมภายใน auto_macro.py
+
+- **`MacroApp`** — คลาสหลัก สร้าง UI ทั้งหมด (เมนูไอคอน, ตาราง Treeview, ปุ่ม START/STOP/REPEAT/RECORD, statusbar)
+- **โมเดลข้อมูล:** แต่ละแถวในตาราง = เหตุการณ์ 1 รายการ
+  `enabled(☑) / # / X / Y / Button(Action) / Additional / Mins / Secs / Repeat`
+  - คอลัมน์ `chk` เป็น checkbox จำลองด้วยอักขระ ☑/☐ (คลิกเพื่อสลับ)
+- **Recorder:** `pynput` Listener (เธรดแยก) จับ mouse click + key press ระหว่าง RECORD
+  - **ข้อควรระวัง:** listener thread ห้ามเรียก Tk API ตรง ๆ — ต้องผลักข้อมูลเข้า
+    `self._pending_rows` / `self._live_pos` / `self._live_key` แล้วให้ UI poller
+    (`_start_poller` ทุก 120 ms) ค่อยมาอัพเดตหน้าจอ — นี่คือรูปแบบ thread-safe ของโปรเจกต์นี้
+- **Player:** `threading.Thread` ไล่เล่นแถวที่ ☑ ตามลำดับ: `sleep(Mins*60+Secs)` →
+  ทำเหตุการณ์ (เมาส์: ย้ายพิกัด + press/release/click, คีย์: press/release/tap) วนตาม `Repeat`
+  - `STOP` ตั้ง `self.running = False` — ลูปเช็คทุกจุดและออกเอง
+- **Hotkey:** Tk binding (เมื่อโฟกัส) + `GlobalHotKeys` ของ pynput (กดได้แม้ไม่โฟกัส —
+  เธรดแยก ห้ามแตะ Tk ตรง ๆ ต้อง `root.after(0, ...)` ผลักงานเข้า main thread)
+  F6 เล่น / F8 หยุด / F9 บันทึก / F10 วนซ้ำไม่จำกัด
+- **โปรไฟล์:** `macro_profiles.json` เก็บ dict ชื่อโปรไฟล์ → รายการแถว
+  แถบเลือกโปรไฟล์อยู่ใต้เมนู (สร้าง/เปลี่ยนชื่อ/ลบ/สลับ — สลับก่อนบันทึกของเดิมอัตโนมัติ)
+- **Schedule:** เธรด `_sched_loop` ตรวจเวลาทุก 5 วิ ผลักคำสั่งเข้า `queue.Queue` →
+  UI poller (`_sched_poll` ทุก 500 ms) หยิบมาเล่น — โหมด "ทุก N นาที" และ "รายวัน HH:MM"
+- **Image Click:** Action `Image Click` + ช่อง Additional = ไฟล์ .png
+  (cv2.matchTemplate, threshold 0.80, คลิกจุดศูนย์กลาง; ปิดฟีเจอร์อัตโนมัติถ้าไม่มี opencv)
+- **Save/Load:** JSON รายแถว ฟิลด์ `enabled,x,y,button,additional,mins,secs,repeat`
+  - เปิด/ปิดโปรแกรมจะ autosave/autorestore ที่ `macro_conf.json` (อยู่ข้างสคริปต์)
+- **`parse_key()`:** แปลงข้อความ Additional → ออบเจ็กต์คีย์ pynput (รองรับชื่อพิเศษ เช่น
+  esc/ctrl/pgup/prtsc, ตัวอักษรเดี่ยว, ตัวเลข = virtual key code)
+
+## ข้อตกลงการเขียนโค้ด
+
+1. **เก็บทุกอย่างใน `auto_macro.py` ไฟล์เดียว** — อย่าแยกโมดูลเว้นแต่ผู้ใช้ขอ
+2. คอมเมนต์/ข้อความ UI/เอกสาร เป็น**ภาษาไทย**; ชื่อตัวแปร/ฟังก์ชัน เป็นภาษาอังกฤษ
+3. ไม่เพิ่ม dependency ใหม่โดยไม่จำเป็น (มาตรฐาน: stdlib + pynput เท่านั้น)
+4. โค้ดที่เกี่ยวกับ Tk ต้องรันบน main thread เท่านั้น — สื่อสารข้ามเธรดผ่าน dict สถานะ + poller
+5. แก้ UI ตารางแล้วต้องเรียก `refresh_nums()` เสมอ
+6. ทดสอบหลังแก้เสมอ: `py -m py_compile auto_macro.py`, `py -m unittest test_auto_macro -v`
+   และรัน `py auto_macro.py` สั้น ๆ (ใช้ `timeout 6 py auto_macro.py` แล้วเช็ค stderr)
+7. เพิ่มฟีเจอร์/แก้บั๊ก → อัพเดต `docs/CHANGELOG.md` + `.html` ด้วยเวอร์ชันใหม่ด้านบนสุด
+
+## เอกสาร (docs/)
+
+- ทุกเอกสารทำเป็นคู่ **.md + .html** (HTML สวยงาม เปิดในเบราว์เซอร์ได้ทันที) **ภาษาไทย**
+- HTML ใช้ CSS inline ในไฟล์ ไม่พึ่ง CDN (เปิดออฟไลน์ได้) ธีมสีเขียว/ฟ้าตามโปรแกรม
+- รูปประกอบอยู่ที่ `docs/images/` — อ้างแบบ relative (`images/pic.png`)
+- อัพเดต CHANGELOG ทุกครั้งที่เพิ่มฟีเจอร์/แก้บั๊ก โดยเพิ่มเวอร์ชันใหม่ด้านบนสุด

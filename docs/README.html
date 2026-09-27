@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Mouse &amp; Keyboard Macro v1.3 — คู่มือการใช้งาน</title>
+<style>
+  :root {
+    --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
+    --blue: #2563eb; --ink: #1e293b; --muted: #64748b;
+    --bg: #f4f7f6; --card: #ffffff; --line: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Noto Sans Thai", Tahoma, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75; font-size: 16px;
+  }
+  .hero {
+    background: linear-gradient(135deg, #1f7a34 0%, #2e9e46 55%, #3cb54a 100%);
+    color: #fff; padding: 48px 20px 42px; text-align: center;
+  }
+  .hero h1 { font-size: 2.1rem; margin-bottom: 8px; }
+  .hero p { opacity: .93; font-size: 1.05rem; }
+  .badges { margin-top: 16px; }
+  .badge {
+    display: inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.45);
+    border-radius: 999px; padding: 3px 14px; margin: 3px 4px; font-size: .82rem; color: #fff;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 60px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px 30px; margin: 22px 0; box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  h2 { color: var(--green-dark); font-size: 1.35rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  h3 { color: var(--ink); font-size: 1.05rem; margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  img.shot {
+    display: block; max-width: 520px; width: 100%; margin: 8px auto 4px;
+    border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 14px rgba(15,23,42,.10);
+  }
+  .caption { text-align: center; color: var(--muted); font-size: .88rem; margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .95rem; }
+  th { background: var(--green-bg); color: var(--green-dark); text-align: left; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafcfa; }
+  code {
+    background: #eef2ee; border: 1px solid #dbe7dc; border-radius: 6px;
+    padding: 1px 7px; font-family: Consolas, "Courier New", monospace; font-size: .9em; color: #17491f;
+  }
+  pre {
+    background: #10241a; color: #d7f5de; border-radius: 10px; padding: 16px 18px;
+    overflow-x: auto; font-family: Consolas, "Courier New", monospace; font-size: .9rem; line-height: 1.6;
+  }
+  pre code { background: none; border: none; color: inherit; padding: 0; }
+  .note {
+    background: var(--green-bg); border-left: 4px solid var(--green);
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0; font-size: .95rem;
+  }
+  .warn {
+    background: #fff7ed; border-left: 4px solid #f59e0b;
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0; font-size: .95rem;
+  }
+  ol, ul { padding-left: 26px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li { position: relative; padding: 10px 0 10px 52px; border-bottom: 1px dashed var(--line); }
+  .steps li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 10px; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--green); color: #fff; font-weight: 700; display: flex;
+    align-items: center; justify-content: center; font-size: 1rem;
+  }
+  kbd {
+    background: #1e293b; color: #fff; border-radius: 6px; padding: 2px 9px;
+    font-family: Consolas, monospace; font-size: .85em; box-shadow: 0 2px 0 #0f172a;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .links { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .links a {
+    background: var(--green-bg); border: 1px solid #bfe3c6; border-radius: 10px;
+    padding: 10px 18px; color: var(--green-dark); font-weight: 600;
+  }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 20px; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v1.4</p>
+  <div class="badges">
+    <span class="badge">Python 3.8+</span>
+    <span class="badge">Tkinter GUI</span>
+    <span class="badge">pynput 1.8.2</span>
+    <span class="badge">Windows</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>📸 หน้าตาโปรแกรม</h2>
+    <img class="shot" src="images/pic.png" alt="หน้าจอหลักของโปรแกรม Auto Mouse Macro">
+    <p class="caption">หน้าจอหลัก: ตารางคำสั่ง + ปุ่ม START / STOP / REPEAT / RECORD (ต้นแบบ Auto Mouse v1.3)</p>
+  </div>
+
+  <div class="card">
+    <h2>✨ ความสามารถ</h2>
+    <table>
+      <tr><th>ฟีเจอร์</th><th>รายละเอียด</th></tr>
+      <tr><td>🔴 <b>RECORD</b> (F9)</td><td>บันทึกการคลิกเมาส์และการกดคีย์แบบเรียลไทม์ พร้อมจับเวลาหน่วงอัตโนมัติ</td></tr>
+      <tr><td>▶️ <b>START</b> (F6)</td><td>เล่นสคริปต์ที่เปิดใช้ (☑) หนึ่งรอบ</td></tr>
+      <tr><td>🔁 <b>REPEAT</b></td><td>เล่นวนซ้ำต่อเนื่อง หรือติ๊ก "วนซ้ำไม่จำกัด" (F10) เพื่อวนตลอด</td></tr>
+      <tr><td>⏹️ <b>STOP</b> (F8)</td><td>หยุดทุกอย่างทันที</td></tr>
+      <tr><td>✅ <b>Checkbox รายแถว</b></td><td>เลือกได้ว่าแถวไหนจะถูกเล่น แถวไหนข้าม</td></tr>
+      <tr><td>✏️ <b>แก้ค่าในตาราง</b></td><td>ดับเบิลคลิกช่องไหนก็ได้เพื่อแก้ Action / คีย์ / เวลา / Repeat</td></tr>
+      <tr><td>🎯 <b>จับพิกัดเมาส์</b></td><td>ดับเบิลคลิกช่อง X หรือ Y → นับถอยหลัง 3 วิ → จับตำแหน่งเมาส์ปัจจุบัน</td></tr>
+      <tr><td>💾 <b>Save / Load</b></td><td>เก็บสคริปต์เป็นไฟล์ <code>.json</code> + autosave ตอนปิดโปรแกรม</td></tr>
+      <tr><td>🖥️ <b>Live statusbar</b></td><td>แสดงพิกัดเมาส์และคีย์ที่กดล่าสุดแบบสด ๆ</td></tr>
+      <tr><td>📦 <b>แพ็กเป็น .exe</b></td><td>รัน <code>build.bat</code> → ได้ไฟล์เดียว <code>dist/AutoMouseMacro.exe</code> ไม่ต้องติดตั้ง Python</td></tr>
+      <tr><td>🌐 <b>Global Hotkey</b></td><td>F6/F8/F9/F10 กดได้แม้โปรแกรมไม่ได้โฟกัส</td></tr>
+      <tr><td>🖼️ <b>คลิกตามภาพ</b></td><td>ระบุไฟล์ .png → หาบนหน้าจอด้วย OpenCV แล้วคลิกให้เอง</td></tr>
+      <tr><td>🎛️ <b>โปรไฟล์</b></td><td>เก็บหลายสคริปต์สลับใช้ (งานบ้าน / เกม A / เกม B)</td></tr>
+      <tr><td>⏰ <b>เล่นตามเวลา</b></td><td>ตั้งเล่นอัตโนมัติ "ทุก N นาที" หรือ "ทุกวัน HH:MM"</td></tr>
+    </table>
+
+    <h3>คำสั่งที่รองรับในตาราง</h3>
+    <p><b>เมาส์:</b> Left Click / Left Down / Left Up / Right Click / Right Down / Right Up / Middle Click / Middle Down / Middle Up</p>
+    <p><b>คีย์บอร์ด:</b> Tap Key / Press Key / Release Key — ช่อง Additional ใส่ชื่อคีย์ เช่น <code>a</code> <code>space</code> <code>enter</code> <code>esc</code> <code>ctrl</code> <code>f1</code>–<code>f12</code> <code>pgup</code> <code>prtsc</code> หรือรหัส virtual key เช่น <code>27</code></p>
+    <p><b>คลิกตามภาพ:</b> Image Click — ช่อง Additional ใส่ชื่อไฟล์ .png (เช่น <code>button.png</code>)
+    โปรแกรมจะจับภาพหน้าจอ หาตำแหน่งของภาพนั้น แล้วคลิกที่จุดศูนย์กลางให้เอง
+    <br><small>ต้องติดตั้งเพิ่ม: <code>pip install opencv-python Pillow</code> — ถ้าไม่ติดตั้ง ฟีเจอร์อื่นยังใช้ได้ปกติ</small></p>
+  </div>
+
+  <div class="card">
+    <h2>🚀 เริ่มใช้งานเร็ว ๆ</h2>
+
+    <h3>วิธีที่ 1 — ใช้ไฟล์ .exe สำเร็จรูป (แนะนำ)</h3>
+<pre><code>build.bat        # build ครั้งเดียว → dist\AutoMouseMacro.exe</code></pre>
+    <p>จากนั้นดับเบิลคลิก <code>dist\AutoMouseMacro.exe</code> ได้เลย <b>ไม่ต้องติดตั้ง Python</b></p>
+
+    <h3>วิธีที่ 2 — รันจากซอร์ส</h3>
+<pre><code>py -m pip install -r requirements.txt    # ติดตั้ง pynput
+run.bat                                  # หรือ: py auto_macro.py</code></pre>
+
+    <div class="note">💡 ต้องมี <b>Python 3.8+</b> (แนะนำ 3.12 ขึ้นไป) — โหลดที่
+    <a href="https://www.python.org/downloads/">python.org/downloads</a>
+    ถ้าเครื่องมีแค่ Windows Store stub ให้ใช้คำสั่ง <code>py</code> แทน <code>python</code></div>
+
+    <h3>🧪 ทดลองใช้ครั้งแรกใน 60 วินาที</h3>
+    <ol class="steps">
+      <li>กด <kbd>F9</kbd> (RECORD) → สถานะเปลี่ยนเป็น "กำลังบันทึก"</li>
+      <li>คลิกที่ใดก็ได้บนจอ 2–3 จุด แล้วกด <kbd>F9</kbd> อีกครั้งเพื่อหยุด</li>
+      <li>กด <kbd>START</kbd> (F6) → เมาส์จะเล่นซ้ำทุกคลิกที่เพิ่งทำ</li>
+      <li>ลองกด <kbd>REPEAT</kbd> ให้วนตลอด แล้วหยุดด้วย <kbd>F8</kbd></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>📖 คู่มือการใช้งาน</h2>
+
+    <h3>ทำความรู้จักตาราง</h3>
+    <table>
+      <tr><th>คอลัมน์</th><th>ความหมาย</th></tr>
+      <tr><td>☑</td><td>เปิด/ปิดการใช้แถวนี้ (คลิกเพื่อสลับ)</td></tr>
+      <tr><td>#</td><td>ลำดับแถว</td></tr>
+      <tr><td>X, Y</td><td>พิกัดจุดที่จะย้ายเมาส์ไปก่อนคลิก</td></tr>
+      <tr><td>Button / Action</td><td>คำสั่ง: คลิกเมาส์ หรือ กดคีย์</td></tr>
+      <tr><td>Additional</td><td>ชื่อคีย์ (เฉพาะคำสั่งคีย์บอร์ด)</td></tr>
+      <tr><td>Mins / Secs</td><td>เวลารอ <b>ก่อน</b> ทำคำสั่งในแถวนั้น</td></tr>
+      <tr><td>Repeat</td><td>จำนวนครั้งที่ทำคำสั่งนี้ซ้ำในแถวเดียว</td></tr>
+    </table>
+
+    <h3>การแก้ไขตาราง</h3>
+    <ul>
+      <li><b>ดับเบิลคลิกช่อง X / Y</b> → นับถอยหลัง 3 วิ แล้วจับพิกัดเมาส์ปัจจุบันให้อัตโนมัติ</li>
+      <li><b>ดับเบิลคลิกช่องอื่น</b> → เปิดหน้าต่างแก้ค่า (Action เป็น dropdown, ช่องเวลาพิมพ์ได้)</li>
+      <li><b>ปุ่มเสริม:</b> ＋ เพิ่มบรรทัด / － ลบที่เลือก / ▲▼ เลื่อนลำดับ / ล้างทั้งหมด / ปุ่ม <kbd>Delete</kbd></li>
+    </ul>
+
+    <h3>🎛️ โปรไฟล์ และ ⏰ เล่นอัตโนมัติตามเวลา</h3>
+    <ul>
+      <li><b>แถบ "โปรไฟล์"</b> ใต้เมนู — เก็บสคริปต์ได้หลายชุด สลับใช้ได้ทันที (เก็บใน <code>macro_profiles.json</code>)</li>
+      <li><b>ปุ่ม "⏰ เล่นอัตโนมัติ..."</b> — ตั้งเล่นโปรไฟล์ปัจจุบัน "ทุก N นาที" หรือ "ทุกวัน เวลา HH:MM"
+        (เล่นวน 1 รอบจบ หยุดได้ด้วย <kbd>F8</kbd>)</li>
+    </ul>
+
+    <h3>คีย์ลัดทั้งหมด (Global — กดได้แม้ไม่โฟกัสหน้าต่าง)</h3>
+    <table>
+      <tr><th>คีย์</th><th>ทำอะไร</th></tr>
+      <tr><td><kbd>F6</kbd></td><td>เริ่มเล่นสคริปต์</td></tr>
+      <tr><td><kbd>F8</kbd></td><td>หยุดทั้งหมด</td></tr>
+      <tr><td><kbd>F9</kbd></td><td>เริ่ม/หยุดบันทึก</td></tr>
+      <tr><td><kbd>F10</kbd></td><td>สลับวนซ้ำไม่จำกัด</td></tr>
+      <tr><td><kbd>Delete</kbd></td><td>ลบแถวที่เลือก</td></tr>
+      <tr><td><kbd>Double-click</kbd></td><td>แก้ค่าในเซลล์</td></tr>
+    </table>
+
+    <div class="warn">⚠️ ถ้าโปรแกรมอื่นใช้คีย์ F6–F10 อยู่ global hotkey อาจถูกแทนที่ —
+    ดูสถานะได้ที่เมนู Settings (กรณีนี้คีย์จะทำงานเมื่อโฟกัสหน้าต่างโปรแกรมเท่านั้น)</div>
+  </div>
+
+  <div class="card">
+    <h2>📦 Build เป็น .exe เอง</h2>
+<pre><code>build.bat                                # หรือแบบชัดเจน:
+py -m PyInstaller auto_macro.spec --noconfirm --clean</code></pre>
+    <p>ผลลัพธ์: <code>dist/AutoMouseMacro.exe</code> (ไฟล์เดียว ~13 MB, GUI ไม่มี console)</p>
+
+    <h3>โครงสร้างโปรเจกต์</h3>
+<pre><code>├── auto_macro.py        # โปรแกรมหลักทั้งหมด (ไฟล์เดียวจบ)
+├── test_auto_macro.py   # unit tests (unittest)
+├── auto_macro.spec      # ไฟล์ spec ของ PyInstaller
+├── build.bat            # สคริปต์ build .exe
+├── run.bat              # สคริปต์รันจากซอร์ส
+├── requirements.txt     # dependencies
+├── pic.png              # รูปต้นแบบ
+└── docs/                # เอกสารทั้งหมด (md + html)
+    ├── README.md / README.html
+    ├── RESEARCH.md / RESEARCH.html
+    ├── CHANGELOG.md / CHANGELOG.html
+    └── images/pic.png</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>🧪 ทดสอบ</h2>
+<pre><code>py -m unittest test_auto_macro -v    # 29 unit tests</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>📚 เอกสารเพิ่มเติม</h2>
+    <div class="links">
+      <a href="RESEARCH.html">🔬 RESEARCH — เทคนิคการควบคุมเมาส์/คีย์บอร์ด</a>
+      <a href="CHANGELOG.html">📋 CHANGELOG — ประวัติการเปลี่ยนแปลง</a>
+    </div>
+  </div>
+
+</div>
+
+<footer>Auto Mouse &amp; Keyboard Macro v1.3 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
+
+</body>
+</html>

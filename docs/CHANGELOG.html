@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHANGELOG — Auto Mouse &amp; Keyboard Macro</title>
+<style>
+  :root {
+    --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
+    --blue: #2563eb; --ink: #1e293b; --muted: #64748b;
+    --bg: #f4f7f6; --card: #fff; --line: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Noto Sans Thai", Tahoma, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75; font-size: 16px;
+  }
+  .hero {
+    background: linear-gradient(135deg, #6d28d9 0%, #8b5cf6 55%, #a78bfa 100%);
+    color: #fff; padding: 44px 20px 40px; text-align: center;
+  }
+  .hero h1 { font-size: 2rem; margin-bottom: 6px; }
+  .hero p { opacity: .92; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px 32px; margin: 22px 0; box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  .version {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 2px solid var(--green-bg); padding-bottom: 10px; margin-bottom: 16px;
+  }
+  .version h2 { color: var(--green-dark); font-size: 1.35rem; }
+  .date { color: var(--muted); font-size: .92rem; }
+  .tag {
+    background: var(--green); color: #fff; border-radius: 999px;
+    font-size: .72rem; padding: 2px 12px; letter-spacing: .5px;
+  }
+  .tag.latest { background: var(--green); }
+  .tag.plan { background: #94a3b8; }
+  h3 { font-size: 1rem; margin: 16px 0 8px; color: #334155; }
+  ul { padding-left: 24px; }
+  li { margin: 7px 0; }
+  code {
+    background: #eef2ee; border: 1px solid #dbe7dc; border-radius: 6px;
+    padding: 1px 7px; font-family: Consolas, "Courier New", monospace; font-size: .9em; color: #17491f;
+  }
+  .links { text-align: center; margin-top: 10px; }
+  .links a {
+    background: var(--green-bg); border: 1px solid #bfe3c6; border-radius: 10px;
+    padding: 10px 18px; color: var(--green-dark); font-weight: 600; text-decoration: none;
+    display: inline-block; margin: 4px;
+  }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 20px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>📋 CHANGELOG</h1>
+  <p>ประวัติการเปลี่ยนแปลงของ Auto Mouse &amp; Keyboard Macro</p>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.4.0</h2>
+      <span class="tag latest">ล่าสุด</span>
+      <span class="date">27 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เพิ่มใหม่</h3>
+    <ul>
+      <li><b>🌐 Global Hotkey</b> — F6/F8/F9/F10 กดได้แม้โปรแกรมไม่ได้โฟกัส
+        (ใช้ <code>pynput.keyboard.GlobalHotKeys</code>; ถ้าคีย์ชนกับโปรแกรมอื่นจะแจ้งเตือน
+        และ fallback ไปใช้แบบโฟกัสหน้าต่างเหมือนเดิม)</li>
+      <li><b>🖼️ คลิกตามภาพ (Image Click)</b> — Action ใหม่ในตาราง: ระบุไฟล์ .png ในช่อง Additional
+        โปรแกรมจะจับภาพหน้าจอ หาตำแหน่งภาพด้วย OpenCV template matching (threshold 80%)
+        แล้วคลิกที่จุดศูนย์กลาง — ใช้เมื่อพิกัดเลื่อนไม่แน่นอน<br>
+        <small>ติดตั้งเพิ่ม: <code>pip install opencv-python Pillow</code>
+        (ถ้าไม่ติดตั้ง ฟีเจอร์อื่นยังใช้ได้ปกติ)</small></li>
+      <li><b>🎛️ ระบบโปรไฟล์</b> — แถบเลือกโปรไฟล์ใต้เมนู: สร้าง/เปลี่ยนชื่อ/ลบ/สลับได้หลายสคริปต์
+        เก็บใน <code>macro_profiles.json</code> (เช่น "งานบ้าน", "เกม A", "เกม B")</li>
+      <li><b>⏰ เล่นอัตโนมัติตามเวลา (Schedule)</b> — ตั้งให้เล่น "ทุก N นาที" หรือ
+        "ทุกวัน เวลา HH:MM" — เธรดตรวจเวลาแยกจาก UI ปลอดภัยต่อเธรด (ผ่าน queue)</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม <code>test_auto_macro.py</code> — <b>29 unit tests</b> สำหรับฟังก์ชันล้วน
+        (<code>parse_key</code>, <code>delay_seconds</code>, <code>fmt_num</code>,
+        <code>parse_int</code>, <code>re_match_hhmm</code>, ค่าคงที่ และ mapping ของ global hotkey)<br>
+        <small>รัน: <code>py -m unittest test_auto_macro -v</code></small></li>
+    </ul>
+
+    <h3>📦 Build</h3>
+    <ul>
+      <li>อัพเดท <code>requirements.txt</code> เพิ่ม opencv-python + Pillow</li>
+      <li>.exe ขนาด ~72 MB เพราะรวม OpenCV — ถ้าต้องการไฟล์เล็กแบบเดิม
+        ลบ opencv-python/Pillow ออกจาก requirements แล้ว build ใหม่</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.3.0</h2>
+      <span class="date">27 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เพิ่มใหม่ — โปรแกรมหลัก</h3>
+    <ul>
+      <li><b>GUI ภาษาไทย</b> ตามต้นแบบ Auto Mouse v1.3: ตารางคำสั่ง
+        (# / X / Y / Button / Additional / Mins / Secs / Repeat) +
+        ปุ่ม START / STOP / REPEAT / RECORD</li>
+      <li><b>โหมดบันทึกเรียลไทม์ (F9)</b> — จับการคลิกเมาส์และกดคีย์ พร้อมจับเวลาหน่วง (Secs) อัตโนมัติ</li>
+      <li><b>เล่นสคริปต์ (F6)</b> และ <b>เล่นวนซ้ำ (REPEAT)</b> พร้อมตัวเลือก "วนซ้ำไม่จำกัด" (F10)</li>
+      <li><b>คำสั่งคีย์บอร์ด</b> — Tap Key / Press Key / Release Key รองรับชื่อคีย์พิเศษ
+        (space, enter, esc, ctrl, shift, alt, win, f1–f12, ลูกศร, pgup/pgdn, prtsc ฯลฯ)
+        และรหัส virtual key ตัวเลข</li>
+      <li><b>จับพิกัดเมาส์อัตโนมัติ</b> — ดับเบิลคลิกช่อง X/Y นับถอยหลัง 3 วิ แล้วใส่ตำแหน่งเมาส์ปัจจุบัน</li>
+      <li><b>แก้ค่าในตาราง</b> — ดับเบิลคลิกช่องอื่นเปิดหน้าต่างแก้ค่า (Action เป็น dropdown)</li>
+      <li><b>Checkbox เปิด/ปิดรายแถว</b> (☑/☐) + เครื่องมือจัดการแถว:
+        เพิ่ม / ลบ / เลื่อนขึ้นลง / ล้างทั้งหมด</li>
+      <li><b>Save / Load สคริปต์ .json</b> + autosave (<code>macro_conf.json</code>) ตอนปิดโปรแกรม</li>
+      <li><b>Live statusbar</b> — พิกัดเมาส์และคีย์ที่กดล่าสุดแบบสด + ไฮไลต์แถวที่กำลังเล่น</li>
+      <li><b>คีย์ลัด</b> — F6 / F8 / F9 / F10 / Delete</li>
+      <li><b>เมนูไอคอน</b> — Save, Load, Settings, About, Help, Exit (ภาษาไทยทั้งหมด)</li>
+    </ul>
+
+    <h3>📦 Build &amp; การแจกจ่าย</h3>
+    <ul>
+      <li><code>build.bat</code> + <code>auto_macro.spec</code> — build ไฟล์เดียว
+        <code>dist/AutoMouseMacro.exe</code> (~13 MB, onefile, ไม่มี console)
+        ด้วย PyInstaller <b>ทดสอบรันจริงแล้ว</b></li>
+      <li><code>run.bat</code> — รันจากซอร์สด้วย <code>py</code> launcher</li>
+      <li><code>requirements.txt</code> — pynput&gt;=1.7.6 (ติดตั้งจริง 1.8.2 บน Python 3.14.7)</li>
+    </ul>
+
+    <h3>📚 เอกสาร</h3>
+    <ul>
+      <li><code>AGENTS.md</code> — แนวทางสำหรับ AI agent / นักพัฒนา</li>
+      <li>โฟลเดอร์ <code>docs/</code> — README / RESEARCH / CHANGELOG ทั้ง <b>.md และ .html</b>
+        ภาษาไทย เปิดออฟไลน์ได้ (CSS ฝังในไฟล์) พร้อมรูปประกอบใน <code>docs/images/</code></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>กำลังจะมา</h2>
+      <span class="tag plan">Unreleased</span>
+    </div>
+    <h3>🎯 วางแผนไว้</h3>
+    <ul>
+      <li>🐢 ตัวคูณความเร็ว 0.5× / 1× / 2×</li>
+      <li>📊 แถบ progress และตัวนับรอบเวลาเล่นแบบวนซ้ำ</li>
+      <li>🖼️ โซนค้นหาภาพ (search area) แบบระบุพิกัดได้สำหรับ Image Click</li>
+      <li>✂️ บันทึกภาพตัวอย่าง (crop) จากในโปรแกรมโดยไม่ต้องใช้ editor ภายนอก</li>
+    </ul>
+  </div>
+
+  <div class="links">
+    <a href="README.html">← หน้า README</a>
+    <a href="RESEARCH.html">🔬 เอกสารวิจัย</a>
+  </div>
+
+</div>
+
+<footer>Auto Mouse &amp; Keyboard Macro • รูปแบบอ้างอิง Keep a Changelog / Semantic Versioning</footer>
+
+</body>
+</html>

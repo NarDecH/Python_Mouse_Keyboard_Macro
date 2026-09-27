@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ผลลัพธ์ build
+build/
+dist/
+*.spec.bak
+
+# ไฟล์ config ที่โปรแกรมสร้างเอง (ของผู้ใช้แต่ละคน)
+macro_conf.json
+macro_profiles.json
+
+# ไฟล์ภาพสำหรับ Image Click ของผู้ใช้ (ภาพจอของแต่ละคนต่างกัน)
+*.png
+!pic.png
+!docs/images/*.png
+
+# ตัวติดตั้ง / ผลลัพธ์ build ใหญ่ (build ใหม่ได้ด้วย build.bat ไม่ควรเก็บใน git)
+*.exe
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# อื่น ๆ
+*.log
+
+# Codebuff workspace
+.freebuff/

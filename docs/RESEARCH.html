@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESEARCH — เทคนิคเบื้องหลัง Auto Mouse &amp; Keyboard Macro</title>
+<style>
+  :root {
+    --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
+    --blue: #2563eb; --ink: #1e293b; --muted: #64748b;
+    --bg: #f4f7f6; --card: #fff; --line: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Noto Sans Thai", Tahoma, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75; font-size: 16px;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0f5e7a 0%, #12829c 60%, #17a3b8 100%);
+    color: #fff; padding: 44px 20px 40px; text-align: center;
+  }
+  .hero h1 { font-size: 2rem; margin-bottom: 6px; }
+  .hero p { opacity: .92; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 60px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px 30px; margin: 22px 0; box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  h2 { color: #0e6e86; font-size: 1.3rem; margin-bottom: 12px; }
+  h3 { font-size: 1.02rem; margin: 16px 0 6px; }
+  p { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .94rem; }
+  th { background: #e4f4f8; color: #0e6e86; text-align: left; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafdfe; }
+  code {
+    background: #eaf5f0; border: 1px solid #d3e8dd; border-radius: 6px;
+    padding: 1px 7px; font-family: Consolas, "Courier New", monospace; font-size: .9em; color: #14532d;
+  }
+  pre {
+    background: #0d2430; color: #cfeef7; border-radius: 10px; padding: 16px 18px;
+    overflow-x: auto; font-family: Consolas, "Courier New", monospace; font-size: .88rem; line-height: 1.55;
+  }
+  .note {
+    background: #e4f4f8; border-left: 4px solid #12829c;
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0; font-size: .95rem;
+  }
+  .warn {
+    background: #fff7ed; border-left: 4px solid #f59e0b;
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0; font-size: .95rem;
+  }
+  ol, ul { padding-left: 26px; margin: 8px 0; }
+  li { margin: 6px 0; }
+  img.shot {
+    display: block; max-width: 440px; width: 100%; margin: 10px auto 2px;
+    border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 14px rgba(15,23,42,.10);
+  }
+  .caption { text-align: center; color: var(--muted); font-size: .86rem; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 20px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🔬 RESEARCH</h1>
+  <p>เทคนิคเบื้องหลัง Auto Mouse &amp; Keyboard Macro — การเลือกเครื่องมือ สถาปัตยกรรม และบทเรียนจากการทดลอง</p>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>1. ทำไมต้องทำโปรแกรมนี้</h2>
+    <p>งานซ้ำ ๆ บนคอมพิวเตอร์ เช่น คลิกปุ่มเดิม, กรอกฟอร์มเดิม, ฟาร์มไอเทมในเกม สามารถมอบหมายให้โปรแกรมทำแทนได้
+    แนวคิดคือ <b>"สคริปต์เหตุการณ์"</b> — รายการเหตุการณ์เมาส์/คีย์ที่เรียงลำดับกัน พร้อมเวลาหน่วงระหว่างขั้น
+    โปรแกรมจะอ่านสคริปต์แล้วจำลองการกด/คลิกแทนมือผู้ใช้</p>
+    <p>ต้นแบบที่ใช้เทียบคือ <b>Auto Mouse v1.3</b> (ดูรูป): ตาราง
+    <code># / X / Y / Button / Additional / Mins / Secs / Repeat</code>
+    + ปุ่ม START / STOP / REPEAT / RECORD ซึ่งเป็น UX ที่เข้าใจง่ายและตรงจุด</p>
+    <img class="shot" src="images/pic.png" alt="ต้นแบบ Auto Mouse v1.3">
+    <p class="caption">ต้นแบบ Auto Mouse v1.3 ที่ใช้เป็นข้อกำหนด UX</p>
+  </div>
+
+  <div class="card">
+    <h2>2. การเลือกเครื่องมือ (Technology Survey)</h2>
+    <table>
+      <tr><th>ตัวเลือก</th><th>ข้อดี</th><th>ข้อเสีย</th><th>ผลการพิจารณา</th></tr>
+      <tr><td><b>Python + pynput</b></td><td>API สั้น เข้าใจง่าย, ครอบคลุมเมาส์+คีย์, cross-platform, ติดตั้งง่าย</td><td>บน macOS ต้องผ่าน Accessibility permission</td><td>✅ <b>เลือกใช้</b></td></tr>
+      <tr><td>Python + pyautogui</td><td>เอกสารดี, มี screenshot/locateOnScreen</td><td>ไม่มี Listener บันทึกเหตุการณ์, บน Linux พึ่ง X11 tools</td><td>ผ่าน</td></tr>
+      <tr><td>Python + pydirectinput</td><td>ยิง DirectInput ตรง เหมาะกับเกมที่ไม่รับ synthetic input</td><td>ไม่มี Listener, ใช้ได้เฉพาะ Windows</td><td>ผ่าน (ต่อยอดภายหลัง)</td></tr>
+      <tr><td>AutoHotkey (AHK)</td><td>ภาษาสคริปต์เฉพาะทาง แข็งแรงมากบน Windows</td><td>เป็นภาษาใหม่ต้องเรียน, นอก ecosystem ของโปรเจกต์</td><td>ผ่าน</td></tr>
+      <tr><td>C# + WinForms</td><td>Native Windows, แรง</td><td>ผูกกับ Windows, build ยาวกว่า</td><td>ผ่าน</td></tr>
+      <tr><td>Electron/Node.js</td><td>UI สวยได้ง่าย</td><td>ตัวโปรแกรมใหญ่โดยไม่จำเป็น, robotjs ดูแลไม่ค่อยต่อ</td><td>ผ่าน</td></tr>
+    </table>
+    <div class="note">ข้อสรุป: <b>Python + pynput</b> ให้ต้นทุนต่ำสุดทั้งการพัฒนาและการแจกจ่าย
+    และ Tkinter (มากับ Python) เพียงพอสำหรับ UI แบบตาราง + ปุ่มตามต้นแบบ</div>
+  </div>
+
+  <div class="card">
+    <h2>3. สถาปัตยกรรม: Event List → Player</h2>
+<pre>┌─────────────┐   ผลักเหตุการณ์เข้าคิว    ┌──────────────┐
+│ pynput      │ ────────────────────────▶ │ _pending_rows │ (list ธรรมดา)
+│ Listeners   │  (เธรดของ listener)        │  + _live_pos  │
+│ (เมาส์+คีย์) │                           └──────┬───────┘
+└─────────────┘                                  │ poll ทุก 120 ms (main thread)
+                                                 ▼
+┌─────────────┐   ตั้งค่า state dict      ┌──────────────┐
+│ Player      │ ────────────────────────▶ │   UI update   │
+│ (เธรดแยก)    │  (row ที่กำลังเล่น, msg)   │  (Tk mainloop)│
+└─────────────┘                           └──────────────┘</pre>
+    <h3>กฎเหล็กของ Tkinter</h3>
+    <p>โค้ดที่แตะ widget ต้องรันบน main thread เท่านั้น — การเรียก <code>root.after()</code>
+    หรือแก้ widget จาก listener thread เป็น race condition เงียบ ๆ ที่พังบ้างบางครั้ง ยากต่อการ debug</p>
+    <div class="note"><b>ทางแก้ที่เลือก:</b> เธรดอื่นเขียนข้อมูลลง "กล่องจดหมาย" (ตัวแปร/list ธรรมดา)
+    → main thread มาเก็บเองทุก 120 ms ผ่าน <code>root.after()</code>
+    ปลอดภัยโดยไม่ต้องใช้ Lock เพราะการ assign ตัวแปรเดี่ยวและ append เข้า list ใน CPython
+    คือ atomic พอสำหรับ use case นี้</div>
+  </div>
+
+  <div class="card">
+    <h2>4. เทคนิคที่ทดลองแล้ว</h2>
+
+    <h3>4.1 บันทึกเหตุการณ์ (Recorder)</h3>
+    <ul>
+      <li>ใช้ <code>mouse.Listener(on_move, on_click)</code> + <code>keyboard.Listener(on_press)</code></li>
+      <li>ตอน RECORD: ทุก click ที่ <code>pressed=True</code> จะถูกจด พร้อม
+        <code>round(time.time() - t0, 2)</code> เป็นคอลัมน์ Secs → เล่นซ้ำได้จังหวะเดิม</li>
+      <li>คีย์ที่จดได้: <code>key.char</code> (ตัวอักษร) หรือ <code>str(key)</code> ตัด <code>Key.</code>
+        (คีย์พิเศษ) — กรองเฉพาะชื่อสั้น ≤ 12 ตัวอักษรเพื่อไม่ให้คอลัมน์ Additional รก</li>
+      <li><b>ไม่จด <code>on_release</code></b> — การจด press+release ทำให้ตารางยาวเป็น 2 เท่าโดยไม่จำเป็น
+        (มี Action <code>Press/Release Key</code> ไว้ใช้เมื่อต้องการจับคู่เอง)</li>
+    </ul>
+
+    <h3>4.2 เล่นเหตุการณ์ (Player)</h3>
+    <ul>
+      <li>เมาส์: ตั้ง <code>mouse_ctl.position = (x, y)</code> แล้ว <code>time.sleep(0.03)</code>
+        ให้ OS ทันก่อน <code>press/release/click</code></li>
+      <li>Down/Up แยกกัน = ทำ drag ได้: <code>Left Down → (ย้ายพิกัด) → Left Up</code></li>
+      <li>คีย์: <code>kb_ctl.press/release/tap(k)</code> โดยแปลงชื่อผ่าน <code>parse_key()</code></li>
+      <li>เวลาหน่วง: <code>Mins*60 + Secs</code> (รองรับทศนิยมและลูกน้ำสไตล์ยุโรป เช่น "0,5")</li>
+      <li><code>Repeat</code> ทำซ้ำในแถวเดียว; ปุ่ม REPEAT วนทั้งสคริปต์; F10 บังคับวนตลอด</li>
+      <li>การหยุด: <code>running = False</code> → ลูปเช็คก่อน/หลังทุก <code>sleep</code> และทุก step
+        → หยุดได้ทันทีแม้อยู่กลาง sleep</li>
+    </ul>
+
+    <h3>4.3 แก้ตารางแบบไม่ต้องพิมพ์พิกัด</h3>
+    <ul>
+      <li>ดับเบิลคลิกช่อง X/Y → นับถอยหลัง 3 วิ → <code>mouse_ctl.position</code> ตอนหมดเวลา → ใส่ค่าให้เอง</li>
+      <li>ดับเบิลคลิกช่อง Action/Additional → หน้าต่าง Combobox (readonly) กันสะกดผิด</li>
+    </ul>
+
+    <h3>4.4 การเก็บสคริปต์</h3>
+    <ul>
+      <li>ไฟล์ <code>.json</code> รายการของ <code>{enabled, x, y, button, additional, mins, secs, repeat}</code></li>
+      <li>เปิด/ปิดโปรแกรม autosave ที่ <code>macro_conf.json</code> ข้างสคริปต์</li>
+      <li>ใช้ <code>ensure_ascii=False</code> เพื่อให้เปิดไฟล์ด้วย editor ธรรมดาแล้วอ่านรู้เรื่อง</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5. ฟีเจอร์ v1.4: Global Hotkey, Image Click, โปรไฟล์, Schedule</h2>
+
+    <h3>5.1 Global Hotkey (กด F6/F8/F9/F10 ได้แม้ไม่โฟกัส)</h3>
+    <ul>
+      <li>ใช้ <code>pynput.keyboard.GlobalHotKeys</code> — listener เธรดแยก เหมือน recorder</li>
+      <li>callback จากเธรดของ pynput <b>ห้ามแตะ Tk ตรง ๆ</b> จึงผลักงานเข้า main thread ด้วย
+        <code>root.after(0, fn)</code></li>
+      <li>ถ้าโปรแกรมอื่นจับคีย์เดียวกันไว้ก่อน pynput จะ error ตอน register →
+        จับ exception แล้ว fallback ไปใช้ Tk binding แบบเดิม + แจ้งสถานะใน Settings</li>
+    </ul>
+
+    <h3>5.2 Image Click (คลิกตามภาพ)</h3>
+    <ul>
+      <li><b>ทำไม:</b> พิกัด (X,Y) ใช้ไม่ได้เมื่อหน้าต่าง/ปุ่มเลื่อนตำแหน่ง — หาจาก "ลักษณะภาพ" ทนทานกว่า</li>
+      <li><b>วิธี:</b> <code>PIL.ImageGrab.grab()</code> จับหน้าจอ →
+        <code>cv2.matchTemplate(TM_CCOEFF_NORMED)</code> → ความมั่นใจ ≥ 0.80 → คลิกจุดศูนย์กลาง</li>
+      <li><b>DPI/scaling:</b> Windows scaling ทำให้พิกัดเบี่ยง แต่เทียบภาพ-กับ-ภาพจากแหล่งเดียวกันจึงยังใช้ได้</li>
+      <li><b>dependency เป็นตัวเลือก:</b> ห่อ import ด้วย try/except ตั้ง <code>HAS_CV</code> —
+        ไม่มี opencv โปรแกรมก็ยังเปิดได้ แถว Image Click แจ้งเตือนตอนเล่นแทนการ crash</li>
+      <li><b>Trade-off:</b> .exe โต 13 → 72 MB เพราะ OpenCV+numpy
+        (ไม่ต้องการก็ลบ opencv ออกจาก environment แล้ว build ใหม่)</li>
+    </ul>
+
+    <h3>5.3 โปรไฟล์หลายสคริปต์</h3>
+    <ul>
+      <li><code>macro_profiles.json</code> = dict ชื่อโปรไฟล์ → รายการแถว (โครง JSON เดิมต่อโปรไฟล์)</li>
+      <li>สลับโปรไฟล์ = เซฟตารางปัจจุบันลงโปรไฟล์เดิมก่อนเสมอ แล้วค่อยโหลดอันใหม่ (กันข้อมูลหาย)</li>
+      <li>ห้ามสลับระหว่างกำลังเล่น/บันทึก (ตรวจ <code>self.running</code> / <code>self.recording</code>)</li>
+    </ul>
+
+    <h3>5.4 Schedule (เล่นอัตโนมัติตามเวลา)</h3>
+    <ul>
+      <li><b>โจทย์:</b> ตรวจเวลาตลอดแต่ <b>ห้ามบล็อก UI</b> และห้ามเล่นจากเธรด scheduler โดยตรง</li>
+      <li><b>แก้:</b> เธรด <code>_sched_loop</code> ตรวจทุก 5 วิ → ผลัก <code>"play"</code> เข้า
+        <code>queue.Queue</code> → <code>_sched_poll</code> (main thread, ทุก 500 ms) หยิบมาเริ่มเล่นเอง —
+        จุดเดียวที่เริ่มเล่นจริงคือ main thread เสมอ</li>
+      <li><b>โหมด:</b> "ทุก N นาที" (เทียบ <code>now &gt;= next</code>) และ "รายวัน HH:MM"
+        (เทียบ timestamp + เก็บ stamp ล่าสุดกันยิงซ้ำในนาทีเดียว)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>6. เทียบคีย์แบบ synthetic: SendInput vs DirectInput</h2>
+    <p>ประเด็นสำคัญของ macro บน Windows: เกม/แอปบางตัวอ่าน input ผ่าน <b>DirectInput/Raw Input</b>
+    ซึ่งไม่สนใจ event ที่ flag เป็น "injected"</p>
+    <table>
+      <tr><th></th><th>pynput (ใช้ในโปรเจกต์นี้)</th><th>pydirectinput</th></tr>
+      <tr><td>วิธียิง</td><td>SendInput (flag injected)</td><td>SendInput (scan code แบบ DirectInput)</td></tr>
+      <tr><td>งานทั่วไป / ธุรการ</td><td>✅ เวิร์คทุกแอปทั่วไป</td><td>✅</td></tr>
+      <tr><td>เกมสามัญที่รับ injected</td><td>✅ ส่วนใหญ่</td><td>✅</td></tr>
+      <tr><td>เกมที่กรอง injected</td><td>❌</td><td>✅ (ต้องต่อ lib เอง)</td></tr>
+      <tr><td>มี Listener บันทึก</td><td>✅</td><td>❌</td></tr>
+    </table>
+    <p>โปรเจกต์นี้เลือก pynput เป็นแกน (ครอบคลุม record + play ใน lib เดียว)
+    ถ้าอนาคตต้องใช้กับเกมที่กรอง injected event ให้เพิ่ม adapter pydirectinput เฉพาะตอน "เล่น" —
+    โครงสร้าง <code>do_step()</code> แยกอยู่แล้ว ทำได้โดยไม่กระทบส่วนอื่น</p>
+  </div>
+
+  <div class="card">
+    <h2>7. การแพ็กเป็น .exe (PyInstaller)</h2>
+    <ul>
+      <li>ใช้ <code>--onefile</code> ผ่านไฟล์ spec (<code>auto_macro.spec</code>) เพื่อควบคุมค่าได้ตรง</li>
+      <li><code>console=False</code> เพื่อไม่ให้เด้งหน้าดำ</li>
+      <li>ตัดโมดูลหนักที่ไม่ใช้ (<code>numpy, pandas, matplotlib, PIL, PyQt...</code>) ผ่าน <code>excludes</code> → ลดขนาด/เวลา build</li>
+      <li>ผลทดสอบจริง: <code>dist/AutoMouseMacro.exe</code> ≈ 13 MB, เปิดหน้าต่าง GUI ได้, ปิดสะอาด</li>
+      <li>ข้อควรรู้: Windows Defender/SmartScreen อาจสแกนไฟล์แรกช้ากว่าปกติ (พบบ่อยกับ onefile)
+        และถ้าจะแจกจ่ายเชิงพาณิชย์ ควร sign exe ด้วย certificate</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>8. ประเด็นที่ต้องระวัง (จากการทดลองจริง)</h2>
+    <ol>
+      <li><b>Tk ข้ามเธรด</b> — บั๊กที่เจอง่ายที่สุด: ห้าม <code>root.after()</code> จาก listener</li>
+      <li><b>คีย์ที่ pynput รายงานไม่ตรงตัว</b> — เช่น <code>ctrl</code> อาจมาเป็น <code>ctrl_l</code>,
+        <code>win</code> มาเป็น <code>cmd</code> — ตาราง <code>SPECIAL_KEYS</code> ในโค้ดจัดการ alias ให้ครบ</li>
+      <li><b>ค่าใน Treeview เป็น string เสมอ</b> — การคำนวณต้อง parse ทุกครั้ง
+        (<code>delay_seconds</code>, <code>parse_int</code>) อย่าสมมติว่าเป็น int</li>
+      <li><b>checkbox ใน Treeview</b> — ttk.Treeview ไม่มี checkbox จริง จึงใช้อักขระ ☑/☐
+        + สลับเมื่อคลิก (<code>return "break"</code> เพื่อไม่ให้กระทบ selection)</li>
+      <li><b>hotkey แบบ Tk binding</b> — ทำงานเฉพาะเมื่อหน้าต่างโฟกัส ถ้าต้องการ global hotkey
+        ต้องใช้ <code>GlobalHotKeys</code> ของ pynput หรือ <code>RegisterHotKey</code> ของ Windows</li>
+      <li><b>จริยธรรม/ข้อกฎหมาย</b> — การใช้กับเกมออนไลน์/ระบบที่ห้าม bot อาจผิดกฎของผู้ให้บริการ
+        ใช้เพื่อ automation งานของตนเองเท่านั้น</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>9. ทางไปต่อ (Roadmap ทางเทคนิค)</h2>
+    <ul>
+      <li>🐢 <b>ตัวคูณความเร็ว</b> (0.5× / 2×) เล่นเร็ว-ช้าโดยไม่ต้องแก้ตาราง</li>
+      <li>🖼️ <b>โซนค้นหาภาพ</b> ระบุกรอบพิกัดให้ Image Click ลดเวลาค้น/ลด false positive</li>
+      <li>✂️ <b>จับภาพตัวอย่างในโปรแกรม</b> (crop จากหน้าจอ) ไม่ต้องเปิด editor ภายนอก</li>
+      <li>💾 <b>รองรับ .ahk / export หลายรูปแบบ</b> ทำงานร่วมกับ ecosystem อื่น</li>
+      <li>🧪 <b>เพิ่ม test ฝั่ง integration</b> — จำลอง Treeview + เล่นสคริปต์แบบ mock controller</li>
+    </ul>
+  </div>
+
+</div>
+
+<footer><a href="README.html">← กลับหน้า README</a> • Auto Mouse &amp; Keyboard Macro v1.3</footer>
+
+</body>
+</html>
