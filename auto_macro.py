@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.4
+Auto Mouse & Keyboard Macro  v1.5
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -15,6 +15,10 @@ Auto Mouse & Keyboard Macro  v1.4
 - Schedule         : เล่นอัตโนมัติ "ทุก N นาที" หรือ "รายวัน HH:MM"
 - Global Hotkey    : F6/F8/F9/F10 กดได้แม้โปรแกรมไม่ได้โฟกัส
 - Image Click      : คลิกตามภาพ — หาตำแหน่งภาพบนหน้าจอแล้วคลิกให้ (ต้องมี opencv-python + Pillow)
+- v1.5 (จาก automouseclick.com): Scroll, Double Click, คลิกแบบ Ctrl/Shift/Alt,
+  Move Mouse + Offset, Save/Restore Cursor, Type Text, Launch App, Wait for Image,
+  Beep, ดีเลย์สุ่ม (ใส่ Secs แบบ "1-3"), ตัวคูณความเร็ว, จำนวนรอบของสคริปต์ทั้งชุด,
+  คืนเมาส์กลับจุดเริ่มเมื่อจบรอบ, บันทึก scroll ตอน RECORD
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -22,6 +26,7 @@ Auto Mouse & Keyboard Macro  v1.4
 
 import json
 import os
+import random
 import re
 import sys
 import threading
@@ -47,7 +52,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.4"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.5"
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -61,7 +66,14 @@ BTN_TH = {"Left Down": ("Left", "Down"), "Left Up": ("Left", "Up"),
 MOUSE_BTNS = list(BTN_TH.keys())
 KEY_ACTIONS = ["Press Key", "Release Key", "Tap Key"]
 IMAGE_ACTION = "Image Click"
-ACTIONS_ALL = MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION]
+# ฟีเจอร์เพิ่มเติมแรงบันดาลใจจาก automouseclick.com (v1.5)
+SCROLL_ACTIONS = ["Scroll Up", "Scroll Down"]
+DBL_ACTIONS = ["Double Left Click", "Double Right Click"]
+MOD_CLICKS = ["Ctrl+Click", "Shift+Click", "Alt+Click", "Ctrl+Right Click"]
+MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cursor"]
+EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
+ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION] + SCROLL_ACTIONS
+               + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS)
 MOD_KEYS = ["", "Ctrl", "Alt", "Shift", "Win"]
 EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat"]
 COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat"]
@@ -110,6 +122,24 @@ def delay_seconds(mins, secs):
     except ValueError:
         s = 0.0
     return m * 60 + s
+
+
+def delay_range(secs):
+    """แปลงช่วงสุ่มเช่น "1-3" → (1.0, 3.0) / ค่าเดี่ยว → (v, v) / พัง → (0, 0)
+    ใช้กับคอลัมน์ Secs เพื่อกำหนดดีเลย์แบบสุ่ม (แรงบันดาลใจจาก automouseclick.com)"""
+    t = str(secs or "").strip().replace(",", ".")
+    m = re.fullmatch(r"(-?[\d.]+)\s*-\s*(-?[\d.]+)", t)
+    if m:
+        try:
+            a, b = float(m.group(1)), float(m.group(2))
+            return (min(a, b), max(a, b))
+        except ValueError:
+            return (0.0, 0.0)
+    try:
+        v = max(0.0, float(t or 0))
+        return (v, v)
+    except ValueError:
+        return (0.0, 0.0)
 
 
 def fmt_num(v):
@@ -195,6 +225,10 @@ class MacroApp:
         self._sched_last = ""              # กันยิงซ้ำในนาทีเดียวกัน (โหมดรายวัน)
         self._gk = None                    # GlobalHotKeys instance
         self._img_area = ()                # กรอบค้นหาภาพ (left, top, right, bottom)
+        self._saved_pos = None             # ตำแหน่งเมาส์ที่เซฟไว้ (Save/Restore Cursor)
+        self._speed_mult = 1.0             # ตัวคูณความเร็ว (0.1–10)
+        self._script_loops = 1             # จำนวนรอบของสคริปต์ทั้งชุด (0 = ไม่จำกัด)
+        self._restore_pos = False          # คืนเมาส์กลับจุดเริ่มเมื่อจบรอบ
 
         self._build_style()
         self._build_menu()
@@ -301,7 +335,22 @@ class MacroApp:
         self.btn_rec.pack(side="left", padx=4)
 
         self.chk_forever = tk.BooleanVar(value=False)
-        tk.Checkbutton(bot, text="วนซ้ำไม่จำกัด (F10)", variable=self.chk_forever).pack(side="left", padx=10)
+        tk.Checkbutton(bot, text="วนซ้ำไม่จำกัด (F10)", variable=self.chk_forever).pack(side="left", padx=6)
+        self.chk_restore = tk.BooleanVar(value=False)
+        tk.Checkbutton(bot, text="คืนเมาส์จุดเดิม", variable=self.chk_restore).pack(side="left", padx=6)
+
+        tk.Label(bot, text="ความเร็ว:").pack(side="left", padx=(10, 2))
+        self.cmb_speed = ttk.Combobox(bot, width=5, state="readonly",
+                                      values=["0.25", "0.5", "1", "2", "4"])
+        self.cmb_speed.set("1")
+        self.cmb_speed.pack(side="left")
+
+        tk.Label(bot, text="รอบ:").pack(side="left", padx=(10, 2))
+        self.ent_loops = tk.Spinbox(bot, from_=0, to=99999, width=6)
+        self.ent_loops.delete(0, "end")
+        self.ent_loops.insert(0, "1")
+        self.ent_loops.pack(side="left")
+        tk.Label(bot, text="(0=ไม่จำกัด)", fg="#888").pack(side="left", padx=(2, 0))
 
     def _build_statusbar(self):
         bar = tk.Frame(self.root, bg="#e6e6e6")
@@ -356,6 +405,13 @@ class MacroApp:
                     self._pending_rows.append(dict(x=int(x), y=int(y), button=name + " Click",
                                                    additional="", mins=0, secs=dt, repeat=1))
 
+        def on_scroll(x, y, dx, dy):
+            if self.recording and dy:
+                dt = round(time.time() - self._rec_t0, 2)
+                self._pending_rows.append(dict(x=int(x), y=int(y),
+                                               button="Scroll Up" if dy > 0 else "Scroll Down",
+                                               additional=str(abs(dy)), mins=0, secs=dt, repeat=1))
+
         def on_kb(key):
             try:
                 txt = key.char or ""
@@ -369,7 +425,7 @@ class MacroApp:
                                                additional=txt, mins=0, secs=dt, repeat=1))
 
         self._pending_rows = []
-        self._ms_listener = mouse.Listener(on_move=on_move, on_click=on_click)
+        self._ms_listener = mouse.Listener(on_move=on_move, on_click=on_click, on_scroll=on_scroll)
         self._ms_listener.daemon = True
         self._ms_listener.start()
 
@@ -515,6 +571,15 @@ class MacroApp:
         label = EDIT_COLS[ei]
         choices = {"Action": ACTIONS_ALL,
                    "Additional": [""] + MOD_KEYS[1:] + sorted(SPECIAL_KEYS)}.get(label)
+        if key == "additional":
+            hint = {"Type Text": "พิมพ์ข้อความที่จะส่ง (เช่น สวัสดี)",
+                    "Launch App": "พาธโปรแกรม หรือ URL เช่น https://example.com",
+                    "Image Click": "ชื่อไฟล์ .png เช่น button.png",
+                    "Wait for Image": "ชื่อไฟล์ .png เช่น button.png",
+                    "Scroll Up": "จำนวนจังหวะ เช่น 3",
+                    "Scroll Down": "จำนวนจังหวะ เช่น 3"}.get(str(vals[4]), "")
+            if hint:
+                self._ui_state["msg"] = ("ช่อง Additional: " + hint, "#06c")
         HotkeyEdit(self.root, label, vals[ci], choices,
                    lambda v, r=row_id, c=ci: self._apply_edit(r, c, v))
 
@@ -553,7 +618,9 @@ class MacroApp:
         for r in rows:
             if r["button"] in KEY_ACTIONS and not parse_key(r["additional"]):
                 return False
-            if r["button"] == IMAGE_ACTION:
+            if r["button"] == "Launch App" and not (r["additional"] or "").strip():
+                return False
+            if r["button"] in (IMAGE_ACTION, "Wait for Image"):
                 p = (r["additional"] or "").strip()
                 if not p:
                     return False
@@ -582,6 +649,17 @@ class MacroApp:
         self.stop_all(silent=True)
         self.running = True
         loop = loop or self.chk_forever.get()          # อ่านค่าฝั่ง UI ก่อนสร้างเธรด
+        try:
+            speed = float(self.cmb_speed.get())
+        except ValueError:
+            speed = 1.0
+        self._speed_mult = min(10.0, max(0.1, speed))
+        try:
+            loops = int(self.ent_loops.get())
+        except ValueError:
+            loops = 1
+        self._script_loops = max(0, loops)
+        self._restore_pos = self.chk_restore.get()
         self.btn_start.config(state="disabled", bg="#cfcfcf")
         self.btn_repeat.config(state="disabled", bg="#2e7d32")
         mode = "วนซ้ำ" if loop else "เล่นครั้งเดียว"
@@ -606,7 +684,8 @@ class MacroApp:
 
     def _player(self, rows, loop):
         def do_step(r):
-            if r["button"] in BTN_TH:                            # เมาส์
+            btn = r["button"]
+            if btn in BTN_TH:                                    # เมาส์ทั่วไป
                 b, act = BTN_TH[r["button"]]
                 btn_obj = getattr(Button, b.lower())
                 if str(r["x"]) != "" and str(r["y"]) != "":
@@ -618,21 +697,79 @@ class MacroApp:
                     self.mouse_ctl.release(btn_obj)
                 else:
                     self.mouse_ctl.click(btn_obj, 1)
-            elif r["button"] == IMAGE_ACTION:                    # คลิกตามภาพ
+            elif btn in SCROLL_ACTIONS:                          # เลื่อนล้อเมาส์
+                try:
+                    notches = int(str(r["additional"] or "1"))
+                except ValueError:
+                    notches = 1
+                dy = notches if btn == "Scroll Up" else -notches
+                self.mouse_ctl.scroll(0, dy)
+            elif btn in DBL_ACTIONS:                             # ดับเบิลคลิก
+                if str(r["x"]) != "" and str(r["y"]) != "":
+                    self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                    time.sleep(0.03)
+                self.mouse_ctl.click(Button.right if "Right" in btn else Button.left, 2)
+            elif btn in MOD_CLICKS:                              # คลิก+modifier
+                mods = [m for m in ("ctrl", "shift", "alt") if m.capitalize() in btn]
+                self._do_mod_click(r, mods)
+            elif btn == "Move Mouse":                            # ย้ายเมาส์
+                if str(r["x"]) != "" and str(r["y"]) != "":
+                    self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+            elif btn == "Move Mouse by Offset":                  # ย้ายแบบสัมพัทธ์
+                try:
+                    dx = int(str(r["x"] or 0))
+                    dyo = int(str(r["y"] or 0))
+                except ValueError:
+                    dx = dyo = 0
+                cx, cy = self.mouse_ctl.position
+                self.mouse_ctl.position = (cx + dx, cy + dyo)
+            elif btn == "Save Cursor":                           # เซฟตำแหน่งเมาส์
+                self._saved_pos = self.mouse_ctl.position
+            elif btn == "Restore Cursor":                        # คืนตำแหน่งเมาส์
+                if self._saved_pos:
+                    self.mouse_ctl.position = self._saved_pos
+            elif btn == IMAGE_ACTION:                            # คลิกตามภาพ
                 self._do_image_click(r)
-            elif r["button"] in KEY_ACTIONS:                     # คีย์บอร์ด
+            elif btn == "Wait for Image":                        # รอภาพปรากฏ
+                self._do_wait_for_image(r)
+            elif btn == "Type Text":                             # พิมพ์ข้อความ
+                for ch in str(r["additional"] or ""):
+                    if not self.running:
+                        return
+                    self.kb_ctl.tap(self.kb_ctrl_char(ch))
+            elif btn == "Launch App":                            # เปิดแอป/เว็บ
+                target = str(r["additional"] or "").strip()
+                if target:
+                    try:
+                        os.startfile(target)      # Windows; Linux/macOS ใช้ subprocess
+                    except (OSError, AttributeError):
+                        import subprocess
+                        subprocess.Popen(["xdg-open", target])
+            elif btn == "Beep":                                  # เสียงเตือน
+                try:
+                    self.root.bell()
+                except tk.TclError:
+                    pass
+            elif btn in KEY_ACTIONS:                             # คีย์บอร์ด
                 k = parse_key(r["additional"])
                 if k is None:
                     return
-                if r["button"] == "Press Key":
+                if btn == "Press Key":
                     self.kb_ctl.press(k)
-                elif r["button"] == "Release Key":
+                elif btn == "Release Key":
                     self.kb_ctl.release(k)
                 else:
                     self.kb_ctl.tap(k)
 
+    def kb_ctrl_char(self, ch):
+        """แปลงอักขระเป็น KeyCode สำหรับ Type Text (รองรับไทย/อังกฤษ/ตัวเลข/สัญลักษณ์)"""
+        return KeyCode.from_char(ch)
+
         try:
-            while True:
+            start_pos = self.mouse_ctl.position if self._restore_pos else None
+            outer = True
+            while outer:
+                # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
                 for i, r in enumerate(rows):
                     if not self.running:
                         return
@@ -641,13 +778,22 @@ class MacroApp:
                     for _ in range(parse_int(r["repeat"])):
                         if not self.running:
                             return
-                        time.sleep(delay_seconds(r["mins"], r["secs"]))
+                        lo, hi = delay_range(r["secs"])
+                        base = delay_seconds(r["mins"], 0) + (lo if lo == hi else random.uniform(lo, hi))
+                        time.sleep(max(0.0, base / self._speed_mult))
                         if not self.running:
                             return
                         do_step(r)
                 self._ui_state["row"] = None
-                if not loop or not self.running:
-                    break
+                if self._restore_pos and start_pos and self.running:
+                    self.mouse_ctl.position = start_pos
+                if loop:
+                    break                      # REPEAT/forever คุมรอบอยู่แล้ว
+                if self._script_loops == 0:
+                    outer = self.running       # ไม่จำกัดรอบ
+                else:
+                    self._script_loops -= 1
+                    outer = self._script_loops > 0 and self.running
             if self.running:
                 self._ui_state["msg"] = ("เล่นจบแล้ว ✔", "#080")
         finally:
@@ -829,6 +975,52 @@ class MacroApp:
         except tk.TclError:
             pass
 
+    # ------------------------------------ actions เสริม v1.5 (ผู้เล่น) -------
+    def _do_mod_click(self, r, mods):
+        """คลิกพร้อมกด modifier เช่น Ctrl+Click"""
+        mod_keys = {"ctrl": Key.ctrl, "shift": Key.shift, "alt": Key.alt}
+        pressed = []
+        try:
+            for m in mods:
+                k = mod_keys.get(m)
+                if k:
+                    self.kb_ctl.press(k)
+                    pressed.append(k)
+            if str(r["x"]) != "" and str(r["y"]) != "":
+                self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                time.sleep(0.03)
+            self.mouse_ctl.click(Button.right if "Right" in r["button"] else Button.left, 1)
+        finally:
+            for k in reversed(pressed):
+                self.kb_ctl.release(k)
+
+    def _do_wait_for_image(self, r):
+        """รอจนกว่าจะเจอภาพบนหน้าจอ (timeout 30 วิ)"""
+        path = (r["additional"] or "").strip()
+        if not HAS_CV:
+            self._ui_state["msg"] = ("Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
+            return
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+        if not os.path.isfile(path):
+            self._ui_state["msg"] = ("ไม่พบไฟล์ภาพ: %s" % path, "#c00")
+            return
+        tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+        if tmpl is None:
+            self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
+            return
+        deadline = time.time() + 30
+        while time.time() < deadline and self.running:
+            shot = ImageGrab.grab(all_screens=True)
+            screen = cv2.cvtColor(np.array(shot), cv2.COLOR_RGB2BGR)
+            if tmpl.shape[0] <= screen.shape[0] and tmpl.shape[1] <= screen.shape[1]:
+                res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
+                _, maxv, _, _ = cv2.minMaxLoc(res)
+                if maxv >= 0.80:
+                    return
+            time.sleep(0.5)
+        self._ui_state["msg"] = ("Wait for Image: ไม่เจอภาพภายใน 30 วิ — %s" % os.path.basename(path), "#a60")
+
     # ------------------------------------------------------ image click ------
     def _do_image_click(self, r):
         """หาภาพย่อย (ไฟล์ .png ในช่อง Additional) บนหน้าจอแล้วคลิกที่จุดศูนย์กลาง"""
@@ -968,7 +1160,9 @@ class MacroApp:
         frm.pack(padx=20, pady=4)
         rows = [("เริ่มเล่นสคริปต์", "F6"), ("หยุดทั้งหมด", "F8"),
                 ("เริ่ม/หยุดบันทึก", "F9"), ("สลับวนซ้ำไม่จำกัด", "F10"),
-                ("ลบแถวที่เลือก", "Delete"), ("แก้ค่าในเซลล์", "ดับเบิลคลิก")]
+                ("ลบแถวที่เลือก", "Delete"), ("แก้ค่าในเซลล์", "ดับเบิลคลิก"),
+                ("ตัวคูณความเร็ว / จำนวนรอบ", "แถบปุ่มด้านล่าง"),
+                ("ดีเลย์สุ่มรายแถว", "Secs = 1-3")]
         for i, (name, key) in enumerate(rows):
             tk.Label(frm, text=name + ":").grid(row=i, column=0, sticky="e", padx=4, pady=3)
             tk.Label(frm, text=key, font=("Consolas", 10, "bold"), fg="#06c").grid(
@@ -1000,7 +1194,12 @@ class MacroApp:
             "7) แถบ 'โปรไฟล์' — เก็บหลายสคริปต์สลับใช้ได้ (เช่น งานบ้าน / เกม A / เกม B)\n"
             "8) ปุ่ม ⏰ เล่นอัตโนมัติ — ตั้งเล่นทุก N นาที หรือทุกวันตามเวลา HH:MM\n"
             "9) Action 'Image Click' — คลิกตามภาพ: ใส่ชื่อไฟล์ .png ในช่อง Additional\n"
-            "   (ต้องติดตั้ง: pip install opencv-python Pillow)\n\n"
+            "   (ต้องติดตั้ง: pip install opencv-python Pillow)\n"
+            "10) Action ใหม่ v1.5: Scroll Up/Down, Double Click, Ctrl/Shift/Alt+Click,\n"
+            "   Move Mouse (+Offset), Save/Restore Cursor, Type Text, Launch App,\n"
+            "   Wait for Image, Beep\n"
+            "11) ช่อง Secs ใส่แบบสุ่มได้ เช่น 1-3 = สุ่มดีเลย์ 1–3 วิ\n"
+            "12) ปุ่มล่าง: ความเร็ว (0.25×–4×), จำนวนรอบ (0=ไม่จำกัด), คืนเมาส์จุดเดิม\n\n"
             "หมายเหตุ: Secs คือเวลารอก่อนทำคำสั่งในแถวนั้น, Repeat คือจำนวนครั้งที่ทำซ้ำ")
 
     def _on_close(self):

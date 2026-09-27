@@ -152,6 +152,57 @@ class TestConstants(unittest.TestCase):
                          ["Action", "Additional", "Mins", "Secs", "Repeat"])
 
 
+class TestDelayRange(unittest.TestCase):
+    """delay_range: สนับสนุนดีเลย์แบบสุ่ม เช่น "1-3" (ฟีเจอร์ v1.5)"""
+
+    def test_range(self):
+        self.assertEqual(am.delay_range("1-3"), (1.0, 3.0))
+
+    def test_range_reversed(self):
+        self.assertEqual(am.delay_range("3-1"), (1.0, 3.0))
+
+    def test_single_value(self):
+        self.assertEqual(am.delay_range("2.5"), (2.5, 2.5))
+
+    def test_european_comma(self):
+        self.assertEqual(am.delay_range("0,5"), (0.5, 0.5))
+
+    def test_invalid(self):
+        self.assertEqual(am.delay_range("abc"), (0.0, 0.0))
+        self.assertEqual(am.delay_range(""), (0.0, 0.0))
+        self.assertEqual(am.delay_range(None), (0.0, 0.0))
+
+    def test_spaces(self):
+        self.assertEqual(am.delay_range("1 - 3"), (1.0, 3.0))
+
+
+class TestV15Actions(unittest.TestCase):
+    """ค่าคงที่ Action ชุดใหม่ v1.5 (แรงบันดาลใจจาก automouseclick.com)"""
+
+    def test_scroll_actions(self):
+        self.assertIn("Scroll Up", am.ACTIONS_ALL)
+        self.assertIn("Scroll Down", am.ACTIONS_ALL)
+
+    def test_double_click_actions(self):
+        self.assertIn("Double Left Click", am.ACTIONS_ALL)
+        self.assertIn("Double Right Click", am.ACTIONS_ALL)
+
+    def test_modifier_clicks(self):
+        for a in ("Ctrl+Click", "Shift+Click", "Alt+Click", "Ctrl+Right Click"):
+            self.assertIn(a, am.ACTIONS_ALL)
+
+    def test_move_actions(self):
+        for a in ("Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cursor"):
+            self.assertIn(a, am.ACTIONS_ALL)
+
+    def test_extra_actions(self):
+        for a in ("Type Text", "Launch App", "Wait for Image", "Beep"):
+            self.assertIn(a, am.ACTIONS_ALL)
+
+    def test_no_duplicates(self):
+        self.assertEqual(len(am.ACTIONS_ALL), len(set(am.ACTIONS_ALL)))
+
+
 class TestGlobalHotkeyMapping(unittest.TestCase):
     """GlobalHotKeys ต้องลงทะเบียน F6/F8/F9/F10 (ทดสอบโดยไม่ start listener จริง)"""
 

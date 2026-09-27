@@ -114,7 +114,45 @@
 - โหมด: "ทุก N นาที" (`now >= next` แล้วตั้ง next ใหม่) และ "รายวัน HH:MM"
   (เทียบ timestamp `YYYY-MM-DD HH:MM` + เก็บ stamp ล่าสุดกันยิงซ้ำในนาทีเดียว)
 
-## 6. เทียบคีย์แบบ synthetic: SendInput vs pynput
+## 6. ฟีเจอร์ v1.5 — คัดสรรจาก automouseclick.com
+
+ศึกษา [Auto Mouse Click (MurGee)](https://www.automouseclick.com/) แล้วคัดเฉพาะสิ่งที่
+**ทำได้จริงด้วย pynput + stdlib** และ **มีประโยชน์กับผู้ใช้ทั่วไป** ได้ดังนี้
+
+### 6.1 สิ่งที่เอามาใช้ (และวิธี implement)
+| จาก automouseclick.com | ของเรา (v1.5) | หมายเหตุการทำงาน |
+|---|---|---|
+| Scroll Up/Down | Action `Scroll Up/Down` + จำนวนจังหวะใน Additional | `mouse_ctl.scroll(0, ±n)` และอัดจาก `on_scroll` ตอน RECORD |
+| Double Click | `Double Left/Right Click` | `click(btn, 2)` |
+| Ctrl+Click ฯลฯ | `Ctrl+Click`, `Shift+Click`, `Alt+Click`, `Ctrl+Right Click` | press(mod) → click → release(mod) ใน finally กันคีย์ค้าง |
+| Move Mouse / Offset | `Move Mouse`, `Move Mouse by Offset` | absolute และ relative movement |
+| Save/Restore Cursor | `Save Cursor`, `Restore Cursor` | เก็บในหน่วยความจำระหว่างรอบเล่น |
+| Type Text | `Type Text` (รองรับไทย) | tap(KeyCode.from_char) ทีละตัวอักษร |
+| Launch App / Website | `Launch App` | `os.startfile()` (Windows) + xdg-open fallback |
+| Wait for Picture | `Wait for Image` | วนจับภาพทุก 0.5 วิ, threshold 0.80, timeout 30 วิ |
+| Beep | `Beep` | `root.bell()` — ไม่ต้องพึ่งไลบรารีเสียง |
+| Random Delay | Secs รูปแบบ `1-3` | `delay_range()` + `random.uniform` |
+| Script Repeat Count | ช่อง "รอบ" (0 = ไม่จำกัด) | ลูปนอกใน `_player` |
+| Speed | ตัวคูณ 0.25×–4× | หารดีเลย์ทุกตัวก่อน sleep |
+| (แนวคิด) Cursor Home | checkbox "คืนเมาส์จุดเดิม" | จบทุกรอบย้ายกลับจุดเริ่มเล่น |
+
+### 6.2 สิ่งที่ตั้งใจ**ไม่**เอามา (และเหตุผล)
+- **OCR / Click on Text / Type from Excel/Database** — ต้องพึ่ง dependency หนัก
+  ขัดหลักการ "stdlib + pynput เท่านั้น" ของโปรเจกต์
+- **Direct Keystroke / Window Clicker (ส่งตรงเข้าหน้าต่างโดยไม่โฟกัส)** — ต้องใช้ Win32 API
+  (PostMessage/SendMessage) ระดับลึก และใช้ไม่ได้กับเกมส่วนใหญ่ คุ้มไม่คุ้มสำหรับตอนนี้
+- **MurGee Browser / Proxy / Desktop Background** — นอกขอบเขตของ macro tool
+- **Game Controller Handler** — ไลบรารี joystick ใน Python ยังไม่เสถียรพอ cross-platform
+- **Screen Watermark/Overlay** — สวยแต่ไม่จำเป็น ใช้ title bar "[ RUNNING ]" ก็พอ
+- **ลำดับความสำคัญ:** เลือกกลุ่ม "การขยับ/คลิก/พิมพ์/เปิดแอป/รอภาพ" ก่อน เพราะครอบคลุม
+  use case จริง 80% ของ automation (กรอกฟอร์ม, เข้าเว็บ, จับคู่ภาพ) ที่เหลือเป็น niche
+
+### 6.3 การออกแบบที่เกี่ยวกับดีเลย์สุ่ม
+- เก็บรูปแบบเดิมไว้: `Secs = 2` ยังหมายถึง 2 วิ ตรง ๆ — ใส่ `1-3` ค่อยสุ่ม
+- `delay_range()` คืน `(lo, hi)` เสมอ → โค้ดเล่นเรียกครั้งเดียว ไม่ต้องแยกทาง
+- หน่วยคูณความเร็ว: หาร **หลัง** รวม mins แล้ว (สุ่มก่อนหาร — ทำให้สัดส่วนการสุ่มคงเดิมทุก speed)
+
+## 7. เทียบคีย์แบบ synthetic: SendInput vs pynput
 
 ประเด็นสำคัญของ macro บน Windows: เกม/แอปบางตัวอ่าน input ผ่าน **DirectInput/Raw Input** ซึ่งไม่สนใจ event ที่ flag เป็น "injected"
 
@@ -130,7 +168,7 @@
 
 ---
 
-## 6. การแพ็กเป็น .exe (PyInstaller)
+## 8. การแพ็กเป็น .exe (PyInstaller)
 
 - ใช้ `--onefile` ผ่านไฟล์ spec (`auto_macro.spec`) เพื่อ control ค่าต่าง ๆ แบบตรงไปตรงมา
 - `console=False` เพื่อไม่ให้เด้งหน้าดำ
@@ -140,7 +178,7 @@
 
 ---
 
-## 7. ประเด็นที่ต้องระวัง (จากการทดลองผิดพลาดจริง)
+## 9. ประเด็นที่ต้องระวัง (จากการทดลองผิดพลาดจริง)
 
 1. **Tk ข้ามเธรด** — ย้ำอีกครั้งเพราะเป็นบั๊กที่เจอง่ายที่สุด: ห้าม `root.after()` จาก listener
 2. **คีย์ที่ pynput รายงานไม่ตรงตัว** — เช่น `ctrl` อาจมาเป็น `ctrl_l`, `win` มาเป็น `cmd` ตาราง `SPECIAL_KEYS` ในโค้ดจัดการ alias ให้ครบ (esc, del, pgup, prtsc, caps ฯลฯ)
@@ -151,7 +189,7 @@
 
 ---
 
-## 8. ทางไปต่อ (Roadmap ทางเทคนิค)
+## 10. ทางไปต่อ (Roadmap ทางเทคนิค)
 
 - 🐢 **ตัวคูณความเร็ว** (0.5× / 2×) ให้เล่นเร็ว-ช้าโดยไม่แก้ตาราง
 - 🖼️ **โซนค้นหาภาพ** ระบุกรอบพิกัดให้ Image Click ลดเวลาค้น/ลด false positive

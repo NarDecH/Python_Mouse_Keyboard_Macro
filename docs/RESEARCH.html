@@ -201,7 +201,49 @@
   </div>
 
   <div class="card">
-    <h2>6. เทียบคีย์แบบ synthetic: SendInput vs DirectInput</h2>
+    <h2>6. ฟีเจอร์ v1.5 — คัดสรรจาก automouseclick.com</h2>
+    <p>ศึกษา <a href="https://www.automouseclick.com/">Auto Mouse Click (MurGee)</a>
+    แล้วคัดเฉพาะสิ่งที่ <b>ทำได้จริงด้วย pynput + stdlib</b> และ <b>มีประโยชน์กับผู้ใช้ทั่วไป</b></p>
+
+    <h3>6.1 สิ่งที่เอามาใช้</h3>
+    <table>
+      <tr><th>จาก automouseclick.com</th><th>ของเรา (v1.5)</th><th>หมายเหตุการทำงาน</th></tr>
+      <tr><td>Scroll Up/Down</td><td>Action <code>Scroll Up/Down</code> + จำนวนจังหวะ</td><td><code>mouse_ctl.scroll(0, ±n)</code> + อัดจาก <code>on_scroll</code> ตอน RECORD</td></tr>
+      <tr><td>Double Click</td><td><code>Double Left/Right Click</code></td><td><code>click(btn, 2)</code></td></tr>
+      <tr><td>Ctrl+Click ฯลฯ</td><td><code>Ctrl+Click</code>, <code>Shift+Click</code>, <code>Alt+Click</code>, <code>Ctrl+Right Click</code></td><td>press(mod) → click → release(mod) ใน finally กันคีย์ค้าง</td></tr>
+      <tr><td>Move Mouse / Offset</td><td><code>Move Mouse</code>, <code>Move Mouse by Offset</code></td><td>absolute / relative movement</td></tr>
+      <tr><td>Save/Restore Cursor</td><td><code>Save Cursor</code>, <code>Restore Cursor</code></td><td>เก็บในหน่วยความจำระหว่างรอบเล่น</td></tr>
+      <tr><td>Type Text</td><td><code>Type Text</code> (รองรับไทย)</td><td>tap(KeyCode.from_char) ทีละตัวอักษร</td></tr>
+      <tr><td>Launch App / Website</td><td><code>Launch App</code></td><td><code>os.startfile()</code> + xdg-open fallback</td></tr>
+      <tr><td>Wait for Picture</td><td><code>Wait for Image</code></td><td>จับภาพทุก 0.5 วิ, threshold 0.80, timeout 30 วิ</td></tr>
+      <tr><td>Beep</td><td><code>Beep</code></td><td><code>root.bell()</code> ไม่ต้องพึ่งไลบรารีเสียง</td></tr>
+      <tr><td>Random Delay</td><td>Secs รูปแบบ <code>1-3</code></td><td><code>delay_range()</code> + <code>random.uniform</code></td></tr>
+      <tr><td>Script Repeat Count</td><td>ช่อง "รอบ" (0 = ไม่จำกัด)</td><td>ลูปนอกใน <code>_player</code></td></tr>
+      <tr><td>Speed</td><td>ตัวคูณ 0.25×–4×</td><td>หารดีเลย์ทุกตัวก่อน sleep</td></tr>
+      <tr><td>(แนวคิด) Cursor Home</td><td>checkbox "คืนเมาส์จุดเดิม"</td><td>จบทุกรอบย้ายกลับจุดเริ่มเล่น</td></tr>
+    </table>
+
+    <h3>6.2 สิ่งที่ตั้งใจ<b>ไม่</b>เอามา (และเหตุผล)</h3>
+    <ul>
+      <li><b>OCR / Type from Excel/Database</b> — dependency หนัก ขัดหลัก "stdlib + pynput"</li>
+      <li><b>Direct Keystroke / Window Clicker</b> — ต้องใช้ Win32 API ระดับลึก และเกมส่วนใหญ่ไม่รับ</li>
+      <li><b>MurGee Browser / Proxy / Desktop Background</b> — นอกขอบเขตของ macro tool</li>
+      <li><b>Game Controller Handler</b> — ไลบรารี joystick ยังไม่เสถียร cross-platform</li>
+      <li><b>Screen Watermark/Overlay</b> — ใช้ title bar "[ RUNNING ]" ก็พอ</li>
+      <li><b>ลำดับความสำคัญ:</b> เลือกกลุ่ม "ขยับ/คลิก/พิมพ์/เปิดแอป/รอภาพ" ก่อน เพราะครอบคลุม
+        use case จริง 80% ของ automation (กรอกฟอร์ม, เข้าเว็บ, จับคู่ภาพ)</li>
+    </ul>
+
+    <h3>6.3 การออกแบบดีเลย์สุ่ม</h3>
+    <ul>
+      <li><code>Secs = 2</code> = 2 วิ ตรง ๆ (เดิม), ใส่ <code>1-3</code> ค่อยสุ่ม — ไม่ทำสคริปต์เก่าพัง</li>
+      <li><code>delay_range()</code> คืน <code>(lo, hi)</code> เสมอ → โค้ดเล่นเรียกครั้งเดียว</li>
+      <li>ความเร็ว: สุ่ม<b>ก่อน</b>แล้วค่อยหาร — สัดส่วนการสุ่มคงเดิมทุก speed</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>7. เทียบคีย์แบบ synthetic: SendInput vs DirectInput</h2>
     <p>ประเด็นสำคัญของ macro บน Windows: เกม/แอปบางตัวอ่าน input ผ่าน <b>DirectInput/Raw Input</b>
     ซึ่งไม่สนใจ event ที่ flag เป็น "injected"</p>
     <table>
@@ -218,7 +260,7 @@
   </div>
 
   <div class="card">
-    <h2>7. การแพ็กเป็น .exe (PyInstaller)</h2>
+    <h2>8. การแพ็กเป็น .exe (PyInstaller)</h2>
     <ul>
       <li>ใช้ <code>--onefile</code> ผ่านไฟล์ spec (<code>auto_macro.spec</code>) เพื่อควบคุมค่าได้ตรง</li>
       <li><code>console=False</code> เพื่อไม่ให้เด้งหน้าดำ</li>
@@ -230,7 +272,7 @@
   </div>
 
   <div class="card">
-    <h2>8. ประเด็นที่ต้องระวัง (จากการทดลองจริง)</h2>
+    <h2>9. ประเด็นที่ต้องระวัง (จากการทดลองจริง)</h2>
     <ol>
       <li><b>Tk ข้ามเธรด</b> — บั๊กที่เจอง่ายที่สุด: ห้าม <code>root.after()</code> จาก listener</li>
       <li><b>คีย์ที่ pynput รายงานไม่ตรงตัว</b> — เช่น <code>ctrl</code> อาจมาเป็น <code>ctrl_l</code>,
@@ -247,7 +289,7 @@
   </div>
 
   <div class="card">
-    <h2>9. ทางไปต่อ (Roadmap ทางเทคนิค)</h2>
+    <h2>10. ทางไปต่อ (Roadmap ทางเทคนิค)</h2>
     <ul>
       <li>🐢 <b>ตัวคูณความเร็ว</b> (0.5× / 2×) เล่นเร็ว-ช้าโดยไม่ต้องแก้ตาราง</li>
       <li>🖼️ <b>โซนค้นหาภาพ</b> ระบุกรอบพิกัดให้ Image Click ลดเวลาค้น/ลด false positive</li>

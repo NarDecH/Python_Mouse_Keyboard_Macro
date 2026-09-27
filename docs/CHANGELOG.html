@@ -65,8 +65,45 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.4.0</h2>
+      <h2>เวอร์ชัน 1.5.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">27 กันยายน 2026</span>
+    </div>
+    <p style="color:var(--muted);font-size:.9rem">ฟีเจอร์ชุดนี้ศึกษาและคัดสรรจาก
+      <a href="https://www.automouseclick.com/">automouseclick.com</a></p>
+
+    <h3>✨ Action ชุดใหม่ในตาราง</h3>
+    <ul>
+      <li><b>Scroll Up / Scroll Down</b> — เลื่อนล้อเมาส์ตามจำนวนจังหวะ (Additional เช่น <code>3</code>)</li>
+      <li><b>Double Left Click / Double Right Click</b> — ดับเบิลคลิกที่พิกัด</li>
+      <li><b>คลิกแบบ Modifier</b> — Ctrl+Click, Shift+Click, Alt+Click, Ctrl+Right Click</li>
+      <li><b>Move Mouse</b> — ย้ายเมาส์ไปพิกัดโดยไม่คลิก</li>
+      <li><b>Move Mouse by Offset</b> — ย้ายแบบสัมพัทธ์ (X,Y = ระยะเปลี่ยนแปลง)</li>
+      <li><b>Save Cursor / Restore Cursor</b> — จำตำแหน่งเมาส์แล้วย้อนกลับมาภายหลัง</li>
+      <li><b>Type Text</b> — พิมพ์ข้อความ (รองรับภาษาไทย)</li>
+      <li><b>Launch App</b> — เปิดโปรแกรม/ไฟล์/เว็บไซต์ (เช่น <code>https://example.com</code>)</li>
+      <li><b>Wait for Image</b> — รอจนกว่าภาพที่ระบุจะปรากฏบนจอ (timeout 30 วิ)</li>
+      <li><b>Beep</b> — เสียงเตือน</li>
+      <li><b>อัด scroll ตอน RECORD</b> — บันทึกการเลื่อนล้อเมาส์อัตโนมัติ</li>
+    </ul>
+
+    <h3>✨ ตัวเลือกการเล่น</h3>
+    <ul>
+      <li><b>ดีเลย์สุ่ม</b> — Secs ใส่ <code>1-3</code> = สุ่มดีเลย์ 1–3 วิ</li>
+      <li><b>ตัวคูณความเร็ว</b> — 0.25× / 0.5× / 1× / 2× / 4×</li>
+      <li><b>จำนวนรอบสคริปต์ทั้งชุด</b> — ช่อง "รอบ" (0 = ไม่จำกัด)</li>
+      <li><b>คืนเมาส์จุดเดิม</b> — จบรอบแล้วเมาส์กลับตำแหน่งเริ่มเล่น</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม 12 unit tests — รวม <b>41 tests</b> (<code>delay_range</code>, ชุด action ใหม่)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.4.0</h2>
       <span class="date">27 กันยายน 2026</span>
     </div>
 
@@ -152,10 +189,11 @@
     </div>
     <h3>🎯 วางแผนไว้</h3>
     <ul>
-      <li>🐢 ตัวคูณความเร็ว 0.5× / 1× / 2×</li>
       <li>📊 แถบ progress และตัวนับรอบเวลาเล่นแบบวนซ้ำ</li>
       <li>🖼️ โซนค้นหาภาพ (search area) แบบระบุพิกัดได้สำหรับ Image Click</li>
       <li>✂️ บันทึกภาพตัวอย่าง (crop) จากในโปรแกรมโดยไม่ต้องใช้ editor ภายนอก</li>
+      <li>⌨️ เล่นสคริปต์จาก command line (<code>AutoMouseMacro.exe script.json</code>)</li>
+      <li>🖱️ Right-click context menu บนแถวตาราง (คัดลอก/แทรก/ทำซ้ำแถว)</li>
     </ul>
   </div>
 

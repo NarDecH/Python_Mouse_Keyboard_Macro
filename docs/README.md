@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.4
+# 🖱️ Auto Mouse & Keyboard Macro v1.5
 
 <div align="center">
 
@@ -43,14 +43,18 @@
 
 ## 🧩 คำสั่งที่รองรับในตาราง
 
-**เมาส์:** Left Click / Left Down / Left Up / Right Click / Right Down / Right Up / Middle Click / Middle Down / Middle Up
+**เมาส์:** Left Click / Left Down / Left Up / Right Click / Right Down / Right Up / Middle Click / Middle Down / Middle Up / Double Left Click / Double Right Click / Ctrl+Click / Shift+Click / Alt+Click / Ctrl+Right Click / Scroll Up / Scroll Down (จำนวนจังหวะใน Additional) / Move Mouse / Move Mouse by Offset / Save Cursor / Restore Cursor
 
 **คีย์บอร์ด:** Tap Key / Press Key / Release Key — ช่อง Additional ใส่ชื่อคีย์ได้ เช่น
 `a` `5` `space` `enter` `esc` `ctrl` `shift` `alt` `win` `f1`–`f12` `up` `down` `left` `right` `pgup` `pgdn` `prtsc` หรือรหัส virtual key เช่น `27`
 
-**คลิกตามภาพ:** Image Click — ช่อง Additional ใส่ชื่อไฟล์ .png (เช่น `button.png`)
-โปรแกรมจะจับภาพหน้าจอ หาตำแหน่งของภาพนั้น แล้วคลิกที่จุดศูนย์กลางให้เอง
-(ต้องติดตั้งเพิ่ม: `pip install opencv-python Pillow` — ถ้าไม่ติดตั้ง ฟีเจอร์อื่นยังใช้ได้ปกติ)
+**เพิ่มเติม v1.5 (แรงบันดาลใจจาก [automouseclick.com](https://www.automouseclick.com/)):**
+- **Type Text** — พิมพ์ข้อความ (รองรับไทย) เช่น `สวัสดี world`
+- **Launch App** — เปิดโปรแกรม/เว็บ เช่น `notepad.exe` หรือ `https://example.com`
+- **Image Click / Wait for Image** — คลิกตามภาพ / รอภาพปรากฏ (ชื่อไฟล์ .png ใน Additional; ต้องติดตั้ง `opencv-python Pillow`)
+- **Beep** — เสียงเตือน
+
+> 💡 **ดีเลย์สุ่ม:** ใส่ Secs แบบ `1-3` = สุ่มดีเลย์ 1–3 วิ ทุกรอบ
 
 ---
 
@@ -112,6 +116,15 @@ run.bat                                  # หรือ: py auto_macro.py
   - ทุกวัน เวลา HH:MM (เช่น 09:30)
   - การเล่นจะวนซ้ำ 1 รอบจบ และหยุดได้ด้วย F8 ตามปกติ
 
+### ตัวเลือกการเล่น (แถบปุ่มด้านล่าง)
+
+| ตัวเลือก | ความหมาย |
+|---|---|
+| **วนซ้ำไม่จำกัด** (F10) | เล่นต่อเนื่องไม่สิ้นสุด |
+| **คืนเมาส์จุดเดิม** | จบรอบแล้วย้ายเมาส์กลับตำแหน่งที่เริ่มเล่น |
+| **ความเร็ว** | ตัวคูณดีเลย์ทั้งหมด: 0.25× / 0.5× / 1× / 2× / 4× |
+| **รอบ** | จำนวนรอบของสคริปต์ทั้งชุด — 0 = ไม่จำกัด |
+
 ### คีย์ลัดทั้งหมด (Global — กดได้แม้ไม่โฟกัสหน้าต่าง)
 
 | คีย์ | ทำอะไร |
@@ -159,7 +172,7 @@ py -m PyInstaller auto_macro.spec --noconfirm --clean
 ## 🧪 ทดสอบ
 
 ```bash
-py -m unittest test_auto_macro -v    # 29 unit tests
+py -m unittest test_auto_macro -v    # 41 unit tests
 ```
 
 ## 📚 เอกสารเพิ่มเติม

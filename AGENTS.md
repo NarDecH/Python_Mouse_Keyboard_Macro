@@ -1,17 +1,20 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.4 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.5 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
 ## ภาพรวมโปรเจกต์
 
-- **ชื่อ:** Auto Mouse & Keyboard Macro v1.4
+- **ชื่อ:** Auto Mouse & Keyboard Macro v1.5
 - **ไฟล์หลัก:** `auto_macro.py` (ไฟล์เดียวจบ — GUI + engine ในไฟล์เดียว)
 - **แรงบันดาลใจ:** โปรแกรม "Auto Mouse v1.3" (ดูรูปตัวอย่าง `pic.png` / `docs/images/pic.png`)
 - **หน้าที่:** บันทึกและเล่นซ้ำการคลิกเมาส์ + การกดคีย์ตามสคริปต์ที่ผู้ใช้ตั้งไว้
 - **ฟีเจอร์เสริม v1.4:** Global Hotkey, คลิกตามภาพ (OpenCV), โปรไฟล์หลายสคริปต์,
   เล่นอัตโนมัติตามเวลา (schedule), unit tests (`test_auto_macro.py`)
+- **ฟีเจอร์เสริม v1.5 (จาก automouseclick.com):** Scroll, Double Click, คลิก+Modifier,
+  Move Mouse (+Offset), Save/Restore Cursor, Type Text, Launch App, Wait for Image,
+  Beep, ดีเลย์สุ่ม (Secs "1-3"), ตัวคูณความเร็ว, จำนวนรอบสคริปต์, คืนเมาส์จุดเดิม
 
 ## เทคโนโลยี
 
@@ -79,6 +82,13 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   UI poller (`_sched_poll` ทุก 500 ms) หยิบมาเล่น — โหมด "ทุก N นาที" และ "รายวัน HH:MM"
 - **Image Click:** Action `Image Click` + ช่อง Additional = ไฟล์ .png
   (cv2.matchTemplate, threshold 0.80, คลิกจุดศูนย์กลาง; ปิดฟีเจอร์อัตโนมัติถ้าไม่มี opencv)
+- **Actions v1.5:** Scroll Up/Down (จำนวนใน Additional), Double Click, Ctrl/Shift/Alt+Click
+  (press mod → click → release ใน finally), Move Mouse (+Offset), Save/Restore Cursor
+  (`self._saved_pos`), Type Text (tap ทีละตัวอักษร), Launch App (`os.startfile`),
+  Wait for Image (วนทุก 0.5 วิ timeout 30 วิ), Beep (`root.bell()`)
+- **ดีเลย์สุ่ม:** `delay_range(secs)` คืน (lo, hi) — Secs "1-3" = สุ่ม 1–3 วิ;
+  คูณความเร็ว (`self._speed_mult`) หารหลังสุ่ม; จำนวนรอบสคริปต์ = `self._script_loops`
+  (0 = ไม่จำกัด); คืนเมาส์จุดเดิม = `self._restore_pos` (เริ่มจากตำแหน่งตอนกด START)
 - **Save/Load:** JSON รายแถว ฟิลด์ `enabled,x,y,button,additional,mins,secs,repeat`
   - เปิด/ปิดโปรแกรมจะ autosave/autorestore ที่ `macro_conf.json` (อยู่ข้างสคริปต์)
 - **`parse_key()`:** แปลงข้อความ Additional → ออบเจ็กต์คีย์ pynput (รองรับชื่อพิเศษ เช่น
