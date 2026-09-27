@@ -203,6 +203,36 @@ class TestV15Actions(unittest.TestCase):
         self.assertEqual(len(am.ACTIONS_ALL), len(set(am.ACTIONS_ALL)))
 
 
+class TestSearchArea(unittest.TestCase):
+    """search area สำหรับ Image Click (v1.7):
+    X,Y = มุมซ้ายบน, Mins = กว้าง, Secs = สูง — ว่าง = ค้นทั้งจอ"""
+
+    def _row(self, x="", y="", mins="", secs=""):
+        return dict(x=x, y=y, mins=mins, secs=secs)
+
+    def test_full_area(self):
+        app = mock.MagicMock()
+        area = am.MacroApp._parse_search_area(app, self._row(100, 200, 300, 400))
+        self.assertEqual(area, (100, 200, 400, 600))
+
+    def test_empty_is_fullscreen(self):
+        app = mock.MagicMock()
+        self.assertIsNone(am.MacroApp._parse_search_area(app, self._row()))
+
+    def test_zero_size_is_fullscreen(self):
+        app = mock.MagicMock()
+        self.assertIsNone(am.MacroApp._parse_search_area(app, self._row(10, 10, 0, 0)))
+
+    def test_garbage_is_fullscreen(self):
+        app = mock.MagicMock()
+        self.assertIsNone(am.MacroApp._parse_search_area(app, self._row("abc", "", "", "")))
+
+    def test_float_width(self):
+        app = mock.MagicMock()
+        area = am.MacroApp._parse_search_area(app, self._row(0, 0, "10.5", 20))
+        self.assertEqual(area, (0, 0, 10, 20))
+
+
 class TestCli(unittest.TestCase):
     """CLI mode (v1.6): อ่าน args + ไฟล์ — ทดสอบโดยไม่ยุ่งเมาส์จริง"""
 

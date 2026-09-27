@@ -1,9 +1,10 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.6
+# 🖱️ Auto Mouse & Keyboard Macro v1.7
 
 <div align="center">
 
 **โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้**
 
+![Tests](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![GUI](https://img.shields.io/badge/GUI-Tkinter-2ea043)
 ![Library](https://img.shields.io/badge/pynput-1.8.2-orange)
@@ -13,11 +14,20 @@
 
 ---
 
-## 📸 หน้าตาโปรแกรม
+## 📸 หน้าตาโปรแกรมจริง
 
 <div align="center">
-<img src="images/pic.png" alt="หน้าตาโปรแกรม Auto Mouse Macro" width="480">
-<br><em>หน้าจอหลัก: ตารางคำสั่ง + ปุ่ม START / STOP / REPEAT / RECORD (ต้นแบบ Auto Mouse v1.3)</em>
+<img src="images/screenshot.png" alt="หน้าจอหลักของโปรแกรม" width="640">
+<br><em>หน้าจอหลัก v1.7: เมนูไอคอน + แถบโปรไฟล์ + ตารางคำสั่ง + ปุ่มควบคุมทั้งหมด</em>
+</div>
+
+---
+
+## 🖼️ ต้นแบบเดิม (Auto Mouse v1.3)
+
+<div align="center">
+<img src="images/pic.png" alt="ต้นแบบ Auto Mouse v1.3" width="480">
+<br><em>ต้นแบบ: ตารางคำสั่ง + ปุ่ม START / STOP / REPEAT / RECORD</em>
 </div>
 
 ---
@@ -52,6 +62,7 @@
 - **Type Text** — พิมพ์ข้อความ (รองรับไทย) เช่น `สวัสดี world`
 - **Launch App** — เปิดโปรแกรม/เว็บ เช่น `notepad.exe` หรือ `https://example.com`
 - **Image Click / Wait for Image** — คลิกตามภาพ / รอภาพปรากฏ (ชื่อไฟล์ .png ใน Additional; ต้องติดตั้ง `opencv-python Pillow`)
+  - 🆕 **Search Area:** ระบุกรอบค้นหาได้ — X,Y = มุมซ้ายบน, Mins = กว้าง, Secs = สูง (เว้นว่าง = ทั้งจอ)
 - **Beep** — เสียงเตือน
 
 > 💡 **ดีเลย์สุ่ม:** ใส่ Secs แบบ `1-3` = สุ่มดีเลย์ 1–3 วิ ทุกรอบ
@@ -170,6 +181,16 @@ py -m PyInstaller auto_macro.spec --noconfirm --clean
     └── images/pic.png
 ```
 
+## 🔄 CI/CD อัตโนมัติ
+
+- **Tests** — ทุกครั้งที่ push/PR ระบบจะรัน unit tests บน Python 3.12–3.14 (Windows)
+  ดูสถานะได้ที่แท็บ [Actions](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions)
+- **Release** — สร้าง .exe และแนบให้โหลดอัตโนมัติเมื่อ push tag:
+
+```bash
+git tag v1.7 && git push origin v1.7
+```
+
 ## ⌨️ เล่นผ่าน Command Line (ไม่เปิด GUI)
 
 ```bash
@@ -184,7 +205,7 @@ py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เ�
 ## 🧪 ทดสอบ
 
 ```bash
-py -m unittest test_auto_macro -v    # 46 unit tests
+py -m unittest test_auto_macro -v    # 51 unit tests
 ```
 
 ## 📚 เอกสารเพิ่มเติม

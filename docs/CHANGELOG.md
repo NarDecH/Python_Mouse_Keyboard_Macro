@@ -4,6 +4,28 @@
 
 ---
 
+## [1.7.0] — 2026-09-27
+
+### ✨ เพิ่มใหม่
+- **🖼️ Search Area ให้ Image Click / Wait for Image** — ระบุกรอบค้นหาได้:
+  ช่อง X,Y = มุมซ้ายบน, Mins = ความกว้าง, Secs = ความสูง (พิกเซล; เว้นว่าง = ค้นทั้งจอ)
+  ลดเวลาค้นหาและลดโอกาสเจอภาพซ้ำผิดตำแหน่ง
+
+### 🔄 CI/CD (GitHub Actions)
+- **tests.yml** — รัน unit tests อัตโนมัติทุก push/PR บน Python 3.12–3.14 (Windows)
+- **release.yml** — เมื่อ push tag `v*` จะ build .exe แล้วสร้าง GitHub Release
+  พร้อมแนบไฟล์ให้โหลดอัตโนมัติ (รัน tests ก่อน build ทุกครั้ง)
+
+### 📚 เอกสาร
+- เพิ่มสกรีนช็อตหน้าตาโปรแกรมจริง (`docs/images/screenshot.png`)
+- README เพิ่ม badge สถานะ tests + หัวข้อ CI/CD
+
+### 🧪 ทดสอบ
+- เพิ่ม 5 tests สำหรับ search area (รวม **51 tests**)
+  พร้อมแก้บั๊ก falsy: พิกัด 0 ถูกมองเป็น "ค่าว่าง" ทำให้กรอบที่เริ่มที่ 0 ใช้ไม่ได้
+
+---
+
 ## [1.6.0] — 2026-09-27
 
 ### 🐛 แก้บั๊กร้ายแรง
@@ -125,7 +147,7 @@
 ## [Unreleased]
 
 ### 🎯 วางแผนไว้
-- โซนค้นหาภาพ (search area) แบบระบุพิกัดได้สำหรับ Image Click
-- บันทึกภาพตัวอย่าง (crop) จากในโปรแกรมโดยไม่ต้องใช้ editor ภายนอก
+- จับภาพตัวอย่าง (crop) จากในโปรแกรมโดยไม่ต้องใช้ editor ภายนอก
 - CLI รองรับ Image Click / Wait for Image ด้วย
 - เชื่อมต่อ Windows Task Scheduler ผ่าน CLI
+- ปรับ threshold ความมั่นใจของ Image Click ได้รายแถว

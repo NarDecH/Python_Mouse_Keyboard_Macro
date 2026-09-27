@@ -65,8 +65,40 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.6.0</h2>
+      <h2>เวอร์ชัน 1.7.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">27 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เพิ่มใหม่</h3>
+    <ul>
+      <li><b>🖼️ Search Area ให้ Image Click / Wait for Image</b> — ระบุกรอบค้นหา:
+        ช่อง X,Y = มุมซ้ายบน, Mins = ความกว้าง, Secs = ความสูง (พิกเซล; เว้นว่าง = ทั้งจอ)</li>
+    </ul>
+
+    <h3>🔄 CI/CD (GitHub Actions)</h3>
+    <ul>
+      <li><b>tests.yml</b> — รัน unit tests อัตโนมัติทุก push/PR บน Python 3.12–3.14 (Windows)</li>
+      <li><b>release.yml</b> — push tag <code>v*</code> → build .exe → สร้าง GitHub Release
+        แนบไฟล์ให้โหลดอัตโนมัติ (รัน tests ก่อน build เสมอ)</li>
+    </ul>
+
+    <h3>📚 เอกสาร</h3>
+    <ul>
+      <li>เพิ่มสกรีนช็อตหน้าตาโปรแกรมจริง (<code>docs/images/screenshot.png</code>)</li>
+      <li>README เพิ่ม badge สถานะ tests + หัวข้อ CI/CD</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม 5 tests สำหรับ search area — รวม <b>51 tests</b>
+        พร้อมแก้บั๊ก falsy: พิกัด 0 ถูกมองเป็นค่าว่าง</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.6.0</h2>
       <span class="date">27 กันยายน 2026</span>
     </div>
 
@@ -220,10 +252,10 @@
     </div>
     <h3>🎯 วางแผนไว้</h3>
     <ul>
-      <li>🖼️ โซนค้นหาภาพ (search area) แบบระบุพิกัดได้สำหรับ Image Click</li>
       <li>✂️ บันทึกภาพตัวอย่าง (crop) จากในโปรแกรมโดยไม่ต้องใช้ editor ภายนอก</li>
       <li>⌨️ CLI รองรับ Image Click / Wait for Image ด้วย</li>
       <li>📅 เชื่อมต่อ Windows Task Scheduler ผ่าน CLI</li>
+      <li>🎚️ ปรับ threshold ความมั่นใจของ Image Click ได้รายแถว</li>
     </ul>
   </div>
 

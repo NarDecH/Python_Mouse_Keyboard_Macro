@@ -1,0 +1,44 @@
+# Build .exe และสร้าง GitHub Release อัตโนมัติเมื่อ push tag v* (เช่น v1.6)
+# ใช้:  git tag v1.6 && git push origin v1.6
+name: Build & Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write                   # จำเป็นสำหรับสร้าง Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ตั้งค่า Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: ติดตั้งไลบรารี
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: รัน unit tests
+        run: python -m unittest test_auto_macro -v
+
+      - name: Build .exe ด้วย PyInstaller
+        run: pyinstaller auto_macro.spec --noconfirm --clean
+
+      - name: อัพโหลด artifact (เก็บไว้ดูใน Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoMouseMacro-exe
+          path: dist/AutoMouseMacro.exe
+
+      - name: สร้าง Release พร้อมแนบไฟล์ .exe
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AutoMouseMacro.exe
+          generate_release_notes: true
