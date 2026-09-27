@@ -239,6 +239,7 @@ py -m unittest test_auto_macro -v    # 51 unit tests
 
 ## 📚 เอกสารเพิ่มเติม
 
+- **[TUTORIAL](TUTORIAL.html)** — 📘 คู่มือฉบับสมบูรณ์ 10 บท (ติดตั้ง → อัด → แก้ → Image Click → FAQ)
 - **[RESEARCH](RESEARCH.html)** — เทคนิคการควบคุมเมาส์/คีย์บอร์ดด้วย pynput, threading, และการเลือกเครื่องมือ
 - **[CHANGELOG](CHANGELOG.html)** — ประวัติการเปลี่ยนแปลงทุกเวอร์ชัน
 

@@ -204,45 +204,70 @@ class TestV15Actions(unittest.TestCase):
 
 
 class TestSearchArea(unittest.TestCase):
-    """search area สำหรับ Image Click (v1.7):
-    ใช้ syntax ใน Additional: ไฟล์.png@x,y,กว้าง,สูง — ไม่มี @ = ค้นทั้งจอ"""
+    """search area + threshold สำหรับ Image Click (v1.7):
+    Additional: ไฟล์.png[@x,y,w,h][#threshold] — คืน (path, area, threshold)"""
 
     def test_no_at_sign_is_fullscreen(self):
         app = mock.MagicMock()
-        path, area = am.MacroApp._parse_search_area(app, {"additional": "button.png"})
+        path, area, thr = am.MacroApp._parse_search_area(app, {"additional": "button.png"})
         self.assertEqual(path, "button.png")
         self.assertIsNone(area)
+        self.assertEqual(thr, 0.80)
 
     def test_with_area(self):
         app = mock.MagicMock()
-        path, area = am.MacroApp._parse_search_area(
+        path, area, _thr = am.MacroApp._parse_search_area(
             app, {"additional": "button.png@100,200,300,400"})
         self.assertEqual(path, "button.png")
         self.assertEqual(area, (100, 200, 400, 600))
 
     def test_zero_size_is_fullscreen(self):
         app = mock.MagicMock()
-        _path, area = am.MacroApp._parse_search_area(
+        _path, area, _thr = am.MacroApp._parse_search_area(
             app, {"additional": "b.png@10,10,0,0"})
         self.assertIsNone(area)
 
     def test_garbage_coords_is_fullscreen(self):
         app = mock.MagicMock()
-        _path, area = am.MacroApp._parse_search_area(
+        _path, area, _thr = am.MacroApp._parse_search_area(
             app, {"additional": "b.png@abc,x,y,z"})
         self.assertIsNone(area)
 
     def test_float_coords(self):
         app = mock.MagicMock()
-        _path, area = am.MacroApp._parse_search_area(
+        _path, area, _thr = am.MacroApp._parse_search_area(
             app, {"additional": "b.png@0,0,10.5,20"})
         self.assertEqual(area, (0, 0, 10, 20))
 
     def test_coords_with_spaces(self):
         app = mock.MagicMock()
-        _path, area = am.MacroApp._parse_search_area(
+        _path, area, _thr = am.MacroApp._parse_search_area(
             app, {"additional": "b.png@ 5 , 6 , 7 , 8 "})
         self.assertEqual(area, (5, 6, 12, 14))
+
+    def test_threshold_percent(self):
+        app = mock.MagicMock()
+        _p, _a, thr = am.MacroApp._parse_search_area(
+            app, {"additional": "b.png@0,0,10,20#90"})
+        self.assertAlmostEqual(thr, 0.90)
+
+    def test_threshold_fraction(self):
+        app = mock.MagicMock()
+        _p, _a, thr = am.MacroApp._parse_search_area(
+            app, {"additional": "b.png#0.65"})
+        self.assertAlmostEqual(thr, 0.65)
+
+    def test_threshold_clamped(self):
+        app = mock.MagicMock()
+        _p, _a, thr = am.MacroApp._parse_search_area(
+            app, {"additional": "b.png#200"})
+        self.assertEqual(thr, 1.0)
+
+    def test_threshold_invalid_keeps_default(self):
+        app = mock.MagicMock()
+        _p, _a, thr = am.MacroApp._parse_search_area(
+            app, {"additional": "b.png#abc"})
+        self.assertEqual(thr, 0.80)
 
 
 class TestCli(unittest.TestCase):

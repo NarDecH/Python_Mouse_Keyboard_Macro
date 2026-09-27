@@ -230,6 +230,11 @@ class MacroApp:
         self._script_loops = 1             # จำนวนรอบของสคริปต์ทั้งชุด (0 = ไม่จำกัด)
         self._restore_pos = False          # คืนเมาส์กลับจุดเริ่มเมื่อจบรอบ
 
+        # การหยุดที่แม่นยำ (v1.7.1)
+        self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
+        self._pressed_keys = set()         # คีย์ที่กดค้าง (Press Key) เพื่อปล่อยตอน STOP
+        self._pressed_btns = set()         # ปุ่มเมาส์ที่กดค้าง (* Down) เพื่อปล่อยตอน STOP
+
         self._build_style()
         self._build_menu()
         self._build_profile_bar()
@@ -317,6 +322,61 @@ class MacroApp:
         tk.Button(tools, text="▲ ขึ้น", width=6, command=lambda: self.move(-1)).pack(side="left", padx=2)
         tk.Button(tools, text="▼ ลง", width=6, command=lambda: self.move(1)).pack(side="left", padx=2)
         tk.Button(tools, text="ล้างทั้งหมด", command=self.clear_all).pack(side="left", padx=2)
+        if HAS_CV:
+            tk.Button(tools, text="📸 จับภาพ (ลากกรอบบนจอ)", command=self._capture_snip).pack(side="right", padx=2)
+
+    # -------------------------------------------------- จับภาพหน้าจอ (snip) ---
+    def _capture_snip(self):
+        """ลากเมาส์วาดกรอบบนหน้าจอ (กดปล่อยแล้วจับภาพ) → เซฟเป็น .png ไว้ใช้กับ Image Click"""
+        if not HAS_CV:
+            messagebox.showinfo(APP_TITLE, "ต้องติดตั้ง: pip install opencv-python Pillow")
+            return
+        self.root.iconify()
+        time.sleep(0.35)               # รอหน้าต่างหดจริง ไม่ให้ติดมาในภาพ
+        sel = tk.Toplevel(self.root)
+        sel.overrideredirect(True)
+        sel.attributes("-topmost", True)
+        sel.attributes("-alpha", 0.25)
+        sel.configure(bg="black")
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        sel.geometry("%dx%d+0+0" % (sw, sh))
+        start = {"x": 0, "y": 0}
+
+        def on_press(e):
+            start["x"], start["y"] = e.x_root, e.y_root
+
+        def on_drag(e):
+            x0, y0 = start["x"], start["y"]
+            sel.geometry("%dx%d+%d+%d" % (abs(e.x_root - x0), abs(e.y_root - y0),
+                                          min(x0, e.x_root), min(y0, e.y_root)))
+
+        def on_release(e):
+            x0, y0 = start["x"], start["y"]
+            x1, y1 = e.x_root, e.y_root
+            sel.destroy()
+            box = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+            self.root.deiconify()
+            if box[2] - box[0] < 5 or box[3] - box[1] < 5:
+                return                      # ลากสั้นเกินไป = ยกเลิก
+            try:
+                name = simpledialog.askstring("บันทึกภาพ", "ชื่อไฟล์ (.png):",
+                                              initialvalue="snip.png", parent=self.root)
+                if not name:
+                    return
+                if not name.lower().endswith(".png"):
+                    name += ".png"
+                base = os.path.dirname(os.path.abspath(__file__))
+                ImageGrab.grab(bbox=box, all_screens=True).save(os.path.join(base, name))
+                self._ui_state["msg"] = ("จับภาพแล้ว: %s (%dx%d) — พิมพ์ชื่อไฟล์นี้ในช่อง Additional ของแถว Image Click" % (name, box[2] - box[0], box[3] - box[1]), "#080")
+            except Exception as exc:
+                messagebox.showerror(APP_TITLE, "จับภาพไม่สำเร็จ: %s" % exc)
+
+        sel.bind("<ButtonPress-1>", on_press)
+        sel.bind("<B1-Motion>", on_drag)
+        sel.bind("<ButtonRelease-1>", on_release)
+        if HAS_CV:
+            tk.Button(tools, text="📸 จับภาพ (ลากกรอบบนจอ)", command=self._capture_snip).pack(side="right", padx=2)
 
     def _build_bottom(self):
         bot = tk.Frame(self.root)
@@ -681,7 +741,7 @@ class MacroApp:
             if r["button"] == "Launch App" and not (r["additional"] or "").strip():
                 return False
             if r["button"] in (IMAGE_ACTION, "Wait for Image"):
-                p = (r["additional"] or "").strip()
+                p, _a, _t = self._parse_search_area(r)
                 if not p:
                     return False
                 if not os.path.isabs(p):
@@ -706,8 +766,10 @@ class MacroApp:
                     "มีแถวที่ค่าไม่ครบ (คีย์ว่าง/สะกดไม่รู้จัก หรือไม่พบไฟล์ภาพ)\n"
                     "แถวเหล่านั้นจะถูกข้าม ต้องการเล่นต่อหรือไม่?"):
                 return
-        self.stop_all(silent=True)
+        self.stop_all(silent=True)          # หยุดเธรดเดิม + ปล่อยคีย์ค้างก่อน
+        self._play_gen += 1                 # เธรดใหม่รุ่นใหม่ — เธรดเก่าที่ sleep ค้างจะหยุดเอง
         self.running = True
+        gen = self._play_gen
         loop = loop or self.chk_forever.get()          # อ่านค่าฝั่ง UI ก่อนสร้างเธรด
         try:
             speed = float(self.cmb_speed.get())
@@ -725,24 +787,55 @@ class MacroApp:
         mode = "วนซ้ำ" if loop else "เล่นครั้งเดียว"
         self.root.title(APP_TITLE + "   [ RUNNING ]")
         self._ui_state["msg"] = ("กำลังเล่นสคริปต์ (%s) — F8 หยุด" % mode, "#080")
-        threading.Thread(target=self._player, args=(rows, loop), daemon=True).start()
+        threading.Thread(target=self._player, args=(rows, loop, gen), daemon=True).start()
 
     def _reset_ui(self):
         self.btn_start.config(state="normal", bg="#e8e8e8")
         self.btn_repeat.config(state="normal", bg="#3fa63f", fg="white")
         self.root.title(APP_TITLE)
 
+    # ------------------------------------------ การหยุดที่แม่นยำ (v1.7.1) ----
+    def _gen_ok(self, gen):
+        """เธรดผู้เล่นรุ่น gen ยังมีสิทธิ์เล่นต่อไหม (STOP หรือ START ใหม่ = หยุด)"""
+        return self.running and gen == self._play_gen
+
+    def _sleep_check(self, secs, gen):
+        """sleep แบบแบ่งชิ้นละ 50 ms — STOP ตอบสนองทันทีแม้ดีเลย์ยาวหลายนาที"""
+        end = time.time() + max(0.0, secs)
+        while True:
+            remain = end - time.time()
+            if remain <= 0 or not self._gen_ok(gen):
+                break
+            time.sleep(min(0.05, remain))
+        return self._gen_ok(gen)
+
+    def _release_stuck(self):
+        """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ เมื่อ STOP กลางคัน (กัน Ctrl ติด กดค้าง)"""
+        try:
+            for k in list(self._pressed_keys):
+                self.kb_ctl.release(k)
+            self._pressed_keys.clear()
+            for b in list(self._pressed_btns):
+                self.mouse_ctl.release(b)
+            self._pressed_btns.clear()
+        except Exception:
+            pass
+
     def stop_all(self, silent=False):
         was = self.running or self.recording
+        self._play_gen += 1               # ทำให้เธรดผู้เล่นรุ่นเดิมหยุดเองทันที
         self.running = False
+        self._release_stuck()             # ปล่อยคีย์/ปุ่มที่กดค้างจาก Press Key / Down
         if self.recording:
             self._stop_record()
         self._ui_state["row"] = None
+        self._ui_state["prog"] = None
         self._ui_state["reset"] = True
         if was and not silent:
-            self._ui_state["msg"] = ("หยุดแล้ว", "#a60")
+            self._ui_state["msg"] = ("หยุดแล้ว — ปล่อยคีย์/ปุ่มที่ค้างแล้ว", "#a60")
 
-    def _player(self, rows, loop):
+    def _player(self, rows, loop, gen=0):
+        """เธรดผู้เล่น — เช็ค self._gen_ok(gen) ทุกจุด: STOP หรือ START ใหม่ = หยุดทันที"""
         def do_step(r):
             btn = r["button"]
             if btn in BTN_TH:                                    # เมาส์ทั่วไป
@@ -753,8 +846,10 @@ class MacroApp:
                     time.sleep(0.03)
                 if act == "Down":
                     self.mouse_ctl.press(btn_obj)
+                    self._pressed_btns.add(btn_obj)  # จำไว้ปล่อยตอน STOP กลางคัน
                 elif act == "Up":
                     self.mouse_ctl.release(btn_obj)
+                    self._pressed_btns.discard(btn_obj)
                 else:
                     self.mouse_ctl.click(btn_obj, 1)
             elif btn in SCROLL_ACTIONS:                          # เลื่อนล้อเมาส์
@@ -794,7 +889,7 @@ class MacroApp:
                 self._do_wait_for_image(r)
             elif btn == "Type Text":                             # พิมพ์ข้อความ
                 for ch in str(r["additional"] or ""):
-                    if not self.running:
+                    if not self._gen_ok(gen):
                         return
                     self.kb_ctl.tap(self.kb_ctrl_char(ch))
             elif btn == "Launch App":                            # เปิดแอป/เว็บ
@@ -816,12 +911,15 @@ class MacroApp:
                     return
                 if btn == "Press Key":
                     self.kb_ctl.press(k)
+                    self._pressed_keys.add(k)      # จำไว้ปล่อยตอน STOP กลางคัน
                 elif btn == "Release Key":
                     self.kb_ctl.release(k)
+                    self._pressed_keys.discard(k)
                 else:
                     self.kb_ctl.tap(k)
 
         # บั๊กฟิกซ์ v1.6: เดิมลูปนี้ถูกแทรกหลัง return ของ kb_ctrl_char ทำให้เป็น dead code
+        # v1.7.1: ใช้ _gen_ok/_sleep_check — STOP แม่นทันทีแม้ดีเลย์ยาว + กันเล่นซ้อนเธรด
         try:
             start_pos = self.mouse_ctl.position if self._restore_pos else None
             total = len(rows)
@@ -831,38 +929,40 @@ class MacroApp:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
                 for i, r in enumerate(rows):
-                    if not self.running:
+                    if not self._gen_ok(gen):
                         return
                     children = self.tree.get_children()
                     self._ui_state["row"] = children[i] if i < len(children) else None
                     self._ui_state["prog"] = (i + 1, total, loop_no)
                     for _ in range(parse_int(r["repeat"])):
-                        if not self.running:
+                        if not self._gen_ok(gen):
                             return
                         lo, hi = delay_range(r["secs"])
                         base = delay_seconds(r["mins"], 0) + (lo if lo == hi else random.uniform(lo, hi))
-                        time.sleep(max(0.0, base / self._speed_mult))
-                        if not self.running:
+                        if not self._sleep_check(base / self._speed_mult, gen):
                             return
                         do_step(r)
                 self._ui_state["row"] = None
                 self._ui_state["prog"] = (total, total, loop_no)
-                if self._restore_pos and start_pos and self.running:
+                if self._restore_pos and start_pos and self._gen_ok(gen):
                     self.mouse_ctl.position = start_pos
                 if loop:
                     break                      # REPEAT/forever คุมรอบอยู่แล้ว
                 if self._script_loops == 0:
-                    outer = self.running       # ไม่จำกัดรอบ
+                    outer = self._gen_ok(gen)  # ไม่จำกัดรอบ
                 else:
                     self._script_loops -= 1
-                    outer = self._script_loops > 0 and self.running
-            if self.running:
+                    outer = self._script_loops > 0 and self._gen_ok(gen)
+            if self._gen_ok(gen):
                 self._ui_state["msg"] = ("เล่นจบแล้ว ✔", "#080")
         finally:
-            self.running = False
-            self._ui_state["row"] = None
-            self._ui_state["prog"] = None
-            self._ui_state["reset"] = True
+            # เธรดจบเอง (จบสคริปต์ หรือถูก STOP/START ใหม่แทนที่) — ถ้าเป็นรุ่นปัจจุบันค่อยเคลียร์
+            if gen == self._play_gen:
+                self.running = False
+                self._release_stuck()          # กันคีย์/ปุ่มค้างกรณีแถวสุดท้ายคือ Press/Down
+                self._ui_state["row"] = None
+                self._ui_state["prog"] = None
+                self._ui_state["reset"] = True
 
     def kb_ctrl_char(self, ch):
         """แปลงอักขระเป็น KeyCode สำหรับ Type Text (รองรับไทย/อังกฤษ/ตัวเลข/สัญลักษณ์)"""
@@ -1062,20 +1162,37 @@ class MacroApp:
                 self.kb_ctl.release(k)
 
     def _parse_search_area(self, r):
-        """อ่านกรอบค้นหา (search area) จากช่อง Additional รูปแบบ
-            ไฟล์.png@x,y,กว้าง,สูง     เช่น  button.png@100,200,300,400
-        คืน (path, (left, top, right, bottom)) หรือ (path, None) = ค้นทั้งจอ"""
+        """อ่านกรอบค้นหา (search area) และ threshold จากช่อง Additional
+            ไฟล์.png                     = ทั้งจอ, threshold 80%
+            ไฟล์.png@x,y,กว้าง,สูง        = กรอบ, threshold 80%
+            ไฟล์.png@x,y,กว้าง,สูง#90     = กรอบ, threshold 90%
+            ไฟล์.png#65                  = ทั้งจอ, threshold 65%
+        คืน (path, area, threshold) — area None = ทั้งจอ"""
         raw = (r.get("additional") or "").strip()
-        if "@" not in raw:
-            return raw, None
-        path, _, coords = raw.partition("@")
-        try:
-            x, y, w, h = [int(float(p.strip())) for p in coords.split(",")]
-        except ValueError:
-            return path, None          # พิมพ์พลาด → ค้นทั้งจอ
-        if w <= 0 or h <= 0:
-            return path, None
-        return path, (x, y, x + w, y + h)
+        path, area, thr = raw, None, 0.80
+        if "@" in raw:
+            path, _, coords = raw.partition("@")
+            coords, _, thr_s = coords.partition("#")
+            try:
+                x, y, w, h = [int(float(p.strip())) for p in coords.split(",")]
+            except ValueError:
+                return path, None, thr          # พิมพ์พลาด → ค้นทั้งจอ
+            if w > 0 and h > 0:
+                area = (x, y, x + w, y + h)
+            raw_tail = thr_s
+        else:
+            _p, _s, thr_s = raw.partition("#")
+            path = _p
+            raw_tail = thr_s
+        if thr_s.strip():
+            try:
+                t = float(thr_s)
+                if 1 < t <= 100:      # ใส่เป็นเปอร์เซ็นต์ เช่น #90 = 90%
+                    t /= 100.0
+                thr = min(1.0, max(0.30, t))
+            except ValueError:
+                pass
+        return path, area, thr
 
     def _grab_area_bgr(self, area):
         """จับภาพหน้าจอเฉพาะกรอบ (ถ้า area=None = ทั้งจอ) คืน numpy BGR"""
@@ -1086,8 +1203,8 @@ class MacroApp:
         return cv2.cvtColor(np.array(shot), cv2.COLOR_RGB2BGR), (area[0], area[1]) if area else (0, 0)
 
     def _do_wait_for_image(self, r):
-        """รอจนกว่าจะเจอภาพบนหน้าจอ (timeout 30 วิ) — รองรับ search area ใน Additional"""
-        path, area = self._parse_search_area(r)
+        """รอจนกว่าจะเจอภาพบนหน้าจอ (timeout 30 วิ) — รองรับ search area + threshold"""
+        path, area, thr = self._parse_search_area(r)
         if not HAS_CV:
             self._ui_state["msg"] = ("Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
             return
@@ -1101,12 +1218,13 @@ class MacroApp:
             self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
             return
         deadline = time.time() + 30
-        while time.time() < deadline and self.running:
+        gen = self._play_gen
+        while time.time() < deadline and self._gen_ok(gen):
             screen, _off = self._grab_area_bgr(area)
             if tmpl.shape[0] <= screen.shape[0] and tmpl.shape[1] <= screen.shape[1]:
                 res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
                 _, maxv, _, _ = cv2.minMaxLoc(res)
-                if maxv >= 0.80:
+                if maxv >= thr:
                     return
             time.sleep(0.5)
         self._ui_state["msg"] = ("Wait for Image: ไม่เจอภาพภายใน 30 วิ — %s" % os.path.basename(path), "#a60")
@@ -1114,8 +1232,8 @@ class MacroApp:
     # ------------------------------------------------------ image click ------
     def _do_image_click(self, r):
         """หาภาพย่อยบนหน้าจอแล้วคลิกที่จุดศูนย์กลาง
-        ช่อง Additional: ไฟล์.png หรือ ไฟล์.png@x,y,กว้าง,สูง (กรอบค้นหา)"""
-        path, area = self._parse_search_area(r)
+        ช่อง Additional: ไฟล์.png / ไฟล์.png@x,y,กว้าง,สูง / ...#threshold"""
+        path, area, thr = self._parse_search_area(r)
         if not HAS_CV:
             self._ui_state["msg"] = ("Image Click ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
             return
@@ -1135,8 +1253,8 @@ class MacroApp:
                 return
             res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
             _, maxv, _, maxloc = cv2.minMaxLoc(res)
-            if maxv < 0.80:
-                self._ui_state["msg"] = ("หาภาพไม่เจอ (ความมั่นใจ %.0f%%): %s" % (maxv * 100, os.path.basename(path)), "#c00")
+            if maxv < thr:
+                self._ui_state["msg"] = ("หาภาพไม่เจอ (ความมั่นใจ %.0f%% < %.0f%%): %s" % (maxv * 100, thr * 100, os.path.basename(path)), "#c00")
                 return
             cx = off_x + maxloc[0] + tmpl.shape[1] // 2
             cy = off_y + maxloc[1] + tmpl.shape[0] // 2
