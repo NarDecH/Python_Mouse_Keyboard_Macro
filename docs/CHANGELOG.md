@@ -4,6 +4,31 @@
 
 ---
 
+## [1.6.0] — 2026-09-27
+
+### 🐛 แก้บั๊กร้ายแรง
+- **ลูปเล่นสคริปต์เป็น dead code** — จากการแก้โค้ดรอบ v1.5 ฟังก์ชัน `kb_ctrl_char`
+  ถูกแทรกคั่นกลาง `_player` ทำให้ลูปเล่นทั้งหมดอยู่หลัง `return` → กด START แล้วไม่มีอะไรเล่น
+  (เจอจากการ review ด้วย AST) — แก้เรียบร้อย พร้อมเพิ่ม progress ในตัว
+
+### ✨ เพิ่มใหม่
+- **⌨️ CLI mode** — เล่นสคริปต์โดยไม่เปิด GUI:
+  `py auto_macro.py script.json [--loop] [--loops N] [--speed X]`
+  - กด F8/Esc หยุดได้ (global hotkey) หรือ Ctrl+C
+  - แสดงความคืบหน้ารายแถวในคอนโซล + ข้ามแถวที่ disabled
+  - ตั้งคอนโซลเป็น UTF-8 อัตโนมัติ (พิมพ์ไทยไม่พังบน cp1252)
+- **🖱️ Right-click menu บนตาราง** — คัดลอกแถว / แทรกแถวใหม่ด้านบน-ด้านล่าง / ลบแถว
+- **📊 Progress bar + ตัวนับรอบ** ใน statusbar — แสดง `รอบ N • x/y (p%)` ขณะเล่น
+
+### 🧪 ทดสอบ
+- เพิ่ม 5 tests สำหรับ CLI (ไฟล์หาย/JSON พัง/ชนิดผิด/สคริปต์ว่าง/ข้ามแถว disabled)
+  รวมเป็น **46 tests**
+
+### 📚 เอกสาร
+- อัพเดต README/RESEARCH/AGENTS ครอบคลุม v1.6
+
+---
+
 ## [1.5.0] — 2026-09-27
 
 > ฟีเจอร์ชุดนี้ศึกษาและคัดสรรจาก [automouseclick.com](https://www.automouseclick.com/)
@@ -100,8 +125,7 @@
 ## [Unreleased]
 
 ### 🎯 วางแผนไว้
-- แถบ progress และตัวนับรอบเวลาเล่นแบบวนซ้ำ
 - โซนค้นหาภาพ (search area) แบบระบุพิกัดได้สำหรับ Image Click
 - บันทึกภาพตัวอย่าง (crop) จากในโปรแกรมโดยไม่ต้องใช้ editor ภายนอก
-- เล่นสคริปต์จาก command line (`AutoMouseMacro.exe script.json`)
-- Right-click context menu บนแถวตาราง (คัดลอก/แทรก/ทำซ้ำแถว)
+- CLI รองรับ Image Click / Wait for Image ด้วย
+- เชื่อมต่อ Windows Task Scheduler ผ่าน CLI

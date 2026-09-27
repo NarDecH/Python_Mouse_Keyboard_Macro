@@ -203,6 +203,57 @@ class TestV15Actions(unittest.TestCase):
         self.assertEqual(len(am.ACTIONS_ALL), len(set(am.ACTIONS_ALL)))
 
 
+class TestCli(unittest.TestCase):
+    """CLI mode (v1.6): อ่าน args + ไฟล์ — ทดสอบโดยไม่ยุ่งเมาส์จริง"""
+
+    def _write_script(self, tmpdir, rows):
+        import json
+        p = os.path.join(tmpdir, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        return p
+
+    def test_missing_file(self):
+        rc = am.cli_main(["no_such_file.json"])
+        self.assertEqual(rc, 1)
+
+    def test_bad_json(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "bad.json")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            self.assertEqual(am.cli_main([p]), 1)
+
+    def test_not_a_list(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_script(d, {"oops": 1})
+            self.assertEqual(am.cli_main([p]), 1)
+
+    def test_empty_script_finishes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_script(d, [])
+            self.assertEqual(am.cli_main([p]), 0)
+
+    def test_skips_disabled_rows(self):
+        # แถว disabled ต้องถูกข้าม — ใช้ action Beep ที่ปลอดภัยใน CLI
+        import io
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_script(d, [
+                {"enabled": False, "button": "Beep", "secs": 0},
+                {"enabled": True, "button": "Beep", "secs": 0},
+            ])
+            buf = io.StringIO()
+            with mock.patch("sys.stdout", buf):
+                rc = am.cli_main([p])
+            self.assertEqual(rc, 0)
+            self.assertIn("[1/1]", buf.getvalue())   # เห็นแค่แถวที่ enabled เดียว
+
+
 class TestGlobalHotkeyMapping(unittest.TestCase):
     """GlobalHotKeys ต้องลงทะเบียน F6/F8/F9/F10 (ทดสอบโดยไม่ start listener จริง)"""
 

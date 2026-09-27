@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.5
+# 🖱️ Auto Mouse & Keyboard Macro v1.6
 
 <div align="center">
 
@@ -105,6 +105,7 @@ run.bat                                  # หรือ: py auto_macro.py
 
 - **ดับเบิลคลิกช่อง X / Y** → นับถอยหลัง 3 วิ แล้วจับพิกัดเมาส์ปัจจุบันให้อัตโนมัติ
 - **ดับเบิลคลิกช่องอื่น** → เปิดหน้าต่างแก้ค่า (Action เป็น dropdown, ช่องเวลาพิมพ์ได้)
+- **คลิกขวาบนแถว:** คัดลอกแถวนี้ / แทรกแถวใหม่ด้านบน-ด้านล่าง / ลบแถว
 - **ปุ่มเสริม:** ＋ เพิ่มบรรทัด / － ลบที่เลือก / ▲▼ เลื่อนลำดับ / ล้างทั้งหมด / ปุ่ม Delete บนคีย์บอร์ด
 
 ### โปรไฟล์ และ เล่นอัตโนมัติตามเวลา
@@ -169,10 +170,21 @@ py -m PyInstaller auto_macro.spec --noconfirm --clean
     └── images/pic.png
 ```
 
+## ⌨️ เล่นผ่าน Command Line (ไม่เปิด GUI)
+
+```bash
+py auto_macro.py script.json                  # เล่นรอบเดียว
+py auto_macro.py script.json --loop           # วนไม่จำกัด
+py auto_macro.py script.json --loops 5        # 5 รอบ
+py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เท่า
+```
+
+กด **F8** หรือ **Esc** เพื่อหยุด (หรือ Ctrl+C) — เหมาะกับการรันผ่าน Windows Task Scheduler
+
 ## 🧪 ทดสอบ
 
 ```bash
-py -m unittest test_auto_macro -v    # 41 unit tests
+py -m unittest test_auto_macro -v    # 46 unit tests
 ```
 
 ## 📚 เอกสารเพิ่มเติม

@@ -1,12 +1,12 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.5 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.6 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
 ## ภาพรวมโปรเจกต์
 
-- **ชื่อ:** Auto Mouse & Keyboard Macro v1.5
+- **ชื่อ:** Auto Mouse & Keyboard Macro v1.6
 - **ไฟล์หลัก:** `auto_macro.py` (ไฟล์เดียวจบ — GUI + engine ในไฟล์เดียว)
 - **แรงบันดาลใจ:** โปรแกรม "Auto Mouse v1.3" (ดูรูปตัวอย่าง `pic.png` / `docs/images/pic.png`)
 - **หน้าที่:** บันทึกและเล่นซ้ำการคลิกเมาส์ + การกดคีย์ตามสคริปต์ที่ผู้ใช้ตั้งไว้
@@ -15,6 +15,8 @@
 - **ฟีเจอร์เสริม v1.5 (จาก automouseclick.com):** Scroll, Double Click, คลิก+Modifier,
   Move Mouse (+Offset), Save/Restore Cursor, Type Text, Launch App, Wait for Image,
   Beep, ดีเลย์สุ่ม (Secs "1-3"), ตัวคูณความเร็ว, จำนวนรอบสคริปต์, คืนเมาส์จุดเดิม
+- **ฟีเจอร์เสริม v1.6:** CLI mode (`py auto_macro.py script.json`), Right-click menu
+  บนตาราง (คัดลอก/แทรก/ลบ), Progress bar + ตัวนับรอบใน statusbar
 
 ## เทคโนโลยี
 
@@ -55,6 +57,7 @@
 py -m pip install -r requirements.txt   # ติดตั้งไลบรารี
 py auto_macro.py                        # รันจากซอร์ส (หรือ run.bat)
 py -m unittest test_auto_macro -v       # รัน unit tests
+py auto_macro.py script.json            # เล่นสคริปต์แบบ CLI (ไม่เปิด GUI)
 build.bat                               # build .exe (หรือ: py -m PyInstaller auto_macro.spec --noconfirm --clean)
 ```
 

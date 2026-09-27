@@ -216,7 +216,7 @@ class MacroApp:
         self._hl_row = None             # แถวที่กำลังเล่น (ไฮไลต์)
         self._live_pos = (0, 0)         # พิกัดเมาส์สด (จาก listener thread)
         self._live_key = ""             # คีย์ล่าสุด (จาก listener thread)
-        self._ui_state = {"row": None, "msg": None, "reset": False}
+        self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None}
 
         # โปรไฟล์ / schedule / global hotkey
         self._profiles = {}                # ชื่อโปรไฟล์ -> รายการแถว
@@ -304,6 +304,7 @@ class MacroApp:
 
         self.tree.bind("<Button-1>", self._on_click)
         self.tree.bind("<Double-1>", self._on_dbl_click)
+        self.tree.bind("<Button-3>", self._on_right_click)
         self.tree.bind("<Delete>", self._on_del)
         self.tree.tag_configure("odd", background="#ffffff")
         self.tree.tag_configure("even", background="#f2f6fb")
@@ -355,6 +356,10 @@ class MacroApp:
     def _build_statusbar(self):
         bar = tk.Frame(self.root, bg="#e6e6e6")
         bar.pack(fill="x", side="bottom")
+        self.progress = ttk.Progressbar(bar, mode="determinate", length=160)
+        self.progress.pack(side="left", padx=(8, 4), pady=3)
+        self.lbl_prog = tk.Label(bar, text="", font=("Consolas", 9), bg="#e6e6e6", width=18, anchor="w")
+        self.lbl_prog.pack(side="left", padx=(0, 6))
         self.lbl_pos = tk.Label(bar, text="0    0", font=("Consolas", 10),
                                 bg="#e6e6e6", width=14, anchor="w")
         self.lbl_pos.pack(side="left", padx=8, pady=2)
@@ -468,6 +473,17 @@ class MacroApp:
         if self._live_key:
             self.lbl_key.config(text="KEY: " + self._live_key)
 
+        # แถบความคืบหน้า (progress + ตัวนับรอบ)
+        prog = st.get("prog")
+        if prog:
+            done, total, loop_no = prog
+            pct = int(done * 100 / total) if total else 0
+            self.progress.config(value=pct)
+            self.lbl_prog.config(text="รอบ %d • %d/%d (%d%%)" % (loop_no, done, total, pct))
+        else:
+            self.progress.config(value=0)
+            self.lbl_prog.config(text="")
+
         self.root.after(120, self._poller_tick)
 
     def _poller_tick(self):
@@ -531,6 +547,50 @@ class MacroApp:
     def _on_del(self, _evt=None):
         for iid in self.tree.selection():
             self.tree.delete(iid)
+        self.refresh_nums()
+
+    # --------------------------------------------- context menu (คลิกขวา) ----
+    def _on_right_click(self, event):
+        iid = self.tree.identify_row(event.y)
+        if not iid:
+            return
+        self.tree.selection_set(iid)
+        self.tree.focus(iid)
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="📋 คัดลอกแถวนี้", command=lambda: self._row_duplicate(iid))
+        menu.add_command(label="⬆️ แทรกแถวใหม่ด้านบน", command=lambda: self._row_insert_above(iid))
+        menu.add_command(label="⬇️ แทรกแถวใหม่ด้านล่าง", command=lambda: self._row_insert_below(iid))
+        menu.add_separator()
+        menu.add_command(label="🗑️ ลบแถวนี้", command=self._on_del)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _copy_row(self, src):
+        vals = list(self.tree.item(src, "values"))
+        vals[1] = "#"  # เลขลำดับจะถูก refresh ทีหลัง
+        return vals
+
+    def _row_duplicate(self, src):
+        vals = self._copy_row(src)
+        idx = self.tree.index(src)
+        new_iid = self.tree.insert("", idx + 1, values=vals)
+        self.tree.selection_set(new_iid)
+        self.refresh_nums()
+
+    def _row_insert_above(self, src):
+        vals = ["☑", "#", "", "", "Left Click", "", 0, 1, 1]
+        idx = self.tree.index(src)
+        new_iid = self.tree.insert("", idx, values=vals)
+        self.tree.selection_set(new_iid)
+        self.refresh_nums()
+
+    def _row_insert_below(self, src):
+        vals = ["☑", "#", "", "", "Left Click", "", 0, 1, 1]
+        idx = self.tree.index(src)
+        new_iid = self.tree.insert("", idx + 1, values=vals)
+        self.tree.selection_set(new_iid)
         self.refresh_nums()
 
     def del_selected(self):
@@ -761,20 +821,21 @@ class MacroApp:
                 else:
                     self.kb_ctl.tap(k)
 
-    def kb_ctrl_char(self, ch):
-        """แปลงอักขระเป็น KeyCode สำหรับ Type Text (รองรับไทย/อังกฤษ/ตัวเลข/สัญลักษณ์)"""
-        return KeyCode.from_char(ch)
-
+        # บั๊กฟิกซ์ v1.6: เดิมลูปนี้ถูกแทรกหลัง return ของ kb_ctrl_char ทำให้เป็น dead code
         try:
             start_pos = self.mouse_ctl.position if self._restore_pos else None
+            total = len(rows)
+            loop_no = 0
             outer = True
             while outer:
+                loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
                 for i, r in enumerate(rows):
                     if not self.running:
                         return
                     children = self.tree.get_children()
                     self._ui_state["row"] = children[i] if i < len(children) else None
+                    self._ui_state["prog"] = (i + 1, total, loop_no)
                     for _ in range(parse_int(r["repeat"])):
                         if not self.running:
                             return
@@ -785,6 +846,7 @@ class MacroApp:
                             return
                         do_step(r)
                 self._ui_state["row"] = None
+                self._ui_state["prog"] = (total, total, loop_no)
                 if self._restore_pos and start_pos and self.running:
                     self.mouse_ctl.position = start_pos
                 if loop:
@@ -799,7 +861,12 @@ class MacroApp:
         finally:
             self.running = False
             self._ui_state["row"] = None
+            self._ui_state["prog"] = None
             self._ui_state["reset"] = True
+
+    def kb_ctrl_char(self, ch):
+        """แปลงอักขระเป็น KeyCode สำหรับ Type Text (รองรับไทย/อังกฤษ/ตัวเลข/สัญลักษณ์)"""
+        return KeyCode.from_char(ch)
 
     def _build_profile_bar(self):
         """แถบเลือกโปรไฟล์ + ปุ่ม schedule"""
@@ -1224,7 +1291,158 @@ class MacroApp:
         self.root.destroy()
 
 
+# ---------------------------------------------------------------- CLI mode --
+def cli_main(argv):
+    """เล่นสคริปต์จาก command line โดยไม่เปิด GUI
+    ตัวอย่าง:
+        py auto_macro.py script.json
+        py auto_macro.py script.json --loop --speed 2 --loops 5
+    """
+    import argparse
+    import io
+    import sys as _sys
+    ap = argparse.ArgumentParser(
+        prog="AutoMouseMacro",
+        description="เล่นสคริปต์เมาส์/คีย์บอร์ด .json โดยไม่เปิดหน้าต่าง (Ctrl+C หยุด)")
+    ap.add_argument("script", help="ไฟล์สคริปต์ .json ที่บันทึกจากโปรแกรม")
+    ap.add_argument("--loop", action="store_true", help="เล่นวนซ้ำไม่จำกัด")
+    ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
+    ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
+    args = ap.parse_args(argv)
+
+    # คอนโซล Windows บางเครื่องเป็น cp1252 — พิมพ์ไทยไม่ได้ ให้ fallback อัตโนมัติ
+    # (ถ้า stdout ไม่มี buffer เช่น StringIO ในเทสต์ ก็ข้ามไป ไม่ต้องแทนที่)
+    try:
+        "ก".encode(_sys.stdout.encoding or "ascii")
+    except (UnicodeEncodeError, AttributeError):
+        buf = getattr(_sys.stdout, "buffer", None)
+        if buf is not None:
+            _sys.stdout = io.TextIOWrapper(buf, encoding="utf-8", errors="replace")
+
+    if not os.path.isfile(args.script):
+        print("ไม่พบไฟล์สคริปต์:", args.script)
+        return 1
+    try:
+        with open(args.script, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        if not isinstance(rows, list):
+            raise ValueError("ไฟล์ต้องเป็นรายการแถว JSON")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print("อ่านไฟล์ไม่สำเร็จ:", exc)
+        return 1
+
+    mouse_ctl = MouseController()
+    kb_ctl = KbController()
+    running = [True]
+    speed = min(10.0, max(0.1, args.speed))
+
+    def do_step(r):
+        btn = r.get("button", "")
+        if btn in BTN_TH:
+            b, act = BTN_TH[btn]
+            btn_obj = getattr(Button, b.lower())
+            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
+                mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                time.sleep(0.03)
+            if act == "Down":
+                mouse_ctl.press(btn_obj)
+            elif act == "Up":
+                mouse_ctl.release(btn_obj)
+            else:
+                mouse_ctl.click(btn_obj, 1)
+        elif btn in SCROLL_ACTIONS:
+            try:
+                n = int(str(r.get("additional") or 1))
+            except ValueError:
+                n = 1
+            mouse_ctl.scroll(0, n if btn == "Scroll Up" else -n)
+        elif btn in DBL_ACTIONS:
+            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
+                mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                time.sleep(0.03)
+            mouse_ctl.click(Button.right if "Right" in btn else Button.left, 2)
+        elif btn in KEY_ACTIONS:
+            k = parse_key(r.get("additional", ""))
+            if k is not None:
+                if btn == "Press Key":
+                    kb_ctl.press(k)
+                elif btn == "Release Key":
+                    kb_ctl.release(k)
+                else:
+                    kb_ctl.tap(k)
+        elif btn == "Type Text":
+            for ch in str(r.get("additional") or ""):
+                kb_ctl.tap(KeyCode.from_char(ch))
+        elif btn == "Beep":
+            print("\a", end="", flush=True)
+        # (หมายเหตุ: Image Click/Wait for Image ยังไม่รองรับใน CLI — ใช้ GUI)
+
+    stops = {"<f8>", "<esc>"}
+    try:
+        stopper = keyboard.GlobalHotKeys({k: (lambda: running.__setitem__(0, False))
+                                         for k in stops})
+        stopper.daemon = True
+        stopper.start()
+        gk_ok = True
+    except Exception:
+        gk_ok = False
+
+    print("เล่นสคริปต์: %s (%d แถว)%s%s" % (
+        os.path.basename(args.script), len(rows),
+        "  •  วนไม่จำกัด" if (args.loop or args.loops == 0) else "",
+        "  •  ความเร็ว %gx" % speed))
+    if gk_ok:
+        print("หยุด: กด F8 หรือ Esc (หรือ Ctrl+C)")
+    else:
+        print("หยุด: Ctrl+C")
+    try:
+        loops = 0 if args.loop else max(0, args.loops)
+        active = [r for r in rows if r.get("enabled", True) is not False]
+        n_loop = 0
+        while True:
+            n_loop += 1
+            print("— รอบที่ %d —" % n_loop)
+            for i, r in enumerate(active, 1):
+                if not running[0]:
+                    break
+                lo, hi = delay_range(r.get("secs", 1))
+                base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else random.uniform(lo, hi))
+                time.sleep(max(0.0, base / speed))
+                if not running[0]:
+                    break
+                do_step(r)
+                print("  [%d/%d] %s %s" % (i, len(active), r.get("button", ""),
+                                          r.get("additional", "")))
+            if not running[0]:
+                break
+            if loops == 0:
+                continue
+            loops -= 1
+            if loops <= 0:
+                break
+        print("จบแล้ว ✔")
+        return 0
+    except KeyboardInterrupt:
+        print("\nหยุดโดยผู้ใช้")
+        return 130
+    finally:
+        running[0] = False
+        try:
+            stopper.stop()
+        except Exception:
+            pass
+
+
 def main():
+    # มี argument = CLI mode, ไม่มี = เปิด GUI
+    if len(sys.argv) > 1:
+        # คอนโซล Windows มักเป็น cp1252 — ตั้ง UTF-8 ก่อนพิมพ์ help/ข้อความไทย
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+        sys.exit(cli_main(sys.argv[1:]))
     root = tk.Tk()
     MacroApp(root)
     root.mainloop()

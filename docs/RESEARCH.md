@@ -189,7 +189,33 @@
 
 ---
 
-## 10. ทางไปต่อ (Roadmap ทางเทคนิค)
+## 10. ฟีเจอร์ v1.6: CLI, Context Menu, Progress
+
+### 10.1 CLI mode (เล่นสคริปต์โดยไม่เปิด GUI)
+- จุดเดียวกับ GUI: อ่าน JSON รูปแบบเดิม → `cli_main()` มี do_step ของตัวเอง (ไม่แตะ Tk)
+- สคริปต์เดิมที่บันทึกจาก GUI ใช้ได้ทันที — ข้ามแถว `enabled: false` ให้เอง
+- หยุดด้วย `GlobalHotKeys` (F8/Esc) หรือ Ctrl+C — ใช้ list `[True]` แทน bool เพื่อ closure
+- **บทเรียน cp1252:** คอนโซล Windows พิมพ์ไทยไม่ได้ → `sys.stdout.reconfigure(utf-8)`
+  ใน main และ wrapper แบบเช็ค `buffer` ใน cli_main (กันเคส StringIO จากเทสต์)
+- ข้อจำกัด: Image Click/Wait for Image ยังไม่รองรับใน CLI (ต้อง Tk สำหรับข้อความสถานะ)
+
+### 10.2 Right-click menu บนตาราง
+- ผูก `<Button-3>` → เปิด `tk.Menu` ที่ตำแหน่งเมาส์: คัดลอกแถว / แทรกบน / แทรกล่าง / ลบ
+- ต้อง `selection_set` + `focus` ก่อนเปิดเมนู เพื่อให้ปุ่มในเมนูรู้ว่าแถวไหนถูกคลิกขวา
+- หลังแทรก/ลบเรียก `refresh_nums()` เสมอ (ข้อตกลงข้อ 5)
+
+### 10.3 Progress bar + ตัวนับรอบ
+- เธรด player ผลัก `(done, total, loop_no)` เข้า `_ui_state["prog"]` → poller วาด
+  ตามรูปแบบ thread-safe เดิม (ไม่แตะ Tk จากเธรด)
+- `ttk.Progressbar` mode determinate ใน statusbar — เล่นจบแต่ละรอบเต็ม 100% แล้วเริ่มใหม่
+
+### 10.4 บทเรียนการ review: dead code ใน _player
+- ตอนแก้ v1.5 แทรก `kb_ctrl_char` ผิดตำแหน่ง ทำให้ลูปเล่นทั้งชุด (try/while/for)
+  กลายเป็นโค้ดหลัง `return` — py_compile ผ่านเพราะ syntactically ถูก
+- ตรวจด้วย AST: ดู statement สุดท้ายของฟังก์ชันว่ายังเป็น try-block ของลูปจริง
+- บทเรียน: การแทรกฟังก์ชันใหม่ในไฟล์ใหญ่ต้องรีดว่าอยู่ **นอก** บอดี้เดิม ไม่ใช่คั่นกลาง
+
+## 11. ทางไปต่อ (Roadmap ทางเทคนิค)
 
 - 🐢 **ตัวคูณความเร็ว** (0.5× / 2×) ให้เล่นเร็ว-ช้าโดยไม่แก้ตาราง
 - 🖼️ **โซนค้นหาภาพ** ระบุกรอบพิกัดให้ Image Click ลดเวลาค้น/ลด false positive
