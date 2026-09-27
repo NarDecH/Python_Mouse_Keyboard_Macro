@@ -1,0 +1,14 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Save Cursor", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Launch App", "additional": "notepad.exe", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "สวัสดี! นี่คือสคริปต์เดโม่ของ Auto Mouse & Keyboard Macro v1.7", "mins": 0, "secs": 2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.3, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "บรรทัดนี้พิมพ์หลังเว้นดีเลย์แบบสุ่ม 0.5-1.5 วิ (ดูช่อง Secs)", "mins": 0, "secs": "0.5-1.5", "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.3, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "แถวถัดไปจะเคาะ Enter 3 ครั้ง (ทดสอบคอลัมน์ Repeat)", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.5, "repeat": 3},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "เลื่อนเมาส์กลับจุดเดิม แล้วบี๊บลา สวัสดี!", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Restore Cursor", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1}
+]

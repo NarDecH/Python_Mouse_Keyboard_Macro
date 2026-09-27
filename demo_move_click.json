@@ -1,0 +1,12 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Save Cursor", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": 300, "y": 300, "button": "Move Mouse", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": 600, "y": 300, "button": "Move Mouse", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": 600, "y": 600, "button": "Move Mouse", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": 300, "y": 600, "button": "Move Mouse", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": 300, "y": 300, "button": "Move Mouse", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": 0, "y": 0, "button": "Scroll Up", "additional": "3", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": 0, "y": 0, "button": "Scroll Down", "additional": "3", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Restore Cursor", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1}
+]

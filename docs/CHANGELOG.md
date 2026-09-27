@@ -20,6 +20,11 @@
 - เพิ่มสกรีนช็อตหน้าตาโปรแกรมจริง (`docs/images/screenshot.png`)
 - README เพิ่ม badge สถานะ tests + หัวข้อ CI/CD
 
+### 🎬 สคริปต์เดโม่
+- `demo_script.json` — เปิด Notepad พิมพ์ไทย เคาะ Enter บี๊บ คืนเมาส์ (โชว์ดีเลย์สุ่ม + Repeat)
+- `demo_move_click.json` — เลื่อนเมาส์เป็นสี่เหลี่ยม + Scroll (ไม่คลิกอะไร ปลอดภัย)
+- ใช้ได้ทั้งโหลดใน GUI (Load) และ CLI (`py auto_macro.py demo_script.json`)
+
 ### 🧪 ทดสอบ
 - เพิ่ม 5 tests สำหรับ search area (รวม **51 tests**)
   พร้อมแก้บั๊ก falsy: พิกัด 0 ถูกมองเป็น "ค่าว่าง" ทำให้กรอบที่เริ่มที่ 0 ใช้ไม่ได้
