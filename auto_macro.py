@@ -1062,25 +1062,20 @@ class MacroApp:
                 self.kb_ctl.release(k)
 
     def _parse_search_area(self, r):
-        """อ่านกรอบค้นหา (search area) ของแถว จาก X,Y (มุมซ้ายบน) และ Mins,Secs
-        (ขวาล่าง) — เช่น X=100 Y=100 Mins=0 Secs=500 = กรอบ (100,100)-(0,500)
-        ... หมายเหตุ: ใช้ Mins เป็นพิกัด right ไม่สมเหตุผล จึงใช้สูตร:
-        X,Y = มุมซ้ายบน, ช่อง Mins = กว้าง, ช่อง Secs = สูง (แถว Image เท่านั้น)
-        คืน (left, top, right, bottom) — ถ้าไม่ระบุคืน None = ค้นทั้งจอ"""
-        def _num(v):
-            # ระวังบั๊ก falsy: 0 ต้องถือว่าเป็นค่าที่ใช้ได้ (ไม่ใช่ค่าว่าง)
-            if v is None or str(v).strip() == "":
-                return None
-            return int(float(str(v)))
+        """อ่านกรอบค้นหา (search area) จากช่อง Additional รูปแบบ
+            ไฟล์.png@x,y,กว้าง,สูง     เช่น  button.png@100,200,300,400
+        คืน (path, (left, top, right, bottom)) หรือ (path, None) = ค้นทั้งจอ"""
+        raw = (r.get("additional") or "").strip()
+        if "@" not in raw:
+            return raw, None
+        path, _, coords = raw.partition("@")
         try:
-            x, y, w, h = _num(r.get("x")), _num(r.get("y")), _num(r.get("mins")), _num(r.get("secs"))
-        except (ValueError, TypeError):
-            return None
-        if x is None or y is None or w is None or h is None:
-            return None
+            x, y, w, h = [int(float(p.strip())) for p in coords.split(",")]
+        except ValueError:
+            return path, None          # พิมพ์พลาด → ค้นทั้งจอ
         if w <= 0 or h <= 0:
-            return None
-        return (x, y, x + w, y + h)
+            return path, None
+        return path, (x, y, x + w, y + h)
 
     def _grab_area_bgr(self, area):
         """จับภาพหน้าจอเฉพาะกรอบ (ถ้า area=None = ทั้งจอ) คืน numpy BGR"""
@@ -1091,8 +1086,8 @@ class MacroApp:
         return cv2.cvtColor(np.array(shot), cv2.COLOR_RGB2BGR), (area[0], area[1]) if area else (0, 0)
 
     def _do_wait_for_image(self, r):
-        """รอจนกว่าจะเจอภาพบนหน้าจอ (timeout 30 วิ) — รองรับ search area"""
-        path = (r["additional"] or "").strip()
+        """รอจนกว่าจะเจอภาพบนหน้าจอ (timeout 30 วิ) — รองรับ search area ใน Additional"""
+        path, area = self._parse_search_area(r)
         if not HAS_CV:
             self._ui_state["msg"] = ("Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
             return
@@ -1105,7 +1100,6 @@ class MacroApp:
         if tmpl is None:
             self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
             return
-        area = self._parse_search_area(r)
         deadline = time.time() + 30
         while time.time() < deadline and self.running:
             screen, _off = self._grab_area_bgr(area)
@@ -1119,8 +1113,9 @@ class MacroApp:
 
     # ------------------------------------------------------ image click ------
     def _do_image_click(self, r):
-        """หาภาพย่อย (ไฟล์ .png ในช่อง Additional) บนหน้าจอแล้วคลิกที่จุดศูนย์กลาง"""
-        path = (r["additional"] or "").strip()
+        """หาภาพย่อยบนหน้าจอแล้วคลิกที่จุดศูนย์กลาง
+        ช่อง Additional: ไฟล์.png หรือ ไฟล์.png@x,y,กว้าง,สูง (กรอบค้นหา)"""
+        path, area = self._parse_search_area(r)
         if not HAS_CV:
             self._ui_state["msg"] = ("Image Click ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
             return
@@ -1130,8 +1125,6 @@ class MacroApp:
             self._ui_state["msg"] = ("ไม่พบไฟล์ภาพ: %s" % path, "#c00")
             return
         try:
-            # search area: X,Y = มุมซ้ายบน, Mins = กว้าง, Secs = สูง (ว่าง = ทั้งจอ)
-            area = self._parse_search_area(r) or self._img_area or None
             screen, (off_x, off_y) = self._grab_area_bgr(area)
             tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
             if tmpl is None:

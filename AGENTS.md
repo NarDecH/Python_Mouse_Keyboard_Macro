@@ -83,8 +83,11 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   แถบเลือกโปรไฟล์อยู่ใต้เมนู (สร้าง/เปลี่ยนชื่อ/ลบ/สลับ — สลับก่อนบันทึกของเดิมอัตโนมัติ)
 - **Schedule:** เธรด `_sched_loop` ตรวจเวลาทุก 5 วิ ผลักคำสั่งเข้า `queue.Queue` →
   UI poller (`_sched_poll` ทุก 500 ms) หยิบมาเล่น — โหมด "ทุก N นาที" และ "รายวัน HH:MM"
-- **Image Click:** Action `Image Click` + ช่อง Additional = ไฟล์ .png
-  (cv2.matchTemplate, threshold 0.80, คลิกจุดศูนย์กลาง; ปิดฟีเจอร์อัตโนมัติถ้าไม่มี opencv)
+- **Image Click:** Action `Image Click` + ช่อง Additional = ไฟล์ .png หรือ
+  `ไฟล์.png@x,y,กว้าง,สูง` (Search Area — `_parse_search_area` แยก path/กรอบจาก @;
+  cv2.matchTemplate, threshold 0.80, คลิกจุดศูนย์กลาง; ปิดฟีเจอร์อัตโนมัติถ้าไม่มี opencv)
+- **examples/:** สคริปต์ตัวอย่างสำเร็จรูป 4 ไฟล์ + target.png (ป้ายทดสอบ Image Click)
+  — validate ผ่าน `ACTIONS_ALL`/`parse_key` ของโค้ดจริงเสมอก่อน commit
 - **Actions v1.5:** Scroll Up/Down (จำนวนใน Additional), Double Click, Ctrl/Shift/Alt+Click
   (press mod → click → release ใน finally), Move Mouse (+Offset), Save/Restore Cursor
   (`self._saved_pos`), Type Text (tap ทีละตัวอักษร), Launch App (`os.startfile`),

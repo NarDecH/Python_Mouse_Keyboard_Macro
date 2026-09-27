@@ -20,10 +20,17 @@
 - เพิ่มสกรีนช็อตหน้าตาโปรแกรมจริง (`docs/images/screenshot.png`)
 - README เพิ่ม badge สถานะ tests + หัวข้อ CI/CD
 
-### 🎬 สคริปต์เดโม่
+### 🎬 สคริปต์เดโม่ + ชุดตัวอย่าง
 - `demo_script.json` — เปิด Notepad พิมพ์ไทย เคาะ Enter บี๊บ คืนเมาส์ (โชว์ดีเลย์สุ่ม + Repeat)
+  — **ทดสอบรันจริงผ่าน CLI แล้ว ทำงานครบทุกแถว**
 - `demo_move_click.json` — เลื่อนเมาส์เป็นสี่เหลี่ยม + Scroll (ไม่คลิกอะไร ปลอดภัย)
 - ใช้ได้ทั้งโหลดใน GUI (Load) และ CLI (`py auto_macro.py demo_script.json`)
+- **examples/** — ชุดตัวอย่างสำเร็จรูป 4 ไฟล์ validate กับโค้ดจริงแล้ว:
+  01_auto_typer / 02_form_filler / 03_image_click (พร้อม `target.png` + Search Area) /
+  04_scroll_gallery + README ประกอบ
+- 🔄 **ปรับปรุง Search Area:** เปลี่ยนจากการใช้ Mins/Secs เป็นขนาดกรอบ (ชนกับความหมาย
+  ดีเลย์เดิม) มาเป็น syntax ใน Additional แทน: `ไฟล์.png@x,y,กว้าง,สูง`
+  — Mins/Secs กลับมาเป็นดีเลย์ตามปกติทุกแถว และ X,Y กลับไปใช้กับพิกัดเมาส์ของ Action อื่น
 
 ### 🧪 ทดสอบ
 - เพิ่ม 5 tests สำหรับ search area (รวม **51 tests**)

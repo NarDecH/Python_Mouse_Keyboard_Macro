@@ -62,7 +62,7 @@
 - **Type Text** — พิมพ์ข้อความ (รองรับไทย) เช่น `สวัสดี world`
 - **Launch App** — เปิดโปรแกรม/เว็บ เช่น `notepad.exe` หรือ `https://example.com`
 - **Image Click / Wait for Image** — คลิกตามภาพ / รอภาพปรากฏ (ชื่อไฟล์ .png ใน Additional; ต้องติดตั้ง `opencv-python Pillow`)
-  - 🆕 **Search Area:** ระบุกรอบค้นหาได้ — X,Y = มุมซ้ายบน, Mins = กว้าง, Secs = สูง (เว้นว่าง = ทั้งจอ)
+  - 🆕 **Search Area:** ใส่ท้ายชื่อไฟล์ได้ เช่น `button.png@100,200,300,400` = ค้นเฉพาะกรอบซ้ายบน (100,200) กว้าง 300 × สูง 400 — ไม่ใส่ @ = ค้นทั้งจอ
 - **Beep** — เสียงเตือน
 
 > 💡 **ดีเลย์สุ่ม:** ใส่ Secs แบบ `1-3` = สุ่มดีเลย์ 1–3 วิ ทุกรอบ
@@ -223,6 +223,19 @@ py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เ�
 ```bash
 py -m unittest test_auto_macro -v    # 51 unit tests
 ```
+
+## 📂 ชุดตัวอย่างสคริปต์ (examples/)
+
+นอกจากสคริปต์เดโม่ 2 ไฟล์ด้านบน ยังมีตัวอย่างเพิ่มใน [examples/](examples/README.md):
+
+| ไฟล์ | สอนอะไร |
+|---|---|
+| `01_auto_typer.json` | พิมพ์อัตโนมัติไทย/อังกฤษ + ดีเลย์สุ่ม + Repeat |
+| `02_form_filler.json` | กรอกฟอร์ม (ชื่อ/อีเมล/โทร) ด้วยการพิมพ์ + Enter |
+| `03_image_click.json` | Image Click + **Search Area** (`target.png@100,100,500,400`) — แถวคลิกปิด enabled ไว้ |
+| `04_scroll_gallery.json` | Scroll ดูรูป/เว็บ + Move Mouse (แถวดับเบิลคลิกปิดไว้) |
+
+ทุกตัวอย่าง validate กับโค้ดจริงแล้ว และเริ่ม/จบด้วย Save/Restore Cursor เสมอ
 
 ## 📚 เอกสารเพิ่มเติม
 

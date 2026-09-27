@@ -89,12 +89,17 @@
       <li>README เพิ่ม badge สถานะ tests + หัวข้อ CI/CD</li>
     </ul>
 
-    <h3>🎬 สคริปต์เดโม่</h3>
+    <h3>🎬 สคริปต์เดโม่ + ชุดตัวอย่าง</h3>
     <ul>
       <li><code>demo_script.json</code> — เปิด Notepad พิมพ์ไทย เคาะ Enter บี๊บ คืนเมาส์
-        (โชว์ดีเลย์สุ่ม + Repeat)</li>
+        (โชว์ดีเลย์สุ่ม + Repeat) — <b>ทดสอบรันจริงผ่าน CLI แล้ว ครบทุกแถว</b></li>
       <li><code>demo_move_click.json</code> — เลื่อนเมาส์เป็นสี่เหลี่ยม + Scroll (ไม่คลิกอะไร ปลอดภัย)</li>
       <li>ใช้ได้ทั้งโหลดใน GUI (Load) และ CLI (<code>py auto_macro.py demo_script.json</code>)</li>
+      <li><b>examples/</b> — ตัวอย่างสำเร็จรูป 4 ไฟล์ (validate กับโค้ดจริง):
+        01_auto_typer / 02_form_filler / 03_image_click (+<code>target.png</code> Search Area) /
+        04_scroll_gallery</li>
+      <li>🔄 <b>ปรับปรุง Search Area:</b> เปลี่ยนมาใช้ syntax ใน Additional:
+        <code>ไฟล์.png@x,y,กว้าง,สูง</code> — เดิมใช้ Mins/Secs เป็นขนาดกรอบซึ่งชนกับความหมายดีเลย์</li>
     </ul>
 
     <h3>🧪 ทดสอบ</h3>

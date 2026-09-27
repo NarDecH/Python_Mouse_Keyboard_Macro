@@ -1,0 +1,16 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Save Cursor", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.3, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Launch App", "additional": "notepad.exe", "mins": 0, "secs": 1.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "ชื่อ: สมชาย ใจดี", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "อีเมล: somchai@example.com", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "โทร: 081-234-5678", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "ข้อความสั่งซื้อชุดที่ 1 ถึงชุดที่ 3", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "— จบฟอร์ม —", "mins": 0, "secs": 0.4, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.3, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Restore Cursor", "additional": "", "mins": 0, "secs": 0.4, "repeat": 1}
+]

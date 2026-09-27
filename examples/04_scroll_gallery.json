@@ -1,0 +1,10 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Save Cursor", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": 640, "y": 400, "button": "Move Mouse", "additional": "", "mins": 0, "secs": 0.4, "repeat": 1},
+  {"enabled": true, "x": 0, "y": 0, "button": "Scroll Down", "additional": "3", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": true, "x": 0, "y": 0, "button": "Scroll Down", "additional": "3", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": true, "x": 0, "y": 0, "button": "Scroll Up", "additional": "6", "mins": 0, "secs": 0.6, "repeat": 1},
+  {"enabled": false, "x": 640, "y": 400, "button": "Double Left Click", "additional": "", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.3, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Restore Cursor", "additional": "", "mins": 0, "secs": 0.3, "repeat": 1}
+]

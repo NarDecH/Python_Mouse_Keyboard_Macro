@@ -1,0 +1,8 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Save Cursor", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": false, "x": "", "y": "", "button": "Image Click", "additional": "target.png", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": false, "x": "", "y": "", "button": "Image Click", "additional": "target.png@100,100,500,400", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": false, "x": "", "y": "", "button": "Wait for Image", "additional": "target.png", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.3, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Restore Cursor", "additional": "", "mins": 0, "secs": 0.3, "repeat": 1}
+]

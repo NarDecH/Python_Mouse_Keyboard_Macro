@@ -129,7 +129,7 @@
       <tr><td>⌨️ <b>CLI mode</b></td><td>เล่นสคริปต์ .json โดยไม่เปิดหน้าต่าง</td></tr>
       <tr><td>📊 <b>Progress bar</b></td><td>แสดงความคืบหน้า + ตัวนับรอบขณะเล่น</td></tr>
       <tr><td>🖱️ <b>คลิกขวาบนตาราง</b></td><td>คัดลอกแถว / แทรกแถวใหม่ / ลบแถว</td></tr>
-      <tr><td>🖼️ <b>Search Area</b></td><td>ระบุกรอบค้นหาให้ Image Click: X,Y = มุมซ้ายบน • Mins = กว้าง • Secs = สูง</td></tr>
+      <tr><td>🖼️ <b>Search Area</b></td><td>ระบุกรอบค้นหาให้ Image Click: <code>button.png@x,y,กว้าง,สูง</code> — ไม่ใส่ @ = ทั้งจอ</td></tr>
     </table>
 
     <h3>คำสั่งที่รองรับในตาราง</h3>
@@ -254,6 +254,18 @@ py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เ�
   <div class="card">
     <h2>🧪 ทดสอบ</h2>
 <pre><code>py -m unittest test_auto_macro -v    # 51 unit tests</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>📂 ชุดตัวอย่างสคริปต์ (examples/)</h2>
+    <table>
+      <tr><th>ไฟล์</th><th>สอนอะไร</th></tr>
+      <tr><td><code>01_auto_typer.json</code></td><td>พิมพ์อัตโนมัติไทย/อังกฤษ + ดีเลย์สุ่ม + Repeat</td></tr>
+      <tr><td><code>02_form_filler.json</code></td><td>กรอกฟอร์ม (ชื่อ/อีเมล/โทร) ด้วยการพิมพ์ + Enter</td></tr>
+      <tr><td><code>03_image_click.json</code></td><td>Image Click + Search Area (<code>target.png@100,100,500,400</code>) — แถวคลิกปิด enabled ไว้</td></tr>
+      <tr><td><code>04_scroll_gallery.json</code></td><td>Scroll ดูรูป/เว็บ + Move Mouse (แถวดับเบิลคลิกปิดไว้)</td></tr>
+    </table>
+    <p>ทุกตัวอย่าง validate กับโค้ดจริงแล้ว เริ่ม/จบด้วย Save/Restore Cursor เสมอ</p>
   </div>
 
   <div class="card">
