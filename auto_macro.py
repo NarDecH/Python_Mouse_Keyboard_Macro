@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.12
+Auto Mouse & Keyboard Macro  v1.13
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -30,6 +30,8 @@ Auto Mouse & Keyboard Macro  v1.12
   สคริปต์เดโม่เฝ้าระบบ + run_watchdog.bat, หน้าเว็บแนะนำโปรแกรม (docs/LANDING.html)
 - v1.12: กราฟสถิติต่อวันในหน้า 📊 Stats (canvas วาดเอง), Export/Import การตั้งค่า
   ทั้งหมดเป็นไฟล์เดียวย้ายเครื่องได้ (Settings), ปุ่ม 🧪 ทดสอบระบบจริงใน Settings
+- v1.13: Backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม (backups/ เก็บย้อนหลัง 7 วัน),
+  เมนู Help ฉบับเต็มครอบทุกฟีเจอร์ + ปุ่มเปิด TUTORIAL
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -66,7 +68,9 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.12"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.13"
+BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
+BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -266,6 +270,38 @@ def log_stats_summary(base_dir=None):
                              or s["slowest"][1] > total["slowest"][1]):
             total["slowest"] = s["slowest"]
     return total
+
+
+# ------------------------------------------------ backup อัตโนมัติ (v1.13) --
+def backup_snapshot(base_dir, data, now=None):
+    """เขียน backup การตั้งค่า 1 snapshot ลง <base_dir>/backups/ แล้วตัดไฟล์เก่าเกิน 7 วัน
+    คืนพาธไฟล์ที่เขียน (ทนต่อ error — backup ห้ามทำโปรแกรมพัง)"""
+    try:
+        bk = os.path.join(base_dir, BACKUP_DIR)
+        os.makedirs(bk, exist_ok=True)
+        t = now or datetime.datetime.now()
+        path = os.path.join(bk, "backup_%s.json" % t.strftime("%Y-%m-%d_%H%M%S"))
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False, indent=2)
+        prune_backups(bk)
+        return path
+    except Exception:
+        return None
+
+
+def prune_backups(base_dir, keep_days=BACKUP_KEEP_DAYS, today=None):
+    """ลบ backup ที่เก่ากว่า keep_days วัน (แยกวันที่จากชื่อไฟล์ backup_YYYY-MM-DD_*)"""
+    today = today or datetime.date.today()
+    cutoff = today - datetime.timedelta(days=keep_days)
+    for f in glob.glob(os.path.join(base_dir, "backup_*.json")):
+        m = re.match(r"backup_(\d{4}-\d{2}-\d{2})_", os.path.basename(f))
+        if not m:
+            continue
+        try:
+            if datetime.date.fromisoformat(m.group(1)) < cutoff:
+                os.remove(f)
+        except (ValueError, OSError):
+            pass
 
 
 def log_daily_series(base_dir=None, limit=14):
@@ -1781,6 +1817,19 @@ class MacroApp:
         tk.Button(win, text="ปิด", width=8, command=win.destroy).pack(pady=(4, 14))
 
     # ------------------------------------------------ self-check (v1.11) -----
+    def _self_test_actions(self):
+        """🧪 ทดสอบระบบจริง (v1.12): ขยับเมาส์เป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง
+        คืนตำแหน่งเมาส์ตอนเริ่ม (แยกออกมาจาก dialog เพื่อทดสอบได้)"""
+        cur = self.mouse_ctl.position
+        self.mouse_ctl.position = (cur[0] + 120, cur[1])
+        time.sleep(0.25)
+        self.mouse_ctl.position = (cur[0] + 120, cur[1] + 60)
+        time.sleep(0.25)
+        self.mouse_ctl.position = cur
+        self.root.bell()
+        self.root.after(250, self.root.bell)
+        return cur
+
     def _self_check(self):
         """ตรวจสุขภาพระบบเมื่อเปิดโปรแกรม — ผลเก็บใน dict แสดงใน Settings"""
         chk = {}
@@ -1972,14 +2021,7 @@ class MacroApp:
         # 🧪 ทดสอบระบบจริง (v1.12): ขยับเมาส์ไปจุดสังเกต → คืนจุดเดิม → บี๊บ 2 ครั้ง
         def self_test():
             try:
-                cur = self.mouse_ctl.position
-                self.mouse_ctl.position = (cur[0] + 120, cur[1])
-                time.sleep(0.25)
-                self.mouse_ctl.position = (cur[0] + 120, cur[1] + 60)
-                time.sleep(0.25)
-                self.mouse_ctl.position = cur
-                self.root.bell()
-                win.after(250, self.root.bell)
+                self._self_test_actions()
                 res.config(text="🧪 ทดสอบแล้ว: เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง — "
                                 "ถ้าเมาส์ไม่ขยับหรือไม่ได้ยินเสียง แสดงว่าระบบมีปัญหาจริง", fg="#080")
             except Exception as exc:
@@ -2010,30 +2052,86 @@ class MacroApp:
             "(คีย์ลัดกดได้แม้ไม่โฟกัสหน้าต่าง)")
 
     def help_dialog(self):
-        messagebox.showinfo("Help",
-            "วิธีใช้งาน\n"
-            "1) กด RECORD (F9) แล้วคลิก/พิมพ์ตามจริง โปรแกรมจะจดทุกเหตุการณ์ลงตาราง\n"
-            "2) ดับเบิลคลิกช่อง X หรือ Y เพื่อจับพิกัดเมาส์ใหม่ (นับถอยหลัง 3 วิ)\n"
-            "3) ดับเบิลคลิกช่องอื่นเพื่อแก้ Action / คีย์ / เวลาหน่วง / Repeat\n"
-            "4) คลิกช่องแรก (☑/☐) เพื่อเปิด-ปิดการใช้งานแต่ละแถว\n"
-            "5) START (F6) เล่นรอบเดียว, REPEAT เล่นซ้ำ, F10 วนไม่จำกัด, STOP (F8) หยุด\n"
-            "6) Save / Load เก็บสคริปต์เป็นไฟล์ .json และเปิดกลับมาแก้ไขได้\n"
-            "7) แถบ 'โปรไฟล์' — เก็บหลายสคริปต์สลับใช้ได้ (เช่น งานบ้าน / เกม A / เกม B)\n"
-            "8) ปุ่ม ⏰ เล่นอัตโนมัติ — ตั้งเล่นทุก N นาที หรือทุกวันตามเวลา HH:MM\n"
-            "9) Action 'Image Click' — คลิกตามภาพ: ใส่ชื่อไฟล์ .png ในช่อง Additional\n"
-            "   (ต้องติดตั้ง: pip install opencv-python Pillow)\n"
-            "10) Action ใหม่ v1.5: Scroll Up/Down, Double Click, Ctrl/Shift/Alt+Click,\n"
-            "   Move Mouse (+Offset), Save/Restore Cursor, Type Text, Launch App,\n"
-            "   Wait for Image, Beep\n"
-            "11) ช่อง Secs ใส่แบบสุ่มได้ เช่น 1-3 = สุ่มดีเลย์ 1–3 วิ\n"
-            "12) ปุ่มล่าง: ความเร็ว (0.25×–4×), จำนวนรอบ (0=ไม่จำกัด), คืนเมาส์จุดเดิม\n"
-            "13) เมนู 📝 Log — ดู log การเล่นย้อนหลังในโปรแกรม (เลือกไฟล์รายวันได้)\n"
-            "14) เมนู ⚡ Hot-profile — ตั้งโฟลเดอร์สคริปต์ แล้วกด F1-F4 เพื่อโหลด+เล่นทันที\n\n"
-            "หมายเหตุ: Secs คือเวลารอก่อนทำคำสั่งในแถวนั้น, Repeat คือจำนวนครั้งที่ทำซ้ำ")
+        """Help ฉบับเต็ม (v1.13) — หน้าต่างเลื่อนดูได้ ครอบทุกฟีเจอร์ + ปุ่มเปิดคู่มือ"""
+        win = tk.Toplevel(self.root)
+        win.title("Help — วิธีใช้งานฉบับเต็ม")
+        win.geometry("640x560")
+        txt = tk.Text(win, wrap="word", font=("Segoe UI", 10), padx=14, pady=10)
+        ysb = ttk.Scrollbar(win, orient="vertical", command=txt.yview)
+        txt.configure(yscrollcommand=ysb.set)
+        ysb.pack(side="right", fill="y")
+        txt.pack(fill="both", expand=True)
+        txt.insert("1.0", """🖱️ Auto Mouse & Keyboard Macro — วิธีใช้งาน
+
+▪ เริ่มต้น 4 ขั้น
+1) กด RECORD (F9) แล้วคลิก/พิมพ์ตามจริง — โปรแกรมจดทุกเหตุการณ์ + เวลาหน่วงให้เอง
+2) แก้รายการในตาราง: ดับเบิลคลิกช่อง X/Y = จับพิกัดใหม่ (นับถอยหลัง 3 วิ)
+   ดับเบิลคลิกช่องอื่น = แก้ Action/คีย์/เวลา/Repeat, คลิกช่องแรก = เปิด-ปิดแถว
+3) กด START (F6) เล่นรอบเดียว, REPEAT เล่นวนซ้ำ, STOP (F8) หยุดทันที
+4) Save เก็บเป็นไฟล์ .json เปิดมาเล่นซ้ำวันไหนก็ได้
+
+▪ ปุ่มลัด (กดได้แม้ไม่โฟกัสหน้าต่าง)
+F6 เล่น • F8 หยุด • F9 อัด • F10 วนไม่จำกัด • F1-F4 โหลดสคริปต์จากโฟลเดอร์ Hot-profile
+
+▪ Action ในตาราง (คอลัมน์ Button + Additional)
+- คลิก: Left/Middle/Right Click (+ Down/Up แยกกด-ปล่อย), Double Click, Ctrl/Shift/Alt+Click
+- Scroll Up/Down — ใส่จำนวนจังหวะใน Additional
+- Move Mouse / Move Mouse by Offset, Save/Restore Cursor
+- Press/Release/Tap Key — คีย์พิเศษ เช่น enter, esc, ctrl, f1, pgup
+- Type Text — พิมพ์ข้อความไทย/อังกฤษ | Launch App — เปิดโปรแกรม/เว็บ
+- Image Click / Wait for Image — คลิกตามภาพ (ต้องมี opencv-python + Pillow)
+   Additional: ไฟล์.png หรือ ไฟล์.png@x,y,กว้าง,สูง (กรอบค้นหา) หรือ ...#90 (ความมั่นใจ %)
+   ปุ่ม 📸 บนแถบเครื่องมือ = ลากกรอบจับภาพจากหน้าจอเป็น .png ได้เลย
+- Beep — เสียงเตือน
+
+▪ ตัวเลือกการเล่น (แถบปุ่มล่าง)
+- Secs ใส่สุ่มได้ เช่น 1-3 = สุ่มดีเลย์ 1-3 วิ | ความเร็ว 0.25×-4× | รอบ (0=ไม่จำกัด)
+- คืนเมาส์จุดเดิม | สุ่มลำดับ (shuffle) | สัดส่วนแถว % (สุ่มเลือกเล่นบางส่วนทุกรอบ)
+
+▪ เมนูและเครื่องมือ
+- 🧙 Wizard — อัด → ตรวจรายการ → ทดลองเล่น → บันทึก จบในหน้าต่างเดียว
+- 📝 Log — ดู log การเล่นย้อนหลัง (macro_log_วันที่.txt) | 📊 Stats — สรุปสถิติ + กราฟรายวัน
+- ⚡ Hot-profile — ตั้งโฟลเดอร์สคริปต์ แล้วกด F1-F4 โหลด+เล่นทันที
+- ⏰ เล่นอัตโนมัติ — ทุก N นาที หรือทุกวัน HH:MM | แถบโปรไฟล์ — เก็บหลายสคริปต์สลับใช้
+- ⚙️ Settings — self-check ระบบ, ปุ่ม 🧪 ทดสอบจริง, Export/Import การตั้งค่าย้ายเครื่อง
+- Backup — ปิดโปรแกรมทุกครั้งจะสำรองการตั้งค่าอัตโนมัติใน backups/ (เก็บย้อนหลัง 7 วัน)
+
+▪ CLI (รันโดยไม่เปิดหน้าต่าง — เหมาะกับ Task Scheduler)
+py auto_macro.py script.json [--loop] [--loops N] [--speed 2] [--shuffle] [--rows-pct 50]
+                [--watchdog วินาที] [--stop-file พาธ] [--no-log]
+หยุด: F8/Esc (ทุกที่), Esc/q ในหน้าต่างนั้น, Ctrl+C หรือสร้างไฟล์ตาม --stop-file
+
+หมายเหตุ: Secs = เวลารอก่อนทำคำสั่งในแถวนั้น, Repeat = จำนวนครั้งที่ทำซ้ำ
+""")
+        txt.config(state="disabled")
+        bar = tk.Frame(win)
+        bar.pack(fill="x", pady=(0, 10))
+
+        def open_tutorial():
+            p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "docs", "TUTORIAL.html")
+            if os.path.isfile(p) and hasattr(os, "startfile"):
+                os.startfile(p)
+            else:
+                messagebox.showinfo(APP_TITLE,
+                    "ไม่พบไฟล์คู่มือ — เปิดจาก GitHub แทน:\ndocs/TUTORIAL.html")
+
+        tk.Button(bar, text="📘 เปิดคู่มือฉบับสมบูรณ์ (TUTORIAL)",
+                  command=open_tutorial).pack(side="left", padx=12)
+        tk.Button(bar, text="ปิด", width=10,
+                  command=win.destroy).pack(side="right", padx=12)
 
     def _on_close(self):
         self.running = False
         self.recording = False
+        # backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม (v1.13) — เก็บ 7 วันย้อนหลัง
+        backup_snapshot(os.path.dirname(os.path.abspath(__file__)),
+                        {"kind": "automousemacro-settings", "version": 1,
+                         "rows": self._serialize(),
+                         "profiles": self._profiles,
+                         "active_profile": self._active_profile,
+                         "log_enabled": self._log_enabled,
+                         "hot_profile_dir": self._hp_dir})
         if self._gk:
             try:
                 self._gk.stop()

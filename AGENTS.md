@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.12 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.13 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -33,6 +33,9 @@
 - **ฟีเจอร์เสริม v1.12:** กราฟสถิติรายวันใน Stats (`log_daily_series` + canvas),
   Export/Import การตั้งค่าทั้งหมด (Settings — kind=automousemacro-settings),
   ปุ่ม 🧪 ทดสอบระบบจริงใน Settings (ขยับเมาส์+บี๊บ)
+- **ฟีเจอร์เสริม v1.13:** Backup อัตโนมัติตอนปิดโปรแกรม (`backup_snapshot`/`prune_backups`
+  ลง backups/ เก็บ 7 วัน), Help ฉบับเต็ม (หน้าต่างเลื่อนได้ + ปุ่มเปิด TUTORIAL.html)
+  ⚠️ ลิงก์ใน docs/*.md ที่อยู่นอกโฟลเดอร์ตัวเองต้องมี ../ นำหน้า — ตรวจลิงก์ทุกไฟล์ก่อน push
 
 ## เทคโนโลยี
 
@@ -120,6 +123,8 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   พร้อมปุ่ม 🧪 ทดสอบระบบจริง (self_test ใน settings_dialog — ขยับเมาส์/บี๊บให้ผู้ใช้ยืนยันเอง)
 - **Export/Import:** `export_settings()`/`import_settings()` — ไฟล์เดียวรวม rows +
   profiles + log_enabled + hot_profile_dir (ตรวจ `kind=automousemacro-settings` ก่อนนำเข้า)
+- **Backup:** `_on_close` เรียก `backup_snapshot()` เขียน backups/backup_วันที่_เวลา.json
+  แล้ว `prune_backups()` ลบเก่าเกิน 7 วัน — ทน error ทุกจุด
 - **E2E tests:** `test_e2e.py` รัน CLI จริงเป็น subprocess (สคริปต์ Beep ล้วนปลอดภัย) —
   ทดสอบหยุดผ่าน stop-file กลางดีเลย์ยาว/จบเอง/หยุดก่อนเริ่ม รัน: `py -m unittest test_e2e -v`
   ห้ามถือว่า listener ใช้ได้เพราะ `alive=True` — ต้องทดสอบด้วยการกด/หยุดจริง

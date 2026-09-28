@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.12
+# 🖱️ Auto Mouse & Keyboard Macro v1.13
 
 <div align="center">
 
@@ -56,6 +56,8 @@
 | 🧙 **Record wizard** | Record → review → trial-play → save, all in one dialog |
 | 📊 **Play statistics** | Aggregated from daily logs + a 14-day bar chart: runs, user-stops, watchdog restarts, slowest row |
 | 💾 **Export/Import settings** | Move PCs or back up everything (rows + profiles + options) as one file from Settings |
+| 🗄️ **Automatic backups** | Every app close snapshots settings into backups/ — keeps the last 7 days |
+| ❓ **Full in-app Help** | Scrollable guide covering every feature + a button that opens TUTORIAL |
 | 🩺 **Startup self-check** | Verifies pynput / OpenCV / global hotkey / admin rights — shown in Settings |
 | 🎲 **Random delays** | Secs `1-3` = random 1–3 s per row; speed multiplier 0.25×–4×; return mouse to start |
 | 👤 **Profiles** | Keep multiple scripts and switch instantly (`macro_profiles.json`) |

@@ -684,6 +684,55 @@ class TestExportImport(unittest.TestCase):
             app._load_rows.assert_not_called()                # ไม่ยอมรับ = ไม่แตะข้อมูล
 
 
+class TestBackup(unittest.TestCase):
+    """Backup อัตโนมัติ 7 วัน (v1.13) — ทำงานใน temp dir ล้วน"""
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _bk(self):
+        return os.path.join(self._tmp.name, "backups")
+
+    def test_snapshot_writes_and_prunes(self):
+        import datetime
+        # เก่า 3 วัน (ควรถูกลบเมื่อเขียนวันนี้ เพราะเก่ากว่า 7 วันไม่ใช่... 3 < 7 จึงเหลือ)
+        old = datetime.datetime(2026, 9, 25, 8, 0, 0)
+        am.backup_snapshot(self._tmp.name, {"a": 1}, now=old)
+        p = am.backup_snapshot(self._tmp.name, {"b": 2})   # วันนี้
+        files = sorted(os.listdir(self._bk()))
+        self.assertEqual(len(files), 2)                    # เก่า (3 วิ) ยังไม่เกิน 7 วัน
+        data = json.load(open(p, encoding="utf-8"))
+        self.assertEqual(data, {"b": 2})
+        self.assertRegex(os.path.basename(p), r"^backup_\d{4}-\d{2}-\d{2}_\d{6}\.json$")
+
+    def test_prune_deletes_over_7_days(self):
+        import datetime
+        d10 = datetime.datetime(2026, 9, 18, 8, 0, 0)      # เก่ากว่า 10 วิ นับจากวันนี้
+        d1 = datetime.datetime(2026, 9, 27, 8, 0, 0)
+        am.backup_snapshot(self._tmp.name, {"old": 1}, now=d10)
+        am.backup_snapshot(self._tmp.name, {"new": 2}, now=d1)
+        am.backup_snapshot(self._tmp.name, {"today": 3})   # จะเรียก prune ให้เอง
+        files = os.listdir(self._bk())
+        self.assertEqual(len(files), 2)                    # ตัวเก่า 10 วันถูกลบ
+        self.assertFalse(any("20260918" in f for f in files))
+
+    def test_snapshot_never_raises(self):
+        # base_dir ที่สร้างไม่ได้ (มีอยู่เป็นไฟล์) = ต้องคืน None ไม่ raise
+        f = os.path.join(self._tmp.name, "blocker")
+        open(f, "w").close()
+        self.assertIsNone(am.backup_snapshot(f, {"x": 1}))
+
+    def test_prune_bad_names_ignored(self):
+        os.makedirs(self._bk(), exist_ok=True)
+        open(os.path.join(self._bk(), "backup_notadate.json"), "w").close()
+        am.prune_backups(self._bk())                       # ไม่ raise ไม่ลบไฟล์แปลก
+        self.assertTrue(os.path.isfile(os.path.join(self._bk(), "backup_notadate.json")))
+
+
 class TestMenuItems(unittest.TestCase):
     """เมนูไอคอนต้องอ้างเมธอดที่มีจริงทั้งหมด (กันพิมพ์ชื่อผิด)"""
 

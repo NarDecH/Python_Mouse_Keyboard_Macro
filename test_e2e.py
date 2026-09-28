@@ -17,6 +17,10 @@ import threading
 import time
 import unittest
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import auto_macro as am  # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(HERE, "auto_macro.py")
 
@@ -193,6 +197,65 @@ class TestE2EStop(unittest.TestCase):
             self.assertIn("ถูกหยุดโดยผู้ใช้", "\n".join(ch.lines))
         finally:
             ch.close()
+
+
+class TestE2EUtility(unittest.TestCase):
+    """ทดสอบสาธารณูปโภคผ่านโมดูลจริง (ไม่เปิด GUI): export/import ครบวงจร + self-test เมาส์"""
+
+    def test_export_import_roundtrip_real(self):
+        """export → แก้ข้อมูล → import: ข้อมูลต้องกลับมาตรงเดิม (ใช้โค้ดจริงทั้งสาย)"""
+        import io
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "settings.json")
+            app = mock.MagicMock()
+            app._serialize.return_value = [
+                {"enabled": True, "button": "Beep", "mins": 0, "secs": 1, "repeat": 2}]
+            app._profiles = {"งานเดิม": [{"button": "Beep"}], "งานใหม่": []}
+            app._active_profile = "งานเดิม"
+            app._log_enabled = True
+            app._hp_dir = None
+            app._ui_state = {"msg": None}
+            # 1) export
+            with mock.patch.object(am.filedialog, "asksaveasfilename", return_value=f):
+                am.MacroApp.export_settings(app)
+            self.assertTrue(os.path.isfile(f))
+            # 2) เหมือนย้ายเครื่อง: เปลี่ยนข้อมูลปัจจุบันให้ต่างจากเดิมทั้งหมด
+            app2 = mock.MagicMock()
+            app2._serialize.return_value = []
+            app2._profiles = {"ค่าเริ่มต้น": []}
+            app2._active_profile = "ค่าเริ่มต้น"
+            app2._log_enabled = False
+            app2._hp_dir = None
+            app2._ui_state = {"msg": None}
+            app2._load_rows = mock.MagicMock()
+            app2._refresh_profile_ui = mock.MagicMock()
+            app2._save_profiles = mock.MagicMock()
+            app2._save_conf = mock.MagicMock()
+            # 3) import (ยอมรับ)
+            with mock.patch.object(am.filedialog, "askopenfilename", return_value=f), \
+                 mock.patch.object(am.messagebox, "askyesno", return_value=True):
+                am.MacroApp.import_settings(app2)
+            self.assertEqual(app2._active_profile, "งานเดิม")
+            self.assertTrue(app2._log_enabled)
+            app2._load_rows.assert_called_once_with(
+                [{"enabled": True, "button": "Beep", "mins": 0, "secs": 1, "repeat": 2}])
+            app2._save_profiles.assert_called_once()
+            app2._save_conf.assert_called_once()
+
+    def test_self_test_real_mouse(self):
+        """ปุ่ม 🧪 ทดสอบระบบจริง: เรียก _self_test_actions() โค้ดจริง —
+        เมาส์ขยับแล้วคืนจุดเดิมพอดี + บี๊บ 2 ครั้ง (ไม่คลิก ไม่กดคีย์)"""
+        from unittest import mock
+        app = mock.MagicMock()
+        app.mouse_ctl = am.MouseController()             # ควบคุมเมาส์จริง
+        bells = []
+        app.root.bell = lambda: bells.append(1)
+        app.root.after = lambda delay, fn: fn()          # รันทันที (ไม่มี mainloop)
+        cur = am.MacroApp._self_test_actions(app)        # โค้ดจริงจากโปรแกรม
+        self.assertEqual(app.mouse_ctl.position, cur)    # คืนจุดเดิมพอดี
+        self.assertEqual(len(bells), 2)                  # บี๊บ 2 ครั้ง
 
 
 if __name__ == "__main__":
