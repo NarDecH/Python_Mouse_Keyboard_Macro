@@ -1,16 +1,46 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.9
+# 🖱️ Auto Mouse & Keyboard Macro v1.10
 
 <div align="center">
 
-**โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้**
+# สั่งเมาส์ + คีย์บอร์ดทำงานแทนคุณแบบอัตโนมัติ
 
-[🇬🇧 English](README.en.md) · [![Tests](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml/badge.svg)](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml)
+**อัดครั้งเดียว เล่นซ้ำได้ไม่จำกัด — ฟรี โอเพนซอร์ส ไม่มีโฆษณา ไม่มีล็อกอิน**
+
+[![Tests](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml/badge.svg)](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![GUI](https://img.shields.io/badge/GUI-Tkinter-2ea043)
 ![Library](https://img.shields.io/badge/pynput-1.8.2-orange)
 ![Platform](https://img.shields.io/badge/Platform-Windows-blue)
 
+### ⬇️ ดาวน์โหลดเลย — ไม่ต้องติดตั้ง Python
+
+[**📦 โหลด AutoMouseMacro.exe ล่าสุด (Windows)**](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest)<br>
+[เวอร์ชันทั้งหมด](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases) ·
+[คู่มือฉบับสมบูรณ์](TUTORIAL.md) ·
+[สคริปต์ตัวอย่าง](../examples/README.md) ·
+[🇬🇧 English](README.en.md)
+
 </div>
+
+---
+
+## 🆚 เทียบกับโปรแกรมอื่น
+
+| | **Auto Mouse & Keyboard Macro** | Auto Mouse v1.3 (ต้นแบบ) | AutoHotkey | TinyTask |
+|---|---|---|---|---|
+| ราคา | ✅ ฟรี โอเพนซอร์ส | ฟรี (ปิดซอร์ส) | ฟรี | ฟรี |
+| อัดการทำงาน (RECORD) | ✅ คลิก+คีย์+scroll พร้อมจับเวลาอัตโนมัติ | ✅ | ✅ (ต้องเขียนสคริปต์) | ✅ |
+| แก้สคริปต์ทีละแถวในตาราง | ✅ แก้/สลับ/จับพิกัดในหน้าต่างเดียว | ⚠️ จำกัด | ❌ ต้องแก้โค้ด | ❌ |
+| คลิกตามภาพ (Image Click) | ✅ + กรอบค้นหา + threshold รายแถว | ❌ | ⚠️ ImageSearch | ❌ |
+| ปุ่มลัดทำงานแม้ไม่โฟกัส | ✅ F1–F10 | ❌ | ✅ | ⚠️ จำกัด |
+| เล่นตามเวลา (schedule) | ✅ ทุก N นาที / รายวัน HH:MM | ❌ | ⚠️ เขียนเอง | ❌ |
+| สุ่มลำดับ/สัดส่วนแถว | ✅ shuffle + % | ❌ | ⚠️ เขียนเอง | ❌ |
+| ดีเลย์สุ่ม (กันจับ pattern) | ✅ `1-3` | ❌ | ⚠️ เขียนเอง | ❌ |
+| รันแบบ CLI (Task Scheduler) | ✅ + watchdog รีสตาร์ตอัตโนมัติ | ❌ | ✅ | ❌ |
+| ไฟล์เดียวจบ ไม่ต้องติดตั้ง | ✅ .exe ไฟล์เดียว | ✅ | ❌ | ✅ |
+| log ตรวจสอบย้อนหลัง | ✅ รายวัน + ดูในโปรแกรม | ❌ | ❌ | ❌ |
+
+> สรุป: อยากได้ **ง่ายแบบกดอัดแล้วเล่นซ้ำ** + **แก้ได้ละเอียดแบบสคริปต์** ในตัวเดียว — นี่คือจุดขายของโปรแกรมนี้
 
 ---
 
@@ -18,7 +48,7 @@
 
 <div align="center">
 <img src="images/screenshot.png" alt="หน้าจอหลักของโปรแกรม" width="640">
-<br><em>หน้าจอหลัก v1.7: เมนูไอคอน + แถบโปรไฟล์ + ตารางคำสั่ง + ปุ่มควบคุมทั้งหมด</em>
+<br><em>หน้าจอหลัก: เมนูไอคอน + แถบโปรไฟล์ + ตารางคำสั่ง + ปุ่มควบคุมทั้งหมด</em>
 </div>
 
 ---
@@ -49,6 +79,8 @@
 | 🌐 **Global Hotkey** | F6/F8/F9/F10 กดได้แม้โปรแกรมไม่ได้โฟกัส |
 | ⚡ **Hot-profile** (F1–F4) | ตั้งโฟลเดอร์สคริปต์ แล้วกด F1–F4 เพื่อโหลดสคริปต์ลำดับที่ 1–4 แล้วเล่นทันที |
 | 📜 **Log viewer** | เปิดดู log การเล่นย้อนหลังจากในโปรแกรม (เมนู 📝 Log) เลือกดูรายวันได้ |
+| 🧙 **Record wizard** | อัด → ตรวจรายการ → ทดลองเล่น → บันทึก จบในหน้าต่างเดียว (เมนู 🧙 Wizard) |
+| 🎲 **สุ่มลำดับ/สัดส่วน** | เล่นแถวแบบสลับลำดับสุ่ม และ/หรือเลือกเล่นแค่ x% ของแถว (สุ่มชุดใหม่ทุกรอบ) |
 | 🖼️ **คลิกตามภาพ** | ระบุไฟล์ .png → หาบนหน้าจอด้วย OpenCV แล้วคลิกให้เอง |
 | 🎛️ **โปรไฟล์** | เก็บหลายสคริปต์สลับใช้ (งานบ้าน / เกม A / เกม B) |
 | ⏰ **เล่นตามเวลา** | ตั้งเล่นอัตโนมัติ "ทุก N นาที" หรือ "ทุกวัน HH:MM" |
@@ -217,8 +249,31 @@ py auto_macro.py script.json --loop           # วนไม่จำกัด
 py auto_macro.py script.json --loops 5        # 5 รอบ
 py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เท่า
 py auto_macro.py script.json --no-log         # ไม่บันทึก log
+py auto_macro.py script.json --shuffle        # สุ่มลำดับแถวทุกรอบ
+py auto_macro.py script.json --rows-pct 50    # เล่นแค่ 50% ของแถว (สุ่มชุดใหม่ทุกรอบ)
+py auto_macro.py script.json --watchdog       # จบแล้วเริ่มใหม่อัตโนมัติ (พัก 3 วิ)
+py auto_macro.py script.json --watchdog 10    # แบบกำหนดเวลาพักเอง
 py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์นี้เมื่อไร = หยุดทันที
 ```
+
+> 💡 **watchdog** เหมาะกับงานเฝ้าระบบ: สคริปต์จบ → พัก N วิ → เริ่มใหม่เองวนไม่จำกัด
+> ทุกการรีสตาร์ตบันทึก `[WATCHDOG]` ลง log — หยุดถาวรด้วย F8/Esc/Ctrl+C/stop-file
+
+## 🧙 Record Wizard
+
+เมนู **🧙 Wizard** — ครบจบในหน้าต่างเดียว เห็นรายการสดขณะอัด:
+
+**● เริ่มอัด** → ทำตามที่ต้องการ → **■ หยุดอัด** → ตรวจรายการในตาราง →
+**▶ ทดลองเล่น** (หยุดด้วย F8 ได้ทุกที่) → **💾 บันทึกไฟล์** (ตั้งชื่ออัตโนมัติ
+แบบ `wizard_วันที่_เวลา.json`)
+
+## 🎲 เล่นแบบสุ่ม (v1.10)
+
+แถบปุ่มด้านล่างมีตัวเลือกใหม่:
+- **สุ่มลำดับ** — ทุกรอบเล่นแถวเดิมแต่สลับลำดับสุ่มใหม่
+- **สัดส่วนแถว %** — สุ่มเลือกเล่นเฉพาะบางส่วน เช่น 50% = สุ่ม 1 ใน 2 ของแถวทั้งหมด (ชุดใหม่ทุกรอบ)
+- ใช้ร่วมกันได้ + ใช้ผ่าน CLI ด้วย `--shuffle` และ `--rows-pct` — เหมาะกับงานที่ต้องการ
+  ให้จังหวะการทำงานไม่ซ้ำเดิมทุกรอบ
 
 หยุดได้ทุกที่: กด **F8**/**Esc** (แม้ไม่โฟกัสหน้าต่าง), **Esc** หรือ **q** ในหน้าต่าง CLI,
 หรือ **Ctrl+C** — เหมาะกับการรันผ่าน Windows Task Scheduler

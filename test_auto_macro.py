@@ -7,6 +7,7 @@ Unit tests สำหรับฟังก์ชันล้วน ๆ ของ 
 """
 
 import os
+import random
 import sys
 import unittest
 from unittest import mock
@@ -405,7 +406,55 @@ class TestPlayLog(unittest.TestCase):
             self.assertEqual(self._read(), "")            # ไม่เขียน log เลย
 
 
-class TestGlobalHotkeyMapping(unittest.TestCase):
+class TestPickPlayOrder(unittest.TestCase):
+    """เล่นแบบสุ่มลำดับ/สัดส่วน (v1.10) — ใช้ random.Random ตั้ง seed เพื่อเทสต์ซ้ำได้"""
+
+    def setUp(self):
+        import random
+        self.rows = [{"button": "Beep", "n": i} for i in range(10)]
+
+    def test_full_no_shuffle_keeps_order(self):
+        out = am.pick_play_order(self.rows)
+        self.assertEqual([r["n"] for r in out], list(range(10)))
+        self.assertIsNot(out, self.rows)            # ต้องคืนลิสต์ใหม่ ไม่แก้ของเดิม
+
+    def test_pct_picks_subset(self):
+        out = am.pick_play_order(self.rows, pct=50, rng=random.Random(42))
+        self.assertEqual(len(out), 5)
+        ns = [r["n"] for r in out]
+        self.assertEqual(len(set(ns)), 5)           # ไม่ซ้ำ (sample ไม่ทดแทน)
+        self.assertTrue(set(ns) <= set(range(10)))
+
+    def test_pct_min_one_row(self):
+        out = am.pick_play_order(self.rows, pct=1, rng=random.Random(1))
+        self.assertEqual(len(out), 1)               # ต่ำสุด = 1 แถว ไม่ใช่ 0
+
+    def test_pct_clamped(self):
+        self.assertEqual(len(am.pick_play_order(self.rows, pct=150)), 10)
+        self.assertEqual(len(am.pick_play_order(self.rows, pct=-5)), 1)
+
+    def test_shuffle_changes_order(self):
+        out = am.pick_play_order(self.rows, shuffle=True, rng=random.Random(7))
+        self.assertEqual(sorted(r["n"] for r in out), list(range(10)))  # ครบทุกแถว
+        self.assertNotEqual([r["n"] for r in out], list(range(10)))     # สลับจริง (seed นี้)
+
+    def test_empty_rows(self):
+        self.assertEqual(am.pick_play_order([]), [])
+
+
+class TestWizardFilename(unittest.TestCase):
+    """ชื่อไฟล์เริ่มต้นของ Record wizard"""
+
+    def test_format(self):
+        import datetime
+        ts = datetime.datetime(2026, 9, 28, 10, 30, 5)
+        self.assertEqual(am.wizard_filename(ts), "wizard_20260928_103005.json")
+
+    def test_auto_now(self):
+        self.assertRegex(am.wizard_filename(), r"^wizard_\d{8}_\d{6}\.json$")
+
+
+class TestMenuItems(unittest.TestCase):
     """Global hotkey (v1.8): ใช้ keyboard.Listener จับคู่คีย์เอง — F6/F8/F9/F10
     ต้องถูกผลักเข้า main thread ผ่าน root.after และคีย์อื่นต้องไม่กระทบ"""
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.9
+Auto Mouse & Keyboard Macro  v1.10
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -23,6 +23,8 @@ Auto Mouse & Keyboard Macro  v1.9
   ใช้ทั้ง GUI และ CLI [คลี่ออกด้วย --no-log]), เก็บสถานะเปิด/ปิด log ใน macro_conf.json
 - v1.9: หน้าต่าง Log viewer (ดู log ย้อนหลังจากในโปรแกรม), Hot-profile F1–F4
   (ตั้งโฟลเดอร์แล้วกด F1–F4 เพื่อโหลดสคริปต์ลำดับที่ 1–4 แล้วเล่นทันที), E2E tests
+- v1.10: เล่นแบบสุ่มลำดับ/สุ่มสัดส่วนแถว (shuffle + %), Record wizard
+  (อัด→ตรวจ→ทดลองเล่น→บันทึก ในหน้าต่างเดียว), CLI --watchdog รีสตาร์ตอัตโนมัติเมื่อจบ/พัก
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -59,7 +61,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.9"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.10"
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -150,6 +152,29 @@ def delay_range(secs):
         return (v, v)
     except ValueError:
         return (0.0, 0.0)
+
+
+def pick_play_order(rows, pct=100, shuffle=False, rng=None):
+    """เลือกลำดับแถวที่จะเล่น (v1.10)
+    - pct: เล่นแค่กี่เปอร์เซ็นต์ของแถว — สุ่มเลือกชุดแถวไม่ซ้ำ (100 = ทุกแถว)
+    - shuffle: สลับลำดับแถวแบบสุ่ม
+    คืนลิสต์แถวใหม่ (ไม่แก้ลิสต์เดิม) — เรียกซ้ำได้ทุกรอบเพื่อสุ่มชุด/ลำดับใหม่"""
+    if not rows:
+        return []
+    r = rng if rng is not None else random
+    out = list(rows)
+    if pct < 100:
+        k = max(1, int(round(len(out) * max(0, min(100, pct)) / 100.0)))
+        out = r.sample(out, k)
+    if shuffle:
+        r.shuffle(out)
+    return out
+
+
+def wizard_filename(ts=None):
+    """ชื่อไฟล์เริ่มต้นของ Record wizard เช่น wizard_20260928_103000.json"""
+    t = ts or datetime.datetime.now()
+    return "wizard_%s.json" % t.strftime("%Y%m%d_%H%M%S")
 
 
 def fmt_num(v):
@@ -323,6 +348,7 @@ class MacroApp:
         """รายการเมนูไอคอน (icon, label, method_name, color) — แยกออกมาเพื่อทดสอบได้"""
         return [("💾", "Save", "save_script", "#333"),
                 ("📂", "Load", "load_script", "#333"),
+                ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
                 ("⚡", "Hot-profile", "hot_profile_dialog", "#333"),
                 ("⚙️", "Settings", "settings_dialog", "#333"),
@@ -461,6 +487,14 @@ class MacroApp:
         tk.Checkbutton(bot, text="วนซ้ำไม่จำกัด (F10)", variable=self.chk_forever).pack(side="left", padx=6)
         self.chk_restore = tk.BooleanVar(value=False)
         tk.Checkbutton(bot, text="คืนเมาส์จุดเดิม", variable=self.chk_restore).pack(side="left", padx=6)
+        self.chk_shuffle = tk.BooleanVar(value=False)
+        tk.Checkbutton(bot, text="สุ่มลำดับ", variable=self.chk_shuffle).pack(side="left", padx=6)
+        tk.Label(bot, text="สัดส่วนแถว:").pack(side="left", padx=(10, 2))
+        self.ent_pct = tk.Spinbox(bot, from_=5, to=100, increment=5, width=5)
+        self.ent_pct.delete(0, "end")
+        self.ent_pct.insert(0, "100")
+        self.ent_pct.pack(side="left")
+        tk.Label(bot, text="%", fg="#888").pack(side="left", padx=(2, 0))
 
         tk.Label(bot, text="ความเร็ว:").pack(side="left", padx=(10, 2))
         self.cmb_speed = ttk.Combobox(bot, width=5, state="readonly",
@@ -800,7 +834,13 @@ class MacroApp:
         self.tree.item(row_id, values=vals)
 
     # ------------------------------------------------------------- playback --
-    def _rows_for_play(self):
+    def _play_options(self):
+        """อ่านตัวเลือกการเล่นจากแถบล่าง (สัดส่วนแถว 5-100%)"""
+        try:
+            pct = int(self.ent_pct.get())
+        except ValueError:
+            pct = 100
+        return max(5, min(100, pct))
         rows = []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
@@ -857,12 +897,17 @@ class MacroApp:
             loops = 1
         self._script_loops = max(0, loops)
         self._restore_pos = self.chk_restore.get()
+        self._shuffle = self.chk_shuffle.get()
+        self._pct = self._play_options()
         self._log_src = self._loaded_file or "ตารางในโปรแกรม"
         if self._log_enabled:
-            log_write("START", "เริ่มเล่น (%s) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d" %
+            extra = " สุ่มลำดับ" if self._shuffle else ""
+            if self._pct < 100:
+                extra += " %d%%" % self._pct
+            log_write("START", "เริ่มเล่น (%s) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d%s" %
                       ("วนซ้ำ" if loop else "ครั้งเดียว", self._speed_mult,
                        self._script_loops if self._script_loops else "ไม่จำกัด",
-                       len(rows)), self._log_src)
+                       len(rows), extra), self._log_src)
         self.btn_start.config(state="disabled", bg="#cfcfcf")
         self.btn_repeat.config(state="disabled", bg="#2e7d32")
         mode = "วนซ้ำ" if loop else "เล่นครั้งเดียว"
@@ -1010,10 +1055,13 @@ class MacroApp:
             loop_no = 0
             outer = True
             play_started = time.time()
+            self._shuffle = False
+            self._pct = 100
             while outer:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
-                for i, r in enumerate(rows):
+                play_rows = pick_play_order(rows, pct=self._pct, shuffle=self._shuffle)
+                for i, r in enumerate(play_rows):
                     if not self._gen_ok(gen):
                         return
                     children = self.tree.get_children()
@@ -1464,6 +1512,90 @@ class MacroApp:
             pass
 
     # ------------------------------------------------------------- dialogs ---
+    # ------------------------------------------- record wizard (v1.10) ------
+    def record_wizard(self):
+        """หน้าต่าง Wizard 4 ขั้นตอน: อัด → ตรวจรายการ → ทดลองเล่น → บันทึกไฟล์
+        ใช้ _pending_rows ชุดเดียวกับ RECORD ปกติ — เห็นรายการสดขณะอัด"""
+        win = tk.Toplevel(self.root)
+        win.title("Record Wizard — อัด → ตรวจ → ทดลองเล่น → บันทึก")
+        win.geometry("780x520")
+        tk.Label(win, text="1) กด ● เริ่มอัด   2) ตรวจรายการด้านล่าง   "
+                 "3) ▶ ทดลองเล่น   4) 💾 บันทึกไฟล์",
+                 fg="#555").pack(anchor="w", padx=12, pady=(10, 2))
+        var_state = tk.StringVar(value="พร้อมเริ่ม — กด ● เริ่มอัด")
+        tk.Label(win, textvariable=var_state, font=("Segoe UI", 10, "bold"),
+                 fg="#080").pack(anchor="w", padx=12)
+        cnt = tk.Label(win, text="0 เหตุการณ์", font=("Consolas", 10), fg="#06c")
+        cnt.pack(anchor="w", padx=12)
+        tr = ttk.Treeview(win, columns=("num", "button", "additional", "delay"),
+                          show="headings", height=14)
+        for c, w, t, a in (("num", 46, "#", "e"), ("button", 150, "Action", "w"),
+                           ("additional", 330, "Additional", "w"),
+                           ("delay", 90, "วินาที", "e")):
+            tr.heading(c, text=t)
+            tr.column(c, width=w, anchor=a)
+        tr.pack(fill="both", expand=True, padx=12, pady=6)
+        bar = tk.Frame(win)
+        bar.pack(fill="x", padx=12, pady=(0, 10))
+
+        def do_rec():
+            self.toggle_record()                       # ใช้กลไก RECORD เดิมทั้งหมด
+            var_state.set("กำลังอัด... ทำตามที่ต้องการแล้วกด ■ หยุดอัด" if self.recording
+                          else "อัดเสร็จ — ตรวจรายการ แล้วทดลองเล่น/บันทึกได้เลย")
+
+        btn_rec = tk.Button(bar, text="● เริ่มอัด", width=12, command=do_rec)
+        btn_rec.pack(side="left", padx=(0, 6))
+
+        def do_try():
+            if not self._pending_rows and not self.tree.get_children():
+                messagebox.showinfo(APP_TITLE, "ยังไม่มีรายการ — กด ● เริ่มอัดก่อน", parent=win)
+                return
+            var_state.set("กำลังทดลองเล่น... (F8 หยุดได้ทุกที่)")
+            self.start_play()
+
+        tk.Button(bar, text="▶ ทดลองเล่น", width=12, command=do_try).pack(side="left", padx=6)
+
+        def do_save():
+            rows = list(self._pending_rows) if self._pending_rows else self._serialize()
+            if not rows:
+                messagebox.showinfo(APP_TITLE, "ยังไม่มีรายการให้บันทึก", parent=win)
+                return
+            f = filedialog.asksaveasfilename(parent=win, defaultextension=".json",
+                                             filetypes=[("Macro script", "*.json")],
+                                             initialfile=wizard_filename())
+            if not f:
+                return
+            with open(f, "w", encoding="utf-8") as fh:
+                json.dump(rows, fh, ensure_ascii=False, indent=2)
+            self._loaded_file = f
+            self._log_src = f
+            var_state.set("บันทึกแล้ว: " + os.path.basename(f) +
+                          "  — โหลดกลับด้วยเมนู 📂 Load หรือรันผ่าน CLI ได้เลย")
+            self._ui_state["msg"] = ("Wizard บันทึกสคริปต์แล้ว: " + os.path.basename(f), "#080")
+
+        tk.Button(bar, text="💾 บันทึกไฟล์", width=14, command=do_save).pack(side="left", padx=6)
+        tk.Button(bar, text="ปิด", width=8, command=win.destroy).pack(side="right")
+
+        def refresh():
+            try:
+                if not win.winfo_exists():
+                    return
+            except tk.TclError:
+                return
+            vals = self._pending_rows
+            if len(tr.get_children()) != len(vals):    # รีวาดเฉพาะจำนวนที่เปลี่ยน
+                tr.delete(*tr.get_children())
+                for i, r in enumerate(vals, 1):
+                    tr.insert("", "end", values=(
+                        i, r["button"], r["additional"] or "",
+                        "%g" % delay_seconds(r["mins"], r["secs"])))
+            cnt.config(text="%d เหตุการณ์" % len(vals))
+            btn_rec.config(text="■ หยุดอัด" if self.recording else "● เริ่มอัด",
+                           fg="#b00" if self.recording else "#080")
+            win.after(250, refresh)
+
+        refresh()
+
     # -------------------------------------------------- log viewer (v1.9) ----
     def view_log(self):
         """เปิดหน้าต่างอ่าน log การเล่นย้อนหลัง — เลือกดูไฟล์รายวันได้"""
@@ -1681,6 +1813,14 @@ def cli_main(argv):
                     help="ไม่บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt")
     ap.add_argument("--stop-file", default=None, metavar="PATH",
                     help="ถ้าไฟล์นี้ถูกสร้าง โปรแกรมจะหยุดทันที (ใช้ควบคุมจากภายนอก/ทดสอบ)")
+    ap.add_argument("--shuffle", action="store_true",
+                    help="สุ่มลำดับแถวทุกรอบ (v1.10)")
+    ap.add_argument("--rows-pct", type=int, default=100, metavar="5-100",
+                    help="เล่นแค่กี่เปอร์เซ็นต์ของแถว — สุ่มเลือกชุดแถวใหม่ทุกรอบ (v1.10)")
+    ap.add_argument("--watchdog", nargs="?", const=3.0, default=0.0, type=float,
+                    metavar="วินาที",
+                    help="โหมดเฝ้ารีสตาร์ต (v1.10): จบแล้วเริ่มใหม่อัตโนมัติหลังพัก N วิ "
+                         "(ค่าเริ่มต้น 3) — หยุดถาวรด้วย F8/Esc/Ctrl+C/stop-file")
     args = ap.parse_args(argv)
 
     # --no-log เป็นตัวตัดสิน (ไม่ได้ใส่ = ตามค่าเริ่มต้นของโปรแกรม)
@@ -1710,7 +1850,6 @@ def cli_main(argv):
     mouse_ctl = MouseController()
     kb_ctl = KbController()
     running = [True]
-    finished_ok = []             # ว่าง = ถูกหยุดกลางคัน, มีค่า = จบครบเอง
     pending_keys = []            # คีย์/ปุ่มที่กดค้าง (Press Key / Down) — ปล่อยตอนหยุด
     speed = min(10.0, max(0.1, args.speed))
 
@@ -1822,6 +1961,12 @@ def cli_main(argv):
         os.path.basename(args.script), len(rows),
         "  •  วนไม่จำกัด" if (args.loop or args.loops == 0) else "",
         "  •  ความเร็ว %gx" % speed))
+    if args.shuffle:
+        print("  •  สุ่มลำดับแถวทุกรอบ")
+    if args.rows_pct != 100:
+        print("  •  สัดส่วนแถว %d%% (สุ่มชุดใหม่ทุกรอบ)" % max(5, min(100, args.rows_pct)))
+    if args.watchdog > 0:
+        print("  •  watchdog: จบแล้วเริ่มใหม่อัตโนมัติหลังพัก %.0f วิ" % args.watchdog)
     if log_enabled:
         log_write("START", "เริ่มเล่น (CLI) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d" %
                   (speed, "ไม่จำกัด" if (args.loop or args.loops == 0) else args.loops,
@@ -1831,66 +1976,99 @@ def cli_main(argv):
         print("หยุด: กด F8 หรือ Esc (ทุกที่), Esc/q ในหน้าต่างนี้, หรือ Ctrl+C")
     else:
         print("หยุด: Esc/q ในหน้าต่างนี้ หรือ Ctrl+C")
+    pct = max(5, min(100, args.rows_pct))
+
+    def play_once():
+        """เล่นสคริปต์ 1 ครั้ง — คืน True = จบครบเอง, False = ถูกหยุดกลางคัน"""
+        try:
+            loops = 0 if args.loop else max(0, args.loops)
+            active = [r for r in rows if r.get("enabled", True) is not False]
+            n_loop = 0
+            while True:
+                n_loop += 1
+                play_rows = pick_play_order(active, pct=pct, shuffle=args.shuffle)
+                print("— รอบที่ %d —" % n_loop)
+                for i, r in enumerate(play_rows, 1):
+                    if not running[0]:
+                        return False
+                    lo, hi = delay_range(r.get("secs", 1))
+                    base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else random.uniform(lo, hi))
+                    # หยุดทันทีกลางดีเลย์: แบ่ง sleep ชิ้นละ 50 ms เช็ค running ทุกชิ้น
+                    _end = time.time() + max(0.0, base / speed)
+                    while running[0]:
+                        _remain = _end - time.time()
+                        if _remain <= 0:
+                            break
+                        time.sleep(min(0.05, _remain))
+                    if not running[0]:
+                        return False
+                    step_t0 = time.time()
+                    do_step(r)
+                    if log_enabled:
+                        log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
+                                  (n_loop, i, len(play_rows), r.get("button", ""),
+                                   r.get("additional", "") or "", time.time() - step_t0),
+                                  args.script)
+                    print("  [%d/%d] %s %s" % (i, len(play_rows), r.get("button", ""),
+                                              r.get("additional", "")))
+                if not running[0]:
+                    return False
+                if loops == 0:
+                    continue
+                loops -= 1
+                if loops <= 0:
+                    return True
+            return True
+        except KeyboardInterrupt:
+            running[0] = False
+            return False
+
+    n_restart = 0
     try:
-        loops = 0 if args.loop else max(0, args.loops)
-        active = [r for r in rows if r.get("enabled", True) is not False]
-        n_loop = 0
         while True:
-            n_loop += 1
-            print("— รอบที่ %d —" % n_loop)
-            for i, r in enumerate(active, 1):
-                if not running[0]:
-                    break
-                lo, hi = delay_range(r.get("secs", 1))
-                base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else random.uniform(lo, hi))
-                # หยุดทันทีกลางดีเลย์: แบ่ง sleep ชิ้นละ 50 ms เช็ค running ทุกชิ้น
-                _end = time.time() + max(0.0, base / speed)
-                while running[0]:
-                    _remain = _end - time.time()
-                    if _remain <= 0:
-                        break
-                    time.sleep(min(0.05, _remain))
-                if not running[0]:
-                    break
-                step_t0 = time.time()
-                do_step(r)
-                if log_enabled:
-                    log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
-                              (n_loop, i, len(active), r.get("button", ""),
-                               r.get("additional", "") or "", time.time() - step_t0),
-                              args.script)
-                print("  [%d/%d] %s %s" % (i, len(active), r.get("button", ""),
-                                          r.get("additional", "")))
+            ok = play_once()
+            # ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ (กัน Ctrl/ปุ่มเมาส์ติดหลังหยุดกลางคัน)
+            for kind, obj in pending_keys:
+                try:
+                    (kb_ctl if kind == "k" else mouse_ctl).release(obj)
+                except Exception:
+                    pass
+            pending_keys.clear()
+            if log_enabled:
+                log_write("STOP" if not ok else "END",
+                          "หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)" if not ok
+                          else "เล่นจบเองครบ", args.script)
+                prune_log()
+            if not ok:
+                print("\nถูกหยุดโดยผู้ใช้")
+                return 130
+            if args.watchdog <= 0:
+                print("จบแล้ว ✔")
+                return 0
+            # watchdog: จบแล้วเริ่มใหม่อัตโนมัติ (หยุดถาวรได้ทุกช่องทางหยุด)
+            n_restart += 1
+            print("watchdog: จบรอบ — เริ่มใหม่ใน %.0f วิ (ครั้งที่ %d; กด F8/Esc เพื่อหยุดถาวร)"
+                  % (args.watchdog, n_restart))
+            if log_enabled:
+                log_write("WATCHDOG", "รีสตาร์ตครั้งที่ %d หลังพัก %.0f วิ"
+                          % (n_restart, args.watchdog), args.script)
+            _end = time.time() + args.watchdog
+            while running[0] and time.time() < _end:
+                time.sleep(min(0.05, max(0.0, _end - time.time())))
             if not running[0]:
-                break
-            if loops == 0:
-                continue
-            loops -= 1
-            if loops <= 0:
-                break
-        if not running[0]:
-            print("\nถูกหยุดโดยผู้ใช้")
-            return 130
-        print("จบแล้ว ✔")
-        finished_ok.append(True)
-        return 0
+                print("\nถูกหยุดโดยผู้ใช้")
+                return 130
     except KeyboardInterrupt:
         print("\nหยุดโดยผู้ใช้")
         return 130
     finally:
         running[0] = False
-        # ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ (กัน Ctrl/ปุ่มเมาส์ติดหลังหยุดกลางคัน)
-        for kind, obj in pending_keys:
+        for kind, obj in pending_keys:      # กันเหลือค้างจาก play_once ที่ raise
             try:
                 (kb_ctl if kind == "k" else mouse_ctl).release(obj)
             except Exception:
                 pass
         pending_keys.clear()
-        if log_enabled:
-            log_write("STOP" if not finished_ok else "END",
-                      "หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)" if not finished_ok
-                      else "เล่นจบเองครบ", args.script)
-            prune_log()
         try:
             stopper.stop()
         except Exception:

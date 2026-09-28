@@ -1,4 +1,18 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.9
+# 🖱️ Auto Mouse & Keyboard Macro v1.10
+
+<div align="center">
+
+# Automate your mouse + keyboard — record once, replay forever
+
+**Free & open source. No ads, no sign-up, single .exe.**
+
+### ⬇️ Download — no Python needed
+
+[**📦 Get AutoMouseMacro.exe for Windows**](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest)<br>
+[All releases](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases) ·
+[ภาษาไทย](README.md)
+
+</div>
 
 <div align="center">
 
@@ -38,6 +52,8 @@
 | 🖼️ **Image Click** | Find an image on screen (OpenCV) and click it — with search area `@x,y,w,h` and per-row confidence `#90` |
 | 📸 **Snapshot tool** | Drag a rectangle on screen to capture .png templates for Image Click, right inside the app |
 | 🎬 **16+ actions** | Click / double-click / modifier-click, scroll, move mouse (absolute/relative), save/restore cursor, type text (Thai supported), launch app, wait for image, beep, press/release/tap keys |
+| 🎲 **Shuffle & sampling** | Randomize row order and/or play only x% of rows — resampled every round |
+| 🧙 **Record wizard** | Record → review → trial-play → save, all in one dialog |
 | 🎲 **Random delays** | Secs `1-3` = random 1–3 s per row; speed multiplier 0.25×–4×; return mouse to start |
 | 👤 **Profiles** | Keep multiple scripts and switch instantly (`macro_profiles.json`) |
 | ⏰ **Scheduler** | Play automatically every N minutes or daily at HH:MM |
@@ -100,6 +116,10 @@ py auto_macro.py script.json --stop-file D:\stop.flg   # create this file = stop
 
 Stop from anywhere with **F8**/**Esc** (even unfocused), **Esc**/**q** in the CLI window, or **Ctrl+C**.
 `--stop-file` lets other programs (or Task Scheduler chains) stop the macro by simply creating a file.
+
+**Watchdog mode** — `--watchdog` restarts the script automatically after it finishes (pause N seconds,
+default 3), forever, until stopped: perfect for unattended monitoring jobs. Every restart is logged
+as `[WATCHDOG]`. Combine with `--shuffle` / `--rows-pct` for non-repetitive runs.
 
 ## 📝 Play log
 

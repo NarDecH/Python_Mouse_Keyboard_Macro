@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v1.9</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v1.10</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -122,6 +122,8 @@
       <tr><td>📦 <b>แพ็กเป็น .exe</b></td><td>รัน <code>build.bat</code> → ได้ไฟล์เดียว <code>dist/AutoMouseMacro.exe</code> ไม่ต้องติดตั้ง Python</td></tr>
       <tr><td>🌐 <b>Global Hotkey</b></td><td>F6/F8/F9/F10 กดได้แม้โปรแกรมไม่ได้โฟกัส</td></tr>
       <tr><td>⚡ <b>Hot-profile</b> (F1–F4)</td><td>ตั้งโฟลเดอร์สคริปต์ แล้วกด F1–F4 โหลดสคริปต์ลำดับที่ 1–4 เล่นทันที</td></tr>
+      <tr><td>🧙 <b>Record wizard</b></td><td>อัด → ตรวจรายการ → ทดลองเล่น → บันทึก จบในหน้าต่างเดียว (เมนู 🧙 Wizard)</td></tr>
+      <tr><td>🎲 <b>สุ่มลำดับ/สัดส่วน</b></td><td>เล่นแบบสลับลำดับสุ่ม และ/หรือเลือกเล่นแค่ x% ของแถว (สุ่มชุดใหม่ทุกรอบ)</td></tr>
       <tr><td>📜 <b>Log viewer</b></td><td>เปิดดู log ย้อนหลังจากในโปรแกรม (เมนู 📝 Log) เลือกดูรายวันได้</td></tr>
       <tr><td>🖼️ <b>คลิกตามภาพ</b></td><td>ระบุไฟล์ .png → หาบนหน้าจอด้วย OpenCV แล้วคลิกให้เอง</td></tr>
       <tr><td>🎛️ <b>โปรไฟล์</b></td><td>เก็บหลายสคริปต์สลับใช้ (งานบ้าน / เกม A / เกม B)</td></tr>
@@ -251,6 +253,9 @@ py auto_macro.py script.json --loop           # วนไม่จำกัด
 py auto_macro.py script.json --loops 5        # 5 รอบ
 py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เท่า
 py auto_macro.py script.json --no-log         # ไม่บันทึก log
+py auto_macro.py script.json --shuffle        # สุ่มลำดับแถวทุกรอบ
+py auto_macro.py script.json --rows-pct 50    # เล่นแค่ 50% ของแถว (สุ่มชุดใหม่ทุกรอบ)
+py auto_macro.py script.json --watchdog       # จบแล้วเริ่มใหม่อัตโนมัติ (พัก 3 วิ)
 py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์ = หยุดทันที</code></pre>
     <p>หยุดได้ทุกที่: <kbd>F8</kbd>/<kbd>Esc</kbd> (แม้ไม่โฟกัส), <kbd>Esc</kbd>/<kbd>q</kbd>
       ในหน้าต่าง CLI, หรือ Ctrl+C — เหมาะกับ Windows Task Scheduler</p>

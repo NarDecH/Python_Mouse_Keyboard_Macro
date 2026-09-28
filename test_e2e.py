@@ -128,6 +128,52 @@ class TestE2EStop(unittest.TestCase):
         finally:
             ch.close()
 
+    def test_watchdog_restarts_then_stop_file(self):
+        # --watchdog 1: จบแล้วเริ่มใหม่อัตโนมัติ — พอเห็นข้อความ watchdog ให้สร้าง
+        # stop-file ระหว่างช่วงพัก = ต้องหยุดถาวร (exit 130) ไม่เริ่มรอบใหม่
+        script = self._script([
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        stopf = os.path.join(tempfile.mkdtemp(prefix="macro_e2e_wd_"), "stop.flg")
+        ch = _Child([script, "--watchdog", "1", "--stop-file", stopf, "--no-log"])
+        try:
+            saw = []
+
+            def on_line(line):
+                if "watchdog" in line and not saw:
+                    with open(stopf, "w", encoding="utf-8") as fh:
+                        fh.write("stop")
+                    saw.append(True)
+                return False
+
+            el = ch.collect(deadline_s=30, on_line=on_line)
+            rc = ch.wait(timeout=15)
+            self.assertTrue(saw, "ต้องเห็นข้อความ watchdog (จบแล้วเริ่มใหม่)")
+            self.assertEqual(rc, 130, "stop-file ระหว่างพักต้องหยุดถาวร")
+            self.assertLess(el, 20)
+        finally:
+            ch.close()
+
+    def test_shuffle_rows_pct_finishes(self):
+        # --shuffle --rows-pct 50 กับ 4 แถว = เล่นรอบละ 2 แถว (สุ่มชุดใหม่ทุกรอบ) แล้วจบเอง
+        script = self._script([
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--shuffle", "--rows-pct", "50", "--no-log"])
+        try:
+            el = ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            self.assertIn("[2/2]", out)              # เล่น 2 จาก 4 แถวตามสัดส่วน 50%
+            self.assertIn("จบแล้ว", out)
+        finally:
+            ch.close()
+
     def test_stop_before_any_row(self):
         # สร้าง stop-file ก่อนเริ่มเลย = หยุดทันทีโดยไม่เล่นแถวใด
         script = self._script([

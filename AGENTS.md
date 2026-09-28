@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.9 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.10 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -23,6 +23,9 @@
   `--stop-file`, global hotkey ใช้ `keyboard.Listener` (ไม่ใช่ GlobalHotKeys — ดูหมายเหตุ)
 - **ฟีเจอร์เสริม v1.9:** Log viewer (เมนู 📝 Log), Hot-profile F1–F4 (โหลด+เล่นทันที),
   E2E tests (`test_e2e.py` — รัน CLI จริงทดสอบการหยุดทุกครั้ง)
+- **ฟีเจอร์เสริม v1.10:** เล่นสุ่มลำดับ/สัดส่วน (`pick_play_order` + `--shuffle/--rows-pct`),
+  Record wizard (เมนู 🧙 — ใช้ `_pending_rows` + กลไก RECORD เดิม), CLI `--watchdog`
+  (จบแล้วเริ่มใหม่อัตโนมัติ + log `[WATCHDOG]`)
 
 ## เทคโนโลยี
 
@@ -87,6 +90,8 @@ build.bat                               # build .exe (หรือ: py -m PyInst
     ค้างตอน STOP (GUI และ CLI ทำเหมือนกัน)
   - CLI หยุดได้ 4 ช่องทาง: F8/Esc ผ่าน Listener, Esc/q จากคอนโซล (msvcrt),
     Ctrl+C, และ `--stop-file`
+  - CLI `--watchdog N`: จบแล้วหน่วง N วิแล้วเริ่มใหม่ (ปล่อยคีย์ค้าง+log ทุกรอบ) —
+    หยุดถาวรได้ทุกช่องทางหยุด
 - **Hotkey:** Tk binding (เมื่อโฟกัส) + `keyboard.Listener` จับคู่คีย์เอง (กดได้แม้ไม่โฟกัส —
   เธรดแยก ห้ามแตะ Tk ตรง ๆ ต้อง `root.after(0, ...)` ผลักงานเข้า main thread)
   F6 เล่น / F8 หยุด / F9 บันทึก / F10 วนซ้ำไม่จำกัด / F1–F4 hot-profile
