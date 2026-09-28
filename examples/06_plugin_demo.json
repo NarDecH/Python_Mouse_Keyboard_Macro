@@ -1,0 +1,10 @@
+[
+  {"enabled": true,  "x": "", "y": "", "button": "Message Box",    "additional": "สวัสดี! สคริปต์นี้สาธิต Custom Action plugins\nกด OK เพื่อเริ่ม", "mins": 0, "secs": 0,   "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Sleep (plugin)", "additional": "1.5",  "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",           "additional": "",     "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Message Box",    "additional": "ต่อไป: หน่วงด้วย Sleep (plugin) 2 วินาที", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Sleep (plugin)", "additional": "2",    "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",           "additional": "",     "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": false, "x": "", "y": "", "button": "Message Box",    "additional": "แถวนี้ปิดอยู่ (☐) — ตัวอย่างการปิดแถว", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Message Box",    "additional": "จบการสาธิต — ลองเขียน plugin ของคุณเองได้ที่ plugins/ (ดู plugins/README.md)", "mins": 0, "secs": 0, "repeat": 1}
+]

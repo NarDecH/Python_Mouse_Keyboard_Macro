@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.16
+# 🖱️ Auto Mouse & Keyboard Macro v1.17
 
 <div align="center">
 
@@ -71,6 +71,8 @@
 | 📝 **Play log** | Every run is logged to `macro_log_<date>.txt` (daily rotation, auto-trimmed) |
 | ⌨️ **CLI mode** | Run scripts without the GUI — great for Windows Task Scheduler |
 | 🔌 **Custom Action plugins** (v1.16) | Drop a small .py into `plugins/` and it becomes a new Action — see [plugins/README.md](../plugins/README.md) |
+| 🔀 **If Image** (v1.17) | Condition: image **not found** → skip the next N rows (N = the row's Repeat value). Supports Search Area & threshold like Image Click |
+| 🔍 **Find / Undo / Paste** (v1.17) | `Ctrl+F` search rows · `Ctrl+Z` undo delete (50 levels) · 📋 Paste menu inserts JSON rows from clipboard |
 
 ---
 

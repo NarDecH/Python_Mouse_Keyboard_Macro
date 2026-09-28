@@ -1082,5 +1082,157 @@ class TestPlugins(unittest.TestCase):
             self.assertIn("ทดสอบ", str(si.call_args))
 
 
+class TestUndoFindPaste(unittest.TestCase):
+    """v1.17: Undo (Ctrl+Z), ค้นหาแถว (Ctrl+F), วางจากคลิปบอร์ด"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        # prefix "r" ไม่ซ้ำกับคีย์เริ่มต้น "i*" — กันแถวใหม่เขียนทับแถวเดิมใน store
+        kids = iter("r%d" % i for i in range(1, 999))
+        store = {"i1": ["☑", 1, "", "", "Beep", "", "0", "1", "1"],
+                 "i2": ["☑", 2, "", "", "Tap Key", "a", "0", "1", "1"],
+                 "i3": ["☐", 3, "", "", "Beep", "พิเศษ", "0", "2", "1"]}
+
+        def insert(parent, index, **kw):
+            iid = next(kids)
+            store[iid] = list(kw["values"])
+            return iid
+        app.tree.get_children.side_effect = lambda: list(store.keys())
+
+        def _item(iid, *args, **kw):
+            if "values" in kw:                 # item(iid, values=...) = setter จริง
+                store[iid] = list(kw["values"])
+                return None
+            return store.get(iid)              # item(iid) = getter
+        app.tree.item.side_effect = _item
+        app.tree.insert = insert
+        app.tree.delete.side_effect = lambda *ids: [store.pop(i, None) for i in ids]
+        app.tree.selection.return_value = []
+        app._t = lambda k: am.tr("th", k)
+        app._ui_state = {}
+        app._undo_stack = []
+        app._hl_row = None
+
+        def _append_row(**kw):
+            store[next(kids)] = ["☑", len(store) + 1, kw.get("x", ""), kw.get("y", ""),
+                                 kw.get("button", ""), kw.get("additional", ""),
+                                 am.fmt_num(kw.get("mins", 0)), am.fmt_num(kw.get("secs", 1)),
+                                 am.fmt_num(kw.get("repeat", 1))]
+        app._append_row = _append_row
+
+        def refresh_nums():
+            for i, iid in enumerate(list(store.keys()), 1):
+                store[iid][1] = i
+        app.refresh_nums = refresh_nums
+        for m in ("_snapshot_rows", "_push_undo", "_undo_delete", "_find_rows",
+                  "_goto_row", "_find_dialog", "_paste_rows_clipboard"):
+            setattr(app, m, getattr(am.MacroApp, m).__get__(app))
+        return app, store
+
+    def test_find_rows_matches_any_column(self):
+        app, _s = self._app()
+        self.assertEqual(app._find_rows("beep"), [1, 3])
+        self.assertEqual(app._find_rows("A"), [2])          # ไม่แยกพิมพ์เล็ก-ใหญ่
+        self.assertEqual(app._find_rows("พิเศษ"), [3])
+        self.assertEqual(app._find_rows(""), [])
+
+    def test_undo_restores_deleted_rows(self):
+        app, store = self._app()
+        app.tree.selection.return_value = ["i1"]
+        app._on_del = getattr(am.MacroApp, "_on_del").__get__(app)
+        app._on_del()
+        self.assertNotIn("i1", store)
+        app._undo_delete()
+        # กู้คืนแล้ว: มีแถว Beep (Additional ว่าง, ☑, เหมือน i1 เดิม) กลับมาในตาราง
+        restored = [v for v in store.values()
+                    if v[0] == "☑" and v[4] == "Beep" and v[5] == ""]
+        self.assertEqual(len(restored), 1)
+        self.assertEqual(restored[0][7], "1")               # secs เดิม
+
+    def test_undo_empty_shows_message(self):
+        app, _s = self._app()
+        app._undo_delete()
+        self.assertIn("msg", app._ui_state)                 # แจ้งว่าไม่มีอะไรให้กู้
+
+    def test_undo_after_load_replaces_table(self):
+        app, store = self._app()
+        app._load_rows = getattr(am.MacroApp, "_load_rows").__get__(app)
+        app._load_rows([{"button": "Beep", "enabled": True}])
+        self.assertEqual(len(store), 1)                     # ถูกแทนที่ด้วยแถวใหม่
+        app._undo_delete()
+        restored = [v for v in store.values() if v[4] == "Tap Key"]
+        self.assertEqual(len(restored), 1)                  # แถว Tap Key เดิมกลับมา
+
+    def test_paste_rows_from_clipboard(self):
+        app, store = self._app()
+        app.root.clipboard_get.return_value = json.dumps(
+            [{"button": "Tap Key", "additional": "b", "secs": 2, "enabled": False},
+             {"button": "Beep"}])
+        app._paste_rows_clipboard()
+        self.assertEqual(len(store), 5)                     # 3 เดิม + 2 ใหม่
+        pasted = [v for v in store.values() if v[4] == "Tap Key"]
+        self.assertEqual(len(pasted), 2)                    # เดิม + ที่วางใหม่
+        self.assertEqual(sorted(v[0] for v in pasted), ["☐", "☑"])  # เดิม ☑ + ใหม่ ☐
+        self.assertIn("msg", app._ui_state)
+
+    def test_paste_accepts_export_format(self):
+        app, store = self._app()
+        app.root.clipboard_get.return_value = json.dumps(
+            {"kind": "automousemacro-settings", "rows": [{"button": "Beep"}]})
+        app._paste_rows_clipboard()
+        self.assertEqual(len(store), 4)
+
+    def test_paste_bad_json_shows_error(self):
+        app, store = self._app()
+        app.root.clipboard_get.return_value = "ไม่ใช่ json"
+        app._paste_rows_clipboard()
+        self.assertEqual(len(store), 3)                     # ไม่เพิ่มแถว
+        self.assertIn("msg", app._ui_state)
+
+    def test_paste_empty_clipboard(self):
+        app, store = self._app()
+        import tkinter as tk
+        app.root.clipboard_get.side_effect = tk.TclError("CLIPBOARD")  # คลิปบอร์ดว่างจริง
+        app._paste_rows_clipboard()
+        self.assertEqual(len(store), 3)
+        self.assertIn("msg", app._ui_state)
+
+
+class TestIfImage(unittest.TestCase):
+    """v1.17: If Image — ภาพไม่เจอ → ข้าม N แถวถัดไป (N = คอลัมน์ Repeat)"""
+
+    def test_action_registered(self):
+        self.assertIn(am.IF_IMAGE, am.ACTIONS_ALL)
+
+    def test_validate_requires_png(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        app._parse_search_area = getattr(am.MacroApp, "_parse_search_area").__get__(app)
+        ok = am.MacroApp._validate_rows(
+            app, [{"button": am.IF_IMAGE, "additional": "nope_missing.png"}])
+        self.assertFalse(ok)
+
+    def test_skip_counter_decrements(self):
+        app = mock.MagicMock()
+        app._ifimg_skip = 2
+        # ลูปจำลอง: แถวถูกข้ามเงียบ ๆ เมื่อ _ifimg_skip > 0
+        played = []
+        for r in ["a", "b", "c"]:
+            if app._ifimg_skip > 0:
+                app._ifimg_skip -= 1
+                continue
+            played.append(r)
+        self.assertEqual(played, ["c"])
+
+    def test_find_image_pos_missing_file(self):
+        app = mock.MagicMock()
+        app._ui_state = {}
+        app._parse_search_area = getattr(am.MacroApp, "_parse_search_area").__get__(app)
+        app._grab_area_bgr = lambda area: (None, (0, 0))
+        r = {"additional": "no_such_image_12345.png"}
+        self.assertIsNone(am.MacroApp._find_image_pos(app, r))
+        self.assertIn("ไม่พบไฟล์ภาพ", app._ui_state["msg"][0])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

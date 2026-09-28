@@ -38,6 +38,8 @@ Auto Mouse & Keyboard Macro  v1.16
   สรุปการใช้งานรวม + กราฟรายเดือนใน Stats (log_monthly_series)
 - v1.16: Custom Action plugins — ผู้ใช้เขียน Python สั้น ๆ ใน plugins/*.py
   (ประกาศ ACTION_NAME + run(ctx, row)) เป็น Action ใหม่ได้โดยไม่แก้โค้ดหลัก
+- v1.17: ค้นหาแถว (Ctrl+F), Undo ลบแถว (Ctrl+Z), วางสคริปต์จากคลิปบอร์ด,
+  If Image — ภาพไม่เจอ → ข้าม N แถวถัดไป (ตั้งจำนวนใน Repeat)
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -74,7 +76,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.16"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.17"
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
 BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
@@ -93,7 +95,14 @@ TR = {
            "selfcheck_warn": "⚠️ self-check: บางส่วนไม่พร้อม — ดูรายละเอียดใน Settings",
            "col_action": "Button / Action", "ctx_copy": "📋 คัดลอกแถวนี้",
            "ctx_above": "⬆️ แทรกแถวใหม่ด้านบน", "ctx_below": "⬇️ แทรกแถวใหม่ด้านล่าง",
-           "ctx_del": "🗑️ ลบแถวนี้",
+           "ctx_del": "🗑️ ลบแถวนี้", "ctx_undo": "↩️ กู้คืนแถวที่ลบ (Ctrl+Z)",
+           "nothing_undo": "ไม่มีอะไรให้กู้คืน", "undone": "กู้คืนแถวแล้ว",
+           "find_title": "🔍 ค้นหาแถว", "find_label": "ข้อความ (match ทุกคอลัมน์):",
+           "find_btn": "ค้นหา", "found": "เจอที่แถว %d", "notfound": "ไม่เจอ: %s",
+           "clip_empty": "คลิปบอร์ดว่าง",
+           "clip_bad": "คลิปบอร์ดไม่ใช่สคริปต์ JSON (ต้องเป็นรายการแถว)",
+           "clip_added": "วางจากคลิปบอร์ดแล้ว %d แถว",
+           "ifimg_skip": "If Image ไม่เจอ → ข้าม %d แถวถัดไป", "ifimg_hit": "If Image เจอ → เล่นต่อ",
            "save": "บันทึก", "close": "ปิด", "language": "ภาษา (Language):",
            "backup_label": "Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
            "days": "วัน — 1–90)", "log_label": "บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
@@ -120,7 +129,14 @@ TR = {
            "selfcheck_warn": "⚠️ self-check: some parts not ready — see Settings",
            "col_action": "Button / Action", "ctx_copy": "📋 Duplicate row",
            "ctx_above": "⬆️ Insert row above", "ctx_below": "⬇️ Insert row below",
-           "ctx_del": "🗑️ Delete row",
+           "ctx_del": "🗑️ Delete row", "ctx_undo": "↩️ Undo last delete (Ctrl+Z)",
+           "nothing_undo": "Nothing to undo", "undone": "Rows restored",
+           "find_title": "🔍 Find row", "find_label": "Text to search (any column):",
+           "find_btn": "Find", "found": "Found at row %d", "notfound": "Not found: %s",
+           "clip_empty": "Clipboard is empty",
+           "clip_bad": "Clipboard is not a JSON row list",
+           "clip_added": "Pasted %d rows from clipboard",
+           "ifimg_skip": "If Image miss → skip next %d rows", "ifimg_hit": "If Image found → continue",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",
            "backup_label": "Auto backup on close (keep last",
            "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
@@ -158,13 +174,14 @@ BTN_TH = {"Left Down": ("Left", "Down"), "Left Up": ("Left", "Up"),
 MOUSE_BTNS = list(BTN_TH.keys())
 KEY_ACTIONS = ["Press Key", "Release Key", "Tap Key"]
 IMAGE_ACTION = "Image Click"
+IF_IMAGE = "If Image"            # เงื่อนไข v1.17: ภาพไม่เจอ → ข้าม N แถวถัดไป
 # ฟีเจอร์เพิ่มเติมแรงบันดาลใจจาก automouseclick.com (v1.5)
 SCROLL_ACTIONS = ["Scroll Up", "Scroll Down"]
 DBL_ACTIONS = ["Double Left Click", "Double Right Click"]
 MOD_CLICKS = ["Ctrl+Click", "Shift+Click", "Alt+Click", "Ctrl+Right Click"]
 MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cursor"]
 EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
-ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION] + SCROLL_ACTIONS
+ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE] + SCROLL_ACTIONS
                + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS)
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -515,6 +532,8 @@ class MacroApp:
         self._live_pos = (0, 0)         # พิกัดเมาส์สด (จาก listener thread)
         self._live_key = ""             # คีย์ล่าสุด (จาก listener thread)
         self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None}
+        self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
+        self._ifimg_skip = 0               # v1.17: ตัวนับข้ามแถวของ If Image
 
         # โปรไฟล์ / schedule / global hotkey
         self._profiles = {}                # ชื่อโปรไฟล์ -> รายการแถว
@@ -584,6 +603,7 @@ class MacroApp:
         """รายการเมนูไอคอน (icon, label, method_name, color) — แยกออกมาเพื่อทดสอบได้"""
         return [("💾", "Save", "save_script", "#333"),
                 ("📂", "Load", "load_script", "#333"),
+                ("📋", "Paste", "_paste_rows_clipboard", "#333"),
                 ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
                 ("📊", "Stats", "view_stats", "#333"),
@@ -777,6 +797,9 @@ class MacroApp:
         self.root.bind("<F8>", lambda e: self.stop_all())
         self.root.bind("<F9>", lambda e: self.toggle_record())
         self.root.bind("<F10>", lambda e: self.chk_forever.set(not self.chk_forever.get()))
+        # v1.17: Ctrl+F ค้นหาแถว, Ctrl+Z กู้คืนแถวที่ลบ/ถูกแทนที่
+        self.root.bind("<Control-f>", self._find_dialog)
+        self.root.bind("<Control-z>", self._undo_delete)
 
     # --------------------------------------------- global hotkeys (ทุกที่) ---
     def _start_global_hotkeys(self):
@@ -963,9 +986,141 @@ class MacroApp:
             return "break"
 
     def _on_del(self, _evt=None):
+        if self.tree.selection():
+            self._push_undo()              # เก็บสำเนาก่อนลบ — Ctrl+Z กู้คืนได้
         for iid in self.tree.selection():
             self.tree.delete(iid)
         self.refresh_nums()
+
+    # ------------------------------------- v1.17: undo / find / clipboard ----
+    def _snapshot_rows(self):
+        """คัดลอกค่าทั้งตารางเป็น list ของ values (สำหรับ undo)"""
+        return [list(self.tree.item(i, "values")) for i in self.tree.get_children()]
+
+    def _push_undo(self):
+        self._undo_stack.append(self._snapshot_rows())
+        if len(self._undo_stack) > 50:
+            self._undo_stack.pop(0)
+
+    def _undo_delete(self, _evt=None):
+        """Ctrl+Z: กู้คืนตารางชุดล่าสุดก่อนถูกลบ/แทนที่"""
+        if not self._undo_stack:
+            self._ui_state["msg"] = (self._t("nothing_undo"), "#a60")
+            return
+        rows = self._undo_stack.pop()
+        self.tree.delete(*self.tree.get_children())
+        for vals in rows:
+            self.tree.insert("", "end", values=vals)
+        self.refresh_nums()
+        self._hl_row = None
+        self._ui_state["msg"] = (self._t("undone"), "#080")
+
+    def _find_rows(self, query):
+        """คืนเลขแถว (1-based) ที่มีข้อความ query อยู่ในคอลัมน์ใดก็ได้ (ไม่แยกพิมพ์เล็ก-ใหญ่)"""
+        q = str(query or "").strip().lower()
+        if not q:
+            return []
+        out = []
+        for i, iid in enumerate(self.tree.get_children(), 1):
+            vals = [str(v).lower() for v in self.tree.item(iid, "values")]
+            if any(q in v for v in vals):
+                out.append(i)
+        return out
+
+    def _goto_row(self, num):
+        """เด้งไปแถวลำดับที่ num (1-based) + ไฮไลต์ selection — คืน True ถ้ามีแถวนั้น"""
+        kids = self.tree.get_children()
+        if not (1 <= num <= len(kids)):
+            return False
+        iid = kids[num - 1]
+        self.tree.selection_set(iid)
+        self.tree.focus(iid)
+        self.tree.see(iid)
+        return True
+
+    def _find_dialog(self, _evt=None):
+        """หน้าต่างค้นหาแถว (Ctrl+F) — Enter = หาถัดไป, Esc = ปิด"""
+        top = tk.Toplevel(self.root)
+        top.title(self._t("find_title"))
+        top.transient(self.root)
+        top.resizable(False, False)
+        frm = tk.Frame(top, padx=10, pady=8)
+        frm.pack()
+        tk.Label(frm, text=self._t("find_label")).pack(anchor="w")
+        ent = tk.Entry(frm, width=34)
+        ent.pack(fill="x", pady=4)
+        ent.focus_set()
+        lbl = tk.Label(frm, text="", fg="#64748b")
+        lbl.pack(anchor="w")
+        state = {"idx": 0, "hits": []}
+
+        def do_find(_e=None):
+            q = ent.get()
+            if not q.strip():
+                return "break"
+            hits = self._find_rows(q)
+            if not hits:
+                state["hits"] = []
+                lbl.config(text=self._t("notfound") % q, fg="#c00")
+                self._ui_state["msg"] = (self._t("notfound") % q, "#a60")
+                return "break"
+            if state["hits"] != hits:
+                state["hits"] = hits
+                state["idx"] = 0
+            else:
+                state["idx"] = (state["idx"] + 1) % len(hits)   # Enter ซ้ำ = ผลถัดไป
+            num = hits[state["idx"]]
+            self._goto_row(num)
+            lbl.config(text=self._t("found") % num, fg="#080")
+            self._ui_state["msg"] = (self._t("found") % num, "#080")
+            return "break"
+
+        def close(_e=None):
+            top.destroy()
+            return "break"
+
+        ent.bind("<Return>", do_find)
+        top.bind("<Return>", do_find)
+        top.bind("<Escape>", close)
+        bar = tk.Frame(frm)
+        bar.pack(fill="x", pady=(6, 0))
+        tk.Button(bar, text=self._t("find_btn"), command=do_find).pack(side="left")
+        tk.Button(bar, text=self._t("close"), command=top.destroy).pack(side="left", padx=6)
+        return top
+
+    def _paste_rows_clipboard(self):
+        """เมนู 📋 Paste: วางสคริปต์ JSON จากคลิปบอร์ดเป็นแถว (ผนวกต่อท้ายตาราง)
+        รับทั้งรายการแถวล้วน และ {"kind": ..., "rows": [...]} จาก Export"""
+        try:
+            txt = self.root.clipboard_get()
+        except tk.TclError:
+            self._ui_state["msg"] = (self._t("clip_empty"), "#a60")
+            return
+        try:
+            data = json.loads(txt)
+        except ValueError:
+            self._ui_state["msg"] = (self._t("clip_bad"), "#c00")
+            return
+        if isinstance(data, dict) and isinstance(data.get("rows"), list):
+            data = data["rows"]
+        if not isinstance(data, list) or not data:
+            self._ui_state["msg"] = (self._t("clip_bad"), "#c00")
+            return
+        self._push_undo()              # วางผิดกด Ctrl+Z คืนได้
+        added = 0
+        for r in data:
+            if not isinstance(r, dict):
+                continue
+            self._append_row(x=r.get("x", ""), y=r.get("y", ""), button=r.get("button", ""),
+                             additional=r.get("additional", ""), mins=r.get("mins", 0),
+                             secs=r.get("secs", 1), repeat=r.get("repeat", 1))
+            iid = self.tree.get_children()[-1]
+            vals = list(self.tree.item(iid, "values"))
+            vals[0] = "☑" if r.get("enabled", True) else "☐"
+            self.tree.item(iid, values=vals)
+            added += 1
+        self.refresh_nums()
+        self._ui_state["msg"] = (self._t("clip_added") % added, "#080")
 
     # --------------------------------------------- context menu (คลิกขวา) ----
     def _on_right_click(self, event):
@@ -1053,6 +1208,7 @@ class MacroApp:
             hint = {"Type Text": "พิมพ์ข้อความที่จะส่ง (เช่น สวัสดี)",
                     "Launch App": "พาธโปรแกรม หรือ URL เช่น https://example.com",
                     "Image Click": "ชื่อไฟล์ .png เช่น button.png",
+                    "If Image": "ชื่อไฟล์ .png — Repeat = จำนวนแถวที่ข้ามถ้าภาพไม่เจอ",
                     "Wait for Image": "ชื่อไฟล์ .png เช่น button.png",
                     "Scroll Up": "จำนวนจังหวะ เช่น 3",
                     "Scroll Down": "จำนวนจังหวะ เช่น 3"}.get(str(vals[4]), "")
@@ -1113,7 +1269,7 @@ class MacroApp:
                 continue                    # Custom Action — ตรวจรูปแบบภายใน plugin เอง
             if r["button"] == "Launch App" and not (r["additional"] or "").strip():
                 return False
-            if r["button"] in (IMAGE_ACTION, "Wait for Image"):
+            if r["button"] in (IMAGE_ACTION, "Wait for Image", IF_IMAGE):
                 p, _a, _t = self._parse_search_area(r)
                 if not p:
                     return False
@@ -1330,6 +1486,10 @@ class MacroApp:
                 for i, r in enumerate(play_rows):
                     if not self._gen_ok(gen):
                         return
+                    # If Image (v1.17): แถวที่ถูกสั่งข้ามจาก If Image ก่อนหน้า → ข้ามเงียบ ๆ
+                    if self._ifimg_skip > 0:
+                        self._ifimg_skip -= 1
+                        continue
                     children = self.tree.get_children()
                     self._ui_state["row"] = children[i] if i < len(children) else None
                     self._ui_state["prog"] = (i + 1, total, loop_no)
@@ -1341,6 +1501,25 @@ class MacroApp:
                         if not self._sleep_check(base / self._speed_mult, gen):
                             return
                         step_t0 = time.time()
+                        if r["button"] == IF_IMAGE:
+                            found = False
+                            if HAS_CV:
+                                try:
+                                    found = self._find_image_pos(r) is not None
+                                except Exception:
+                                    found = False
+                            if found:
+                                self._ui_state["msg"] = (self._t("ifimg_hit"), "#080")
+                            else:
+                                n = parse_int(r.get("repeat"), 1)   # Repeat = จำนวนแถวที่ข้าม
+                                self._ifimg_skip = n
+                                self._ui_state["msg"] = (self._t("ifimg_skip") % n, "#a60")
+                            if self._log_enabled:
+                                log_write("STEP", "รอบ %d แถว %d/%d If Image %s → %s (%.1f วิ)" %
+                                          (loop_no, i + 1, total, r["additional"] or "",
+                                           "เจอ" if found else "ข้าม %d แถว" % n,
+                                           time.time() - step_t0), self._log_src)
+                            break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
                         do_step(r)
                         if self._log_enabled:
                             log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
@@ -1640,35 +1819,44 @@ class MacroApp:
         self._ui_state["msg"] = ("Wait for Image: ไม่เจอภาพภายใน 30 วิ — %s" % os.path.basename(path), "#a60")
 
     # ------------------------------------------------------ image click ------
-    def _do_image_click(self, r):
-        """หาภาพย่อยบนหน้าจอแล้วคลิกที่จุดศูนย์กลาง
-        ช่อง Additional: ไฟล์.png / ไฟล์.png@x,y,กว้าง,สูง / ...#threshold"""
+    def _find_image_pos(self, r):
+        """ค้นหาภาพบนหน้าจอ (ใช้ร่วมกันโดย Image Click และ If Image ใน v1.17)
+        คืน (x, y) จุดศูนย์กลางที่เจอ หรือ None ถ้าไม่เจอ/ติดตั้ง/ไฟล์มีปัญหา
+        (ข้อความ error ผลักเข้า _ui_state ให้ statusbar แสดง)"""
         path, area, thr = self._parse_search_area(r)
         if not HAS_CV:
             self._ui_state["msg"] = ("Image Click ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
-            return
+            return None
         if not os.path.isabs(path):
             path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
         if not os.path.isfile(path):
             self._ui_state["msg"] = ("ไม่พบไฟล์ภาพ: %s" % path, "#c00")
-            return
+            return None
+        screen, (off_x, off_y) = self._grab_area_bgr(area)
+        tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+        if tmpl is None:
+            self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
+            return None
+        if tmpl.shape[0] > screen.shape[0] or tmpl.shape[1] > screen.shape[1]:
+            self._ui_state["msg"] = ("ภาพใหญ่กว่าพื้นที่ค้นหา: %s" % os.path.basename(path), "#c00")
+            return None
+        res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
+        _, maxv, _, maxloc = cv2.minMaxLoc(res)
+        if maxv < thr:
+            self._ui_state["msg"] = ("หาภาพไม่เจอ (ความมั่นใจ %.0f%% < %.0f%%): %s"
+                                     % (maxv * 100, thr * 100, os.path.basename(path)), "#a60")
+            return None
+        return (off_x + maxloc[0] + tmpl.shape[1] // 2,
+                off_y + maxloc[1] + tmpl.shape[0] // 2)
+
+    def _do_image_click(self, r):
+        """หาภาพย่อยบนหน้าจอแล้วคลิกที่จุดศูนย์กลาง
+        ช่อง Additional: ไฟล์.png / ไฟล์.png@x,y,กว้าง,สูง / ...#threshold"""
         try:
-            screen, (off_x, off_y) = self._grab_area_bgr(area)
-            tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
-            if tmpl is None:
-                self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
+            pos = self._find_image_pos(r)
+            if pos is None:
                 return
-            if tmpl.shape[0] > screen.shape[0] or tmpl.shape[1] > screen.shape[1]:
-                self._ui_state["msg"] = ("ภาพใหญ่กว่าพื้นที่ค้นหา: %s" % os.path.basename(path), "#c00")
-                return
-            res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
-            _, maxv, _, maxloc = cv2.minMaxLoc(res)
-            if maxv < thr:
-                self._ui_state["msg"] = ("หาภาพไม่เจอ (ความมั่นใจ %.0f%% < %.0f%%): %s" % (maxv * 100, thr * 100, os.path.basename(path)), "#c00")
-                return
-            cx = off_x + maxloc[0] + tmpl.shape[1] // 2
-            cy = off_y + maxloc[1] + tmpl.shape[0] // 2
-            self.mouse_ctl.position = (cx, cy)
+            self.mouse_ctl.position = pos
             time.sleep(0.03)
             self.mouse_ctl.click(Button.left, 1)
         except Exception as exc:
@@ -1684,6 +1872,7 @@ class MacroApp:
         return out
 
     def _load_rows(self, rows):
+        self._push_undo()              # เก็บสำเนาก่อนแทนที่ทั้งตาราง (Ctrl+Z กู้ได้)
         self.tree.delete(*self.tree.get_children())
         self._hl_row = None
         for r in rows:

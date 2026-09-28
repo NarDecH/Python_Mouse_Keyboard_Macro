@@ -132,6 +132,8 @@
       <tr><td>⏰ <b>เล่นตามเวลา</b></td><td>ตั้งเล่นอัตโนมัติ "ทุก N นาที" หรือ "ทุกวัน HH:MM"</td></tr>
       <tr><td>🎯 <b>Action ชุดใหม่ v1.5</b></td><td>Scroll, Double Click, Ctrl/Shift/Alt+Click, Move Mouse, Save/Restore Cursor, Type Text, Launch App, Wait for Image, Beep</td></tr>
       <tr><td>🔌 <b>Custom Action plugins v1.16</b></td><td>เขียนไฟล์ Python สั้น ๆ ใน <code>plugins/</code> เป็น Action ใหม่ได้ทันที (ทั้ง GUI และ CLI) — ดู <code>plugins/README.md</code></td></tr>
+      <tr><td>🔀 <b>If Image v1.17</b></td><td>เงื่อนไข: ภาพไม่เจอ → ข้าม N แถวถัดไป (N = ค่า Repeat) — ใช้ Search Area/threshold ร่วมกับ Image Click ได้</td></tr>
+      <tr><td>🔍 <b>ค้นหา/Undo/Paste v1.17</b></td><td><kbd>Ctrl+F</kbd> ค้นหาแถว · <kbd>Ctrl+Z</kbd> กู้คืนแถวที่ลบ (50 ชั้น) · เมนู 📋 Paste วางสคริปต์ JSON จากคลิปบอร์ด</td></tr>
       <tr><td>🎲 <b>ดีเลย์สุ่ม + ความเร็ว</b></td><td>Secs ใส่ <code>1-3</code> = สุ่ม 1–3 วิ • ตัวคูณความเร็ว 0.25×–4× • จำนวนรอบสคริปต์ • คืนเมาส์จุดเดิม</td></tr>
       <tr><td>⌨️ <b>CLI mode</b></td><td>เล่นสคริปต์ .json โดยไม่เปิดหน้าต่าง</td></tr>
       <tr><td>📊 <b>Progress bar</b></td><td>แสดงความคืบหน้า + ตัวนับรอบขณะเล่น</td></tr>
@@ -220,7 +222,9 @@ run.bat                                  # หรือ: py auto_macro.py</code>
       <tr><td><kbd>F8</kbd></td><td>หยุดทั้งหมด</td></tr>
       <tr><td><kbd>F9</kbd></td><td>เริ่ม/หยุดบันทึก</td></tr>
       <tr><td><kbd>F10</kbd></td><td>สลับวนซ้ำไม่จำกัด</td></tr>
-      <tr><td><kbd>Delete</kbd></td><td>ลบแถวที่เลือก</td></tr>
+      <tr><td><kbd>Delete</kbd></td><td>ลบแถวที่เลือก (<kbd>Ctrl+Z</kbd> กู้คืนได้)</td></tr>
+      <tr><td><kbd>Ctrl+F</kbd></td><td>ค้นหาแถว (Enter ซ้ำ = ผลถัดไป)</td></tr>
+      <tr><td><kbd>Ctrl+Z</kbd></td><td>กู้คืนแถวที่ลบ/ถูกแทนที่ล่าสุด</td></tr>
       <tr><td><kbd>Double-click</kbd></td><td>แก้ค่าในเซลล์</td></tr>
     </table>
 

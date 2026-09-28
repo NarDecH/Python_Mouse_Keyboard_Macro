@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.16 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.17 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -47,6 +47,13 @@
   `ACTION_NAME` + `run(ctx, row)` เป็น Action ใหม่ (GUI dropdown + CLI) โหลดผ่าน
   `load_plugins()` (ข้ามไฟล์พัง/ชื่อซ้ำ ไม่พังโปรแกรม — รายชื่อที่ข้ามใน `last_failed`),
   GIF สาธิตใน README (`docs/images/demo.gif`), `docs/ROADMAP.md` แผน v1.17→v2.0
+- **ฟีเจอร์เสริม v1.17:** ค้นหาแถว (`_find_rows`/`_find_dialog` — Ctrl+F, Enter ซ้ำ = ผลถัดไป),
+  Undo (`_push_undo`/`_undo_delete` — Ctrl+Z เก็บ snapshot 50 ชั้น, _load_rows/วางคลิปบอร์ด
+  ก็ push ก่อนแทนที่เสมอ), วางจากคลิปบอร์ด (`_paste_rows_clipboard` — เมนู 📋 รับรายการล้วน
+  และไฟล์ Export), If Image (`IF_IMAGE` — ภาพไม่เจอ → ตั้ง `self._ifimg_skip = N`
+  ลูปเล่นข้าม N แถวถัดไป; N = คอลัมน์ Repeat ของแถว If Image),
+  `_find_image_pos()` รวมตรรกะค้นภาพ (Image Click/If Image ใช้ร่วมกัน),
+  เดโม่ `examples/06_plugin_demo.json`
 
 ## เทคโนโลยี
 
