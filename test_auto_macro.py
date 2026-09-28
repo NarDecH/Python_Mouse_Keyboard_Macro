@@ -321,25 +321,119 @@ class TestCli(unittest.TestCase):
             self.assertIn("[1/1]", buf.getvalue())   # เห็นแค่แถวที่ enabled เดียว
 
 
+class TestPlayLog(unittest.TestCase):
+    """ระบบ log การเล่น (v1.8): เขียน/ตัดความยาว/โยงกับ CLI — ทดสอบใน temp dir"""
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self._patcher = mock.patch.object(am, "log_path",
+                                          lambda: os.path.join(self._tmp.name, "log.txt"))
+        self._patcher.start()
+
+    def tearDown(self):
+        self._patcher.stop()
+        self._tmp.cleanup()
+
+    def _read(self):
+        p = os.path.join(self._tmp.name, "log.txt")
+        if not os.path.isfile(p):
+            return ""
+        with open(p, encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_log_filename_daily(self):
+        import datetime
+        self.assertRegex(am.log_filename(), r"^macro_log_\d{4}-\d{2}-\d{2}\.txt$")
+        self.assertIn(datetime.date.today().isoformat(), am.log_filename())
+
+    def test_log_write_appends(self):
+        am.log_write("START", "เริ่มเล่น", "demo.json")
+        am.log_write("STEP", "แถว 1")
+        text = self._read()
+        lines = text.strip().splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertRegex(lines[0], r"^\d{2}:\d{2}:\d{2} \[START\] เริ่มเล่น  <- demo\.json$")
+        self.assertIn("[STEP] แถว 1", lines[1])          # ไม่มี src ก็เขียนได้
+
+    def test_log_write_never_raises(self):
+        # แม้ log_path พัง ก็ห้ามทำโปรแกรมล้ม (ตัวอย่าง: พาธเป็น None)
+        with mock.patch.object(am, "log_path", lambda: None):
+            am.log_write("STEP", "x")                     # ไม่ต้อง assert — แค่ไม่ raise
+
+    def test_prune_log_keeps_last_lines(self):
+        for i in range(10):
+            am.log_write("STEP", "บรรทัด %d" % i)
+        am.prune_log(keep=3)
+        lines = self._read().strip().splitlines()
+        self.assertEqual(len(lines), 3)
+        self.assertIn("บรรทัด 9", lines[-1])
+
+    def test_prune_missing_file_ok(self):
+        am.prune_log()                                   # ยังไม่มีไฟล์ = ไม่ error
+
+    def test_cli_writes_log(self):
+        import io
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            import json
+            with open(p, "w", encoding="utf-8") as fh:
+                json.dump([{"enabled": True, "button": "Beep", "secs": 0}], fh)
+            buf = io.StringIO()
+            with mock.patch("sys.stdout", buf):
+                rc = am.cli_main([p])
+            self.assertEqual(rc, 0)
+            text = self._read()
+            self.assertIn("[START]", text)
+            self.assertIn("[STEP]", text)
+            self.assertIn("[END]", text)
+            self.assertIn("<- " + p, text)               # อ้างชื่อสคริปต์ที่เล่น
+
+    def test_cli_no_log_flag(self):
+        import io
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "s.json")
+            import json
+            with open(p, "w", encoding="utf-8") as fh:
+                json.dump([{"enabled": True, "button": "Beep", "secs": 0}], fh)
+            buf = io.StringIO()
+            with mock.patch("sys.stdout", buf):
+                rc = am.cli_main([p, "--no-log"])
+            self.assertEqual(rc, 0)
+            self.assertEqual(self._read(), "")            # ไม่เขียน log เลย
+
+
 class TestGlobalHotkeyMapping(unittest.TestCase):
-    """GlobalHotKeys ต้องลงทะเบียน F6/F8/F9/F10 (ทดสอบโดยไม่ start listener จริง)"""
+    """Global hotkey (v1.8): ใช้ keyboard.Listener จับคู่คีย์เอง — F6/F8/F9/F10
+    ต้องถูกผลักเข้า main thread ผ่าน root.after และคีย์อื่นต้องไม่กระทบ"""
 
     def test_mapping_keys(self):
         captured = {}
 
-        class FakeGK:
-            def __init__(self, mapping):
-                captured.update(mapping)
+        class FakeListener:
+            def __init__(self, on_press=None, **kw):
+                captured["on_press"] = on_press
 
             daemon = None
 
             def start(self):
                 pass
 
-        with mock.patch.object(am, "GlobalHotKeys", FakeGK):
-            app = mock.MagicMock()
+        pushed = []
+        app = mock.MagicMock()
+        app.root.after.side_effect = lambda delay, fn: pushed.append(fn)
+        with mock.patch.object(am.keyboard, "Listener", FakeListener):
             am.MacroApp._start_global_hotkeys(app)
-            self.assertEqual(set(captured), {"<f6>", "<f8>", "<f9>", "<f10>"})
+            on_press = captured["on_press"]
+        self.assertIsNotNone(on_press)
+        from pynput.keyboard import Key as _Key
+        on_press(mock.MagicMock())              # คีย์อื่น = เฉย ๆ ไม่ push
+        self.assertEqual(len(pushed), 0)
+        for k in (_Key.f6, _Key.f8, _Key.f9, _Key.f10):
+            on_press(k)
+        self.assertEqual(len(pushed), 4)        # ทุกปุ่มถูกผลักเข้า main thread
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.6 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.8 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -17,6 +17,10 @@
   Beep, ดีเลย์สุ่ม (Secs "1-3"), ตัวคูณความเร็ว, จำนวนรอบสคริปต์, คืนเมาส์จุดเดิม
 - **ฟีเจอร์เสริม v1.6:** CLI mode (`py auto_macro.py script.json`), Right-click menu
   บนตาราง (คัดลอก/แทรก/ลบ), Progress bar + ตัวนับรอบใน statusbar
+- **ฟีเจอร์เสริม v1.7–v1.7.1:** Search Area (`@x,y,w,h`), threshold รายแถว (`#90`),
+  ปุ่มจับภาพลากกรอบ, CI/CD (GitHub Actions + Release จาก tag), TUTORIAL
+- **ฟีเจอร์เสริม v1.8:** log การเล่น (`macro_log_วันที่.txt` เปิด/ปิดใน Settings),
+  `--stop-file`, global hotkey ใช้ `keyboard.Listener` (ไม่ใช่ GlobalHotKeys — ดูหมายเหตุ)
 
 ## เทคโนโลยี
 
@@ -76,9 +80,20 @@ build.bat                               # build .exe (หรือ: py -m PyInst
 - **Player:** `threading.Thread` ไล่เล่นแถวที่ ☑ ตามลำดับ: `sleep(Mins*60+Secs)` →
   ทำเหตุการณ์ (เมาส์: ย้ายพิกัด + press/release/click, คีย์: press/release/tap) วนตาม `Repeat`
   - `STOP` ตั้ง `self.running = False` — ลูปเช็คทุกจุดและออกเอง
-- **Hotkey:** Tk binding (เมื่อโฟกัส) + `GlobalHotKeys` ของ pynput (กดได้แม้ไม่โฟกัส —
+  - หยุดแม่นยำ (v1.7.1+): `_sleep_check` แบ่ง sleep ชิ้นละ 50 ms, `_play_gen`
+    (generation counter) กันเล่นซ้อนเธรด, `_pressed_keys`/`_pressed_btns` ปล่อยคีย์/ปุ่ม
+    ค้างตอน STOP (GUI และ CLI ทำเหมือนกัน)
+  - CLI หยุดได้ 4 ช่องทาง: F8/Esc ผ่าน Listener, Esc/q จากคอนโซล (msvcrt),
+    Ctrl+C, และ `--stop-file`
+- **Hotkey:** Tk binding (เมื่อโฟกัส) + `keyboard.Listener` จับคู่คีย์เอง (กดได้แม้ไม่โฟกัส —
   เธรดแยก ห้ามแตะ Tk ตรง ๆ ต้อง `root.after(0, ...)` ผลักงานเข้า main thread)
   F6 เล่น / F8 หยุด / F9 บันทึก / F10 วนซ้ำไม่จำกัด
+  ⚠️ **อย่ากลับไปใช้ `GlobalHotKeys`** — พิสูจน์แล้ว (v1.8) ว่าบน pynput 1.8.x บางเครื่อง
+  listener เริ่มทำงาน (`alive=True`) แต่ไม่ยิง callback แม้กดคีย์จริง; `keyboard.Listener`
+  ธรรมดารับเหตุการณ์ได้ปกติ
+- **Log:** `log_write(mode, message, src)` เขียน `macro_log_YYYY-MM-DD.txt` (หมุนรายวัน,
+  ตัดเกือบเหลือ 500 บรรทัดด้วย `prune_log`) — โหมด START/STEP/STOP/END ทั้ง GUI
+  (คุมด้วย `self._log_enabled` จาก Settings, จำใน macro_conf.json) และ CLI (`--no-log`)
 - **โปรไฟล์:** `macro_profiles.json` เก็บ dict ชื่อโปรไฟล์ → รายการแถว
   แถบเลือกโปรไฟล์อยู่ใต้เมนู (สร้าง/เปลี่ยนชื่อ/ลบ/สลับ — สลับก่อนบันทึกของเดิมอัตโนมัติ)
 - **Schedule:** เธรด `_sched_loop` ตรวจเวลาทุก 5 วิ ผลักคำสั่งเข้า `queue.Queue` →

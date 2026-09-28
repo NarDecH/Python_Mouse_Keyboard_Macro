@@ -65,8 +65,43 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.7.1</h2>
+      <h2>เวอร์ชัน 1.8</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้ปุ่ม STOP (จุดที่ 5 — สาเหตุรากของปัญหา)</h3>
+    <ul>
+      <li><b>Global Hotkey ไม่ทำงาน</b> — ทดสอบกด F8 จริงพบว่า <code>GlobalHotKeys</code>
+        ของ pynput 1.8.x บนบางเครื่องไม่ยิง callback แม้กดคีย์จริง ขณะที่ <code>keyboard.Listener</code>
+        ธรรมดารับเหตุการณ์ได้ปกติ → เปลี่ยนทั้ง GUI และ CLI ไปใช้ Listener จับคู่คีย์เอง
+        (ทดสอบจริง: F8 กลางดีเลย์ 60 วิ หยุดใน 0.1 วิ ✅)</li>
+      <li><b>CLI ปล่อยคีย์ค้าง</b> — ตอนหยุด release คีย์/ปุ่มเมาส์ที่ค้างเหมือน GUI</li>
+      <li><b>CLI หยุดทันทีระหว่างดีเลย์</b> — แบ่ง sleep ชิ้นละ 50 ms</li>
+      <li><b>CLI แจ้งสถานะถูกต้อง</b> — แยก "ถูกหยุดโดยผู้ใช้" ออกจาก "จบแล้ว ✔"</li>
+      <li><b>Type Text ใน CLI หยุดกลางประโยคได้</b></li>
+    </ul>
+
+    <h3>✨ เพิ่มใหม่</h3>
+    <ul>
+      <li><b>📝 ระบบ log การเล่น</b> — บันทึก <code>[START]/[STEP]/[STOP]/[END]</code>
+        ลง <code>macro_log_วันที่.txt</code> หมุนรายวัน ตัดเก่าอัตโนมัติที่ 500 บรรทัด —
+        เปิด/ปิดใน Settings (GUI) หรือ <code>--no-log</code> (CLI)</li>
+      <li><b><code>--stop-file</code></b> — สร้างไฟล์ = สั่งหยุดทันที (ควบคุมจากโปรแกรมอื่นได้)</li>
+      <li><b>Esc / q ในหน้าต่าง CLI</b> — หยุดได้จากคอนโซลโดยตรง</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม 7 tests ระบบ log + เขียน test hotkey ใหม่ → รวม <b>63 tests ผ่านหมด</b></li>
+      <li>ทดสอบ end-to-end จริง: F8 กลางดีเลย์ 60 วิ → หยุด t=3.1s, ตรวจ
+        <code>GetAsyncKeyState</code> ยืนยันไม่มี Ctrl ค้าง, log ถูกต้อง</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.7.1</h2>
       <span class="date">27 กันยายน 2026</span>
     </div>
 

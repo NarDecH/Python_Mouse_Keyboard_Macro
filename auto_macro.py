@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.5
+Auto Mouse & Keyboard Macro  v1.8
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -19,6 +19,8 @@ Auto Mouse & Keyboard Macro  v1.5
   Move Mouse + Offset, Save/Restore Cursor, Type Text, Launch App, Wait for Image,
   Beep, ดีเลย์สุ่ม (ใส่ Secs แบบ "1-3"), ตัวคูณความเร็ว, จำนวนรอบของสคริปต์ทั้งชุด,
   คืนเมาส์กลับจุดเริ่มเมื่อจบรอบ, บันทึก scroll ตอน RECORD
+- v1.8: ระบบ log บันทึกการเล่นแต่ละรอบลงไฟล์ macro_log.txt (เปิด/ปิดได้ใน Settings,
+  ใช้ทั้ง GUI และ CLI [คลี่ออกด้วย --no-log]), เก็บสถานะเปิด/ปิด log ใน macro_conf.json
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -33,6 +35,8 @@ import threading
 import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
+
+import datetime
 
 try:
     from pynput import keyboard, mouse
@@ -52,10 +56,13 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.5"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.8"
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
+DEFAULT_THRESHOLD = 0.80        # ความมั่นใจเริ่มต้นของ Image Click (80%)
+MAX_LOG_LINES = 500             # จำนวนบรรทัดสูงสุดของ log (ตัดข้างหลังอัตโนมัติ)
+LOG_ENABLED_DEFAULT = True      # ค่าเริ่มต้นของการบันทึก log
 
 BTN_TH = {"Left Down": ("Left", "Down"), "Left Up": ("Left", "Up"),
           "Left Click": ("Left", "Click"), "Right Down": ("Right", "Down"),
@@ -162,6 +169,46 @@ def re_match_hhmm(txt):
     return bool(re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", (txt or "").strip()))
 
 
+# ------------------------------------------------------- log การเล่น (v1.8) --
+def log_filename():
+    """ชื่อไฟล์ log ของ "วันนี้" (หมุนรายวัน) เช่น macro_log_2026-09-28.txt"""
+    return "macro_log_%s.txt" % datetime.date.today().isoformat()
+
+
+def log_path():
+    """พาธไฟล์ log ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)"""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), log_filename())
+
+
+def log_write(mode, message, src=None):
+    """เขียนบรรทัด log 1 บรรทัด (ทนต่อทุก error — log ห้ามทำโปรแกรมพัง)
+    mode: 'START' / 'STEP' / 'STOP' / 'END'"""
+    try:
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        line = "%s [%s] %s" % (ts, mode, message)
+        if src:
+            line += "  <- " + str(src)
+        with open(log_path(), "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+    except Exception:
+        pass
+
+
+def prune_log(keep=MAX_LOG_LINES):
+    """เก็บ log ไว้ไม่เกิน `keep` บรรทัด (ตัดบรรทัดเก่าสุดออก) — เรียกตอนจบการเล่น"""
+    try:
+        path = log_path()
+        if not os.path.isfile(path):
+            return
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.readlines()
+        if len(lines) > keep:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.writelines(lines[-keep:])
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------- HotkeyEdit --
 class HotkeyEdit(tk.Toplevel):
     """หน้าต่างแก้ค่าในเซลล์ (เปิดโดยดับเบิลคลิก)"""
@@ -229,6 +276,9 @@ class MacroApp:
         self._speed_mult = 1.0             # ตัวคูณความเร็ว (0.1–10)
         self._script_loops = 1             # จำนวนรอบของสคริปต์ทั้งชุด (0 = ไม่จำกัด)
         self._restore_pos = False          # คืนเมาส์กลับจุดเริ่มเมื่อจบรอบ
+        self._log_enabled = True           # บันทึก log การเล่นลงไฟล์ (ตั้งใน Settings)
+        self._log_src = None               # ชื่อสคริปต์ล่าสุด (แสดงใน log)
+        self._loaded_file = None           # ไฟล์สคริปต์ที่ Load/Save ล่าสุด
 
         # การหยุดที่แม่นยำ (v1.7.1)
         self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
@@ -438,15 +488,23 @@ class MacroApp:
     # --------------------------------------------- global hotkeys (ทุกที่) ---
     def _start_global_hotkeys(self):
         """F6/F8/F9/F10 ทำงานได้แม้หน้าต่างโปรแกรมไม่ได้โฟกัส
-        และออโต้ปิดตัวเองถ้าโปรแกรมอื่นใช้คีย์ชุดนี้อยู่แล้ว"""
-        mapping = {
-            "<f6>": lambda: self.root.after(0, self.start_play),
-            "<f8>": lambda: self.root.after(0, self.stop_all),
-            "<f9>": lambda: self.root.after(0, self.toggle_record),
-            "<f10>": lambda: self.root.after(0, self._toggle_forever),
-        }
+        และออโต้ปิดตัวเองถ้าโปรแกรมอื่นใช้คีย์ชุดนี้อยู่แล้ว
+
+        v1.8: ใช้ keyboard.Listener จับคู่คีย์เอง — พบว่า GlobalHotKeys ของ
+        pynput 1.8.x บนบางเครื่องไม่ยิง callback แม้กดคีย์จริง (ทดสอบพบตอน
+        ตรวจสอบปุ่ม STOP) ส่วน Listener ธรรมดารับเหตุการณ์ได้ปกติ"""
+        hotmap = {keyboard.Key.f6: self.start_play,
+                  keyboard.Key.f8: self.stop_all,
+                  keyboard.Key.f9: self.toggle_record,
+                  keyboard.Key.f10: self._toggle_forever}
+
+        def on_press(key):
+            fn = hotmap.get(key)
+            if fn is not None:
+                self.root.after(0, fn)     # ผลักเข้า main thread เสมอ (thread-safe)
+
         try:
-            self._gk = GlobalHotKeys(mapping)
+            self._gk = keyboard.Listener(on_press=on_press)
             self._gk.daemon = True
             self._gk.start()
         except Exception as exc:
@@ -782,6 +840,12 @@ class MacroApp:
             loops = 1
         self._script_loops = max(0, loops)
         self._restore_pos = self.chk_restore.get()
+        self._log_src = self._loaded_file or "ตารางในโปรแกรม"
+        if self._log_enabled:
+            log_write("START", "เริ่มเล่น (%s) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d" %
+                      ("วนซ้ำ" if loop else "ครั้งเดียว", self._speed_mult,
+                       self._script_loops if self._script_loops else "ไม่จำกัด",
+                       len(rows)), self._log_src)
         self.btn_start.config(state="disabled", bg="#cfcfcf")
         self.btn_repeat.config(state="disabled", bg="#2e7d32")
         mode = "วนซ้ำ" if loop else "เล่นครั้งเดียว"
@@ -833,6 +897,9 @@ class MacroApp:
         self._ui_state["reset"] = True
         if was and not silent:
             self._ui_state["msg"] = ("หยุดแล้ว — ปล่อยคีย์/ปุ่มที่ค้างแล้ว", "#a60")
+            if self._log_enabled:
+                log_write("STOP", "หยุดโดยผู้ใช้ (F8/ปุ่ม STOP) — ปล่อยคีย์/ปุ่มที่ค้างแล้ว",
+                          self._log_src)
 
     def _player(self, rows, loop, gen=0):
         """เธรดผู้เล่น — เช็ค self._gen_ok(gen) ทุกจุด: STOP หรือ START ใหม่ = หยุดทันที"""
@@ -925,6 +992,7 @@ class MacroApp:
             total = len(rows)
             loop_no = 0
             outer = True
+            play_started = time.time()
             while outer:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
@@ -941,7 +1009,13 @@ class MacroApp:
                         base = delay_seconds(r["mins"], 0) + (lo if lo == hi else random.uniform(lo, hi))
                         if not self._sleep_check(base / self._speed_mult, gen):
                             return
+                        step_t0 = time.time()
                         do_step(r)
+                        if self._log_enabled:
+                            log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
+                                      (loop_no, i + 1, total, r["button"],
+                                       r["additional"] or "", time.time() - step_t0),
+                                      self._log_src)
                 self._ui_state["row"] = None
                 self._ui_state["prog"] = (total, total, loop_no)
                 if self._restore_pos and start_pos and self._gen_ok(gen):
@@ -955,6 +1029,9 @@ class MacroApp:
                     outer = self._script_loops > 0 and self._gen_ok(gen)
             if self._gen_ok(gen):
                 self._ui_state["msg"] = ("เล่นจบแล้ว ✔", "#080")
+                if self._log_enabled:
+                    log_write("END", "เล่นจบเองครบ %.1f วิ" % (time.time() - play_started),
+                              self._log_src)
         finally:
             # เธรดจบเอง (จบสคริปต์ หรือถูก STOP/START ใหม่แทนที่) — ถ้าเป็นรุ่นปัจจุบันค่อยเคลียร์
             if gen == self._play_gen:
@@ -963,6 +1040,8 @@ class MacroApp:
                 self._ui_state["row"] = None
                 self._ui_state["prog"] = None
                 self._ui_state["reset"] = True
+                if self._log_enabled:
+                    prune_log()
 
     def kb_ctrl_char(self, ch):
         """แปลงอักขระเป็น KeyCode สำหรับ Type Text (รองรับไทย/อังกฤษ/ตัวเลข/สัญลักษณ์)"""
@@ -1169,7 +1248,7 @@ class MacroApp:
             ไฟล์.png#65                  = ทั้งจอ, threshold 65%
         คืน (path, area, threshold) — area None = ทั้งจอ"""
         raw = (r.get("additional") or "").strip()
-        path, area, thr = raw, None, 0.80
+        path, area, thr = raw, None, DEFAULT_THRESHOLD
         if "@" in raw:
             path, _, coords = raw.partition("@")
             coords, _, thr_s = coords.partition("#")
@@ -1298,6 +1377,8 @@ class MacroApp:
             return
         with open(f, "w", encoding="utf-8") as fh:
             json.dump(self._serialize(), fh, ensure_ascii=False, indent=2)
+        self._loaded_file = f
+        self._log_src = f
         self._ui_state["msg"] = ("บันทึกสคริปต์แล้ว: " + os.path.basename(f), "#080")
 
     def load_script(self):
@@ -1310,6 +1391,8 @@ class MacroApp:
             if not isinstance(data, list):
                 raise ValueError("รูปแบบไฟล์ไม่ถูกต้อง")
             self._load_rows(data)
+            self._loaded_file = f
+            self._log_src = f
             self._ui_state["msg"] = ("โหลดแล้ว: " + os.path.basename(f), "#080")
         except Exception as exc:
             messagebox.showerror(APP_TITLE, "โหลดไฟล์ไม่สำเร็จ:\n%s" % exc)
@@ -1321,6 +1404,10 @@ class MacroApp:
                     data = json.load(fh)
                 if isinstance(data, list) and data:
                     self._load_rows(data)
+                elif isinstance(data, dict):
+                    if isinstance(data.get("rows"), list):
+                        self._load_rows(data["rows"])
+                    self._log_enabled = bool(data.get("log_enabled", True))
             except Exception:
                 pass
 
@@ -1349,7 +1436,9 @@ class MacroApp:
     def _save_conf(self):
         try:
             with open(CONF, "w", encoding="utf-8") as fh:
-                json.dump(self._serialize(), fh, ensure_ascii=False, indent=2)
+                json.dump({"rows": self._serialize(),
+                           "log_enabled": self._log_enabled},
+                          fh, ensure_ascii=False, indent=2)
         except OSError:
             pass
 
@@ -1377,7 +1466,15 @@ class MacroApp:
         tk.Label(win, text="Image Click: " + ("พร้อมใช้ ✅" if HAS_CV else
                  "ยังไม่พร้อม — ติดตั้งด้วย: pip install opencv-python Pillow"),
                  fg="#080" if HAS_CV else "#a60").pack()
-        tk.Button(win, text="ปิด", width=8, command=win.destroy).pack(pady=(8, 14))
+        self.var_log = tk.BooleanVar(value=self._log_enabled)
+        tk.Checkbutton(win, text="บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
+                       variable=self.var_log).pack(pady=(10, 0))
+        tk.Button(win, text="เปิดโฟลเดอร์ log", width=14,
+                  command=lambda: os.startfile(os.path.dirname(os.path.abspath(__file__)))
+                  if hasattr(os, "startfile") else None).pack(pady=(4, 0))
+        tk.Button(win, text="บันทึก", width=8,
+                  command=lambda: (setattr(self, "_log_enabled", self.var_log.get()),
+                                   win.destroy())).pack(pady=(8, 14))
 
     def about(self):
         messagebox.showinfo("About",
@@ -1445,7 +1542,14 @@ def cli_main(argv):
     ap.add_argument("--loop", action="store_true", help="เล่นวนซ้ำไม่จำกัด")
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
+    ap.add_argument("--no-log", action="store_true",
+                    help="ไม่บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt")
+    ap.add_argument("--stop-file", default=None, metavar="PATH",
+                    help="ถ้าไฟล์นี้ถูกสร้าง โปรแกรมจะหยุดทันที (ใช้ควบคุมจากภายนอก/ทดสอบ)")
     args = ap.parse_args(argv)
+
+    # --no-log เป็นตัวตัดสิน (ไม่ได้ใส่ = ตามค่าเริ่มต้นของโปรแกรม)
+    log_enabled = (not args.no_log) and LOG_ENABLED_DEFAULT
 
     # คอนโซล Windows บางเครื่องเป็น cp1252 — พิมพ์ไทยไม่ได้ ให้ fallback อัตโนมัติ
     # (ถ้า stdout ไม่มี buffer เช่น StringIO ในเทสต์ ก็ข้ามไป ไม่ต้องแทนที่)
@@ -1471,6 +1575,8 @@ def cli_main(argv):
     mouse_ctl = MouseController()
     kb_ctl = KbController()
     running = [True]
+    finished_ok = []             # ว่าง = ถูกหยุดกลางคัน, มีค่า = จบครบเอง
+    pending_keys = []            # คีย์/ปุ่มที่กดค้าง (Press Key / Down) — ปล่อยตอนหยุด
     speed = min(10.0, max(0.1, args.speed))
 
     def do_step(r):
@@ -1483,8 +1589,11 @@ def cli_main(argv):
                 time.sleep(0.03)
             if act == "Down":
                 mouse_ctl.press(btn_obj)
+                pending_keys.append(("m", btn_obj))
             elif act == "Up":
                 mouse_ctl.release(btn_obj)
+                if ("m", btn_obj) in pending_keys:
+                    pending_keys.remove(("m", btn_obj))
             else:
                 mouse_ctl.click(btn_obj, 1)
         elif btn in SCROLL_ACTIONS:
@@ -1503,35 +1612,90 @@ def cli_main(argv):
             if k is not None:
                 if btn == "Press Key":
                     kb_ctl.press(k)
+                    pending_keys.append(("k", k))
                 elif btn == "Release Key":
                     kb_ctl.release(k)
+                    if ("k", k) in pending_keys:
+                        pending_keys.remove(("k", k))
                 else:
                     kb_ctl.tap(k)
         elif btn == "Type Text":
             for ch in str(r.get("additional") or ""):
+                if not running[0]:
+                    return
                 kb_ctl.tap(KeyCode.from_char(ch))
         elif btn == "Beep":
             print("\a", end="", flush=True)
         # (หมายเหตุ: Image Click/Wait for Image ยังไม่รองรับใน CLI — ใช้ GUI)
 
-    stops = {"<f8>", "<esc>"}
+    # หยุดด้วย F8/Esc ได้ทุกที่ — ใช้ Listener จับคู่เอง (เหตุผลเดียวกับ GUI v1.8)
+    _stop_keys = {keyboard.Key.f8, keyboard.Key.esc}
+
+    def _on_key_stop(key):
+        if key in _stop_keys:
+            running[0] = False
+
     try:
-        stopper = keyboard.GlobalHotKeys({k: (lambda: running.__setitem__(0, False))
-                                         for k in stops})
+        stopper = keyboard.Listener(on_press=_on_key_stop)
         stopper.daemon = True
         stopper.start()
         gk_ok = True
     except Exception:
         gk_ok = False
 
+    # ช่องทางหยุดที่ 2: อ่านคีย์จากคอนโซลโดยตรง (Esc / q / F8) — ไม่พึ่ง keyboard hook
+    # (พบว่าบางสภาพแวดล้อม GlobalHotKeys ไม่ยิงแม้กดจริง — ช่องทางนี้ทำให้หยุดได้เสมอ)
+    def _console_watcher():
+        try:
+            import msvcrt
+        except ImportError:
+            return                      # ไม่ใช่ Windows — ใช้ Ctrl+C แทน
+        while running[0]:
+            try:
+                if not msvcrt.kbhit():
+                    time.sleep(0.05)
+                    continue
+                ch = msvcrt.getwch()
+                if ch in ("\x1b", "q", "Q"):
+                    running[0] = False
+                    return
+                if ch in ("\x00", "\xe0"):          # ปุ่มพิเศษ: ตามด้วยรหัสอีกตัว
+                    ch2 = msvcrt.getwch()
+                    if ch2 in ("B", "b"):           # 'B' = รหัสปุ่ม F8
+                        running[0] = False
+                        return
+            except Exception:
+                return
+
+    threading.Thread(target=_console_watcher, daemon=True).start()
+
+    # ช่องทางหยุดที่ 3: --stop-file — ไฟล์ปรากฏ = หยุดทันที (ควบคุมจากโปรแกรมอื่น/ทดสอบ)
+    if args.stop_file:
+        def _stopfile_watcher():
+            while running[0]:
+                try:
+                    if os.path.isfile(args.stop_file):
+                        running[0] = False
+                        return
+                except Exception:
+                    return
+                time.sleep(0.05)
+
+        threading.Thread(target=_stopfile_watcher, daemon=True).start()
+
     print("เล่นสคริปต์: %s (%d แถว)%s%s" % (
         os.path.basename(args.script), len(rows),
         "  •  วนไม่จำกัด" if (args.loop or args.loops == 0) else "",
         "  •  ความเร็ว %gx" % speed))
+    if log_enabled:
+        log_write("START", "เริ่มเล่น (CLI) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d" %
+                  (speed, "ไม่จำกัด" if (args.loop or args.loops == 0) else args.loops,
+                   len([r for r in rows if r.get("enabled", True) is not False])),
+                  args.script)
     if gk_ok:
-        print("หยุด: กด F8 หรือ Esc (หรือ Ctrl+C)")
+        print("หยุด: กด F8 หรือ Esc (ทุกที่), Esc/q ในหน้าต่างนี้, หรือ Ctrl+C")
     else:
-        print("หยุด: Ctrl+C")
+        print("หยุด: Esc/q ในหน้าต่างนี้ หรือ Ctrl+C")
     try:
         loops = 0 if args.loop else max(0, args.loops)
         active = [r for r in rows if r.get("enabled", True) is not False]
@@ -1544,10 +1708,22 @@ def cli_main(argv):
                     break
                 lo, hi = delay_range(r.get("secs", 1))
                 base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else random.uniform(lo, hi))
-                time.sleep(max(0.0, base / speed))
+                # หยุดทันทีกลางดีเลย์: แบ่ง sleep ชิ้นละ 50 ms เช็ค running ทุกชิ้น
+                _end = time.time() + max(0.0, base / speed)
+                while running[0]:
+                    _remain = _end - time.time()
+                    if _remain <= 0:
+                        break
+                    time.sleep(min(0.05, _remain))
                 if not running[0]:
                     break
+                step_t0 = time.time()
                 do_step(r)
+                if log_enabled:
+                    log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
+                              (n_loop, i, len(active), r.get("button", ""),
+                               r.get("additional", "") or "", time.time() - step_t0),
+                              args.script)
                 print("  [%d/%d] %s %s" % (i, len(active), r.get("button", ""),
                                           r.get("additional", "")))
             if not running[0]:
@@ -1557,13 +1733,29 @@ def cli_main(argv):
             loops -= 1
             if loops <= 0:
                 break
+        if not running[0]:
+            print("\nถูกหยุดโดยผู้ใช้")
+            return 130
         print("จบแล้ว ✔")
+        finished_ok.append(True)
         return 0
     except KeyboardInterrupt:
         print("\nหยุดโดยผู้ใช้")
         return 130
     finally:
         running[0] = False
+        # ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ (กัน Ctrl/ปุ่มเมาส์ติดหลังหยุดกลางคัน)
+        for kind, obj in pending_keys:
+            try:
+                (kb_ctl if kind == "k" else mouse_ctl).release(obj)
+            except Exception:
+                pass
+        pending_keys.clear()
+        if log_enabled:
+            log_write("STOP" if not finished_ok else "END",
+                      "หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)" if not finished_ok
+                      else "เล่นจบเองครบ", args.script)
+            prune_log()
         try:
             stopper.stop()
         except Exception:

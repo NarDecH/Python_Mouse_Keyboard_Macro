@@ -1,10 +1,10 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.7
+# 🖱️ Auto Mouse & Keyboard Macro v1.8
 
 <div align="center">
 
 **โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้**
 
-![Tests](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml/badge.svg)
+[🇬🇧 English](README.en.md) · [![Tests](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml/badge.svg)](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![GUI](https://img.shields.io/badge/GUI-Tkinter-2ea043)
 ![Library](https://img.shields.io/badge/pynput-1.8.2-orange)
@@ -214,14 +214,31 @@ py auto_macro.py script.json                  # เล่นรอบเดี�
 py auto_macro.py script.json --loop           # วนไม่จำกัด
 py auto_macro.py script.json --loops 5        # 5 รอบ
 py auto_macro.py script.json --speed 2        # เร็วขึ้น 2 เท่า
+py auto_macro.py script.json --no-log         # ไม่บันทึก log
+py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์นี้เมื่อไร = หยุดทันที
 ```
 
-กด **F8** หรือ **Esc** เพื่อหยุด (หรือ Ctrl+C) — เหมาะกับการรันผ่าน Windows Task Scheduler
+หยุดได้ทุกที่: กด **F8**/**Esc** (แม้ไม่โฟกัสหน้าต่าง), **Esc** หรือ **q** ในหน้าต่าง CLI,
+หรือ **Ctrl+C** — เหมาะกับการรันผ่าน Windows Task Scheduler
+
+## 📝 Log การเล่น
+
+ทุกครั้งที่เล่น โปรแกรมบันทึกลง `macro_log_วันที่.txt` (หมุนรายวัน เก็บไม่เกิน 500 บรรทัด/ไฟล์):
+
+```
+08:57:05 [START] เริ่มเล่น (CLI) ความเร็ว 1x รอบ=1 แถวที่เล่น=3  <- test.json
+08:57:05 [STEP] รอบ 1 แถว 1/3 Press Key ctrl (0.0 วิ)  <- test.json
+08:57:08 [STOP] หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)  <- test.json
+```
+
+- **GUI:** เปิด/ปิดได้ในเมนู **Settings** (จำค่าไว้อัตโนมัติ)
+- **CLI:** ปิดด้วย `--no-log`
+- ใช้ตรวจสอบย้อนหลังว่าสคริปต์ทำอะไรไปบ้าง แต่ละแถวใช้เวลาเท่าไร และถูกหยุดตอนไหน
 
 ## 🧪 ทดสอบ
 
 ```bash
-py -m unittest test_auto_macro -v    # 51 unit tests
+py -m unittest test_auto_macro -v    # 63 unit tests
 ```
 
 ## 📂 ชุดตัวอย่างสคริปต์ (examples/)
