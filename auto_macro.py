@@ -42,6 +42,9 @@ Auto Mouse & Keyboard Macro  v1.18
   If Image — ภาพไม่เจอ → ข้าม N แถวถัดไป (ตั้งจำนวนใน Repeat)
 - v1.18: Wait for Pixel Color (รอจุดสี, หน่วงใน Additional), Else If Image
   (เงื่อนไขสองทาง A/B), สถิติราย Action ในหน้า 📊 Stats
+- v1.19: ตัวแปรในสคริปต์ (Set Variable + {name}), ปุ่มจับสีจากจอ, timeout ตั้งได้
+  (เช่น "logo.png 60s"), จำค่าการตั้งค่า/ตารางเวลาลง conf, CLI เตือน action ไม่รองรับ,
+  player ไม่เรียก Tk ข้ามเธรดอีกต่อไป
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -78,7 +81,8 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.18.1"
+__version__ = "1.19.0"
+APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
 BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
@@ -187,8 +191,10 @@ DBL_ACTIONS = ["Double Left Click", "Double Right Click"]
 MOD_CLICKS = ["Ctrl+Click", "Shift+Click", "Alt+Click", "Ctrl+Right Click"]
 MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cursor"]
 EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
+VAR_ACTIONS = ["Set Variable"]   # v1.19: ตัวแปรในสคริปต์ — ใช้ {ชื่อ} แทนค่าในช่องอื่น
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
-               + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS)
+               + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
+               + VAR_ACTIONS)
 
 # ------------------------------------------- pixel color helpers (v1.18) ----
 def parse_color_hex(txt):
@@ -229,9 +235,9 @@ def parse_pixel_spec(additional):
 
 def pixel_color_at(x, y):
     """อ่านสีจุด (x, y) บนหน้าจอ → (r, g, b) หรือ None ถ้าอ่านไม่ได้
-    ใช้ PIL.ImageGrab (ไม่เพิ่ม dependency)"""
+    ใช้ PIL.ImageGrab จับเฉพาะกรอบ 1×1 รอบจุด (เบากว่า grab ทั้งจอมาก)"""
     try:
-        px = ImageGrab.grab().load()[x, y]
+        px = ImageGrab.grab(bbox=(int(x), int(y), int(x) + 1, int(y) + 1)).load()[0, 0]
         return (px[0], px[1], px[2])[:3]
     except Exception:
         return None
@@ -242,6 +248,78 @@ def color_close(c1, c2, tol=20):
     if not c1 or not c2:
         return False
     return all(abs(a - b) <= tol for a, b in zip(c1, c2))
+
+
+def parse_wait_timeout(additional, default=30):
+    """แยก timeout จากท้าย Additional ของ Wait for Image / Wait for Pixel Color (v1.19)
+    รูปแบบ: "... 60s" = รอสูงสุด 60 วิ (ค่าเริ่มต้น 30 วิถ้าไม่ใส่)
+    คืน (additional ที่ตัด token ออกแล้ว, จำนวนวินาที 1-3600)"""
+    s = str(additional or "")
+    m = re.search(r"\s+(\d{1,6})s\s*$", s)
+    if m:
+        return s[:m.start()].strip(), max(1, min(3600, int(m.group(1))))
+    return s.strip(), default
+
+
+# ------------------------------------------- ตัวแปรในสคริปต์ (v1.19) ---------
+# ชื่อตัวแปร: ขึ้นต้นด้วยตัวอักษร/_ (ไม่ใช่ตัวเลข) ตามด้วยตัวอักษร/เลข/_
+# (รวมไทย) + สระบน-ล่าง/วรรณยุกต์ไทยที่ไม่อยู่ใน \w
+_VAR_NAME = r"(?=[^\W\d])[\w\u0E31\u0E33-\u0E3A\u0E47-\u0E4E]+"
+
+
+def parse_set_var(txt):
+    """แยก Additional ของ Set Variable → (name, op, value)
+    รูปแบบ: "name = ค่า" / "name += จำนวน" / "name -= จำนวน" — ชื่อตัวแปรเป็น
+    ตัวอักษรไทย (รวมวรรณยุกต์/สระบน-ล่าง)/อังกฤษ/_ ได้ (ห้ามตัวเลขนำหน้า)
+    รูปแบบไม่ถูกคืน None"""
+    m = re.fullmatch(r"\s*(%s)\s*(\+=|-=|=)\s*(.*?)\s*" % _VAR_NAME,
+                     str(txt or ""), re.UNICODE)
+    if not m:
+        return None
+    return m.group(1), m.group(2), m.group(3)
+
+
+def substitute_vars(text, variables):
+    """แทน {ชื่อตัวแปร} ในข้อความด้วยค่าจาก dict variables (v1.19)
+    ตัวแปรที่ยังไม่มีค่าคง {ชื่อ} เดิมไว้ (มองเห็น แก้ตัวสะกดผิดได้ง่าย)"""
+    def repl(m):
+        name = m.group(1)
+        return str(variables[name]) if name in variables else m.group(0)
+    return re.sub(r"\{(%s)\}" % _VAR_NAME, repl, str(text or ""))
+
+
+def subst_row(r, variables):
+    """แทน {ตัวแปร} ในทุกคอลัมน์ที่ใช้ค่าได้ (v1.19) — คืน dict ใหม่ ไม่แก้ของเดิม"""
+    return {**r,
+            "x": substitute_vars(r.get("x", ""), variables),
+            "y": substitute_vars(r.get("y", ""), variables),
+            "additional": substitute_vars(r.get("additional", ""), variables),
+            "mins": substitute_vars(r.get("mins", 0), variables),
+            "secs": substitute_vars(r.get("secs", 1), variables),
+            "repeat": substitute_vars(r.get("repeat", 1), variables)}
+
+
+def apply_set_var(variables, additional):
+    """ตั้งค่าตัวแปรลง dict ตาม Additional ของ Set Variable (v1.19) — ใช้ร่วม GUI/CLI
+    คืน True ถ้ารูปแบบถูก, += / -= ต้องเป็นตัวเลข (ค่าเริ่มต้นของตัวแปรใหม่ = 0)"""
+    sv = parse_set_var(additional)
+    if not sv:
+        return False
+    name, op, raw = sv
+    val = substitute_vars(raw, variables)
+    if op == "=":
+        variables[name] = val
+        return True
+    try:
+        delta = float(val)
+    except ValueError:
+        return False
+    try:
+        base = float(variables.get(name, 0))
+    except (TypeError, ValueError):
+        base = 0.0
+    variables[name] = fmt_num(base + delta if op == "+=" else base - delta)
+    return True
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -258,14 +336,13 @@ def load_plugins(base_dir=None):
     d = os.path.join(base_dir, PLUGINS_DIR)
     if not os.path.isdir(d):
         return []
+    import importlib.util
     out, failed = [], []
     for path in sorted(glob.glob(os.path.join(d, "*.py"))):
         name = os.path.basename(path)[:-3]
         if name.startswith("_"):
             continue                                   # _xxx.py = ไม่ใช่ plugin
         try:
-            spec = __import__("importlib.util", fromlist=["util"])
-            import importlib.util
             sp = importlib.util.spec_from_file_location("macro_plugin_%s" % name, path)
             mod = importlib.util.module_from_spec(sp)
             sp.loader.exec_module(mod)
@@ -618,10 +695,12 @@ class MacroApp:
         self._hl_row = None             # แถวที่กำลังเล่น (ไฮไลต์)
         self._live_pos = (0, 0)         # พิกัดเมาส์สด (จาก listener thread)
         self._live_key = ""             # คีย์ล่าสุด (จาก listener thread)
-        self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None}
+        self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None,
+                          "beep": False}
         self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
         self._ifimg_skip = 0               # v1.17: ตัวนับข้ามแถวของ If Image
         self._last_if_found = False        # v1.18: ผล If Image ล่าสุด (ให้ Else If Image ใช้)
+        self._vars = {}                    # v1.19: ตัวแปรของการเล่น (รีเซ็ตทุกครั้งที่เริ่มเล่น)
 
         # โปรไฟล์ / schedule / global hotkey
         self._profiles = {}                # ชื่อโปรไฟล์ -> รายการแถว
@@ -757,6 +836,7 @@ class MacroApp:
         tk.Button(tools, text="ล้างทั้งหมด", command=self.clear_all).pack(side="left", padx=2)
         if HAS_CV:
             tk.Button(tools, text="📸 จับภาพ (ลากกรอบบนจอ)", command=self._capture_snip).pack(side="right", padx=2)
+            tk.Button(tools, text="🎨 จับสี (คลิกบนจอ)", command=self._pick_pixel_color).pack(side="right", padx=2)
 
     # -------------------------------------------------- จับภาพหน้าจอ (snip) ---
     def _capture_snip(self):
@@ -808,8 +888,54 @@ class MacroApp:
         sel.bind("<ButtonPress-1>", on_press)
         sel.bind("<B1-Motion>", on_drag)
         sel.bind("<ButtonRelease-1>", on_release)
-        if HAS_CV:
-            tk.Button(tools, text="📸 จับภาพ (ลากกรอบบนจอ)", command=self._capture_snip).pack(side="right", padx=2)
+
+    def _pick_pixel_color(self):
+        """🎨 คลิกจุดบนจอเพื่อจับสี → ใส่แถว Wait for Pixel Color (v1.19)"""
+        if not HAS_CV:
+            messagebox.showinfo(APP_TITLE, "ต้องติดตั้ง: pip install opencv-python Pillow")
+            return
+        self.root.iconify()
+        time.sleep(0.35)               # รอหน้าต่างหดจริง ไม่ให้ติดมาในภาพ
+        sel = tk.Toplevel(self.root)
+        sel.overrideredirect(True)
+        sel.attributes("-topmost", True)
+        sel.attributes("-alpha", 0.35)
+        sel.configure(bg="black")
+        sel.geometry("%dx%d+0+0" % (self.root.winfo_screenwidth(),
+                                    self.root.winfo_screenheight()))
+        tk.Label(sel, text="คลิกจุดที่ต้องการจับสี  (Esc = ยกเลิก)",
+                 fg="white", bg="black", font=("Segoe UI", 14)).pack(pady=30)
+
+        def on_click(e):
+            x, y = e.x_root, e.y_root
+            sel.destroy()
+            self.root.deiconify()
+            self.root.update()
+            time.sleep(0.2)            # รอหน้าจอจริงกลับมา ไม่ให้สีติดม่านทับ
+            rgb = pixel_color_at(x, y)
+            if not rgb:
+                messagebox.showerror(APP_TITLE, "อ่านสีจุด (%d, %d) ไม่สำเร็จ" % (x, y))
+                return
+            self._apply_pixel_spec("%d,%d #%02x%02x%02x" % (x, y, rgb[0], rgb[1], rgb[2]))
+
+        sel.bind("<Button-1>", on_click)
+        sel.bind("<Escape>", lambda e: (sel.destroy(), self.root.deiconify()))
+        sel.focus_force()
+
+    def _apply_pixel_spec(self, spec):
+        """ใส่ spec 'x,y #rrggbb' ลงแถว Wait for Pixel Color ที่เลือกไว้ (v1.19)
+        ถ้าแถวที่เลือกไม่ใช่ Wait for Pixel Color สร้างแถวใหม่ต่อท้าย — คืน True ถ้าแก้แถวเดิม"""
+        sel = self.tree.selection()
+        if sel:
+            vals = list(self.tree.item(sel[0], "values"))
+            if str(vals[4]) == WAIT_PIXEL:
+                vals[5] = spec
+                self.tree.item(sel[0], values=vals)
+                self._ui_state["msg"] = ("จับสีแล้ว: " + spec, "#080")
+                return True
+        self._append_row(button=WAIT_PIXEL, additional=spec, secs=1)
+        self._ui_state["msg"] = ("เพิ่มแถวรอสี: " + spec + " — แก้จุด/สีได้ที่ช่อง Additional", "#080")
+        return False
 
     def _build_bottom(self):
         bot = tk.Frame(self.root)
@@ -995,6 +1121,13 @@ class MacroApp:
         # รีเซ็ตปุ่มเมื่อเล่นจบ
         if st.pop("reset", False):
             self._reset_ui()
+
+        # Beep จาก player thread — main thread เป็นคนเรียก bell (thread-safe, v1.19)
+        if st.pop("beep", False):
+            try:
+                self.root.bell()
+            except tk.TclError:
+                pass
 
         # ตำแหน่งเมาส์ / คีย์ล่าสุด
         x, y = self._live_pos
@@ -1298,7 +1431,8 @@ class MacroApp:
                     "Image Click": "ชื่อไฟล์ .png เช่น button.png",
                     "If Image": "ชื่อไฟล์ .png — Repeat = จำนวนแถวที่ข้ามถ้าภาพไม่เจอ",
                     "Else If Image": "ชื่อไฟล์ .png — ตัวแบ่งกลุ่ม A/B แบบสองทาง (v1.18)",
-                    "Wait for Pixel Color": "x,y แล้ว #RRGGBB เช่น 100,200 #ff0000",
+                    "Wait for Pixel Color": "x,y #RRGGBB เช่น 100,200 #ff0000 (ตามด้วย 60s = รอ 60 วิ)",
+                    "Set Variable": "name = ค่า หรือ name += จำนวน — เรียกใช้ด้วย {name} ในช่องอื่น",
                     "Wait for Image": "ชื่อไฟล์ .png เช่น button.png",
                     "Scroll Up": "จำนวนจังหวะ เช่น 3",
                     "Scroll Down": "จำนวนจังหวะ เช่น 3"}.get(str(vals[4]), "")
@@ -1339,13 +1473,20 @@ class MacroApp:
 
     def _rows_for_play(self):
         """แถวที่เปิดใช้ (☑) ทั้งหมด ในลำดับของตาราง — ใช้เป็นสคริปต์ที่จะเล่น"""
-        rows = []
+        rows, _iids = self._rows_and_iids_for_play()
+        return rows
+
+    def _rows_and_iids_for_play(self):
+        """คู่ (แถว, iid ในตาราง) ของแถวที่เปิดใช้ (☑) — iid ใช้ทำไฮไลต์แถวที่กำลังเล่น
+        แยกจาก _rows_for_play เพื่อให้ player ไม่ต้องเรียก Tk ข้ามเธรด (v1.19)"""
+        rows, iids = [], []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
             if str(v[0]) == "☑":
                 rows.append(dict(x=v[2], y=v[3], button=v[4], additional=v[5],
                                  mins=v[6], secs=v[7], repeat=v[8]))
-        return rows
+                iids.append(iid)
+        return rows, iids
 
     def _plugin_module(self, name):
         """คืน module ของ plugin ตามชื่อ Action (ไม่พบ = None)"""
@@ -1361,6 +1502,8 @@ class MacroApp:
             if self._plugin_module(r["button"]):
                 continue                    # Custom Action — ตรวจรูปแบบภายใน plugin เอง
             if r["button"] == "Launch App" and not (r["additional"] or "").strip():
+                return False
+            if r["button"] == "Set Variable" and not parse_set_var(r["additional"]):
                 return False
             if r["button"] in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
                 p, _a, _t = self._parse_search_area(r)
@@ -1381,8 +1524,9 @@ class MacroApp:
     def _start_player(self, loop, once=False):
         """เริ่มเล่น — loop=True = วนไม่จำกัดจนกด STOP (REPEAT/F10)
         once=True = เล่นครั้งเดียวจบรอบเดียว (ใช้โดย schedule — ไม่สนช่อง รอบ:/forever)"""
-        rows = self._rows_for_play()
-        if not rows:
+        rows, iids = self._rows_and_iids_for_play()
+        items = list(zip(rows, iids))     # คู่ (แถว, iid) — เล่น/ไฮไลต์ตามกันเสมอ (v1.19)
+        if not items:
             messagebox.showinfo(APP_TITLE, self._t("no_rows"))
             return
         if not self._validate_rows(rows):
@@ -1410,6 +1554,7 @@ class MacroApp:
         self._restore_pos = self.chk_restore.get()
         self._shuffle = self.chk_shuffle.get()
         self._pct = self._play_options()
+        self._vars = {}                   # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
         self._log_src = self._loaded_file or "ตารางในโปรแกรม"
         if self._log_enabled:
             extra = " สุ่มลำดับ" if self._shuffle else ""
@@ -1418,13 +1563,13 @@ class MacroApp:
             log_write("START", "เริ่มเล่น (%s) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d%s" %
                       ("วนซ้ำ" if loop else "ครั้งเดียว", self._speed_mult,
                        self._script_loops if self._script_loops else "ไม่จำกัด",
-                       len(rows), extra), self._log_src)
+                       len(items), extra), self._log_src)
         self.btn_start.config(state="disabled", bg="#cfcfcf")
         self.btn_repeat.config(state="disabled", bg="#2e7d32")
         mode = self._t("mode_loop") if loop else self._t("mode_once")
         self.root.title(APP_TITLE + "   [ RUNNING ]")
         self._ui_state["msg"] = (self._t("playing") % mode, "#080")
-        threading.Thread(target=self._player, args=(rows, loop, gen), daemon=True).start()
+        threading.Thread(target=self._player, args=(items, loop, gen), daemon=True).start()
 
     def _reset_ui(self):
         self.btn_start.config(state="normal", bg="#e8e8e8")
@@ -1474,8 +1619,9 @@ class MacroApp:
                 log_write("STOP", "หยุดโดยผู้ใช้ (F8/ปุ่ม STOP) — ปล่อยคีย์/ปุ่มที่ค้างแล้ว",
                           self._log_src)
 
-    def _player(self, rows, loop, gen=0):
-        """เธรดผู้เล่น — เช็ค self._gen_ok(gen) ทุกจุด: STOP หรือ START ใหม่ = หยุดทันที"""
+    def _player(self, items, loop, gen=0):
+        """เธรดผู้เล่น — เช็ค self._gen_ok(gen) ทุกจุด: STOP หรือ START ใหม่ = หยุดทันที
+        items = คู่ (แถว, iid ในตาราง) — player ไม่เรียก Tk เอง สื่อสารผ่าน _ui_state เท่านั้น"""
         def do_step(r):
             btn = r["button"]
             if btn in BTN_TH:                                    # เมาส์ทั่วไป
@@ -1538,15 +1684,13 @@ class MacroApp:
                 target = str(r["additional"] or "").strip()
                 if target:
                     try:
-                        os.startfile(target)      # Windows; Linux/macOS ใช้ subprocess
+                        os.startfile(target)      # Windows
                     except (OSError, AttributeError):
                         import subprocess
-                        subprocess.Popen(["xdg-open", target])
-            elif btn == "Beep":                                  # เสียงเตือน
-                try:
-                    self.root.bell()
-                except tk.TclError:
-                    pass
+                        opener = "open" if sys.platform == "darwin" else "xdg-open"
+                        subprocess.Popen([opener, target])
+            elif btn == "Beep":                                  # เสียงเตือน — ขอผ่าน poller
+                self._ui_state["beep"] = True                    # (main thread เป็นคน bell)
             elif btn in KEY_ACTIONS:                             # คีย์บอร์ด
                 k = parse_key(r["additional"])
                 if k is None:
@@ -1559,6 +1703,10 @@ class MacroApp:
                     self._pressed_keys.discard(k)
                 else:
                     self.kb_ctl.tap(k)
+            elif btn == "Set Variable":                          # ตัวแปรในสคริปต์ (v1.19)
+                if not apply_set_var(self._vars, r["additional"]):
+                    self._ui_state["msg"] = ("Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น "
+                                             "name = ค่า หรือ name += จำนวน" % (r["additional"] or ""), "#c00")
             else:                                                # Custom Action (v1.16)
                 mod = self._plugin_module(btn)
                 if mod is None:
@@ -1572,23 +1720,23 @@ class MacroApp:
         # v1.7.1: ใช้ _gen_ok/_sleep_check — STOP แม่นทันทีแม้ดีเลย์ยาว + กันเล่นซ้อนเธรด
         try:
             start_pos = self.mouse_ctl.position if self._restore_pos else None
-            total = len(rows)
+            total = len(items)
             loop_no = 0
             outer = True
             play_started = time.time()
             while outer:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
-                play_rows = pick_play_order(rows, pct=self._pct, shuffle=self._shuffle)
-                for i, r in enumerate(play_rows):
+                play_items = pick_play_order(items, pct=self._pct, shuffle=self._shuffle)
+                for i, (r, iid) in enumerate(play_items):
                     if not self._gen_ok(gen):
                         return
                     # If Image (v1.17): แถวที่ถูกสั่งข้ามจาก If Image ก่อนหน้า → ข้ามเงียบ ๆ
                     if self._ifimg_skip > 0:
                         self._ifimg_skip -= 1
                         continue
-                    children = self.tree.get_children()
-                    self._ui_state["row"] = children[i] if i < len(children) else None
+                    r = subst_row(r, self._vars)     # v1.19: แทน {ตัวแปร} ทุกคอลัมน์
+                    self._ui_state["row"] = iid      # ไฮไลต์ตรงแถวที่เล่นจริง (v1.19)
                     self._ui_state["prog"] = (i + 1, total, loop_no)
                     for _ in range(parse_int(r["repeat"])):
                         if not self._gen_ok(gen):
@@ -1761,21 +1909,27 @@ class MacroApp:
     def _sched_loop(self):
         while not self._sched_stop.wait(5):
             try:
-                mode = getattr(self, "_sched_mode", "")
-                if not mode:
-                    continue
-                now = time.time()
-                if mode == "interval":
-                    if self._sched_next and now >= self._sched_next and not self.running:
-                        self._sched_next = now + self._sched_every * 60
-                        self._sched_q.put("play")
-                elif mode == "daily":
-                    stamp = time.strftime("%Y-%m-%d %H:%M")
-                    if stamp == self._sched_at and self._sched_last != stamp and not self.running:
-                        self._sched_last = stamp
-                        self._sched_q.put("play")
+                self._sched_check()
             except Exception:
                 pass
+
+    def _sched_check(self, now=None):
+        """ตรวจเงื่อนไขเล่นอัตโนมัติ 1 ครั้ง (แยกออกจากเธรดเพื่อทดสอบได้, v1.19)
+        โหมด interval = ทุก N นาที (นับจากตอนเปิด/ตั้งค่า), โหมด daily = ทุกวันตอน HH:MM
+        (เทียบเฉพาะ %H:%M — ใช้ stamp เต็มกันยิงซ้ำในนาทีเดียวกัน)"""
+        mode = getattr(self, "_sched_mode", "")
+        if not mode:
+            return
+        now = time.time() if now is None else now
+        if mode == "interval":
+            if self._sched_next and now >= self._sched_next and not self.running:
+                self._sched_next = now + self._sched_every * 60
+                self._sched_q.put("play")
+        elif mode == "daily":
+            stamp = time.strftime("%Y-%m-%d %H:%M")
+            if stamp[11:] == self._sched_at and self._sched_last != stamp and not self.running:
+                self._sched_last = stamp
+                self._sched_q.put("play")
 
     def _sched_poll(self):
         """ฝั่ง UI: หยิบคำสั่งเล่นจาก scheduler มาทำ (thread-safe)"""
@@ -1793,7 +1947,8 @@ class MacroApp:
         win = tk.Toplevel(self.root)
         win.title("เล่นอัตโนมัติตามเวลา (Schedule)")
         win.resizable(False, False)
-        tk.Label(win, text="เลือกโหมดเล่นอัตโนมัติของโปรไฟล์ '%s'" % self._active_profile,
+        tk.Label(win, text="เลือกโหมดเล่นอัตโนมัติ — ใช้สคริปต์ที่เปิดใช้ (☑) อยู่ตอนถึงเวลา "
+                           "(จำค่าไว้แม้ปิดโปรแกรม)",
                  font=("Segoe UI", 10, "bold")).pack(padx=18, pady=(14, 4))
         var = tk.StringVar(value=getattr(self, "_sched_mode", "") or "off")
         frm = tk.Frame(win)
@@ -1908,8 +2063,10 @@ class MacroApp:
         return cv2.cvtColor(np.array(shot), cv2.COLOR_RGB2BGR), (area[0], area[1]) if area else (0, 0)
 
     def _do_wait_for_image(self, r):
-        """รอจนกว่าจะเจอภาพบนหน้าจอ (timeout 30 วิ) — รองรับ search area + threshold"""
-        path, area, thr = self._parse_search_area(r)
+        """รอจนกว่าจะเจอภาพบนหน้าจอ — timeout ตั้งได้จาก Additional เช่น "logo.png 60s"
+        (ค่าเริ่มต้น 30 วิ) รองรับ search area + threshold"""
+        raw, timeout = parse_wait_timeout(r.get("additional"), 30)
+        path, area, thr = self._parse_search_area(dict(r, additional=raw))
         if not HAS_CV:
             self._ui_state["msg"] = ("Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
             return
@@ -1922,7 +2079,7 @@ class MacroApp:
         if tmpl is None:
             self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
             return
-        deadline = time.time() + 30
+        deadline = time.time() + timeout
         gen = self._play_gen
         while time.time() < deadline and self._gen_ok(gen):
             screen, _off = self._grab_area_bgr(area)
@@ -1932,7 +2089,8 @@ class MacroApp:
                 if maxv >= thr:
                     return
             time.sleep(0.5)
-        self._ui_state["msg"] = ("Wait for Image: ไม่เจอภาพภายใน 30 วิ — %s" % os.path.basename(path), "#a60")
+        self._ui_state["msg"] = ("Wait for Image: ไม่เจอภาพภายใน %d วิ — %s"
+                                 % (timeout, os.path.basename(path)), "#a60")
 
     # ------------------------------------------------------ image click ------
     def _find_image_pos(self, r):
@@ -1969,22 +2127,24 @@ class MacroApp:
         """รอจนสีจุด (x, y) ตรงตามที่กำหนด (v1.18)
         Additional: "x,y #rrggbb" — หน่วงก่อนตรวจ (วินาที) อยู่ในคอลัมน์ Secs
         รองรับ Search Area ไม่ได้ (เป็นจุดเดียว) — timeout 30 วิเหมือน Wait for Image"""
-        spec = parse_pixel_spec(r.get("additional"))
+        raw, timeout = parse_wait_timeout(r.get("additional"), 30)
+        spec = parse_pixel_spec(raw)
         if not spec:
             self._ui_state["msg"] = ("Wait for Pixel Color: รูปแบบ Additional ไม่ถูกต้อง "
-                                     "(ต้องเป็น x,y #rrggbb)", "#c00")
+                                     "(ต้องเป็น x,y #rrggbb และตามด้วย timeout เช่น 60s ได้)", "#c00")
             return
         x, y, rgb = spec
         lo, _hi = delay_range(r.get("secs"))
         if not self._sleep_check(max(0.0, lo) / max(0.01, self._speed_mult), self._play_gen):
             return
-        deadline = time.time() + 30
+        deadline = time.time() + timeout
         while time.time() < deadline and self._gen_ok(self._play_gen):
             if color_close(pixel_color_at(x, y), rgb):
                 self._ui_state["msg"] = ("Wait for Pixel Color: เจอสีที่รอ (%d,%d)" % (x, y), "#080")
                 return
             time.sleep(0.25)
-        self._ui_state["msg"] = ("Wait for Pixel Color: ไม่เจอสีภายใน 30 วิ (%d,%d)" % (x, y), "#a60")
+        self._ui_state["msg"] = ("Wait for Pixel Color: ไม่เจอสีภายใน %d วิ (%d,%d)"
+                                 % (timeout, x, y), "#a60")
 
     def _do_image_click(self, r):
         """หาภาพย่อยบนหน้าจอแล้วคลิกที่จุดศูนย์กลาง
@@ -2075,6 +2235,41 @@ class MacroApp:
                         self._backup_days = BACKUP_KEEP_DAYS
                     if data.get("lang") in ("th", "en"):
                         self._lang = data["lang"]
+                    # ค่าการเล่น + ตารางเวลา (v1.19) — คืนค่าให้แถบเครื่องมือ/ตั้งค่าเดิม
+                    try:
+                        sp = float(data.get("speed", 1))
+                        if 0.1 <= sp <= 10:
+                            self.cmb_speed.set("%g" % sp)
+                    except (TypeError, ValueError):
+                        pass
+                    try:
+                        lp = max(0, int(data.get("loops", 1)))
+                        self.ent_loops.delete(0, "end")
+                        self.ent_loops.insert(0, str(lp))
+                    except (TypeError, ValueError):
+                        pass
+                    self.chk_forever.set(bool(data.get("forever", False)))
+                    self.chk_restore.set(bool(data.get("restore", False)))
+                    self.chk_shuffle.set(bool(data.get("shuffle", False)))
+                    try:
+                        pc = max(5, min(100, int(data.get("pct", 100))))
+                        self.ent_pct.delete(0, "end")
+                        self.ent_pct.insert(0, str(pc))
+                    except (TypeError, ValueError):
+                        pass
+                    sm = data.get("sched_mode")
+                    if sm in ("interval", "daily"):
+                        self._sched_mode = sm
+                        try:
+                            self._sched_every = max(1, min(1440, int(data.get("sched_every", 10))))
+                        except (TypeError, ValueError):
+                            self._sched_every = 10
+                        at = data.get("sched_at", "")
+                        if re_match_hhmm(at):
+                            self._sched_at = at
+                        self._sched_last = ""
+                        if sm == "interval":
+                            self._sched_next = time.time() + self._sched_every * 60
             except Exception:
                 pass
 
@@ -2108,7 +2303,17 @@ class MacroApp:
                            "hot_profile_dir": self._hp_dir,
                            "backup_enabled": self._backup_enabled,
                            "backup_days": self._backup_days,
-                           "lang": self._lang},
+                           "lang": self._lang,
+                           # ค่าการเล่น + ตารางเวลา (v1.19) — จำไว้เปิดครั้งหน้า
+                           "speed": self.cmb_speed.get(),
+                           "loops": self.ent_loops.get(),
+                           "forever": self.chk_forever.get(),
+                           "restore": self.chk_restore.get(),
+                           "shuffle": self.chk_shuffle.get(),
+                           "pct": self._play_options(),
+                           "sched_mode": getattr(self, "_sched_mode", "") or "",
+                           "sched_every": getattr(self, "_sched_every", 10),
+                           "sched_at": getattr(self, "_sched_at", "") or ""},
                           fh, ensure_ascii=False, indent=2)
         except OSError:
             pass
@@ -2807,6 +3012,7 @@ def cli_main(argv):
     kb_ctl = KbController()
     running = [True]
     pending_keys = []            # คีย์/ปุ่มที่กดค้าง (Press Key / Down) — ปล่อยตอนหยุด
+    cli_vars = {}                # ตัวแปรของการเล่น (v1.19) — เริ่มใหม่ทุกครั้งที่เริ่มเล่น
     speed = min(10.0, max(0.1, args.speed))
 
     def do_step(r):
@@ -2856,6 +3062,10 @@ def cli_main(argv):
                 kb_ctl.tap(KeyCode.from_char(ch))
         elif btn == WAIT_PIXEL:
             cli_pixel_ready(r)                       # เช็คครั้งเดียว (CLI ไม่รอ — โปรแกรมอื่นคุมเวลาแทน)
+        elif btn == "Set Variable":                  # ตัวแปรในสคริปต์ (v1.19)
+            if not apply_set_var(cli_vars, r.get("additional", "")):
+                print("  Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น name = ค่า หรือ name += จำนวน"
+                      % (r.get("additional") or ""))
         elif btn == "Beep":
             print("\a", end="", flush=True)
         else:
@@ -2869,7 +3079,10 @@ def cli_main(argv):
                     mod.run(ctx, dict(r))
                 except Exception as exc:
                     print("  plugin error (%s): %s" % (btn, exc))
-        # (หมายเหตุ: Image Click/Wait for Image ยังไม่รองรับใน CLI — ใช้ GUI)
+            else:
+                # v1.19: เตือนชัด ๆ แทนการข้ามเงียบ ๆ — Image Click/Wait for Image/
+                # If Image/Else Image/คลิก+Modifier/Move Mouse/Launch App ยังใช้ GUI เท่านั้น
+                print("  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn)
 
     # หยุดด้วย F8/Esc ได้ทุกที่ — ใช้ Listener จับคู่เอง (เหตุผลเดียวกับ GUI v1.8)
     _stop_keys = {keyboard.Key.f8, keyboard.Key.esc}
@@ -2969,6 +3182,7 @@ def cli_main(argv):
         try:
             loops = 0 if args.loop else max(0, args.loops)
             active = [r for r in rows if r.get("enabled", True) is not False]
+            cli_vars.clear()                 # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
             n_loop = 0
             while True:
                 n_loop += 1
@@ -2977,6 +3191,7 @@ def cli_main(argv):
                 for i, r in enumerate(play_rows, 1):
                     if not running[0]:
                         return False
+                    r = subst_row(r, cli_vars)   # v1.19: แทน {ตัวแปร} ทุกคอลัมน์
                     lo, hi = delay_range(r.get("secs", 1))
                     base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else random.uniform(lo, hi))
                     # หยุดทันทีกลางดีเลย์: แบ่ง sleep ชิ้นละ 50 ms เช็ค running ทุกชิ้น

@@ -9,6 +9,7 @@ Unit tests สำหรับฟังก์ชันล้วน ๆ ของ 
 import json
 import os
 import random
+import re
 import sys
 import time
 import unittest
@@ -1385,8 +1386,13 @@ class TestPlayLoopFixes(unittest.TestCase):
                 ["☑", 3, "", "", "Beep", "", "0", "1", "1"]]
         app.tree.get_children.return_value = ["i1", "i2", "i3"]
         app.tree.item.side_effect = lambda iid, key: {"values": vals[int(iid[1]) - 1]}[key]
-        rows = am.MacroApp._rows_for_play(app)          # เดิม: AttributeError — เมธอดหาย
+        rows, iids = am.MacroApp._rows_and_iids_for_play(app)   # เดิม: AttributeError — เมธอดหาย
         self.assertEqual([r["button"] for r in rows], ["Beep", "Beep"])
+        self.assertEqual(iids, ["i1", "i3"])                    # iid ตรงกับแถวที่เล่นจริง (ไฮไลต์)
+        # _rows_for_play delegate ผ่าน _rows_and_iids_for_play — เดินสายจริงให้ mock ใช้
+        app._rows_and_iids_for_play = lambda: am.MacroApp._rows_and_iids_for_play(app)
+        self.assertEqual([r["button"] for r in am.MacroApp._rows_for_play(app)],
+                         ["Beep", "Beep"])
 
     def test_play_options_clamps(self):
         app = mock.MagicMock()
@@ -1437,8 +1443,11 @@ class TestPlayLoopGui(unittest.TestCase):
         cls.steps = []
         cls.expected_gen = None            # นับเฉพาะ STEP ของการเล่นรุ่นปัจจุบัน
         def counting_log(mode, message, src=None):
+            # นับเฉพาะ STEP ของเธรดรุ่น >= expected_gen (รุ่นเก่ากว่า = ของค้างจากเทสต์ก่อนหน้า)
+            # หมายเหตุ: ตั้ง expected ก่อน start แล้วใช้ >= เพราะ player (v1.19) ไม่แตะ Tk
+            # อีกต่อไป — แถวแรกอาจ log เสร็จก่อน start() จะอ่าน _play_gen กลับ
             if (mode == "STEP" and cls.expected_gen is not None
-                    and cls.app is not None and cls.app._play_gen == cls.expected_gen):
+                    and cls.app is not None and cls.app._play_gen >= cls.expected_gen):
                 cls.steps.append(message)
             return cls._orig_log(mode, message, src)
         am.log_write = counting_log
@@ -1512,8 +1521,8 @@ class TestPlayLoopGui(unittest.TestCase):
                 self.root.after(30, poll)
 
         def start():
+            self.__class__.expected_gen = self.app._play_gen   # เริ่มนับจากรุ่นนี้เป็นต้นไป
             start_fn()
-            self.__class__.expected_gen = self.app._play_gen   # เริ่มนับเฉพาะรุ่นนี้
             self.root.after(30, poll)
 
         self.root.after(30, start)
@@ -1569,6 +1578,299 @@ class TestPlayLoopGui(unittest.TestCase):
                              lambda: not self.app.running)
         self.assertTrue(ok)
         self.assertEqual(len(self.steps), 2)
+
+    def test_set_variable_in_script(self):
+        """Set Variable ต้องตั้งค่าจริงระหว่างเล่น + ค่าค้างใช้ต่อในแถวถัดไป (v1.19)"""
+        self._clean_table(0)
+        self.app._append_row(button="Set Variable", additional="n = 5")
+        self.app._append_row(button="Set Variable", additional="n += 2")
+        self.app._append_row(button="Set Variable", additional="n += 3")
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: not self.app.running)
+        self.assertTrue(ok)
+        self.assertEqual(len(self.steps), 3)
+        self.assertEqual(self.app._vars.get("n"), "10")
+
+    def test_variables_substituted_in_playback(self):
+        """{ตัวแปร} ในช่องอื่นต้องถูกแทนก่อนเล่น — ใช้ Secs เป็นตัวพิสูจน์ (แถว Beep วินาทีที่ 0)
+        แถวแรกตั้ง d = 0 แล้ว Beep ด้วย secs {d} ต้องไม่ delay (จบเร็ว)"""
+        self._clean_table(0)
+        self.app._append_row(button="Set Variable", additional="d = 0")
+        self.app._append_row(button="Beep", secs="{d}")
+        self.app._append_row(button="Beep", secs="{d}")
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: not self.app.running,
+                             timeout=6.0)
+        self.assertTrue(ok)
+        self.assertEqual(len(self.steps), 3)          # 3 แถว = 3 STEP (Set, Beep, Beep)
+        self.assertEqual(self.app._vars.get("d"), "0")
+        self.app._hp_dir = None
+
+    def test_hot_profile_loads_and_plays(self):
+        """F1 hot-profile: โหลดไฟล์ลำดับแรกจากโฟลเดอร์แล้วเล่นทันที"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for name in ("a.json", "b.json"):
+                with open(os.path.join(d, name), "w", encoding="utf-8") as fh:
+                    fh.write('[{"enabled": true, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1}]')
+            self.app._hp_dir = d
+            self.steps.clear()
+            ok = self._run_until(lambda: self.app._hot_profile_load(1),
+                                 lambda: not self.app.running)
+            self.assertTrue(ok)
+            self.assertTrue(self.app._loaded_file.endswith("a.json"))
+            self.assertEqual(len(self.steps), 1)      # a.json มี 1 แถว
+        self.app._hp_dir = None
+
+    def test_record_mechanism_moves_pending_rows_to_table(self):
+        """กลไก RECORD: listener ผลักแถวเข้า _pending_rows → poller ย้ายเข้าตารางเอง"""
+        app = self.app
+        app.tree.delete(*app.tree.get_children())
+        app.toggle_record()
+        self.assertTrue(app.recording)
+        try:
+            app._pending_rows.append(dict(x=11, y=22, button="Left Click",
+                                          additional="", mins=0, secs=0.5, repeat=1))
+            ok = self._run_until(lambda: None,
+                                 lambda: len(app.tree.get_children()) == 1)
+            self.assertTrue(ok)
+            vals = app.tree.item(app.tree.get_children()[0], "values")
+            self.assertEqual(vals[4], "Left Click")
+        finally:
+            app.toggle_record()
+        self.assertFalse(app.recording)
+
+
+class TestWaitTimeout(unittest.TestCase):
+    """v1.19: timeout ตั้งได้จากท้าย Additional เช่น "logo.png 60s" / "100,200 #fff 45s" """
+
+    def test_seconds_token_extracted(self):
+        cleaned, t = am.parse_wait_timeout("100,200 #ff0000 60s")
+        self.assertEqual((cleaned, t), ("100,200 #ff0000", 60))
+
+    def test_default_when_missing(self):
+        self.assertEqual(am.parse_wait_timeout("logo.png"), ("logo.png", 30))
+        self.assertEqual(am.parse_wait_timeout("logo.png", 45), ("logo.png", 45))
+
+    def test_clamped_to_valid_range(self):
+        _c, t = am.parse_wait_timeout("a.png 99999s", 30)
+        self.assertEqual(t, 3600)                      # พлюงขอบบน
+        _c2, t2 = am.parse_wait_timeout("a.png 0s", 30)
+        self.assertEqual(t2, 1)                        # ขอบล่าง
+
+    def test_path_with_s_suffix_not_confused(self):
+        # ไฟล์ที่ลงท้าย s แต่ไม่มีช่องว่างนำหน้า ต้องไม่ถูกตัด
+        cleaned, t = am.parse_wait_timeout("buttons.png")
+        self.assertEqual((cleaned, t), ("buttons.png", 30))
+
+
+class TestVariables(unittest.TestCase):
+    """v1.19: ตัวแปรในสคริปต์ — Set Variable + แทน {ชื่อ} ในช่องอื่น"""
+
+    def test_action_registered(self):
+        self.assertIn("Set Variable", am.ACTIONS_ALL)
+
+    def test_parse_set_var(self):
+        self.assertEqual(am.parse_set_var("n = 5"), ("n", "=", "5"))
+        self.assertEqual(am.parse_set_var("  n += 2 "), ("n", "+=", "2"))
+        self.assertEqual(am.parse_set_var("name -= 1.5"), ("name", "-=", "1.5"))
+        self.assertEqual(am.parse_set_var("msg = สวัสดี"), ("msg", "=", "สวัสดี"))
+        self.assertEqual(am.parse_set_var("รอบ += 1"), ("รอบ", "+=", "1"))   # ชื่อไทยได้
+        self.assertIsNone(am.parse_set_var("2n = 5"))          # ชื่อต้องขึ้นต้นตัวอักษร/_
+        self.assertIsNone(am.parse_set_var("no_value"))
+        self.assertIsNone(am.parse_set_var(""))
+
+    def test_substitute_vars(self):
+        self.assertEqual(am.substitute_vars("รอ {n} วิ", {"n": "3"}), "รอ 3 วิ")
+        self.assertEqual(am.substitute_vars("{a}-{b}", {"a": 1, "b": 2}), "1-2")
+        self.assertEqual(am.substitute_vars("{nope}", {}), "{nope}")   # ไม่มีคงเดิม
+        self.assertEqual(am.substitute_vars(None, {}), "")
+
+    def test_apply_set_var(self):
+        v = {}
+        self.assertTrue(am.apply_set_var(v, "n = 5"))
+        self.assertEqual(v, {"n": "5"})
+        self.assertTrue(am.apply_set_var(v, "n += 2"))
+        self.assertTrue(am.apply_set_var(v, "n += 0.5"))
+        self.assertEqual(v["n"], "7.5")                        # fmt_num ตัด .0 ให้
+        self.assertTrue(am.apply_set_var(v, "n -= 10"))
+        self.assertEqual(v["n"], "-2.5")
+        self.assertTrue(am.apply_set_var(v, "msg = {n} ครั้ง"))   # ค่าอ้างตัวแปรอื่นได้
+        self.assertEqual(v["msg"], "-2.5 ครั้ง")
+        self.assertFalse(am.apply_set_var(v, "n += ไม่ใช่ตัวเลข"))  # += ต้องเป็นเลข
+        self.assertFalse(am.apply_set_var(v, "รูปแบบพัง"))
+
+    def test_subst_row_replaces_all_columns(self):
+        v = {"x": "10", "d": "2"}
+        out = am.subst_row({"button": "Beep", "x": "{x}", "y": "0", "additional": "",
+                            "mins": 0, "secs": "{d}", "repeat": "{d}"}, v)
+        self.assertEqual(out["x"], "10")
+        self.assertEqual(out["secs"], "2")
+        self.assertEqual(out["repeat"], "2")
+
+    def test_validate_requires_format(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        ok = am.MacroApp._validate_rows(
+            app, [{"button": "Set Variable", "additional": "n = 1"}])
+        self.assertTrue(ok)
+        ok2 = am.MacroApp._validate_rows(
+            app, [{"button": "Set Variable", "additional": "พัง"}])
+        self.assertFalse(ok2)
+
+
+class TestSchedCheck(unittest.TestCase):
+    """v1.19: แยก _sched_check ออกจากเธรด — ทดสอบเงื่อนไขตรง ๆ
+    (แก้บั๊ก: โหมดรายวันเทียบ "%Y-%m-%d %H:%M" กับ "HH:MM" ไม่มีวันตรงกันเลย)"""
+
+    def _app(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app.running = False
+        return app
+
+    def test_daily_fires_at_matching_time(self):
+        app = self._app()
+        app._sched_mode = "daily"
+        app._sched_at = "09:30"
+        app._sched_last = ""
+        with mock.patch.object(am.time, "strftime", return_value="2026-10-01 09:30"):
+            am.MacroApp._sched_check(app)
+        self.assertEqual(app._sched_q.qsize(), 1)
+
+    def test_daily_fires_once_per_minute(self):
+        app = self._app()
+        app._sched_mode = "daily"
+        app._sched_at = "09:30"
+        app._sched_last = ""
+        with mock.patch.object(am.time, "strftime", return_value="2026-10-01 09:30"):
+            am.MacroApp._sched_check(app)
+            am.MacroApp._sched_check(app)          # นาทีเดียวกัน = ไม่ยิงซ้ำ
+        self.assertEqual(app._sched_q.qsize(), 1)
+
+    def test_daily_ignores_other_times(self):
+        app = self._app()
+        app._sched_mode = "daily"
+        app._sched_at = "09:30"
+        app._sched_last = ""
+        with mock.patch.object(am.time, "strftime", return_value="2026-10-01 14:05"):
+            am.MacroApp._sched_check(app)
+        self.assertEqual(app._sched_q.qsize(), 0)
+
+    def test_interval_rearms(self):
+        app = self._app()
+        app._sched_mode = "interval"
+        app._sched_every = 10
+        app._sched_next = 1000.0
+        am.MacroApp._sched_check(app, now=2000.0)
+        self.assertEqual(app._sched_q.qsize(), 1)
+        self.assertEqual(app._sched_next, 2000.0 + 10 * 60)   # เลื่อนเป้าถัดไป
+
+    def test_no_mode_is_noop(self):
+        app = self._app()
+        app._sched_mode = ""
+        am.MacroApp._sched_check(app, now=2000.0)
+        self.assertEqual(app._sched_q.qsize(), 0)
+
+
+class TestPersistSettings(unittest.TestCase):
+    """v1.19: จำค่าการเล่น + ตารางเวลาลง macro_conf.json (เดิมหายทุกครั้งที่ปิดโปรแกรม)"""
+
+    def test_save_load_roundtrip(self):
+        import tempfile
+        app = mock.MagicMock()
+        app._serialize.return_value = [{"button": "Beep"}]
+        app._log_enabled = True
+        app._hp_dir = None
+        app._backup_enabled = True
+        app._backup_days = 7
+        app._lang = "th"
+        app.cmb_speed.get.return_value = "2"
+        app.ent_loops.get.return_value = "3"
+        app.chk_forever.get.return_value = True
+        app.chk_restore.get.return_value = False
+        app.chk_shuffle.get.return_value = True
+        app.ent_pct.get.return_value = "50"
+        app._play_options = lambda: 50          # อ่านค่าจาก widget จำลอง
+        app._sched_mode = "interval"
+        app._sched_every = 15
+        app._sched_at = ""
+        with tempfile.TemporaryDirectory() as d:
+            conf = os.path.join(d, "macro_conf.json")
+            with mock.patch.object(am, "CONF", conf):
+                am.MacroApp._save_conf(app)
+                self.assertTrue(os.path.isfile(conf))
+                with open(conf, encoding="utf-8") as fh:
+                    data = json.load(fh)
+                self.assertEqual(data["speed"], "2")
+                self.assertEqual(data["loops"], "3")
+                self.assertTrue(data["forever"])
+                self.assertTrue(data["shuffle"])
+                self.assertEqual(data["pct"], 50)
+                self.assertEqual(data["sched_mode"], "interval")
+                self.assertEqual(data["sched_every"], 15)
+                # โหลดกลับเข้าเครื่องจำลอง
+                app2 = mock.MagicMock()
+                app2._serialize.return_value = []
+                am.MacroApp._load_conf(app2)
+        app2.ent_loops.delete.assert_called()          # ค่าถูก set กลับเข้า widget
+        app2.chk_forever.set.assert_called_with(True)
+        self.assertEqual(app2._sched_mode, "interval")
+        self.assertEqual(app2._sched_every, 15)
+        self.assertGreater(app2._sched_next, 0)        # interval ถูกตั้งเวลาเล่นรอบแรก
+
+
+class TestApplyPixelSpec(unittest.TestCase):
+    """v1.19: ปุ่ม 🎨 จับสี — ใส่ spec ลงแถว Wait for Pixel Color ที่เลือก หรือสร้างแถวใหม่"""
+
+    def test_fills_selected_wait_pixel_row(self):
+        app = mock.MagicMock()
+        stored = {"values": ["☑", 1, "", "", am.WAIT_PIXEL, "old", 0, 1, 1]}
+
+        def fake_item(*args, **kw):
+            if "values" in kw:
+                stored["values"] = list(kw["values"])
+                return None
+            return stored["values"]
+
+        app.tree.selection.return_value = ["i1"]
+        app.tree.item.side_effect = fake_item
+        ok = am.MacroApp._apply_pixel_spec(app, "100,200 #ff0000")
+        self.assertTrue(ok)
+        self.assertEqual(stored["values"][5], "100,200 #ff0000")
+        app._append_row.assert_not_called()
+
+    def test_appends_new_row_when_other_action_selected(self):
+        app = mock.MagicMock()
+        app.tree.selection.return_value = ["i1"]
+        app.tree.item.return_value = ["☑", 1, "", "", "Beep", "", 0, 1, 1]
+        ok = am.MacroApp._apply_pixel_spec(app, "5,6 #00ff00")
+        self.assertFalse(ok)
+        app._append_row.assert_called_once()
+        self.assertEqual(app._append_row.call_args.kwargs.get("button"), am.WAIT_PIXEL)
+
+    def test_appends_when_nothing_selected(self):
+        app = mock.MagicMock()
+        app.tree.selection.return_value = []
+        am.MacroApp._apply_pixel_spec(app, "1,2 #ffffff")
+        app._append_row.assert_called_once()
+
+
+class TestVersionConsistency(unittest.TestCase):
+    """v1.19: เวอร์ชันมีแหล่งเดียว (__version__) — ป้องกัน docstring/CHANGELOG ค้างเก่า"""
+
+    def test_app_title_uses_version_constant(self):
+        self.assertEqual(am.APP_TITLE,
+                         "Auto Mouse & Keyboard Macro v" + am.__version__)
+        self.assertTrue(re.fullmatch(r"\d+\.\d+\.\d+", am.__version__))
+
+    def test_changelog_has_current_version_section(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(am.__file__)),
+                            "docs", "CHANGELOG.md")
+        with open(path, encoding="utf-8") as fh:
+            content = fh.read()
+        self.assertIn("## [%s]" % am.__version__, content)
 
 
 if __name__ == "__main__":

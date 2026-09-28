@@ -4,6 +4,50 @@
 
 ---
 
+## [1.19.0] — 2026-09-28
+
+### ✨ เพิ่มใหม่
+- **🔤 ตัวแปรในสคริปต์ (ดึงจาก ROADMAP)** — Action ใหม่ **Set Variable**:
+  `name = ค่า`, `name += จำนวน`, `name -= จำนวน` (ชื่อไทย/อังกฤษได้) แล้วเรียกใช้
+  ด้วย `{name}` ในช่อง X/Y/Additional/Mins/Secs/Repeat ได้ทุกแถว ทั้ง GUI และ CLI
+  — ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น · เดโม่ `examples/08_variables.json`
+- **🎨 ปุ่มจับสีจากจอ (Eyedropper)** — คลิกจุดบนจอ โปรแกรมอ่านสีจริงแล้วใส่ `x,y #rrggbb`
+  ให้แถว Wait for Pixel Color ที่เลือกอยู่ทันที (ไม่ใช่แถวนี้ = สร้างแถวใหม่ให้)
+- **⏱ Timeout ตั้งได้** — Wait for Image / Wait for Pixel Color ต่อท้าย Additional ด้วย
+  `60s` = รอสูงสุด 60 วิ (ไม่ใส่ = 30 วิเหมือนเดิม)
+- **💾 จำค่าการตั้งค่าตอนปิดโปรแกรม** — ความเร็ว/รอบ/วนซ้ำไม่จำกัด/คืนเมาส์จุดเดิม/
+  สุ่มลำดับ/สัดส่วน และตารางเวลาเล่นอัตโนมัติ (โหมด/ทุก N นาที/HH:MM) ถูกจำใน
+  macro_conf.json — เดิมหายทุกครั้งที่ปิด ต้องตั้งใหม่ทุกวัน
+- **⚠ CLI เตือน action ที่ยังไม่รองรับ** — สคริปต์ที่มี Image Click/Move Mouse ฯลฯ
+  รันผ่าน CLI จะ print รายแถวว่าข้ามเพราะอะไร (เดิมข้ามเงียบ ๆ ผู้ใช้คิดว่าเล่นครบ)
+
+### 🐛 แก้บั๊ก
+- **⏰ Schedule โหมดรายวันไม่เคยเริ่มเล่น** — เทียบเวลา "%Y-%m-%d %H:%M" กับค่า "HH:MM"
+  ไม่มีวันเท่ากันได้เลย → แยกเทียบเฉพาะชั่วโมง:นาที (แยก `_sched_check()` ออกจากเธรด
+  เพื่อทดสอบตรงจุด)
+- **📸 ปุ่มจับภาพซ้อนทับทุกครั้งที่ใช้** — โค้ดสร้างปุ่มค้างท้าย `_capture_snip`
+  ทำให้จับภาพกี่ครั้งปุ่ม 📸 เพิ่มกี่อัน — ลบทิ้ง
+- **🎯 ไฮไลต์แถวเพี้ยนเมื่อมีแถวปิด (☐)** — player นับลำดับเฉพาะแถวที่เล่น แต่ชี้ตำแหน่ง
+  ในตารางทั้งหมด → ส่ง iid ของแถวตรง ๆ มาตั้งแต่ START (ผูกกับ refactor ด้านล่าง)
+- 🪶 `pixel_color_at` อ่านสีด้วย grab เฉพาะกรอบ 1×1 แทนทั้งจอ — เบาตอนรอสีมาก
+- 🧵 player thread ไม่เรียก Tk ข้ามเธรดอีกต่อไป (Beep ขอผ่าน poller, ไฮไลต์ผ่าน iid
+  ที่ส่งมาตั้งแต่ START) — ลดความเปราะกรณี mainloop ไม่ได้รัน
+
+### 🧹 อื่น ๆ
+- เวอร์ชันมีแหล่งเดียว `__version__` + เทสต์เช็คว่า APP_TITLE และ CHANGELOG ตรงกัน
+- ย้าย `demo_script.json` / `demo_move_click.json` เข้า `examples/` (อัพเดตลิงก์ใน README)
+- Launch App รองรับ macOS (`open`) นอกจาก Windows/Linux · ทำความสะอาด import ใน `load_plugins`
+- CI: bump actions/checkout v4→v7, setup-python v5→v7 (แก้ warning Node 20) ·
+  แนบผล unit tests ลง Step Summary ของหน้า run (ดูได้ไม่ต้องล็อกอิน)
+
+### 🧪 ทดสอบ
+- เพิ่ม TestWaitTimeout + TestVariables + TestSchedCheck + TestPersistSettings +
+  TestApplyPixelSpec + TestVersionConsistency + GUI (ตัวแปร/hot-profile/กลไก RECORD)
+  + E2E (CLI เตือน action ไม่รองรับ, Set Variable ใน CLI)
+  → รวม **174 unit + 10 E2E tests ผ่านหมด**
+
+---
+
 ## [1.18.1] — 2026-09-28
 
 ### 🐛 แก้บั๊ก

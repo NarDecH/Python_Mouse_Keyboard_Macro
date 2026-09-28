@@ -279,5 +279,55 @@ class TestE2EUtility(unittest.TestCase):
         self.assertEqual(len(bells), 2)                  # บี๊บ 2 ครั้ง
 
 
+class TestE2ECliWarnings(unittest.TestCase):
+    """v1.19: CLI ต้องเตือนชัด ๆ เมื่อเจอ action ที่ยังไม่รองรับ (ไม่ข้ามเงียบ ๆ)"""
+
+    def _script(self, rows):
+        d = tempfile.mkdtemp(prefix="macro_e2e_warn_")
+        p = os.path.join(d, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        return p
+
+    def test_warns_on_unsupported_action(self):
+        # Move Mouse = action ที่ CLI ยังไม่ทำ (ต้องไม่ขยับเมาส์จริง) → เตือนแล้วเล่นแถวอื่นต่อ
+        script = self._script([
+            {"enabled": True, "button": "Move Mouse", "x": 5, "y": 5,
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            self.assertIn("ยังไม่รองรับใน CLI", out)
+            self.assertIn("Move Mouse", out)
+            self.assertIn("จบแล้ว", out)
+        finally:
+            ch.close()
+
+    def test_set_variable_runs_in_cli(self):
+        # ตัวแปรในสคริปต์ทำงานใน CLI ด้วย — ตั้ง/บวก/อ้างอิง {n} ใน secs
+        script = self._script([
+            {"enabled": True, "button": "Set Variable", "additional": "n = 1",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Set Variable", "additional": "n += 4",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": "{n}", "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            self.assertIn("จบแล้ว", out)      # secs {n} = 5 วิ แต่ Beep ทำงานและจบครบ
+            self.assertIn("Beep", out)
+        finally:
+            ch.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

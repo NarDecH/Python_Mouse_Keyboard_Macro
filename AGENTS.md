@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.18.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.19.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -70,6 +70,18 @@
   แก้เป็นวนจน STOP; **schedule ใช้ `_start_player(False, once=True)`** เล่นรอบเดียวต่อการเรียก
   (3) `_player` เดิมบังคับ `_shuffle=False/_pct=100` ทับค่าจาก UI → สุ่มลำดับ/สัดส่วนไม่มีผล
   (4) `on_kb` อ้างตัวแปร `pressed` ที่ไม่มีจริง → กดคีย์ตอน RECORD เป็น NameError ไม่มีแถวถูกอัด
+- **ฟีเจอร์เสริม v1.19:** ตัวแปรในสคริปต์ (`Set Variable` + `VAR_ACTIONS` — parse ผ่าน
+  `parse_set_var`/`apply_set_var`, แทนค่าผ่าน `subst_row`/`substitute_vars` ด้วย `{ชื่อ}` —
+  ชื่อไทยได้ `_VAR_NAME` รวม mark ไทย, เริ่มใหม่ทุกครั้งที่เริ่มเล่น `self._vars`/`cli_vars`
+  — ⚠️ `cli_vars` ต้องอยู่ scope ของ `cli_main` ไม่ใช่ `play_once` เพราะ `do_step` closure
+  มองไม่เห็น), ปุ่ม 🎨 จับสี (`_pick_pixel_color` + `_apply_pixel_spec`),
+  timeout ตั้งได้ (`parse_wait_timeout` — token `60s` ท้าย Additional),
+  จำค่าการเล่น+schedule ลง conf, CLI เตือน action ไม่รองรับ,
+  **player thread ไม่เรียก Tk แล้ว** — `_start_player` ส่ง `items = [(row, iid)]`,
+  beep ขอผ่าน `_ui_state["beep"]` ให้ poller เป็นคน `bell()`, ไฮไลต์ใช้ iid ตรง
+  (แก้เพี้ยนเมื่อมีแถวปิด), `_sched_check()` แยกออกจากเธรด (โหมดรายวันเทียบเฉพาะ
+  HH:MM — เดิมเทียบผิดรูปแบบไม่มีวันติด), `pixel_color_at` grab 1×1,
+  เวอร์ชันแหล่งเดียว `__version__` + TestVersionConsistency กันเอกสารค้าง
 
 ## เทคโนโลยี
 

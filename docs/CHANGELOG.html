@@ -65,8 +65,56 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.18.1</h2>
+      <h2>เวอร์ชัน 1.19.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เพิ่มใหม่</h3>
+    <ul>
+      <li><b>🔤 ตัวแปรในสคริปต์</b> — Action ใหม่ <b>Set Variable</b>:
+        <code>name = ค่า</code>, <code>name += จำนวน</code>, <code>name -= จำนวน</code>
+        (ชื่อไทย/อังกฤษได้) เรียกใช้ด้วย <code>{name}</code> ในช่องอื่นได้ทุกช่อง ทั้ง GUI และ CLI
+        · เดโม่ <code>examples/08_variables.json</code></li>
+      <li><b>🎨 ปุ่มจับสีจากจอ</b> — คลิกจุดบนจอ อ่านสีจริงแล้วใส่ <code>x,y #rrggbb</code>
+        ให้แถว Wait for Pixel Color ที่เลือกอยู่ทันที</li>
+      <li><b>⏱ Timeout ตั้งได้</b> — Wait for Image / Wait for Pixel Color ต่อท้าย
+        Additional ด้วย <code>60s</code> = รอสูงสุด 60 วิ (ค่าเริ่มต้น 30 วิ)</li>
+      <li><b>💾 จำค่าการตั้งค่าตอนปิดโปรแกรม</b> — ความเร็ว/รอบ/วนซ้ำ/คืนเมาส์/สุ่ม/สัดส่วน
+        และตารางเวลาเล่นอัตโนมัติ ถูกจำใน macro_conf.json (เดิมหายทุกครั้งที่ปิด)</li>
+      <li><b>⚠ CLI เตือน action ที่ยังไม่รองรับ</b> — รายแถว ชัด ๆ ว่าข้ามเพราะอะไร
+        (เดิมข้ามเงียบ ๆ)</li>
+    </ul>
+
+    <h3>🐛 แก้บั๊ก</h3>
+    <ul>
+      <li><b>⏰ Schedule โหมดรายวันไม่เคยเริ่มเล่น</b> — เทียบเวลาผิดรูปแบบ
+        (<code>%Y-%m-%d %H:%M</code> กับ <code>HH:MM</code>) — เทียบเฉพาะ ชม:นาที
+        และแยก <code>_sched_check()</code> ออกมาทดสอบได้</li>
+      <li><b>📸 ปุ่มจับภาพซ้อนทับทุกครั้งที่ใช้</b> — โค้ดสร้างปุ่มค้างท้าย
+        <code>_capture_snip</code> — ลบทิ้ง</li>
+      <li><b>🎯 ไฮไลต์แถวเพี้ยนเมื่อมีแถวปิด (☐)</b> — ส่ง iid ของแถวตรง ๆ แทนการนับ index
+        · player ไม่เรียก Tk ข้ามเธรดอีกต่อไป (Beep ผ่าน poller) ·
+        อ่านสีด้วย grab 1×1 แทนทั้งจอ</li>
+    </ul>
+
+    <h3>🧹 อื่น ๆ</h3>
+    <ul>
+      <li>เวอร์ชันแหล่งเดียว <code>__version__</code> + เทสต์กันเอกสารค้างเก่า ·
+        ย้าย <code>demo_*.json</code> เข้า <code>examples/</code> · Launch App รองรับ macOS ·
+        CI bump actions เป็น v7 (แก้ warning Node 20)</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม 6 คลาส unit ใหม่ + เทสต์ GUI (ตัวแปร/hot-profile/RECORD) + E2E 2 ตัว →
+        <b>174 unit + 10 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.18.1</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

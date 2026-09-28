@@ -1,0 +1,52 @@
+[
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Variable",
+    "additional": "รอบ = 0",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Variable",
+    "additional": "รอบ += 1",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Beep",
+    "additional": "",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Variable",
+    "additional": "สรุป = ผ่านไปแล้ว {รอบ} รอบ",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Variable",
+    "additional": "รอต่อ = {รอบ} วิ",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  }
+]
