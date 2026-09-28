@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.10
+# 🖱️ Auto Mouse & Keyboard Macro v1.11
 
 <div align="center">
 
@@ -54,6 +54,8 @@
 | 🎬 **16+ actions** | Click / double-click / modifier-click, scroll, move mouse (absolute/relative), save/restore cursor, type text (Thai supported), launch app, wait for image, beep, press/release/tap keys |
 | 🎲 **Shuffle & sampling** | Randomize row order and/or play only x% of rows — resampled every round |
 | 🧙 **Record wizard** | Record → review → trial-play → save, all in one dialog |
+| 📊 **Play statistics** | Aggregated from daily logs: runs, user-stops, watchdog restarts, slowest row |
+| 🩺 **Startup self-check** | Verifies pynput / OpenCV / global hotkey / admin rights — shown in Settings |
 | 🎲 **Random delays** | Secs `1-3` = random 1–3 s per row; speed multiplier 0.25×–4×; return mouse to start |
 | 👤 **Profiles** | Keep multiple scripts and switch instantly (`macro_profiles.json`) |
 | ⏰ **Scheduler** | Play automatically every N minutes or daily at HH:MM |

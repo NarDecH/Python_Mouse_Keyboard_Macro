@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.10
+Auto Mouse & Keyboard Macro  v1.11
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -25,6 +25,9 @@ Auto Mouse & Keyboard Macro  v1.10
   (ตั้งโฟลเดอร์แล้วกด F1–F4 เพื่อโหลดสคริปต์ลำดับที่ 1–4 แล้วเล่นทันที), E2E tests
 - v1.10: เล่นแบบสุ่มลำดับ/สุ่มสัดส่วนแถว (shuffle + %), Record wizard
   (อัด→ตรวจ→ทดลองเล่น→บันทึก ในหน้าต่างเดียว), CLI --watchdog รีสตาร์ตอัตโนมัติเมื่อจบ/พัก
+- v1.11: Self-check ตรวจสุขภาพระบบตอนเปิด (pynput/OpenCV/hotkey/admin แสดงใน Settings),
+  หน้าต่าง 📊 Stats สรุปสถิติการเล่นจาก log (จำนวนรอบ/หยุด/watchdog/แถวที่ช้าสุด),
+  สคริปต์เดโม่เฝ้าระบบ + run_watchdog.bat, หน้าเว็บแนะนำโปรแกรม (docs/LANDING.html)
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -61,7 +64,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.10"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.11"
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -222,6 +225,47 @@ def log_write(mode, message, src=None):
         pass
 
 
+def parse_log_stats(path):
+    """สรุปสถิติจากไฟล์ log 1 ไฟล์ (1 วัน) — ไฟล์ไม่มี = ค่าศูนย์ทั้งหมด
+    คืน dict: runs เริ่มเล่น, steps เหตุการณ์, stops หยุดโดยผู้ใช้,
+    restarts รีสตาร์ต (watchdog), slowest = (บรรทัด, วินาที) แถวที่ใช้เวลานานสุด"""
+    stats = {"runs": 0, "steps": 0, "stops": 0, "restarts": 0, "slowest": None}
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if "[START]" in line:
+                    stats["runs"] += 1
+                elif "[STEP]" in line:
+                    stats["steps"] += 1
+                    m = re.search(r"\(([\d.]+) วิ\)", line)
+                    if m and (stats["slowest"] is None
+                              or float(m.group(1)) > stats["slowest"][1]):
+                        stats["slowest"] = (line.strip(), float(m.group(1)))
+                elif "[STOP]" in line:
+                    stats["stops"] += 1
+                elif "[WATCHDOG]" in line:
+                    stats["restarts"] += 1
+    except OSError:
+        pass
+    return stats
+
+
+def log_stats_summary(base_dir=None):
+    """สรุปสถิติจาก log ทุกวันรวมกัน — ใช้หน้าต่าง 📊 Stats (v1.11)"""
+    d = base_dir or os.path.dirname(os.path.abspath(__file__))
+    files = sorted(glob.glob(os.path.join(d, "macro_log_*.txt")))
+    total = {"files": len(files), "runs": 0, "steps": 0,
+             "stops": 0, "restarts": 0, "slowest": None}
+    for f in files:
+        s = parse_log_stats(f)
+        for k in ("runs", "steps", "stops", "restarts"):
+            total[k] += s[k]
+        if s["slowest"] and (total["slowest"] is None
+                             or s["slowest"][1] > total["slowest"][1]):
+            total["slowest"] = s["slowest"]
+    return total
+
+
 def prune_log(keep=MAX_LOG_LINES):
     """เก็บ log ไว้ไม่เกิน `keep` บรรทัด (ตัดบรรทัดเก่าสุดออก) — เรียกตอนจบการเล่น"""
     try:
@@ -328,6 +372,9 @@ class MacroApp:
         self._load_profiles()
         self._refresh_profile_ui()
         self._load_conf()  # โหลดงานล่าสุดของโปรไฟล์ที่ใช้อยู่ (ถ้ามี)
+        self._self_check()  # ตรวจสุขภาพระบบ (v1.11) — ผลแสดงใน Settings
+        if not (self._checks.get("mouse") and self._checks.get("hotkey")):
+            self._ui_state["msg"] = ("⚠️ self-check: บางส่วนไม่พร้อม — ดูรายละเอียดใน Settings", "#a60")
 
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -350,6 +397,7 @@ class MacroApp:
                 ("📂", "Load", "load_script", "#333"),
                 ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
+                ("📊", "Stats", "view_stats", "#333"),
                 ("⚡", "Hot-profile", "hot_profile_dialog", "#333"),
                 ("⚙️", "Settings", "settings_dialog", "#333"),
                 ("ℹ️", "About", "about", "#333"),
@@ -1596,6 +1644,75 @@ class MacroApp:
 
         refresh()
 
+    # ---------------------------------------------- สถิติการเล่น (v1.11) -----
+    def view_stats(self):
+        """หน้าต่างสรุปสถิติการเล่นจาก log ทุกวัน (v1.11)"""
+        s = log_stats_summary()
+        win = tk.Toplevel(self.root)
+        win.title("สถิติการเล่น (จาก log)")
+        win.resizable(False, False)
+        tk.Label(win, text="📊 สถิติการเล่นย้อนหลัง (รวมทุกวัน)",
+                 font=("Segoe UI", 12, "bold")).pack(padx=24, pady=(16, 8))
+        rows = [("ไฟล์ log (วัน)", "%d วัน" % s["files"]),
+                ("เริ่มเล่นทั้งหมด", "%d ครั้ง" % s["runs"]),
+                ("เหตุการณ์ที่ทำ (STEP)", "%d ครั้ง" % s["steps"]),
+                ("ถูกหยุดโดยผู้ใช้", "%d ครั้ง" % s["stops"]),
+                ("รีสตาร์ตโดย watchdog", "%d ครั้ง" % s["restarts"])]
+        frm = tk.Frame(win)
+        frm.pack(padx=24)
+        for i, (name, val) in enumerate(rows):
+            tk.Label(frm, text=name + ":").grid(row=i, column=0, sticky="e", padx=4, pady=3)
+            tk.Label(frm, text=val, font=("Consolas", 10, "bold"), fg="#06c").grid(
+                row=i, column=1, sticky="w", padx=4, pady=3)
+        slow = s["slowest"]
+        tk.Label(win, justify="left", fg="#555", text=(
+            "แถวที่ใช้เวลานานสุดเท่าที่ log มี:\n" + (slow[0] if slow else "(ยังไม่มีข้อมูล — เล่นสคริปต์ก่อน)")
+        ).replace("  <-", "\n   <-")).pack(padx=24, pady=(10, 4), anchor="w")
+        tk.Button(win, text="เปิด Log viewer", command=self.view_log).pack(pady=(2, 2))
+        tk.Button(win, text="ปิด", width=8, command=win.destroy).pack(pady=(4, 14))
+
+    # ------------------------------------------------ self-check (v1.11) -----
+    def _self_check(self):
+        """ตรวจสุขภาพระบบเมื่อเปิดโปรแกรม — ผลเก็บใน dict แสดงใน Settings"""
+        chk = {}
+        chk["pynput"] = True                                   # import ได้ = ผ่านแน่ (ถึงรันได้)
+        try:
+            chk["mouse"] = self.mouse_ctl.position is not None
+        except Exception:
+            chk["mouse"] = False
+        try:
+            chk["hotkey"] = bool(self._gk and self._gk.is_alive())
+        except Exception:
+            chk["hotkey"] = False
+        chk["opencv"] = HAS_CV
+        try:
+            import ctypes
+            chk["admin"] = bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except Exception:
+            chk["admin"] = False
+        try:
+            chk["conf_writable"] = os.access(
+                os.path.dirname(os.path.abspath(__file__)), os.W_OK)
+        except Exception:
+            chk["conf_writable"] = False
+        self._checks = chk
+        return chk
+
+    def self_check_text(self):
+        """แปลงผล self-check เป็นข้อความ 4 บรรทัด (ทดสอบได้)"""
+        c = getattr(self, "_checks", {})
+        return [
+            ("เมาส์/คีย์บอร์ด (pynput)", c.get("mouse"),
+             "พร้อม" if c.get("mouse") else "ควบคุมไม่ได้ — ลองรันใหม่"),
+            ("Global hotkey (F1-F10)", c.get("hotkey"),
+             "ทำงาน" if c.get("hotkey") else "ไม่ทำงาน — ใช้คีย์เมื่อโฟกัสหน้าต่าง"),
+            ("Image Click (OpenCV)", c.get("opencv"),
+             "พร้อม" if c.get("opencv") else "ไม่มี — pip install opencv-python Pillow"),
+            ("สิทธิ์ Admin", c.get("admin"),
+             "มี (คลิกโปรแกรมที่ต้องสิทธิ์ได้)" if c.get("admin")
+             else "ไม่มี — ถ้าคลิกโปรแกรมอื่นไม่เข้า ลอง Run as Administrator"),
+        ]
+
     # -------------------------------------------------- log viewer (v1.9) ----
     def view_log(self):
         """เปิดหน้าต่างอ่าน log การเล่นย้อนหลัง — เลือกดูไฟล์รายวันได้"""
@@ -1729,6 +1846,11 @@ class MacroApp:
         gk_state = "ทำงานอยู่ ✅ (กดได้ทุกที่)" if self._gk else "ไม่ทำงาน ⚠️ (ต้องโฟกัสหน้าต่าง)"
         tk.Label(win, text="Global Hotkey: " + gk_state,
                  fg="#080" if self._gk else "#a60").pack(pady=(10, 0))
+        tk.Label(win, text="ตรวจสุขภาพระบบ (self-check ตอนเปิดโปรแกรม):",
+                 font=("Segoe UI", 9, "bold")).pack(pady=(10, 2))
+        for name, ok, note in self.self_check_text():
+            tk.Label(win, text="%s %s — %s" % ("✅" if ok else "⚠️", name, note),
+                     fg="#080" if ok else "#a60", justify="left").pack(anchor="w", padx=20)
         tk.Label(win, text="Image Click: " + ("พร้อมใช้ ✅" if HAS_CV else
                  "ยังไม่พร้อม — ติดตั้งด้วย: pip install opencv-python Pillow"),
                  fg="#080" if HAS_CV else "#a60").pack()

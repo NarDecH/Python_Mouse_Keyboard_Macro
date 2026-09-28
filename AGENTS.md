@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.10 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.11 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -26,6 +26,10 @@
 - **ฟีเจอร์เสริม v1.10:** เล่นสุ่มลำดับ/สัดส่วน (`pick_play_order` + `--shuffle/--rows-pct`),
   Record wizard (เมนู 🧙 — ใช้ `_pending_rows` + กลไก RECORD เดิม), CLI `--watchdog`
   (จบแล้วเริ่มใหม่อัตโนมัติ + log `[WATCHDOG]`)
+- **ฟีเจอร์เสริม v1.11:** Self-check ตอนเปิด (`_self_check` + `self_check_text` แสดงใน
+  Settings), สถิติจาก log (`parse_log_stats`/`log_stats_summary` + เมนู 📊 Stats),
+  สคริปต์เฝ้าระบบ `examples/05` + `run_watchdog.bat`, หน้าเว็บ `docs/LANDING.html`
+  ⚠️ ตั้งชื่อคลาสเทสต์ซ้ำกันไม่ได้ — คลาสหลังจะบังคลาสหน้า (เคยทำให้เทสต์ hotkey หาย) ตรวจด้วย `grep -c "class Test"`
 
 ## เทคโนโลยี
 
@@ -106,7 +110,10 @@ build.bat                               # build .exe (หรือ: py -m PyInst
 - **Log:** `log_write(mode, message, src)` เขียน `macro_log_YYYY-MM-DD.txt` (หมุนรายวัน,
   ตัดเกือบเหลือ 500 บรรทัดด้วย `prune_log`) — โหมด START/STEP/STOP/END ทั้ง GUI
   (คุมด้วย `self._log_enabled` จาก Settings, จำใน macro_conf.json) และ CLI (`--no-log`)
-  ดูย้อนหลังจากในโปรแกรมได้ด้วย `view_log()` (เมนู 📝 Log)
+  ดูย้อนหลังจากในโปรแกรมได้ด้วย `view_log()` (เมนู 📝 Log) และสรุปสถิติด้วย
+  `view_stats()` (เมนู 📊) ที่อ่านผ่าน `log_stats_summary()`
+- **Self-check:** `_self_check()` รันตอน __init__ เก็บผลใน `self._checks`
+  (mouse/hotkey/opencv/admin/conf_writable) — แสดงผลผ่าน `self_check_text()` ใน Settings
 - **E2E tests:** `test_e2e.py` รัน CLI จริงเป็น subprocess (สคริปต์ Beep ล้วนปลอดภัย) —
   ทดสอบหยุดผ่าน stop-file กลางดีเลย์ยาว/จบเอง/หยุดก่อนเริ่ม รัน: `py -m unittest test_e2e -v`
   ห้ามถือว่า listener ใช้ได้เพราะ `alive=True` — ต้องทดสอบด้วยการกด/หยุดจริง

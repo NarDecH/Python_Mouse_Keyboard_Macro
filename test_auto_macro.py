@@ -454,7 +454,7 @@ class TestWizardFilename(unittest.TestCase):
         self.assertRegex(am.wizard_filename(), r"^wizard_\d{8}_\d{6}\.json$")
 
 
-class TestMenuItems(unittest.TestCase):
+class TestGlobalHotkeyMapping(unittest.TestCase):
     """Global hotkey (v1.8): ใช้ keyboard.Listener จับคู่คีย์เอง — F6/F8/F9/F10
     ต้องถูกผลักเข้า main thread ผ่าน root.after และคีย์อื่นต้องไม่กระทบ"""
 
@@ -484,6 +484,105 @@ class TestMenuItems(unittest.TestCase):
                   _Key.f1, _Key.f2, _Key.f3, _Key.f4):   # v1.9: รวม hot-profile
             on_press(k)
         self.assertEqual(len(pushed), 8)        # ทุกปุ่มถูกผลักเข้า main thread
+
+
+class TestLogStats(unittest.TestCase):
+    """สรุปสถิติจาก log (v1.11) — เขียน log จำลองใน temp dir"""
+
+    SAMPLE = "\n".join([
+        "08:00:00 [START] เริ่มเล่น (CLI)  <- a.json",
+        "08:00:01 [STEP] รอบ 1 แถว 1/2 Beep (0.2 วิ)  <- a.json",
+        "08:00:03 [STEP] รอบ 1 แถว 2/2 Press Key ctrl (2.5 วิ)  <- a.json",
+        "08:00:03 [END] เล่นจบเองครบ  <- a.json",
+        "08:05:00 [START] เริ่มเล่น (CLI)  <- a.json",
+        "08:05:01 [STEP] รอบ 1 แถว 1/2 Beep (0.1 วิ)  <- a.json",
+        "08:05:02 [STOP] หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)  <- a.json",
+        "08:06:00 [WATCHDOG] รีสตาร์ตครั้งที่ 1 หลังพัก 3 วิ  <- a.json",
+    ]) + "\n"
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        with open(os.path.join(self._tmp.name, "macro_log_2026-09-28.txt"),
+                  "w", encoding="utf-8") as fh:
+            fh.write(self.SAMPLE)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_parse_single_file(self):
+        s = am.parse_log_stats(os.path.join(self._tmp.name, "macro_log_2026-09-28.txt"))
+        self.assertEqual(s["runs"], 2)
+        self.assertEqual(s["steps"], 3)
+        self.assertEqual(s["stops"], 1)
+        self.assertEqual(s["restarts"], 1)
+        self.assertIsNotNone(s["slowest"])
+        self.assertAlmostEqual(s["slowest"][1], 2.5)          # แถวที่ช้าสุด
+        self.assertIn("Press Key ctrl", s["slowest"][0])
+
+    def test_parse_missing_file(self):
+        s = am.parse_log_stats(os.path.join(self._tmp.name, "nope.txt"))
+        self.assertEqual((s["runs"], s["steps"], s["stops"], s["restarts"]), (0, 0, 0, 0))
+        self.assertIsNone(s["slowest"])
+
+    def test_summary_across_files(self):
+        # เพิ่มอีกวัน: ค่ารวมต้องบวกกัน
+        with open(os.path.join(self._tmp.name, "macro_log_2026-09-27.txt"),
+                  "w", encoding="utf-8") as fh:
+            fh.write("10:00:00 [START] เริ่มเล่น (CLI)  <- b.json\n")
+        s = am.log_stats_summary(self._tmp.name)
+        self.assertEqual(s["files"], 2)
+        self.assertEqual(s["runs"], 3)
+        self.assertEqual(s["steps"], 3)
+        self.assertAlmostEqual(s["slowest"][1], 2.5)
+
+    def test_summary_empty_dir(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            s = am.log_stats_summary(d)
+            self.assertEqual(s["files"], 0)
+            self.assertIsNone(s["slowest"])
+
+
+class TestSelfCheck(unittest.TestCase):
+    """self-check ตอนเปิดโปรแกรม (v1.11) — mock ระบบภายนอกทั้งหมด"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        app.mouse_ctl.position = (100, 100)
+        app._gk = mock.MagicMock()
+        app._gk.is_alive.return_value = True
+        return app
+
+    def test_all_ok(self):
+        app = self._app()
+        fake_win = mock.MagicMock()
+        fake_win.shell32.IsUserAnAdmin.return_value = 1
+        with mock.patch.object(am, "HAS_CV", True), \
+             mock.patch("ctypes.windll", fake_win):
+            chk = am.MacroApp._self_check(app)
+        self.assertTrue(all(chk.values()))
+        lines = am.MacroApp.self_check_text(app)
+        self.assertEqual(len(lines), 4)
+        self.assertTrue(all(ok for _, ok, _ in lines))
+
+    def test_hotkey_down_reported(self):
+        app = self._app()
+        app._gk = None
+        chk = am.MacroApp._self_check(app)
+        self.assertFalse(chk["hotkey"])
+        lines = am.MacroApp.self_check_text(app)
+        hot = [note for name, ok, note in lines if "hotkey" in name][0]
+        self.assertIn("โฟกัส", hot)                           # มีคำแนะนำ
+
+    def test_exception_tolerant(self):
+        app = self._app()
+        app.mouse_ctl = mock.MagicMock()
+        type(app.mouse_ctl).position = mock.PropertyMock(side_effect=OSError)
+        app._gk.is_alive.side_effect = RuntimeError
+        chk = am.MacroApp._self_check(app)                    # ต้องไม่ raise
+        self.assertFalse(chk["mouse"])
+        self.assertFalse(chk["hotkey"])
 
 
 class TestMenuItems(unittest.TestCase):

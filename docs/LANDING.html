@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Mouse &amp; Keyboard Macro — สั่งเมาส์+คีย์บอร์ดทำงานแทนคุณ ฟรี</title>
+<style>
+  :root {
+    --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
+    --blue: #2563eb; --ink: #1e293b; --muted: #64748b;
+    --bg: #f4f7f6; --card: #fff; --line: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Noto Sans Thai", Tahoma, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75; font-size: 16px;
+  }
+  .hero {
+    background: linear-gradient(135deg, #14532d 0%, #1f7a34 45%, #2e9e46 100%);
+    color: #fff; text-align: center; padding: 64px 20px 56px;
+  }
+  .hero h1 { font-size: 2.3rem; margin-bottom: 10px; }
+  .hero p.sub { font-size: 1.15rem; opacity: .94; max-width: 720px; margin: 0 auto 26px; }
+  .btn {
+    display: inline-block; background: #fff; color: var(--green-dark);
+    font-weight: 700; font-size: 1.08rem; padding: 14px 34px; border-radius: 999px;
+    text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,.22); margin: 4px 6px;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.ghost { background: rgba(255,255,255,.14); color: #fff; box-shadow: none; border: 1px solid rgba(255,255,255,.55); }
+  .badges { margin-top: 22px; }
+  .badges span {
+    display: inline-block; background: rgba(255,255,255,.16); border-radius: 999px;
+    padding: 4px 14px; margin: 4px; font-size: .85rem;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 34px 20px 60px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px 30px; margin: 22px 0; box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  h2 { color: var(--green-dark); font-size: 1.4rem; margin-bottom: 12px; }
+  .shot { display: block; max-width: 720px; width: 100%; border-radius: 10px;
+          border: 1px solid var(--line); margin: 8px auto; }
+  .caption { text-align: center; color: var(--muted); font-size: .9rem; margin-bottom: 6px; }
+  ul.feats { list-style: none; }
+  ul.feats li { padding: 5px 0 5px 30px; position: relative; }
+  ul.feats li::before { content: "✅"; position: absolute; left: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; }
+  th { background: var(--green-bg); color: var(--green-dark); }
+  td:nth-child(2) { background: #f0fdf4; font-weight: 600; }
+  code, kbd {
+    background: #eef2f0; border-radius: 6px; padding: 2px 7px;
+    font-family: Consolas, monospace; font-size: .9em;
+  }
+  pre {
+    background: #0f172a; color: #e2e8f0; border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; font-size: .9rem; line-height: 1.6;
+  }
+  .steps { counter-reset: st; list-style: none; }
+  .steps li { counter-increment: st; padding: 8px 0 8px 44px; position: relative; }
+  .steps li::before {
+    content: counter(st); position: absolute; left: 0; top: 6px;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--green); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  footer { text-align: center; color: var(--muted); font-size: .88rem; padding: 0 20px 46px; }
+  footer a { color: var(--green-dark); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
+  <p class="sub">สั่งเมาส์และคีย์บอร์ดทำงานแทนคุณแบบอัตโนมัติ — <b>อัดครั้งเดียว เล่นซ้ำได้ไม่จำกัด</b><br>
+  ฟรี โอเพนซอร์ส ไม่มีโฆษณา ไม่มีล็อกอิน ไฟล์เดียวจบ</p>
+  <a class="btn" href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest">📦 ดาวน์โหลดสำหรับ Windows — ฟรี</a>
+  <a class="btn ghost" href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro">⭐ ซอร์สโค้ดบน GitHub</a>
+  <div class="badges">
+    <span>ไม่ต้องติดตั้ง Python</span><span>ภาษาไทยเต็มรูปแบบ</span><span>76+ tests</span><span>Windows 10/11</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>📸 หน้าตาโปรแกรม</h2>
+    <img class="shot" src="images/screenshot.png" alt="หน้าจอหลักของโปรแกรม">
+    <p class="caption">ตารางคำสั่งแก้ได้ทีละแถว + ปุ่ม START / STOP / REPEAT / RECORD + โปรไฟล์หลายชุด</p>
+  </div>
+
+  <div class="card">
+    <h2>🚀 เริ่มใช้ใน 4 ขั้นตอน</h2>
+    <ol class="steps">
+      <li><b>ดาวน์โหลด</b> <code>AutoMouseMacro.exe</code> แล้วดับเบิลคลิก (ไม่ต้องติดตั้งอะไร)</li>
+      <li>กด <b>RECORD</b> (F9) แล้วทำงานตามปกติ — โปรแกรมจดทุกคลิก/ทุกคีย์ให้เอง</li>
+      <li>กด <b>START</b> (F6) เล่นรอบเดียว หรือ <b>REPEAT</b> เล่นวนซ้ำ — <b>STOP</b> (F8) หยุดทันที</li>
+      <li><b>Save</b> เก็บเป็นไฟล์ .json เปิดมาเล่นซ้ำวันไหนก็ได้ หรือรันผ่าน Task Scheduler</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>✨ ทำอะไรได้บ้าง</h2>
+    <ul class="feats">
+      <li><b>อัด + เล่นซ้ำ</b> คลิกเมาส์ ลาก พิมพ์ไทย/อังกฤษ กดคีย์ สกรอลล์ — พร้อมดีเลย์สุ่มกันจับ pattern</li>
+      <li><b>คลิกตามภาพ</b> (Image Click) — ระบุรูป .png โปรแกรมหาบนจอแล้วคลิกให้เอง มีกรอบค้นหา + ปรับความมั่นใจรายแถว</li>
+      <li><b>ปุ่มลัดทำงานทุกที่</b> — F1–F4 สลับสคริปต์ทันที, F6 เล่น, F8 หยุด, F9 อัด, F10 วนไม่จำกัด</li>
+      <li><b>เล่นอัตโนมัติตามเวลา</b> — ทุก N นาที หรือรายวันตอน HH:MM</li>
+      <li><b>สุ่มลำดับ/สัดส่วนแถว</b> — งานที่ไม่อยากให้จังหวะซ้ำเดิมทุกรอบ</li>
+      <li><b>โหมด watchdog</b> — สคริปต์จบแล้วเริ่มใหม่เองวนไม่จำกัด เหมาะกับงานเฝ้าระบบ</li>
+      <li><b>Log + สถิติ</b> — บันทึกทุกการเล่นรายวัน ดูย้อนหลังและสรุปสถิติได้ในโปรแกรม</li>
+      <li><b>Self-check ตอนเปิด</b> — ตรวจเมาส์/hotkey/OpenCV/สิทธิ์ admin ให้รู้ปัญหาตั้งแต่แรก</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🆚 เทียบกับโปรแกรมอื่น</h2>
+    <table>
+      <tr><th></th><th>โปรแกรมนี้</th><th>AutoHotkey</th><th>TinyTask</th></tr>
+      <tr><td>อัดแล้วเล่นซ้ำ</td><td>✅ ง่ายมาก</td><td>⚠️ ต้องเขียนสคริปต์</td><td>✅</td></tr>
+      <tr><td>แก้รายการทีละแถว</td><td>✅ ตารางแก้ได้เลย</td><td>❌ แก้โค้ด</td><td>❌</td></tr>
+      <tr><td>คลิกตามภาพ</td><td>✅ + กรอบ + threshold</td><td>⚠️ ImageSearch</td><td>❌</td></tr>
+      <tr><td>schedule / watchdog / สุ่มแถว</td><td>✅ ครบในตัว</td><td>⚠️ เขียนเอง</td><td>❌</td></tr>
+      <tr><td>ภาษาไทย</td><td>✅ ทั้งโปรแกรมและเอกสาร</td><td>❌</td><td>❌</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>⌨️ ใช้ผ่านคอมมานด์ไลน์ (สำหรับงานอัตโนมัติ)</h2>
+<pre>py auto_macro.py script.json --loop            # วนไม่จำกัด
+py auto_macro.py script.json --shuffle         # สุ่มลำดับแถวทุกรอบ
+py auto_macro.py script.json --watchdog 10     # จบแล้วเริ่มใหม่เอง (พัก 10 วิ)
+py auto_macro.py script.json --stop-file C:\stop.flg   # สร้างไฟล์ = หยุดทันที</pre>
+    <p style="margin-top:10px">เหมาะกับ <b>Windows Task Scheduler</b> — ตั้งเวลาเปิดเครื่องแล้วให้โปรแกรมทำงานแทนคุณทั้งวัน</p>
+  </div>
+
+  <div class="card">
+    <h2>📚 เอกสารเพิ่มเติม</h2>
+    <ul class="feats" style="list-style:none">
+      <li>📘 <a href="TUTORIAL.html"><b>คู่มือฉบับสมบูรณ์ 10 บท</b></a> — ตั้งแต่ติดตั้งถึงเทคนิคขั้นสูง</li>
+      <li>📂 <a href="README.html">README</a> และ 📋 <a href="CHANGELOG.html">CHANGELOG</a></li>
+      <li>🧪 ตัวอย่างสคริปต์สำเร็จรูปในโฟลเดอร์ <code>examples/</code> — รวมงานเฝ้าระบบพร้อม watchdog</li>
+    </ul>
+  </div>
+
+</div>
+
+<footer>
+  โอเพนซอร์ส (Python + Tkinter + pynput) · พัฒนาโดยชุมชน ·
+  <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro">GitHub</a> ·
+  <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases">ดาวน์โหลดทุกเวอร์ชัน</a>
+</footer>
+
+</body>
+</html>

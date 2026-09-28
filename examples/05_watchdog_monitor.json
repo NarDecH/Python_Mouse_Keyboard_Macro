@@ -1,0 +1,13 @@
+[
+  {"enabled": true, "button": "Beep",           "additional": "",        "mins": 0, "secs": 0,    "repeat": 1},
+  {"enabled": true, "button": "Type Text",      "additional": "เริ่มรอบเฝ้าระบบ", "mins": 0, "secs": 0.5,  "repeat": 1},
+  {"enabled": true, "button": "Tap Key",        "additional": "enter",   "mins": 0, "secs": 0,    "repeat": 1},
+  {"enabled": true, "button": "Save Cursor",    "additional": "",        "mins": 0, "secs": 0,    "repeat": 1},
+  {"enabled": true, "button": "Move Mouse",     "additional": "",        "mins": 0, "secs": 0,    "repeat": 1, "x": 1900, "y": 40},
+  {"enabled": true, "button": "Scroll Down",    "additional": "2",       "mins": 0, "secs": 0.4,  "repeat": 1},
+  {"enabled": true, "button": "Scroll Up",      "additional": "2",       "mins": 0, "secs": 0.4,  "repeat": 1},
+  {"enabled": true, "button": "Restore Cursor", "additional": "",        "mins": 0, "secs": 0,    "repeat": 1},
+  {"enabled": true, "button": "Type Text",      "additional": "รอบเสร็จ - พักแล้วเริ่มใหม่", "mins": 0, "secs": 0.5, "repeat": 1},
+  {"enabled": true, "button": "Tap Key",        "additional": "enter",   "mins": 0, "secs": 0,    "repeat": 1},
+  {"enabled": true, "button": "Beep",           "additional": "",        "mins": 0, "secs": 0.5,  "repeat": 1}
+]
