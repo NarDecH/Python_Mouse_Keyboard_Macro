@@ -47,6 +47,7 @@ Auto Mouse & Keyboard Macro  v1.18
   player ไม่เรียก Tk ข้ามเธรดอีกต่อไป
 - v1.20: Set/Read Clipboard (ตั้ง/อ่านคลิปบอร์ด เก็บเป็นตัวแปรได้, รองรับไทยบน CLI
   ด้วย Win32 API), Plugin API v2 (ctx.stop_check() + ctx.ui)
+- v1.20.1: แก้ HotkeyEdit ลืมเก็บ on_done — ดับเบิลคลิกแก้เซลล์แล้วกดตกลงพังมาตั้งแต่ v1.4
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -83,7 +84,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.20.0"
+__version__ = "1.20.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -750,6 +751,7 @@ class HotkeyEdit(tk.Toplevel):
     def __init__(self, master, label, current, choices, on_done):
         super().__init__(master)
         self.title("แก้ค่า: " + label)
+        self.on_done = on_done          # เก็บ callback ก่อนใช้ใน _ok (หายตั้งแต่ v1.4 → กดตกลงพัง)
         self.resizable(False, False)
         self.configure(bg="#f0f0f0")
         tk.Label(self, text=label + ":", bg="#f0f0f0").grid(row=0, column=0, padx=10, pady=10, sticky="e")

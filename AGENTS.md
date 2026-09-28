@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.20.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.20.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -88,6 +88,10 @@
   (ตั้ง restype/argtypes ให้ครบกัน handle โดนตัดบน 64-bit), macOS: pbcopy/pbpaste,
   Linux: wl-copy/xclip/xsel), Plugin API v2 (ctx เพิ่ม `stop_check()` + `ui={"msg","beep"}`
   ทั้ง GUI/CLI), TUTORIAL บทที่ 12 (ตัวแปร+คลิปบอร์ด), เดโม่ `examples/09_clipboard.json`
+- **แก้บั๊ก v1.20.1:** `HotkeyEdit.__init__` ลืมเก็บ `self.on_done` (พังตั้งแต่ v1.4 —
+  ดับเบิลคลิกแก้เซลล์แล้วกดตกลง/Enter = AttributeError ค่าไม่ถูกบันทึก; X/Y ใช้อีกเส้นทาง
+  จึงไม่เจอ) ⚠️ dialog ทุกตัวควรมีเทสต์ "เปิด + ใช้งานจริง" อย่างน้อย 1 ตัว —
+  บั๊กชนิดนี้อยู่รอดได้เพราะมีแต่เทสต์ "เปิดได้ไม่ crash"
 
 ## เทคโนโลยี
 

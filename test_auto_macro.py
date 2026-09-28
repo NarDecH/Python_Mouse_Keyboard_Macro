@@ -1641,16 +1641,22 @@ class TestPlayLoopGui(unittest.TestCase):
         self.assertFalse(app.recording)
 
     def test_clipboard_actions_roundtrip(self):
-        """Set Clipboard → Read Clipboard: ข้อความวนกลับเข้าตัวแปรได้ (v1.20)"""
-        self._clean_table(0)
-        self.app._append_row(button="Set Variable", additional="n = 1")
-        self.app._append_row(button="Set Clipboard", additional="ข้อความ {n}")
-        self.app._append_row(button="Read Clipboard", additional="mytext")
-        self.steps.clear()
-        ok = self._run_until(self.app.start_play, lambda: not self.app.running)
-        self.assertTrue(ok)
-        self.assertEqual(self.app._vars.get("mytext"), "ข้อความ 1")
-        self.assertEqual(self.root.clipboard_get(), "ข้อความ 1")   # คลิปบอร์ดจริง
+        """Set Clipboard → Read Clipboard: ข้อความวนกลับเข้าตัวแปรได้ (v1.20)
+        (แตะคลิปบอร์ดจริง — คืนค่าเดิมให้ผู้ใช้เมื่อจบเทสต์)"""
+        saved = am.clip_get()
+        try:
+            self._clean_table(0)
+            self.app._append_row(button="Set Variable", additional="n = 1")
+            self.app._append_row(button="Set Clipboard", additional="ข้อความ {n}")
+            self.app._append_row(button="Read Clipboard", additional="mytext")
+            self.steps.clear()
+            ok = self._run_until(self.app.start_play, lambda: not self.app.running)
+            self.assertTrue(ok)
+            self.assertEqual(self.app._vars.get("mytext"), "ข้อความ 1")
+            self.assertEqual(self.root.clipboard_get(), "ข้อความ 1")   # คลิปบอร์ดจริง
+        finally:
+            if saved is not None:
+                am.clip_set(saved)
 
     def test_plugin_ctx_v2(self):
         """plugin ต้องได้ ctx.stop_check() / ctx.ui จาก player จริง (v1.20)"""
@@ -1909,7 +1915,15 @@ class TestVersionConsistency(unittest.TestCase):
 
 
 class TestClipboardActions(unittest.TestCase):
-    """v1.20: Set Clipboard / Read Clipboard — GUI ผ่าน poller, CLI ผ่าน Win32/pbcopy/xclip"""
+    """v1.20: Set Clipboard / Read Clipboard — GUI ผ่าน poller, CLI ผ่าน Win32/pbcopy/xclip
+    ⚠️ เทสต์พวกนี้แตะคลิปบอร์ดจริง — ทุกคลาส/เทสต์ต้อง snapshot ก่อนแล้วคืนค่าทีหลัง
+    ไม่งั้นคลิปบอร์ดของคนรันเทสต์จะโดนข้อมูลทดสอบเขียนทับแบบถาวร"""
+
+    def setUp(self):
+        self._saved_clip = am.clip_get()
+
+    def tearDown(self):
+        am.clip_set(self._saved_clip if self._saved_clip is not None else "")
 
     def test_actions_registered(self):
         for a in ("Set Clipboard", "Read Clipboard"):
@@ -1948,6 +1962,64 @@ class TestPluginCtxV2(unittest.TestCase):
             content = fh.read()
         self.assertIn("stop_check", content)
         self.assertIn('ctx["ui"]', content)
+
+
+class TestHotkeyEdit(unittest.TestCase):
+    """Regression v1.20.1 — ดับเบิลคลิกแก้เซลล์ (HotkeyEdit): กดตกลงแล้วค่าต้องถูกส่งกลับ
+    (บั๊กเดิม: __init__ ลืมเก็บ self.on_done → กดตกลง/Enter เป็น AttributeError ตั้งแต่ v1.4
+    — ไม่มีเทสต์ครอบคลาสนี้เลยจึงอยู่รอดมา 8 เวอร์ชัน)"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+            cls.has_tk = True
+        except am.tk.TclError:
+            cls.has_tk = False
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.has_tk:
+            cls.root.destroy()
+
+    def setUp(self):
+        if not self.has_tk:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+
+    def test_ok_returns_value_to_callback(self):
+        got = []
+        dlg = am.HotkeyEdit(self.root, "Additional", "hello",
+                            choices=None, on_done=got.append)
+        try:
+            dlg.var.set("world")
+            dlg._ok()                                   # เดิม: AttributeError ที่นี่
+        finally:
+            if dlg.winfo_exists():
+                dlg.destroy()
+        self.assertEqual(got, ["world"])                # callback ได้ค่าจากช่องกรอก
+
+    def test_ok_with_choices_combobox(self):
+        got = []
+        dlg = am.HotkeyEdit(self.root, "Action", "Beep",
+                            choices=["Beep", "Tap Key"], on_done=got.append)
+        try:
+            dlg.var.set("Tap Key")
+            dlg._ok()
+        finally:
+            if dlg.winfo_exists():
+                dlg.destroy()
+        self.assertEqual(got, ["Tap Key"])
+
+    def test_enter_key_binding_installed(self):
+        # event_generate ไม่ถูกส่งเมื่อหน้าต่างไม่ถูก map (root withdraw) —
+        # ตรวจว่า binding <Return> → _ok และ <Escape> → destroy ติดตั้งจริงแทน
+        dlg = am.HotkeyEdit(self.root, "Secs", "1", choices=None, on_done=lambda v: None)
+        try:
+            self.assertTrue(dlg.bind("<Return>"))       # มี handler จริง
+            self.assertTrue(dlg.bind("<Escape>"))
+        finally:
+            dlg.destroy()
 
 
 if __name__ == "__main__":

@@ -65,8 +65,29 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.20.0</h2>
+      <h2>เวอร์ชัน 1.20.1</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้บั๊ก</h3>
+    <ul>
+      <li><b>✏️ ดับเบิลคลิกแก้เซลล์แล้วกดตกลงพัง (ตั้งแต่ v1.4)</b> —
+        <code>HotkeyEdit</code> ลืมเก็บ callback <code>on_done</code> → กดตกลง/Enter
+        ในหน้าต่างแก้ค่าเป็น AttributeError ค่าไม่ถูกบันทึก — แก้แล้ว + เพิ่มเทสต์ครอบ</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม TestHotkeyEdit 3 ตัว</li>
+      <li><b>เทสต์คลิปบอร์ดไม่เขียนทับคลิปบอร์ดของคนรันเทสต์แล้ว</b> — snapshot ก่อน
+        แล้วคืนค่าหลังจบทุกกรณี → <b>183 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.20.0</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

@@ -332,6 +332,8 @@ class TestE2ECliWarnings(unittest.TestCase):
     def test_clipboard_actions_in_cli(self):
         # v1.20: Set/Read Clipboard ทำงานใน CLI ด้วย (Windows: Win32 API) —
         # ลูกตั้งคลิปบอร์ด แล้วพ่อแม่ (process นี้) อ่านยืนยันข้อความจริง
+        # ⚠️ แตะคลิปบอร์ดจริงของคนรันเทสต์ — snapshot แล้วคืนค่าเมื่อจบเสมอ
+        saved = am.clip_get()
         script = self._script([
             {"enabled": True, "button": "Set Clipboard", "additional": "จาก CLI ไทย 123",
              "mins": 0, "secs": 0, "repeat": 1},
@@ -348,6 +350,8 @@ class TestE2ECliWarnings(unittest.TestCase):
                 self.assertEqual(am.clip_get(), "จาก CLI ไทย 123")
         finally:
             ch.close()
+            if saved is not None:
+                am.clip_set(saved)
 
 
 if __name__ == "__main__":
