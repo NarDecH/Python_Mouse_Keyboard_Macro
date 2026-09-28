@@ -52,6 +52,8 @@ Auto Mouse & Keyboard Macro  v1.18
   คีย์บอร์ด active เป็นภาษาอื่น (เดิม layout ไทยพิมพ์อังกฤษแล้วเพี้ยนเป็น "ิ" ฯลฯ)
 - v1.20.3: ช่อง Additional พิมพ์ข้อความอิสระได้ (เดิมเป็น readonly มีแต่ชื่อคีย์) +
   เว้นจังหวะ 15ms/ตัวอักษรกันแอปเป้าหมายที่ busy กลืน burst (เช่น Notepad เพิ่งเปิด)
+- v1.20.4: คอมโบปุ่ม+คีย์ เช่น "Ctrl+W", "Ctrl+Shift+T" ใน Tap/Press/Release Key
+  + ตัวอักษร/ตัวเลขเดี่ยว = ปุ่มกายภาพ (VK) ถูกต้องแม้ layout อื่น active
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -88,7 +90,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.20.3"
+__version__ = "1.20.4"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -555,7 +557,9 @@ SPECIAL_KEYS.update({("f%d" % i): ("f%d" % i) for i in range(1, 13)})
 
 
 def parse_key(txt):
-    """แปลงข้อความในคอลัมน์ Additional เป็นออบเจ็กต์คีย์ของ pynput"""
+    """แปลงข้อความในคอลัมน์ Additional เป็นออบเจ็กต์คีย์ของ pynput
+    ตัวอักษร A-Z / ตัวเลขเดี่ยว = ปุ่มกายภาพ (VK — ถูกต้องแม้ layout อื่น active, v1.20.4)
+    ตัวอักษรอื่น (ไทย ฯลฯ) = อักขระตาม layout · ตัวเลขหลายหลัก = รหัส virtual key"""
     txt = (txt or "").strip()
     if not txt:
         return None
@@ -565,10 +569,42 @@ def parse_key(txt):
     if attr in SPECIAL_KEYS:
         return getattr(Key, SPECIAL_KEYS[attr], None)
     if len(txt) == 1:
+        if ("a" <= txt.lower() <= "z") or txt.isdigit():
+            return KeyCode.from_vk(ord(txt.upper()))   # ปุ่มกายภาพ เช่น W = VK_W
         return KeyCode.from_char(txt)
     if txt.isdigit():                             # รหัส virtual key เช่น 27
         return KeyCode.from_vk(int(txt))
     return None
+
+
+def parse_key_combo(txt):
+    """แยกคอมโบปุ่ม+คีย์ เช่น "Ctrl+W", "Ctrl+Shift+T", "Win+D" (v1.20.4)
+    → (mods, key) โดย mods = รายการ modifier ตามลำดับที่พิมพ์
+    ปุ่มหลักต้องระบุได้แน่นอน: ตัวอักษร/ตัวเลข (VK ปุ่มกายภาพ) หรือชื่อพิเศษ
+    (enter/f1 ฯลฯ) หรือรหัส VK หลายหลัก — ห้ามเป็นอักขระแบบขึ้นกับ layout
+    คืน None ถ้าไม่ใช่รูปแบบคอมโบ (ไม่มี +) หรือชื่อคีย์ไม่รู้จัก"""
+    s = str(txt or "").strip()
+    if "+" not in s:
+        return None
+    parts = [p.strip() for p in s.split("+") if p.strip()]
+    if len(parts) < 2:
+        return None
+    mod_map = {"ctrl": Key.ctrl, "alt": Key.alt, "shift": Key.shift, "win": Key.cmd}
+    mods = []
+    for m in parts[:-1]:
+        k = mod_map.get(m.lower())
+        if k is None:
+            return None
+        mods.append(k)
+    main = parts[-1]
+    if len(main) == 1 and (("a" <= main.lower() <= "z") or main.isdigit()):
+        key = KeyCode.from_vk(ord(main.upper()))     # ปุ่มกายภาพ เช่น W = VK_W
+    else:
+        key = parse_key(main)                        # ชื่อพิเศษ / รหัส VK หลายหลัก
+    if key is None or (not isinstance(key, Key)
+                       and getattr(key, "vk", None) is None):
+        return None
+    return mods, key
 
 
 def delay_seconds(mins, secs):
@@ -1625,6 +1661,9 @@ class MacroApp:
                     "If Image": "ชื่อไฟล์ .png — Repeat = จำนวนแถวที่ข้ามถ้าภาพไม่เจอ",
                     "Else If Image": "ชื่อไฟล์ .png — ตัวแบ่งกลุ่ม A/B แบบสองทาง (v1.18)",
                     "Wait for Pixel Color": "x,y #RRGGBB เช่น 100,200 #ff0000 (ตามด้วย 60s = รอ 60 วิ)",
+                    "Tap Key": "ชื่อคีย์ เช่น enter, w, F5 — หรือคอมโบ Ctrl+W, Ctrl+Shift+T",
+                    "Press Key": "กดค้าง เช่น ctrl, w — หรือคอมโบ Ctrl+W (ต้องมี Release คู่)",
+                    "Release Key": "ชื่อคีย์/คอมโบเดียวกับ Press Key ที่กดค้างไว้",
                     "Set Variable": "name = ค่า หรือ name += จำนวน — เรียกใช้ด้วย {name} ในช่องอื่น",
                     "Set Clipboard": "ข้อความที่จะใส่คลิปบอร์ด (ใช้ {ตัวแปร} ได้)",
                     "Read Clipboard": "ชื่อตัวแปรที่จะเก็บข้อความจากคลิปบอร์ด เช่น mytext",
@@ -1693,7 +1732,8 @@ class MacroApp:
 
     def _validate_rows(self, rows):
         for r in rows:
-            if r["button"] in KEY_ACTIONS and not parse_key(r["additional"]):
+            if r["button"] in KEY_ACTIONS and not (parse_key(r["additional"])
+                                                   or parse_key_combo(r["additional"])):
                 return False
             if self._plugin_module(r["button"]):
                 continue                    # Custom Action — ตรวจรูปแบบภายใน plugin เอง
@@ -1899,17 +1939,30 @@ class MacroApp:
             elif btn == "Beep":                                  # เสียงเตือน — ขอผ่าน poller
                 self._ui_state["beep"] = True                    # (main thread เป็นคน bell)
             elif btn in KEY_ACTIONS:                             # คีย์บอร์ด
-                k = parse_key(r["additional"])
+                combo = parse_key_combo(r["additional"])         # v1.20.4: Ctrl+W ฯลฯ
+                mods, k = combo if combo else ((), parse_key(r["additional"]))
                 if k is None:
                     return
                 if btn == "Press Key":
+                    for m in mods:
+                        self.kb_ctl.press(m)
+                        self._pressed_keys.add(m)
                     self.kb_ctl.press(k)
                     self._pressed_keys.add(k)      # จำไว้ปล่อยตอน STOP กลางคัน
                 elif btn == "Release Key":
                     self.kb_ctl.release(k)
                     self._pressed_keys.discard(k)
+                    for m in reversed(mods):
+                        self.kb_ctl.release(m)
+                        self._pressed_keys.discard(m)
                 else:
+                    for m in mods:
+                        self.kb_ctl.press(m)
+                        self._pressed_keys.add(m)
                     self.kb_ctl.tap(k)
+                    for m in reversed(mods):
+                        self.kb_ctl.release(m)
+                        self._pressed_keys.discard(m)
             elif btn == "Set Variable":                          # ตัวแปรในสคริปต์ (v1.19)
                 if not apply_set_var(self._vars, r["additional"]):
                     self._ui_state["msg"] = ("Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น "
@@ -3268,17 +3321,32 @@ def cli_main(argv):
                 time.sleep(0.03)
             mouse_ctl.click(Button.right if "Right" in btn else Button.left, 2)
         elif btn in KEY_ACTIONS:
-            k = parse_key(r.get("additional", ""))
+            combo = parse_key_combo(r.get("additional", ""))     # v1.20.4: Ctrl+W ฯลฯ
+            mods, k = combo if combo else ((), parse_key(r.get("additional", "")))
             if k is not None:
                 if btn == "Press Key":
+                    for m in mods:
+                        kb_ctl.press(m)
+                        pending_keys.append(("k", m))
                     kb_ctl.press(k)
                     pending_keys.append(("k", k))
                 elif btn == "Release Key":
                     kb_ctl.release(k)
                     if ("k", k) in pending_keys:
                         pending_keys.remove(("k", k))
+                    for m in reversed(mods):
+                        kb_ctl.release(m)
+                        if ("k", m) in pending_keys:
+                            pending_keys.remove(("k", m))
                 else:
+                    for m in mods:
+                        kb_ctl.press(m)
+                        pending_keys.append(("k", m))
                     kb_ctl.tap(k)
+                    for m in reversed(mods):
+                        kb_ctl.release(m)
+                        if ("k", m) in pending_keys:
+                            pending_keys.remove(("k", m))
         elif btn == "Type Text":
             for ch in str(r.get("additional") or ""):
                 if not running[0]:

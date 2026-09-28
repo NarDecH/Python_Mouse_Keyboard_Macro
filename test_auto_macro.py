@@ -29,9 +29,10 @@ class TestParseKey(unittest.TestCase):
         self.assertIsNone(am.parse_key("   "))
 
     def test_single_char(self):
+        # v1.20.4: ตัวอักษรเดี่ยว = ปุ่มกายภาพ (VK_W ไม่ขึ้นกับ layout ที่ active)
         k = am.parse_key("a")
         self.assertIsNotNone(k)
-        self.assertEqual(k.char, "a")
+        self.assertEqual(k.vk, 0x41)
 
     def test_modifier_ctrl(self):
         from pynput.keyboard import Key
@@ -1640,6 +1641,29 @@ class TestPlayLoopGui(unittest.TestCase):
             app.toggle_record()
         self.assertFalse(app.recording)
 
+    def test_tap_key_combo_presses_and_releases_in_order(self):
+        """คอมโบ Ctrl+W ผ่าน player จริงด้วย kb controller จำลอง — กด/ปล่อยตามลำดับ
+        ปลอดภัย: ไม่ส่งคีย์ไปหน้าต่างใด ๆ (v1.20.4)"""
+        from pynput.keyboard import Key
+        app = self.app
+        self._clean_table(1)
+        app._append_row(button="Tap Key", additional="Ctrl+W", secs=0)
+        fake = mock.MagicMock()
+        orig = app.kb_ctl
+        app.kb_ctl = fake
+        self.steps.clear()
+        try:
+            ok = self._run_until(app.start_play, lambda: not app.running)
+        finally:
+            app.kb_ctl = orig
+        self.assertTrue(ok)
+        pressed = [c.args[0] for c in fake.press.call_args_list]
+        tapped = [c.args[0] for c in fake.tap.call_args_list]
+        released = [c.args[0] for c in fake.release.call_args_list]
+        self.assertEqual(pressed, [Key.ctrl])                              # กด modifier
+        self.assertEqual(tapped, [am.KeyCode.from_vk(0x57)])               # tap W
+        self.assertEqual(released, [Key.ctrl])                             # ปล่อย modifier
+
     def test_clipboard_actions_roundtrip(self):
         """Set Clipboard → Read Clipboard: ข้อความวนกลับเข้าตัวแปรได้ (v1.20)
         (แตะคลิปบอร์ดจริง — คืนค่าเดิมให้ผู้ใช้เมื่อจบเทสต์)"""
@@ -2098,6 +2122,52 @@ class TestAdditionalEditor(unittest.TestCase):
         self.addCleanup(lambda: dlg.destroy() if dlg.winfo_exists() else None)
         w = dlg.nametowidget(str(dlg.children["!combobox"]))
         self.assertEqual(str(w["state"]), "readonly")
+
+
+class TestKeyCombo(unittest.TestCase):
+    """v1.20.4: คอมโบปุ่ม+คีย์ เช่น Ctrl+W — ปุ่มหลักเป็น VK กายภาพ (ถูกต้องแม้
+    layout ไทย active) + player/CLI กดและปล่อยตามลำดับ (STOP ปล่อยคีย์ค้างได้)"""
+
+    def test_ctrl_w(self):
+        from pynput.keyboard import Key
+        mods, k = am.parse_key_combo("Ctrl+W")
+        self.assertEqual(mods, [Key.ctrl])
+        self.assertEqual(k.vk, 0x57)                    # VK_W — ปุ่มกายภาพ
+
+    def test_three_modifier_combo(self):
+        from pynput.keyboard import Key
+        mods, k = am.parse_key_combo("Ctrl+Shift+T")
+        self.assertEqual(mods, [Key.ctrl, Key.shift])
+        self.assertEqual(k.vk, 0x54)                    # VK_T
+
+    def test_case_and_spaces_tolerant(self):
+        from pynput.keyboard import Key
+        mods, k = am.parse_key_combo("  win + d ")
+        self.assertEqual(mods, [Key.cmd])
+        self.assertEqual(k.vk, 0x44)
+
+    def test_special_key_in_combo(self):
+        from pynput.keyboard import Key
+        mods, k = am.parse_key_combo("Ctrl+F5")
+        self.assertEqual(mods, [Key.ctrl])
+        self.assertEqual(k, Key.f5)
+
+    def test_invalid_combos_return_none(self):
+        self.assertIsNone(am.parse_key_combo("Foo+W"))      # modifier ไม่รู้จัก
+        self.assertIsNone(am.parse_key_combo("Ctrl+"))      # ไม่มีปุ่มหลัก
+        self.assertIsNone(am.parse_key_combo("Ctrl+?"))     # ปุ่มหลักต้องเป็น VK/ชื่อพิเศษ
+        self.assertIsNone(am.parse_key_combo("+W"))         # ไม่มี modifier
+        self.assertIsNone(am.parse_key_combo("W"))          # ไม่ใช่คอมโบ (มี parse_key รับต่อ)
+
+    def test_validate_accepts_combo(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        ok = am.MacroApp._validate_rows(
+            app, [{"button": "Tap Key", "additional": "Ctrl+W"}])
+        self.assertTrue(ok)
+        ok2 = am.MacroApp._validate_rows(
+            app, [{"button": "Tap Key", "additional": "Ctrl+??"}])
+        self.assertFalse(ok2)
 
 
 if __name__ == "__main__":
