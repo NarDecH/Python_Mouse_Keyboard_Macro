@@ -50,6 +50,8 @@ Auto Mouse & Keyboard Macro  v1.18
 - v1.20.1: แก้ HotkeyEdit ลืมเก็บ on_done — ดับเบิลคลิกแก้เซลล์แล้วกดตกลงพังมาตั้งแต่ v1.4
 - v1.20.2: Type Text พิมพ์ด้วย SendInput KEYEVENTF_UNICODE — ถูกต้องแม้ layout
   คีย์บอร์ด active เป็นภาษาอื่น (เดิม layout ไทยพิมพ์อังกฤษแล้วเพี้ยนเป็น "ิ" ฯลฯ)
+- v1.20.3: ช่อง Additional พิมพ์ข้อความอิสระได้ (เดิมเป็น readonly มีแต่ชื่อคีย์) +
+  เว้นจังหวะ 15ms/ตัวอักษรกันแอปเป้าหมายที่ busy กลืน burst (เช่น Notepad เพิ่งเปิด)
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -86,7 +88,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.20.2"
+__version__ = "1.20.3"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -818,7 +820,7 @@ def prune_log(keep=MAX_LOG_LINES):
 class HotkeyEdit(tk.Toplevel):
     """หน้าต่างแก้ค่าในเซลล์ (เปิดโดยดับเบิลคลิก)"""
 
-    def __init__(self, master, label, current, choices, on_done):
+    def __init__(self, master, label, current, choices, on_done, editable=False):
         super().__init__(master)
         self.title("แก้ค่า: " + label)
         self.on_done = on_done          # เก็บ callback ก่อนใช้ใน _ok (หายตั้งแต่ v1.4 → กดตกลงพัง)
@@ -827,8 +829,10 @@ class HotkeyEdit(tk.Toplevel):
         tk.Label(self, text=label + ":", bg="#f0f0f0").grid(row=0, column=0, padx=10, pady=10, sticky="e")
         self.var = tk.StringVar(value=str(current))
         if choices:
-            w = ttk.Combobox(self, textvariable=self.var, values=choices,
-                             width=22, state="readonly")
+            # v1.20.3: editable=True สำหรับช่อง Additional — พิมพ์ข้อความอิสระได้
+            # (เดิม readonly มีแต่ชื่อคีย์ให้เลือก → Type Text กำหนด/แก้ข้อความไม่ได้เลย)
+            w = ttk.Combobox(self, textvariable=self.var, values=choices, width=34,
+                             state="normal" if editable else "readonly")
         else:
             w = ttk.Entry(self, textvariable=self.var, width=24)
         w.grid(row=0, column=1, padx=10, pady=10)
@@ -1630,7 +1634,8 @@ class MacroApp:
             if hint:
                 self._ui_state["msg"] = ("ช่อง Additional: " + hint, "#06c")
         HotkeyEdit(self.root, label, vals[ci], choices,
-                   lambda v, r=row_id, c=ci: self._apply_edit(r, c, v))
+                   lambda v, r=row_id, c=ci: self._apply_edit(r, c, v),
+                   editable=(key == "additional"))   # v1.20.3: Additional พิมพ์อิสระได้
 
     def _edit_xy(self, row_id, ci):
         """ดับเบิลคลิก X/Y → นับถอยหลัง 3 วิ แล้วจับพิกัดเมาส์ปัจจุบัน"""
@@ -1879,6 +1884,9 @@ class MacroApp:
                         self.kb_ctl.tap(Key.enter)
                     elif not send_unicode_char(ch):              # v1.20.2: ไม่ขึ้นกับ layout
                         self.kb_ctl.tap(self.kb_ctrl_char(ch))   # fallback (OS อื่น)
+                    # v1.20.3: เว้นจังหวะระหว่างตัวอักษร — แอปเป้าหมายที่ยัง busy
+                    # (เช่น Notepad เพิ่งเปิด) ไม่ทันประมวลผล burst เร็ว ๆ อาจกลืน/เพี้ยน
+                    time.sleep(0.015)
             elif btn == "Launch App":                            # เปิดแอป/เว็บ
                 target = str(r["additional"] or "").strip()
                 if target:
@@ -3279,6 +3287,7 @@ def cli_main(argv):
                     kb_ctl.tap(Key.enter)
                 elif not send_unicode_char(ch):          # v1.20.2: ไม่ขึ้นกับ layout
                     kb_ctl.tap(KeyCode.from_char(ch))    # fallback (OS อื่น)
+                time.sleep(0.015)                        # v1.20.3: กันแอป busy กลืน burst
         elif btn == WAIT_PIXEL:
             cli_pixel_ready(r)                       # เช็คครั้งเดียว (CLI ไม่รอ — โปรแกรมอื่นคุมเวลาแทน)
         elif btn == "Set Variable":                  # ตัวแปรในสคริปต์ (v1.19)

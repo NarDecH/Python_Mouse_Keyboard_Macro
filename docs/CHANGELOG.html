@@ -65,8 +65,29 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.20.2</h2>
+      <h2>เวอร์ชัน 1.20.3</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้บั๊ก</h3>
+    <ul>
+      <li><b>✏️ ช่อง Additional กำหนด/แก้ข้อความไม่ได้</b> — เดิมเป็น combobox readonly
+        มีแต่ชื่อคีย์ให้เลือก ทำให้ Type Text พิมพ์ข้อความอิสระไม่ได้เลย → เปลี่ยนเป็น
+        พิมพ์ได้ (dropdown ยังอยู่) · คอลัมน์ Action ยัง readonly กันพิมพ์ผิด</li>
+      <li><b>⌨️ Type Text กลืนตัวอักษรเมื่อแอปเป้าหมายยัง busy</b> (เช่น Notepad เพิ่งเปิด)
+        — เว้นจังหวะ 15ms ต่อตัวอักษร ทั้ง GUI และ CLI</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม TestAdditionalEditor 3 ตัว → <b>191 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.20.2</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

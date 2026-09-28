@@ -2049,5 +2049,56 @@ class TestUnicodeTyping(unittest.TestCase):
         self.assertIn("Type Text", am.ACTIONS_ALL)
 
 
+class TestAdditionalEditor(unittest.TestCase):
+    """Regression v1.20.3 — ช่อง Additional ต้องพิมพ์ข้อความอิสระได้
+    (เดิมเป็น combobox readonly มีแต่ชื่อคีย์ → Type Text กำหนด/แก้ข้อความไม่ได้เลย)"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+            cls.has_tk = True
+        except am.tk.TclError:
+            cls.has_tk = False
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.has_tk:
+            cls.root.destroy()
+
+    def setUp(self):
+        if not self.has_tk:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+
+    def _dialog(self, **kw):
+        dlg = am.HotkeyEdit(self.root, "Additional", "เดิม",
+                            choices=[""] + am.MOD_KEYS[1:] + sorted(am.SPECIAL_KEYS),
+                            on_done=kw.get("on_done", lambda v: None), **{k: v for k, v in kw.items()
+                                                                          if k != "on_done"})
+        self.addCleanup(lambda: dlg.destroy() if dlg.winfo_exists() else None)
+        return dlg
+
+    def test_additional_is_editable(self):
+        dlg = self._dialog(editable=True)
+        w = dlg.nametowidget(str(dlg.children["!combobox"]))
+        self.assertEqual(str(w["state"]), "normal")     # พิมพ์อิสระได้
+
+    def test_additional_free_text_reaches_callback(self):
+        got = []
+        dlg = self._dialog(editable=True, on_done=got.append)
+        dlg.var.set("Auto Typer Demo — พิมพ์ใหม่ได้")
+        dlg._ok()
+        self.assertEqual(got, ["Auto Typer Demo — พิมพ์ใหม่ได้"])
+
+    def test_action_column_stays_readonly(self):
+        # คอลัมน์ Action ยังเป็น readonly (กันพิมพ์ผิดเป็น action ที่ไม่มีจริง)
+        dlg = am.HotkeyEdit(self.root, "Action", "Beep",
+                            choices=["Beep", "Tap Key"], on_done=lambda v: None)
+        self.addCleanup(lambda: dlg.destroy() if dlg.winfo_exists() else None)
+        w = dlg.nametowidget(str(dlg.children["!combobox"]))
+        self.assertEqual(str(w["state"]), "readonly")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
