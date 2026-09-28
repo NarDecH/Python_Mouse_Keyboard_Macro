@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.15
+# 🖱️ Auto Mouse & Keyboard Macro v1.16
 
 <div align="center">
 
@@ -37,6 +37,11 @@
 <br><em>Main window: icon menu + profile bar + command table + all controls</em>
 </div>
 
+<div align="center">
+<img src="images/demo.gif" alt="Live demo GIF — cursor following a running script" width="320">
+<br><em>Live play demo (recorded from the real program)</em>
+</div>
+
 ---
 
 ## ✨ Features
@@ -65,6 +70,7 @@
 | ⏰ **Scheduler** | Play automatically every N minutes or daily at HH:MM |
 | 📝 **Play log** | Every run is logged to `macro_log_<date>.txt` (daily rotation, auto-trimmed) |
 | ⌨️ **CLI mode** | Run scripts without the GUI — great for Windows Task Scheduler |
+| 🔌 **Custom Action plugins** (v1.16) | Drop a small .py into `plugins/` and it becomes a new Action — see [plugins/README.md](../plugins/README.md) |
 
 ---
 
@@ -122,6 +128,7 @@ py auto_macro.py script.json --stop-file D:\stop.flg   # create this file = stop
 
 Stop from anywhere with **F8**/**Esc** (even unfocused), **Esc**/**q** in the CLI window, or **Ctrl+C**.
 `--stop-file` lets other programs (or Task Scheduler chains) stop the macro by simply creating a file.
+Custom Action **plugins** work in the CLI too — the header lists the loaded plugins.
 
 **Watchdog mode** — `--watchdog` restarts the script automatically after it finishes (pause N seconds,
 default 3), forever, until stopped: perfect for unattended monitoring jobs. Every restart is logged

@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.15
+# 🖱️ Auto Mouse & Keyboard Macro v1.16
 
 <div align="center">
 
@@ -51,6 +51,13 @@
 <div align="center">
 <img src="images/screenshot.png" alt="หน้าจอหลักของโปรแกรม" width="640">
 <br><em>หน้าจอหลัก: เมนูไอคอน + แถบโปรไฟล์ + ตารางคำสั่ง + ปุ่มควบคุมทั้งหมด</em>
+</div>
+
+**🎬 การเล่นจริง (GIF จากโปรแกรม):**
+
+<div align="center">
+<img src="images/demo.gif" alt="เดโม่การเล่นสคริปต์ — เคอร์เซอร์ไล่ตามสคริปต์" width="320">
+<br><em>เคอร์เซอร์ไล่ตามสคริปต์ (อัดจากการรันโปรแกรมจริง)</em>
 </div>
 
 ---
@@ -106,6 +113,7 @@
 - **Image Click / Wait for Image** — คลิกตามภาพ / รอภาพปรากฏ (ชื่อไฟล์ .png ใน Additional; ต้องติดตั้ง `opencv-python Pillow`)
   - 🆕 **Search Area:** ใส่ท้ายชื่อไฟล์ได้ เช่น `button.png@100,200,300,400` = ค้นเฉพาะกรอบซ้ายบน (100,200) กว้าง 300 × สูง 400 — ไม่ใส่ @ = ค้นทั้งจอ
 - **Beep** — เสียงเตือน
+- **🔌 Custom Action (v1.16)** — เพิ่ม Action ของคุณเองด้วยไฟล์ Python สั้น ๆ ใน `plugins/` (ดู [plugins/README.md](../plugins/README.md))
 
 > 💡 **ดีเลย์สุ่ม:** ใส่ Secs แบบ `1-3` = สุ่มดีเลย์ 1–3 วิ ทุกรอบ
 
@@ -264,8 +272,29 @@ py auto_macro.py script.json --watchdog 10    # แบบกำหนดเว�
 py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์นี้เมื่อไร = หยุดทันที
 ```
 
+> 💡 สคริปต์ที่มีแถว **Custom Action plugin** เล่นผ่าน CLI ได้เหมือนกัน — หัวโปรแกรมจะบอกรายชื่อ plugin ที่โหลดได้
+
 > 💡 **watchdog** เหมาะกับงานเฝ้าระบบ: สคริปต์จบ → พัก N วิ → เริ่มใหม่เองวนไม่จำกัด
 > ทุกการรีสตาร์ตบันทึก `[WATCHDOG]` ลง log — หยุดถาวรด้วย F8/Esc/Ctrl+C/stop-file
+
+## 🔌 Custom Action Plugins (v1.16)
+
+ขยายโปรแกรมโดยไม่ต้องแก้โค้ดหลัก — เขียนไฟล์ Python ใส่โฟลเดอร์ `plugins/` โปรแกรมโหลดให้อัตโนมัติ (ทั้ง GUI และ CLI):
+
+```python
+# plugins/my_action.py
+ACTION_NAME = "เปิด Notepad แล้วรอ"     # ชื่อที่โชว์ในคอลัมน์ Action
+
+def run(ctx, row):
+    import os, time
+    os.startfile("notepad.exe")
+    time.sleep(1.5)
+```
+
+- `ctx` มี `mouse` / `kb` (pynput), `log(ข้อความ)` (เขียน log การเล่น), `cfg` (ภาษา)
+- `row` = ค่าทั้งแถวจากตาราง (`additional`, `secs`, ... )
+- ไฟล์พัง → ข้ามไฟล์นั้น โปรแกรมไม่พัง · ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด
+- ตัวอย่างในโปรเจกต์: `Sleep (plugin)`, `Message Box` — รายละเอียดครบที่ [plugins/README.md](../plugins/README.md)
 
 ## 🧙 Record Wizard
 
@@ -341,6 +370,7 @@ py -m unittest test_e2e -v           # 7 E2E tests (รัน CLI จริง +
 - **[TUTORIAL](TUTORIAL.html)** — 📘 คู่มือฉบับสมบูรณ์ 10 บท (ติดตั้ง → อัด → แก้ → Image Click → FAQ)
 - **[RESEARCH](RESEARCH.html)** — เทคนิคการควบคุมเมาส์/คีย์บอร์ดด้วย pynput, threading, และการเลือกเครื่องมือ
 - **[CHANGELOG](CHANGELOG.html)** — ประวัติการเปลี่ยนแปลงทุกเวอร์ชัน
+- **[ROADMAP](ROADMAP.md)** — 🗺️ แผนพัฒนา v1.17→v2.0 + หลักการของโปรเจกต์
 
 ---
 

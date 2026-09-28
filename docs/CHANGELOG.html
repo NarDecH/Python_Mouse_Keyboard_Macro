@@ -65,8 +65,31 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.15</h2>
+      <h2>เวอร์ชัน 1.16</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เพิ่มใหม่</h3>
+    <ul>
+      <li><b>🔌 Custom Action plugins</b> — วางไฟล์ <code>.py</code>
+        (ประกาศ <code>ACTION_NAME</code> + <code>run(ctx, row)</code>) ใน <code>plugins/</code>
+        เป็น Action ใหม่ทันที ทั้ง GUI และ CLI · ไฟล์พัง/ชื่อซ้ำ → ข้ามไฟล์นั้น ไม่พังทั้งโปรแกรม
+        · มีตัวอย่าง Sleep (plugin) / Message Box และคู่มือ <code>plugins/README.md</code></li>
+      <li><b>🎬 GIF สาธิตใน README</b> — อัดจากการรันโปรแกรมจริง เคอร์เซอร์ไล่ตามสคริปต์</li>
+      <li><b>🗺️ ROADMAP</b> — แผน v1.17→v2.0 + หลักการของโปรเจกต์</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม TestPlugins 8 ตัว + E2E เล่น plugin ผ่าน CLI จริง →
+        <b>117 unit + 8 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.15</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

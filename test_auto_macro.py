@@ -996,5 +996,91 @@ class TestHotProfile(unittest.TestCase):
             self.assertIn("ไม่มีไฟล์", app._ui_state["msg"][0])
 
 
+import shutil
+import tempfile
+import time
+
+
+class TestPlugins(unittest.TestCase):
+    """Custom Action plugins (v1.16): โหลด/กติกา/ผูก ctx
+    ⚠️ ห้ามตั้งชื่อคลาสซ้ำกับคลาสเดิม (คลาสหลังบังคลาสหน้า — ดู AGENTS.md)"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.pdir = os.path.join(self.tmp, "plugins")
+        os.makedirs(self.pdir)
+        self.failed_before = list(am.load_plugins.last_failed)
+
+    def tearDown(self):
+        am.load_plugins.last_failed = self.failed_before
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write(self, name, body):
+        p = os.path.join(self.pdir, name)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(body)
+
+    def test_load_valid_plugin(self):
+        self._write("ok.py", 'ACTION_NAME = "ทดสอบ"\n'
+                             'def run(ctx, row):\n'
+                             '    ctx["log"]("hi")\n')
+        out = am.load_plugins(base_dir=self.tmp)
+        self.assertEqual([n for n, _ in out], ["ทดสอบ"])
+        self.assertEqual(am.load_plugins.last_failed, [])
+
+    def test_underscore_file_skipped(self):
+        self._write("_hidden.py", 'ACTION_NAME = "ซ่อน"\n'
+                                  'def run(ctx, row):\n'
+                                  '    pass\n')
+        self.assertEqual(am.load_plugins(base_dir=self.tmp), [])
+
+    def test_missing_run_skipped(self):
+        self._write("bad.py", 'ACTION_NAME = "เสีย"\n')
+        out = am.load_plugins(base_dir=self.tmp)
+        self.assertEqual(out, [])
+        self.assertEqual(len(am.load_plugins.last_failed), 1)
+
+    def test_duplicate_name_rejected(self):
+        self._write("a.py", 'ACTION_NAME = "Beep"\n'
+                            'def run(ctx, row):\n'
+                            '    pass\n')
+        out = am.load_plugins(base_dir=self.tmp)
+        self.assertEqual(out, [])
+        self.assertEqual(len(am.load_plugins.last_failed), 1)
+
+    def test_broken_plugin_does_not_crash(self):
+        self._write("boom.py", "raise RuntimeError('import พัง')\n")
+        out = am.load_plugins(base_dir=self.tmp)
+        self.assertEqual(out, [])
+        self.assertEqual(len(am.load_plugins.last_failed), 1)
+
+    def test_bundled_examples_load(self):
+        src = os.path.dirname(os.path.abspath(am.__file__))
+        names = [n for n, _ in am.load_plugins(base_dir=src)]
+        self.assertIn("Sleep (plugin)", names)
+        self.assertIn("Message Box", names)
+        self.assertEqual(am.load_plugins.last_failed, [])
+
+    def test_sleep_plugin_runs(self):
+        src = os.path.dirname(os.path.abspath(am.__file__))
+        plugins = dict(am.load_plugins(base_dir=src))
+        logged = []
+        t0 = time.time()
+        plugins["Sleep (plugin)"].run(
+            {"log": logged.append, "cfg": {"lang": "th"}}, {"additional": "0.2"})
+        self.assertGreaterEqual(time.time() - t0, 0.19)
+        self.assertTrue(logged)
+
+    def test_message_box_plugin_falls_back_to_log(self):
+        # แสดง dialog จริงไม่ได้ในเทสต์ (จะบล็อกรอคลิก!) → patch showinfo แล้วเช็คว่าถูกเรียก
+        src = os.path.dirname(os.path.abspath(am.__file__))
+        plugins = dict(am.load_plugins(base_dir=src))
+        ctx = {"log": lambda m: None, "cfg": {"lang": "th"}}
+        with mock.patch("tkinter.messagebox.showinfo") as si:
+            plugins["Message Box"].run(ctx, {"additional": "ทดสอบ"})
+            si.assert_called_once()
+            self.assertIn("ทดสอบ", str(si.call_args))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

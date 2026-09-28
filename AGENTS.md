@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.15 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.16 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -43,6 +43,10 @@
   สรุปการใช้งานรวมรายเดือน (`log_monthly_series` + กราฟใน Stats),
   CONTRIBUTING.md + issue/PR templates, เทสต์เปิด dialog จริงด้วย Tk จำลอง
   (TestUiDialogs — ไม่มี display จะ skip อัตโนมัติ)
+- **ฟีเจอร์เสริม v1.16:** Custom Action plugins — โฟลเดอร์ `plugins/*.py` ประกาศ
+  `ACTION_NAME` + `run(ctx, row)` เป็น Action ใหม่ (GUI dropdown + CLI) โหลดผ่าน
+  `load_plugins()` (ข้ามไฟล์พัง/ชื่อซ้ำ ไม่พังโปรแกรม — รายชื่อที่ข้ามใน `last_failed`),
+  GIF สาธิตใน README (`docs/images/demo.gif`), `docs/ROADMAP.md` แผน v1.17→v2.0
 
 ## เทคโนโลยี
 
@@ -142,6 +146,12 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   แถบเลือกโปรไฟล์อยู่ใต้เมนู (สร้าง/เปลี่ยนชื่อ/ลบ/สลับ — สลับก่อนบันทึกของเดิมอัตโนมัติ)
 - **Schedule:** เธรด `_sched_loop` ตรวจเวลาทุก 5 วิ ผลักคำสั่งเข้า `queue.Queue` →
   UI poller (`_sched_poll` ทุก 500 ms) หยิบมาเล่น — โหมด "ทุก N นาที" และ "รายวัน HH:MM"
+- **Plugins (v1.16):** `load_plugins()` โหลด `plugins/*.py` (เรียงชื่อ, ไฟล์ขึ้นต้น `_` = ข้าม)
+  — แต่ละไฟล์ประกาศ `ACTION_NAME` + `run(ctx, row)`; ctx = {mouse, kb, log(ข้อความ), cfg}
+  ผูกเข้า GUI (dropdown Action + `_plugin_module` ตอนเล่น + `_validate_rows` ยอมรับ) และ
+  CLI (`cli_plugins` เล่นจริง พร้อม print รายชื่อในหัวโปรแกรม) — ไฟล์พัง/ไม่มี ACTION_NAME/
+  ชื่อซ้ำกับ ACTIONS_ALL → ข้ามไฟล์นั้น (เก็บใน `load_plugins.last_failed`) โปรแกรมไม่พัง
+  ตัวอย่าง: `plugins/sleep_seconds.py`, `plugins/message_box.py`, `_template.py` + คู่มือ
 - **Image Click:** Action `Image Click` + ช่อง Additional = ไฟล์ .png หรือ
   `ไฟล์.png@x,y,กว้าง,สูง` (Search Area — `_parse_search_area` แยก path/กรอบจาก @;
   cv2.matchTemplate, threshold 0.80, คลิกจุดศูนย์กลาง; ปิดฟีเจอร์อัตโนมัติถ้าไม่มี opencv)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.15
+Auto Mouse & Keyboard Macro  v1.16
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -36,6 +36,8 @@ Auto Mouse & Keyboard Macro  v1.15
   ไทย/English ได้ใน Settings (TR + _t) จำค่าใน macro_conf.json
 - v1.15: i18n ครบทุก dialog (Settings/Help/Wizard/Stats/Log/Hot-profile/context menu),
   สรุปการใช้งานรวม + กราฟรายเดือนใน Stats (log_monthly_series)
+- v1.16: Custom Action plugins — ผู้ใช้เขียน Python สั้น ๆ ใน plugins/*.py
+  (ประกาศ ACTION_NAME + run(ctx, row)) เป็น Action ใหม่ได้โดยไม่แก้โค้ดหลัก
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -72,7 +74,8 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.15"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.16"
+PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
 BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
 
@@ -163,6 +166,45 @@ MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cu
 EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION] + SCROLL_ACTIONS
                + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS)
+
+# ------------------------------------------------ plugin actions (v1.16) ----
+def load_plugins(base_dir=None):
+    """โหลด Custom Action plugins จาก <base_dir>/plugins/*.py (v1.16)
+    แต่ละไฟล์ประกาศ:  ACTION_NAME = "ชื่อ Action"  และ  def run(ctx, row):
+    ctx = dict(mouse, kb, log(message), cfg) — คืน list ของ (name, module)
+    โหลดล้มเหลวไฟล์ไหนก็ข้ามไฟล์นั้น (พร้อมชื่อ) ไม่ทำโปรแกรมพัง"""
+    if base_dir is None:
+        if getattr(sys, "frozen", False):      # รันจาก .exe — ใช้โฟลเดอร์ของไฟล์ exe
+            base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+    d = os.path.join(base_dir, PLUGINS_DIR)
+    if not os.path.isdir(d):
+        return []
+    out, failed = [], []
+    for path in sorted(glob.glob(os.path.join(d, "*.py"))):
+        name = os.path.basename(path)[:-3]
+        if name.startswith("_"):
+            continue                                   # _xxx.py = ไม่ใช่ plugin
+        try:
+            spec = __import__("importlib.util", fromlist=["util"])
+            import importlib.util
+            sp = importlib.util.spec_from_file_location("macro_plugin_%s" % name, path)
+            mod = importlib.util.module_from_spec(sp)
+            sp.loader.exec_module(mod)
+            aname = str(getattr(mod, "ACTION_NAME", "")).strip()
+            if not aname or not callable(getattr(mod, "run", None)):
+                raise ValueError("ต้องมี ACTION_NAME และ run(ctx, row)")
+            if aname in ACTIONS_ALL or any(a == aname for a, _ in out):
+                raise ValueError("ชื่อ Action ซ้ำ: " + aname)
+            out.append((aname, mod))
+        except Exception as exc:
+            failed.append("%s: %s" % (name, exc))
+    load_plugins.last_failed = failed
+    return out
+
+
+load_plugins.last_failed = []
 MOD_KEYS = ["", "Ctrl", "Alt", "Shift", "Win"]
 EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat"]
 COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat"]
@@ -492,6 +534,7 @@ class MacroApp:
         self._backup_enabled = True        # backup อัตโนมัติตอนปิดโปรแกรม (v1.14)
         self._backup_days = BACKUP_KEEP_DAYS  # เก็บ backup ย้อนหลังกี่วัน
         self._lang = "th"                  # ภาษา UI: 'th' / 'en' (v1.14)
+        self._plugins = []                 # Custom Action plugins (v1.16): [(name, module)]
 
         # การหยุดที่แม่นยำ (v1.7.1)
         self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
@@ -512,6 +555,11 @@ class MacroApp:
         self._start_scheduler()
         self._load_profiles()
         self._refresh_profile_ui()
+        self._plugins = load_plugins()     # โหลด Custom Actions (v1.16)
+        if self._plugins:
+            # ส่งผ่าน root.after — อย่าเขียน _ui_state ตอน __init__ (poller ใช้ pop("msg"))
+            self.root.after(0, lambda: self._ui_state.__setitem__(
+                "msg", ("โหลด plugins: " + ", ".join(n for n, _ in self._plugins), "#080")))
         self._load_conf()  # โหลดงานล่าสุดของโปรไฟล์ที่ใช้อยู่ (ถ้ามี)
         self._self_check()  # ตรวจสุขภาพระบบ (v1.11) — ผลแสดงใน Settings
         if not (self._checks.get("mouse") and self._checks.get("hotkey")):
@@ -826,9 +874,11 @@ class MacroApp:
                 self.tree.see(row)
             self._hl_row = row
 
-        # ข้อความสถานะ
-        if st["msg"]:
-            text, color = st.pop("msg")
+        # ข้อความสถานะ (อ่านด้วย get — อย่า pop คีย์ทิ้ง ไม่งั้น tick ถัดไปชน KeyError)
+        msg = st.get("msg")
+        if msg:
+            text, color = msg
+            st["msg"] = None
             self.lbl_state.config(text=text, fg=color)
 
         # รีเซ็ตปุ่มเมื่อเล่นจบ
@@ -997,7 +1047,7 @@ class MacroApp:
         vals = list(self.tree.item(row_id, "values"))
         ei = ci - 4                                    # ดัชนีใน EDIT_COLS
         label = EDIT_COLS[ei]
-        choices = {"Action": ACTIONS_ALL,
+        choices = {"Action": list(ACTIONS_ALL) + [n for n, _ in self._plugins],
                    "Additional": [""] + MOD_KEYS[1:] + sorted(SPECIAL_KEYS)}.get(label)
         if key == "additional":
             hint = {"Type Text": "พิมพ์ข้อความที่จะส่ง (เช่น สวัสดี)",
@@ -1048,10 +1098,19 @@ class MacroApp:
                                  mins=v[6], secs=v[7], repeat=v[8]))
         return rows
 
+    def _plugin_module(self, name):
+        """คืน module ของ plugin ตามชื่อ Action (ไม่พบ = None)"""
+        for n, mod in self._plugins:
+            if n == name:
+                return mod
+        return None
+
     def _validate_rows(self, rows):
         for r in rows:
             if r["button"] in KEY_ACTIONS and not parse_key(r["additional"]):
                 return False
+            if self._plugin_module(r["button"]):
+                continue                    # Custom Action — ตรวจรูปแบบภายใน plugin เอง
             if r["button"] == "Launch App" and not (r["additional"] or "").strip():
                 return False
             if r["button"] in (IMAGE_ACTION, "Wait for Image"):
@@ -1245,6 +1304,14 @@ class MacroApp:
                     self._pressed_keys.discard(k)
                 else:
                     self.kb_ctl.tap(k)
+            else:                                                # Custom Action (v1.16)
+                mod = self._plugin_module(btn)
+                if mod is None:
+                    return
+                ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
+                       "log": lambda m: log_write("PLUGIN", m, self._log_src),
+                       "cfg": {"lang": self._lang}}
+                mod.run(ctx, dict(r))
 
         # บั๊กฟิกซ์ v1.6: เดิมลูปนี้ถูกแทรกหลัง return ของ kb_ctrl_char ทำให้เป็น dead code
         # v1.7.1: ใช้ _gen_ok/_sleep_check — STOP แม่นทันทีแม้ดีเลย์ยาว + กันเล่นซ้อนเธรด
@@ -2450,6 +2517,17 @@ def cli_main(argv):
                 kb_ctl.tap(KeyCode.from_char(ch))
         elif btn == "Beep":
             print("\a", end="", flush=True)
+        else:
+            # Custom Action plugins (v1.16) — ทำงานใน CLI ด้วย
+            mod = cli_plugins.get(btn)
+            if mod is not None:
+                ctx = {"mouse": mouse_ctl, "kb": kb_ctl,
+                       "log": lambda m: log_write("PLUGIN", m, args.script) if log_enabled else None,
+                       "cfg": {"lang": "th"}}
+                try:
+                    mod.run(ctx, dict(r))
+                except Exception as exc:
+                    print("  plugin error (%s): %s" % (btn, exc))
         # (หมายเหตุ: Image Click/Wait for Image ยังไม่รองรับใน CLI — ใช้ GUI)
 
     # หยุดด้วย F8/Esc ได้ทุกที่ — ใช้ Listener จับคู่เอง (เหตุผลเดียวกับ GUI v1.8)
@@ -2527,6 +2605,9 @@ def cli_main(argv):
     else:
         print("หยุด: Esc/q ในหน้าต่างนี้ หรือ Ctrl+C")
     pct = max(5, min(100, args.rows_pct))
+    cli_plugins = {n: m for n, m in load_plugins()}    # Custom Actions สำหรับ CLI (v1.16)
+    if cli_plugins:
+        print("  •  plugins: " + ", ".join(cli_plugins))
 
     def play_once():
         """เล่นสคริปต์ 1 ครั้ง — คืน True = จบครบเอง, False = ถูกหยุดกลางคัน"""

@@ -132,6 +132,27 @@ class TestE2EStop(unittest.TestCase):
         finally:
             ch.close()
 
+    def test_plugin_action_runs(self):
+        """Custom Action plugin (v1.16): เล่นแถว plugin จริงผ่าน CLI
+        (Sleep (plugin) 0.2s — ปลอดภัย ไม่แตะเมาส์/คีย์)"""
+        script = self._script([
+            {"enabled": True, "button": "Sleep (plugin)", "additional": "0.2",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            el = ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            self.assertIn("plugins:", out)
+            self.assertIn("Sleep (plugin)", out)      # ในรายชื่อ + บรรทัดเล่นจริง
+            self.assertIn("จบแล้ว", out)
+            self.assertLess(el, 15)
+        finally:
+            ch.close()
+
     def test_watchdog_restarts_then_stop_file(self):
         # --watchdog 1: จบแล้วเริ่มใหม่อัตโนมัติ — พอเห็นข้อความ watchdog ให้สร้าง
         # stop-file ระหว่างช่วงพัก = ต้องหยุดถาวร (exit 130) ไม่เริ่มรอบใหม่

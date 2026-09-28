@@ -4,6 +4,28 @@
 
 ---
 
+## [1.16] — 2026-09-28
+
+### ✨ เพิ่มใหม่
+- **🔌 Custom Action plugins** — เพิ่ม Action ของผู้ใช้เองได้โดยไม่แก้โค้ดหลัก:
+  วางไฟล์ `.py` ที่ประกาศ `ACTION_NAME` + `run(ctx, row)` ไว้ใน `plugins/` โปรแกรมโหลดให้อัตโนมัติ
+  ทั้ง GUI (dropdown คอลัมน์ Action) และ CLI (แสดงรายชื่อ plugin ที่โหลดได้ในหัวโปรแกรม)
+  - ctx มี `mouse` / `kb` (pynput), `log(ข้อความ)` (เขียน log เป็น `[PLUGIN]`), `cfg` (ภาษา)
+  - ทนพัง: ไฟล์ไหน import ล้มเหลว/ไม่มี ACTION_NAME/ชื่อซ้ำ → ข้ามไฟล์นั้น โปรแกรมทำงานต่อ
+    (`load_plugins.last_failed` เก็บชื่อไฟล์ที่ข้าม)
+  - ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด — ใช้เป็นแม่แบบ (`_template.py`) ได้
+  - ตัวอย่างในโปรเจกต์: `Sleep (plugin)` + `Message Box` + คู่มือ `plugins/README.md`
+- **🎬 GIF สาธิตใน README** (`docs/images/demo.gif`) — อัดจากการรันโปรแกรมจริง
+  เคอร์เซอร์ไล่ตามสคริปต์ (แสดงใน README ไทย/อังกฤษ/HTML)
+- **🗺️ docs/ROADMAP.md** — แผน v1.17→v2.0 (แยก engine, Plugin API v2, Condition, ตัวแปร)
+  พร้อมหลักการที่ห้ามฝ่าฝืน ลิงก์จาก README
+
+### 🧪 ทดสอบ
+- เพิ่ม TestPlugins 8 ตัว (โหลด/ข้ามไฟล์พัง/ชื่อซ้ำ/_template/ตัวอย่างจริง/รัน sleep จริง)
+  และ E2E เล่น plugin ผ่าน CLI จริง 1 ตัว → รวม **117 unit + 8 E2E tests ผ่านหมด**
+
+---
+
 ## [1.15] — 2026-09-28
 
 ### ✨ เพิ่มใหม่
