@@ -1,0 +1,52 @@
+[
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Variable",
+    "additional": "รหัส = A1B2",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Clipboard",
+    "additional": "รหัสที่ตั้งจาก macro: {รหัส} — กด Ctrl+V เพื่อวางได้เลย",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Read Clipboard",
+    "additional": "จากคลิป",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Beep",
+    "additional": "",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  },
+  {
+    "enabled": true,
+    "x": "",
+    "y": "",
+    "button": "Set Variable",
+    "additional": "สรุป = คลิปบอร์ดตอนจบ: {จากคลิป}",
+    "mins": 0,
+    "secs": 0,
+    "repeat": 1
+  }
+]

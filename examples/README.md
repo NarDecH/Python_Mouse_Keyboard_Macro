@@ -34,6 +34,16 @@ py auto_macro.py examples/08_variables.json
 สาธิต **Set Variable** (`รอบ = 0`, `รอบ += 1`) และการเรียกใช้ด้วย `{รอบ}`
 ในช่องอื่น — ตัวนับ/สรุปค่าระหว่างเล่น ไม่ต้องแก้สคริปต์ทุกรอบ
 
+### ตัวอย่างคลิปบอร์ด (v1.20+)
+
+```bash
+py auto_macro.py examples/09_clipboard.json
+```
+
+สาธิต **Set Clipboard** (ใส่ข้อความ+ตัวแปรลงคลิปบอร์ด — เขียนทับคลิปเดิมของคุณ)
+และ **Read Clipboard** (อ่านกลับเก็บเป็นตัวแปร) — หลังเล่นจบ กด Ctrl+V ที่ไหนก็ได้
+เพื่อดูข้อความที่ macro ตั้งไว้
+
 ### ตัวอย่างงานเฝ้าระบบ (v1.10+)
 
 ```bash
@@ -57,6 +67,7 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `06_plugin_demo.json` | **Custom Action plugins**: Message Box + Sleep (plugin) — แม่แบบเขียน plugin | ✅ ไม่คลิก |
 | `07_conditions.json` | **เงื่อนไข (v1.18)**: If Image → กลุ่ม A/B (Else If Image) + Wait for Pixel Color | ✅ ไม่คลิก |
 | `08_variables.json` | **ตัวแปร (v1.19)**: Set Variable (`=`, `+=`) + เรียกใช้ `{รอบ}` ในช่องอื่น | ✅ ไม่คลิก |
+| `09_clipboard.json` | **คลิปบอร์ด (v1.20)**: Set Clipboard + Read Clipboard (เขียนทับคลิปเดิม) | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 
 ทุกสคริปต์แถวแรกคือ `Save Cursor` และแถวสุดท้าย `Restore Cursor` เสมอ

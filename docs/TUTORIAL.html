@@ -249,12 +249,13 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></
     <h2 class="chapter">บทที่ 9 — ตัวอย่างจริง (มีให้ในโปรเจกต์)</h2>
     <table>
       <tr><th>ไฟล์</th><th>สถานการณ์</th><th>จุดสำคัญ</th></tr>
-      <tr><td><code>demo_script.json</code></td><td>เดโม่รวม: Notepad+พิมพ์ไทย+Enter+Beep</td><td>ดีเลย์สุ่ม, Repeat, Restore</td></tr>
+      <tr><td><code>examples/demo_script.json</code></td><td>เดโม่รวม: Notepad+พิมพ์ไทย+Enter+Beep</td><td>ดีเลย์สุ่ม, Repeat, Restore</td></tr>
       <tr><td><code>examples/01_auto_typer.json</code></td><td>พิมพ์ซ้ำอัตโนมัติ</td><td>โครง Save→ทำงาน→Restore</td></tr>
       <tr><td><code>examples/02_form_filler.json</code></td><td>กรอกฟอร์มชื่อ/อีเมล/โทร</td><td>แบ่งบรรทัดต่อช่อง + Enter</td></tr>
       <tr><td><code>examples/03_image_click.json</code></td><td>คลิกตามภาพ</td><td>Search Area <code>@x,y,w,h#90</code>, แถวคลิกปิดไว้ก่อนทดสอบ</td></tr>
       <tr><td><code>examples/06_plugin_demo.json</code></td><td>Custom Action plugins</td><td>Message Box + Sleep (plugin)</td></tr>
       <tr><td><code>examples/07_conditions.json</code></td><td><b>เงื่อนไข (v1.18)</b></td><td>If Image → กลุ่ม A/B, Wait for Pixel Color — ไม่คลิก ปลอดภัย</td></tr>
+      <tr><td><code>examples/08_variables.json</code></td><td><b>ตัวแปร (v1.19)</b></td><td>Set Variable + <code>{รอบ}</code> — ไม่คลิก ปลอดภัย</td></tr>
       <tr><td><code>examples/04_scroll_gallery.json</code></td><td>เลื่อนดูรูป/เว็บ</td><td>Scroll คู่ขึ้น-ลง</td></tr>
     </table>
   </div>
@@ -303,7 +304,41 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></
 
 </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v1.14</footer>
+  <div class="card" id="ch12">
+    <h2 class="chapter">บทที่ 12 — ตัวแปรและคลิปบอร์ด (v1.19+)</h2>
+    <h3>12.1 ตัวแปรในสคริปต์ (Set Variable)</h3>
+    <p>เพิ่ม Action <b>Set Variable</b> แล้วพิมพ์ในช่อง Additional:</p>
+    <table>
+      <tr><th>พิมพ์</th><th>ความหมาย</th></tr>
+      <tr><td><code>รอบ = 1</code></td><td>ตั้งค่า (ข้อความหรือตัวเลขก็ได้)</td></tr>
+      <tr><td><code>รอบ += 1</code></td><td>บวกเพิ่ม (ตัวเลข — ตัวแปรใหม่เริ่มที่ 0)</td></tr>
+      <tr><td><code>รอบ -= 1</code></td><td>ลดลง</td></tr>
+    </table>
+    <p>เรียกใช้ด้วย <code>{ชื่อตัวแปร}</code> ได้ใน<b>ทุกช่อง</b> — X, Y, Additional, Mins, Secs, Repeat
+      เช่น แถว Beep วาง Secs = <code>{รอบ}</code> → ดีเลย์ตามค่าตัวแปร</p>
+<pre><code>py auto_macro.py examples/08_variables.json     # เดโม่ทำตาม (ไม่คลิก ปลอดภัย)</code></pre>
+    <ul>
+      <li>ชื่อตัวแปรเป็นไทย/อังกฤษได้ ห้ามขึ้นต้นด้วยตัวเลข และห้ามมีช่องว่าง</li>
+      <li>ตัวแปร<b>เริ่มใหม่ทุกครั้งที่เริ่มเล่น</b> (กด START/REPEAT รอบใหม่ = ล้างค่า)</li>
+      <li>พิมพ์ชื่อผิด เช่น <code>{รอบ2}</code> โปรแกรมคง <code>{รอบ2}</code> เดิมไว้ให้เห็น ไม่เดาค่าเอง</li>
+    </ul>
+    <h3>12.2 คลิปบอร์ด (Set Clipboard / Read Clipboard) (v1.20+)</h3>
+    <table>
+      <tr><th>Action</th><th>Additional</th><th>ทำอะไร</th></tr>
+      <tr><td><b>Set Clipboard</b></td><td>ข้อความ (ใช้ <code>{ตัวแปร}</code> ได้)</td>
+          <td>ใส่ข้อความลงคลิปบอร์ด — วางต่อในแอปอื่นด้วย Ctrl+V ได้เลย</td></tr>
+      <tr><td><b>Read Clipboard</b></td><td>ชื่อตัวแปร เช่น <code>mytext</code></td>
+          <td>อ่านคลิปบอร์ดปัจจุบันเก็บไว้ใน <code>{mytext}</code></td></tr>
+    </table>
+    <p>ใช้ร่วมกันได้ เช่น: Read Clipboard <code>code</code> → Image Click ปุ่มช่องกรอก →
+      Type Text <code>{code}</code> — หมายเหตุ: Set Clipboard <b>เขียนทับ</b>คลิปบอร์ดเดิมของคุณ</p>
+    <h3>12.3 ผูกกับปลั๊กอิน (v1.20+)</h3>
+    <p>ปลั๊กอินที่มีลูปยาว ควรเรียก <code>ctx["stop_check"]()</code> เป็นระยะ — ผู้ใช้กด STOP
+      แล้ว plugin จะออกเอง และรายงานสถานะด้วย <code>ctx["ui"]["msg"]("ข้อความ")</code> —
+      ดูตัวอย่างเต็มที่ <code>plugins/README.md</code></p>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v1.20</footer>
 
 </body>
 </html>

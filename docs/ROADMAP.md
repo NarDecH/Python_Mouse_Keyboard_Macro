@@ -1,6 +1,6 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v1.19.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v1.20.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
 ## 🚀 v1.17 — ถัดไปอันใกล้
 
@@ -16,14 +16,14 @@
 - [x] ~~**Condition พื้นฐานในสคริปต์** — "ถ้าภาพเจอ → ทำ A, ไม่เจอ → ข้าม"~~ ✅ v1.17 (If Image)
 - [x] ~~**If Image / Else** — เงื่อนไขสองทาง: เจอ → กลุ่ม A, ไม่เจอ → กลุ่ม B~~ ✅ v1.18 (Else If Image)
 - [x] ~~**ตัวแปรในสคริปต์** — เก็บ/อ่านค่าระหว่างแถว (เช่น นับรอบ, ผลลัพธ์ล่าสุด)~~ ✅ v1.19 (Set Variable + `{ชื่อ}`)
-- [ ] **คลิปบอร์ด action** — ตั้ง/อ่านคลิปบอร์ด (วางข้อความเร็วกว่า Type Text)
+- [x] ~~**คลิปบอร์ด action** — ตั้ง/อ่านคลิปบอร์ด (วางข้อความเร็วกว่า Type Text)~~ ✅ v1.20 (Set/Read Clipboard)
 
 ## 🏗️ v2.0 — ปรับโครงใหญ่ (เมื่อชุมชนโต)
 
 - [ ] **แยก engine ออกจาก GUI** — `macro_engine.py` (player/recorder ล้วน) + GUI import เข้ามา
       ทำให้เทสต์ engine ไม่ต้องแตะ Tk และคนอื่นเอา engine ไปฝังได้
       ⚠️ ต้องรักษาสัญญา "ไฟล์เดียวจบ" ด้วย build script รวมกลับเป็น `auto_macro.py` อัตโนมัติ
-- [ ] **Plugin API v2** — ctx เพิ่ม `stop_check()` (plugin หยุดตาม STOP ได้), `ui` (toast/statusbar)
+- [x] ~~**Plugin API v2** — ctx เพิ่ม `stop_check()` (plugin หยุดตาม STOP ได้), `ui` (toast/statusbar)~~ ✅ v1.20
 - [ ] **ตลาด plugin** — หน้าเว็บรวม plugin ของชุมชน + คำสั่งติดตั้ง (ดาวน์โหลดลง plugins/)
 - [ ] **Multi-language docs** — เพิ่มภาษาจีน/ญี่ปุ่น (i18n ตัวโปรแกรมรองรับแล้ว)
 
@@ -35,4 +35,4 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v1.18 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*
+*อัพเดตล่าสุด: v1.20 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*

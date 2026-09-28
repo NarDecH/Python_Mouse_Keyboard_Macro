@@ -45,6 +45,8 @@ Auto Mouse & Keyboard Macro  v1.18
 - v1.19: ตัวแปรในสคริปต์ (Set Variable + {name}), ปุ่มจับสีจากจอ, timeout ตั้งได้
   (เช่น "logo.png 60s"), จำค่าการตั้งค่า/ตารางเวลาลง conf, CLI เตือน action ไม่รองรับ,
   player ไม่เรียก Tk ข้ามเธรดอีกต่อไป
+- v1.20: Set/Read Clipboard (ตั้ง/อ่านคลิปบอร์ด เก็บเป็นตัวแปรได้, รองรับไทยบน CLI
+  ด้วย Win32 API), Plugin API v2 (ctx.stop_check() + ctx.ui)
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -81,7 +83,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.19.0"
+__version__ = "1.20.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -192,9 +194,10 @@ MOD_CLICKS = ["Ctrl+Click", "Shift+Click", "Alt+Click", "Ctrl+Right Click"]
 MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cursor"]
 EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
 VAR_ACTIONS = ["Set Variable"]   # v1.19: ตัวแปรในสคริปต์ — ใช้ {ชื่อ} แทนค่าในช่องอื่น
+CLIP_ACTIONS = ["Set Clipboard", "Read Clipboard"]  # v1.20: ตั้ง/อ่านคลิปบอร์ด
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
-               + VAR_ACTIONS)
+               + VAR_ACTIONS + CLIP_ACTIONS)
 
 # ------------------------------------------- pixel color helpers (v1.18) ----
 def parse_color_hex(txt):
@@ -320,6 +323,105 @@ def apply_set_var(variables, additional):
         base = 0.0
     variables[name] = fmt_num(base + delta if op == "+=" else base - delta)
     return True
+
+
+# ---------------------------------------------- คลิปบอร์ดฝั่ง CLI (v1.20) ----
+def _clip_win_set(text):
+    """ตั้งคลิปบอร์ดบน Windows ด้วย Win32 API (ไม่ใช้ Tk/โปรแกรมอื่น) — คืน True ถ้าสำเร็จ"""
+    import ctypes
+    u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
+    CF_UNICODETEXT, GMEM_MOVEABLE = 13, 2
+    data = text.encode("utf-16-le") + b"\x00\x00"
+    if not u32.OpenClipboard(None):
+        return False
+    try:
+        u32.EmptyClipboard()
+        k32.GlobalAlloc.restype = ctypes.c_void_p
+        k32.GlobalAlloc.argtypes = (ctypes.c_uint, ctypes.c_size_t)
+        h = k32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+        if not h:
+            return False
+        k32.GlobalLock.restype = ctypes.c_void_p
+        k32.GlobalLock.argtypes = (ctypes.c_void_p,)
+        ptr = k32.GlobalLock(h)
+        if not ptr:
+            return False
+        try:
+            ctypes.memmove(ptr, data, len(data))
+        finally:
+            k32.GlobalUnlock.argtypes = (ctypes.c_void_p,)
+            k32.GlobalUnlock(h)
+        u32.SetClipboardData.restype = ctypes.c_void_p
+        u32.SetClipboardData.argtypes = (ctypes.c_uint, ctypes.c_void_p)
+        return bool(u32.SetClipboardData(CF_UNICODETEXT, h))
+    finally:
+        u32.CloseClipboard()
+
+
+def _clip_win_get():
+    """อ่านคลิปบอร์ดบน Windows ด้วย Win32 API → str หรือ None"""
+    import ctypes
+    u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
+    if not u32.OpenClipboard(None):
+        return None
+    try:
+        u32.GetClipboardData.restype = ctypes.c_void_p
+        u32.GetClipboardData.argtypes = (ctypes.c_uint,)
+        h = u32.GetClipboardData(13)               # CF_UNICODETEXT
+        if not h:
+            return None
+        k32.GlobalLock.restype = ctypes.c_void_p
+        k32.GlobalLock.argtypes = (ctypes.c_void_p,)
+        ptr = k32.GlobalLock(h)
+        if not ptr:
+            return None
+        try:
+            return ctypes.wstring_at(ptr)
+        finally:
+            k32.GlobalUnlock.argtypes = (ctypes.c_void_p,)
+            k32.GlobalUnlock(h)
+    finally:
+        u32.CloseClipboard()
+
+
+def clip_set(text):
+    """ตั้งคลิปบอร์ดโดยไม่ใช้ Tk (v1.20, ใช้โดย CLI) — Windows: Win32 API,
+    macOS: pbcopy, Linux: wl-copy/xclip/xsel — คืน True ถ้าสำเร็จ"""
+    try:
+        if os.name == "nt":
+            return _clip_win_set(str(text))
+        import subprocess
+        for cmd in (["pbcopy"], ["wl-copy"], ["xclip", "-selection", "clipboard"],
+                    ["xsel", "--clipboard", "--input"]):
+            try:
+                p = subprocess.run(cmd, input=str(text).encode("utf-8"), timeout=5)
+                if p.returncode == 0:
+                    return True
+            except (OSError, subprocess.SubprocessError):
+                continue
+        return False
+    except Exception:
+        return False
+
+
+def clip_get():
+    """อ่านคลิปบอร์ดโดยไม่ใช้ Tk (v1.20, ใช้โดย CLI) → str หรือ None ถ้าอ่านไม่ได้"""
+    try:
+        if os.name == "nt":
+            return _clip_win_get()
+        import subprocess
+        for cmd in (["pbpaste"], ["wl-paste", "--no-newline"],
+                    ["xclip", "-selection", "clipboard", "-o"],
+                    ["xsel", "--clipboard", "--output"]):
+            try:
+                p = subprocess.run(cmd, capture_output=True, timeout=5)
+                if p.returncode == 0:
+                    return p.stdout.decode("utf-8", "replace")
+            except (OSError, subprocess.SubprocessError):
+                continue
+        return None
+    except Exception:
+        return None
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -1129,6 +1231,21 @@ class MacroApp:
             except tk.TclError:
                 pass
 
+        # คลิปบอร์ด (v1.20) — ตั้ง/อ่านบน main thread เท่านั้น
+        clip_text = st.pop("clipboard", None)
+        if clip_text:
+            try:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(clip_text)
+            except tk.TclError:
+                pass
+        clip_var = st.pop("read_clipboard", None)
+        if clip_var:
+            try:
+                self._vars[clip_var] = self.root.clipboard_get()
+            except tk.TclError:
+                self._vars[clip_var] = ""
+
         # ตำแหน่งเมาส์ / คีย์ล่าสุด
         x, y = self._live_pos
         self.lbl_pos.config(text="%d    %d" % (x, y))
@@ -1433,6 +1550,8 @@ class MacroApp:
                     "Else If Image": "ชื่อไฟล์ .png — ตัวแบ่งกลุ่ม A/B แบบสองทาง (v1.18)",
                     "Wait for Pixel Color": "x,y #RRGGBB เช่น 100,200 #ff0000 (ตามด้วย 60s = รอ 60 วิ)",
                     "Set Variable": "name = ค่า หรือ name += จำนวน — เรียกใช้ด้วย {name} ในช่องอื่น",
+                    "Set Clipboard": "ข้อความที่จะใส่คลิปบอร์ด (ใช้ {ตัวแปร} ได้)",
+                    "Read Clipboard": "ชื่อตัวแปรที่จะเก็บข้อความจากคลิปบอร์ด เช่น mytext",
                     "Wait for Image": "ชื่อไฟล์ .png เช่น button.png",
                     "Scroll Up": "จำนวนจังหวะ เช่น 3",
                     "Scroll Down": "จำนวนจังหวะ เช่น 3"}.get(str(vals[4]), "")
@@ -1504,6 +1623,11 @@ class MacroApp:
             if r["button"] == "Launch App" and not (r["additional"] or "").strip():
                 return False
             if r["button"] == "Set Variable" and not parse_set_var(r["additional"]):
+                return False
+            if r["button"] == "Set Clipboard" and not (r["additional"] or "").strip():
+                return False
+            if r["button"] == "Read Clipboard" and not re.fullmatch(
+                    _VAR_NAME, str(r["additional"] or "").strip()):
                 return False
             if r["button"] in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
                 p, _a, _t = self._parse_search_area(r)
@@ -1707,13 +1831,29 @@ class MacroApp:
                 if not apply_set_var(self._vars, r["additional"]):
                     self._ui_state["msg"] = ("Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น "
                                              "name = ค่า หรือ name += จำนวน" % (r["additional"] or ""), "#c00")
+            elif btn == "Set Clipboard":                         # ตั้งคลิปบอร์ด (v1.20)
+                text = str(r["additional"] or "")
+                if text:
+                    self._ui_state["clipboard"] = text           # poller ตั้งบน main thread
+            elif btn == "Read Clipboard":                        # อ่านคลิปบอร์ดเก็บเป็นตัวแปร (v1.20)
+                m = re.fullmatch(_VAR_NAME, str(r["additional"] or "").strip())
+                if not m:
+                    self._ui_state["msg"] = ("Read Clipboard: พิมพ์ชื่อตัวแปรใน Additional "
+                                             "เช่น mytext", "#c00")
+                    return
+                self._ui_state["read_clipboard"] = m.group(0)
+                self._sleep_check(0.2, gen)                      # รอ poller (120ms) อ่านให้ก่อน
             else:                                                # Custom Action (v1.16)
                 mod = self._plugin_module(btn)
                 if mod is None:
                     return
                 ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
                        "log": lambda m: log_write("PLUGIN", m, self._log_src),
-                       "cfg": {"lang": self._lang}}
+                       "cfg": {"lang": self._lang},
+                       "stop_check": lambda: self._gen_ok(gen),        # v1.20
+                       "ui": {"msg": lambda text, color="#080":        # v1.20
+                                  self._ui_state.__setitem__("msg", (str(text), color)),
+                              "beep": lambda: self._ui_state.__setitem__("beep", True)}}
                 mod.run(ctx, dict(r))
 
         # บั๊กฟิกซ์ v1.6: เดิมลูปนี้ถูกแทรกหลัง return ของ kb_ctrl_char ทำให้เป็น dead code
@@ -3066,6 +3206,20 @@ def cli_main(argv):
             if not apply_set_var(cli_vars, r.get("additional", "")):
                 print("  Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น name = ค่า หรือ name += จำนวน"
                       % (r.get("additional") or ""))
+        elif btn == "Set Clipboard":                 # คลิปบอร์ด (v1.20)
+            text = str(r.get("additional") or "")
+            if text and not clip_set(text):
+                print("  ⚠ Set Clipboard: ตั้งคลิปบอร์ดไม่สำเร็จบนระบบนี้")
+        elif btn == "Read Clipboard":
+            m = re.fullmatch(_VAR_NAME, str(r.get("additional") or "").strip())
+            if not m:
+                print("  Read Clipboard: พิมพ์ชื่อตัวแปรใน Additional เช่น mytext")
+            else:
+                got = clip_get()
+                if got is None:
+                    print("  ⚠ Read Clipboard: อ่านคลิปบอร์ดไม่สำเร็จบนระบบนี้")
+                else:
+                    cli_vars[m.group(0)] = got
         elif btn == "Beep":
             print("\a", end="", flush=True)
         else:
@@ -3074,7 +3228,10 @@ def cli_main(argv):
             if mod is not None:
                 ctx = {"mouse": mouse_ctl, "kb": kb_ctl,
                        "log": lambda m: log_write("PLUGIN", m, args.script) if log_enabled else None,
-                       "cfg": {"lang": "th"}}
+                       "cfg": {"lang": "th"},
+                       "stop_check": lambda: running[0],              # v1.20
+                       "ui": {"msg": lambda text, color="#080": print("  " + str(text)),
+                              "beep": lambda: print("\a", end="", flush=True)}}
                 try:
                     mod.run(ctx, dict(r))
                 except Exception as exc:

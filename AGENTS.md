@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.19.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.20.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -82,6 +82,12 @@
   (แก้เพี้ยนเมื่อมีแถวปิด), `_sched_check()` แยกออกจากเธรด (โหมดรายวันเทียบเฉพาะ
   HH:MM — เดิมเทียบผิดรูปแบบไม่มีวันติด), `pixel_color_at` grab 1×1,
   เวอร์ชันแหล่งเดียว `__version__` + TestVersionConsistency กันเอกสารค้าง
+- **ฟีเจอร์เสริม v1.20:** คลิปบอร์ด (`Set Clipboard`/`Read Clipboard` — GUI ผ่าน
+  `_ui_state["clipboard"]`/`["read_clipboard"]` ให้ poller ตั้ง/อ่านบน main thread เท่านั้น,
+  CLI ผ่าน `clip_set`/`clip_get` — Windows: Win32 CF_UNICODETEXT ผ่าน ctypes
+  (ตั้ง restype/argtypes ให้ครบกัน handle โดนตัดบน 64-bit), macOS: pbcopy/pbpaste,
+  Linux: wl-copy/xclip/xsel), Plugin API v2 (ctx เพิ่ม `stop_check()` + `ui={"msg","beep"}`
+  ทั้ง GUI/CLI), TUTORIAL บทที่ 12 (ตัวแปร+คลิปบอร์ด), เดโม่ `examples/09_clipboard.json`
 
 ## เทคโนโลยี
 

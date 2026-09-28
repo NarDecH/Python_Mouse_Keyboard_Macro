@@ -4,6 +4,29 @@
 
 ---
 
+## [1.20.0] — 2026-09-28
+
+### ✨ เพิ่มใหม่
+- **📋 Set Clipboard / Read Clipboard (ดึงจาก ROADMAP)** — ตั้งข้อความลงคลิปบอร์ด
+  (ใช้ `{ตัวแปร}` ได้) และอ่านคลิปบอร์ดเก็บเป็นตัวแปร — วางข้อความเร็วกว่า Type Text
+  ทั้ง GUI (ผ่าน poller — main thread เท่านั้น) และ CLI (Windows: Win32 API
+  CF_UNICODETEXT รองรับไทยเต็มรูปแบบ, macOS: pbcopy/pbpaste, Linux: wl-copy/xclip/xsel)
+  · เดโม่ `examples/09_clipboard.json`
+- **🔌 Plugin API v2 (ดึงจาก ROADMAP)** — ctx เพิ่ม `stop_check()` (คืน `False` เมื่อผู้ใช้
+  กด STOP — plugin ลูปยาวออกเองได้) และ `ctx["ui"]` (`msg` แสดงใน statusbar/print,
+  `beep` ส่งเสียง) — ทำงานทั้ง GUI และ CLI · อัพเดต `plugins/README.md` + `_template.py`
+
+### 📘 เอกสาร
+- TUTORIAL **บทที่ 12** ใหม่: ตัวแปรและคลิปบอร์ด — ทำตามได้จริงทั้ง .md/.html
+- แก้ path เดโม่ในบทที่ 9 + footer ตรงเวอร์ชัน
+
+### 🧪 ทดสอบ
+- เพิ่ม TestClipboardActions + TestPluginCtxV2 + GUI (คลิปบอร์ดวนกลับเข้าตัวแปรจริง,
+  plugin ctx ผ่าน player จริง) + E2E (Set Clipboard ใน CLI แล้วอ่านยืนยันข้อความไทย)
+  → รวม **180 unit + 11 E2E tests ผ่านหมด**
+
+---
+
 ## [1.19.0] — 2026-09-28
 
 ### ✨ เพิ่มใหม่

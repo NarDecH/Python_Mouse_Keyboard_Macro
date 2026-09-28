@@ -1640,6 +1640,41 @@ class TestPlayLoopGui(unittest.TestCase):
             app.toggle_record()
         self.assertFalse(app.recording)
 
+    def test_clipboard_actions_roundtrip(self):
+        """Set Clipboard → Read Clipboard: ข้อความวนกลับเข้าตัวแปรได้ (v1.20)"""
+        self._clean_table(0)
+        self.app._append_row(button="Set Variable", additional="n = 1")
+        self.app._append_row(button="Set Clipboard", additional="ข้อความ {n}")
+        self.app._append_row(button="Read Clipboard", additional="mytext")
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: not self.app.running)
+        self.assertTrue(ok)
+        self.assertEqual(self.app._vars.get("mytext"), "ข้อความ 1")
+        self.assertEqual(self.root.clipboard_get(), "ข้อความ 1")   # คลิปบอร์ดจริง
+
+    def test_plugin_ctx_v2(self):
+        """plugin ต้องได้ ctx.stop_check() / ctx.ui จาก player จริง (v1.20)"""
+        import types
+        captured = {}
+
+        def fake_run(ctx, row):
+            captured["stop"] = ctx["stop_check"]()
+            ctx["ui"]["msg"]("ปลั๊กอินทำงาน")
+            captured["msg_now"] = self.app._ui_state["msg"]   # อ่านทันทีหลังตั้ง (ก่อนโดนทับ)
+            ctx["ui"]["beep"]()
+            captured["beep_now"] = self.app._ui_state["beep"]
+
+        self.app._plugins.append(("FakePlug", types.SimpleNamespace(
+            ACTION_NAME="FakePlug", run=fake_run)))
+        self._clean_table(1)
+        self.app._append_row(button="FakePlug", additional="")
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: not self.app.running)
+        self.assertTrue(ok)
+        self.assertIs(captured["stop"], True)          # ระหว่างเล่น stop_check() = True
+        self.assertEqual(captured["msg_now"], ("ปลั๊กอินทำงาน", "#080"))
+        self.assertIs(captured["beep_now"], True)
+
 
 class TestWaitTimeout(unittest.TestCase):
     """v1.19: timeout ตั้งได้จากท้าย Additional เช่น "logo.png 60s" / "100,200 #fff 45s" """
@@ -1871,6 +1906,48 @@ class TestVersionConsistency(unittest.TestCase):
         with open(path, encoding="utf-8") as fh:
             content = fh.read()
         self.assertIn("## [%s]" % am.__version__, content)
+
+
+class TestClipboardActions(unittest.TestCase):
+    """v1.20: Set Clipboard / Read Clipboard — GUI ผ่าน poller, CLI ผ่าน Win32/pbcopy/xclip"""
+
+    def test_actions_registered(self):
+        for a in ("Set Clipboard", "Read Clipboard"):
+            self.assertIn(a, am.ACTIONS_ALL)
+
+    def test_validate_rows(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        ok = am.MacroApp._validate_rows(
+            app, [{"button": "Set Clipboard", "additional": "ข้อความ"}])
+        self.assertTrue(ok)
+        ok2 = am.MacroApp._validate_rows(
+            app, [{"button": "Set Clipboard", "additional": ""}])
+        self.assertFalse(ok2)                          # ต้องมีข้อความ
+        ok3 = am.MacroApp._validate_rows(
+            app, [{"button": "Read Clipboard", "additional": "mytext"}])
+        self.assertTrue(ok3)
+        ok4 = am.MacroApp._validate_rows(
+            app, [{"button": "Read Clipboard", "additional": "มี ช่องว่าง"}])
+        self.assertFalse(ok4)                          # ชื่อตัวแปรห้ามมีช่องว่าง
+
+    def test_clip_roundtrip_no_tk(self):
+        t = "ทดสอบคลิปบอร์ด ABC 123"
+        if not am.clip_set(t):
+            self.skipTest("ระบบนี้ตั้งคลิปบอร์ดไม่ได้ (ไม่มี xclip/wl-copy ฯลฯ)")
+        self.assertEqual(am.clip_get(), t)
+
+
+class TestPluginCtxV2(unittest.TestCase):
+    """v1.20: Plugin API v2 — ctx ต้องมี stop_check() และ ui (msg/beep)"""
+
+    def test_ctx_keys_documented_and_callable(self):
+        # ตรวจผ่านการรันจริงใน TestPlayLoopGui.test_plugin_ctx_v2 — ที่นี่เช็คเอกสาร
+        with open(os.path.join(os.path.dirname(os.path.abspath(am.__file__)),
+                               "plugins", "README.md"), encoding="utf-8") as fh:
+            content = fh.read()
+        self.assertIn("stop_check", content)
+        self.assertIn('ctx["ui"]', content)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,23 @@ def run(ctx, row):
 - `ctx["mouse"]` / `ctx["kb"]` = controller ของ pynput (ขยับเมาส์/กดคีย์ได้เลย)
 - `ctx["log"](ข้อความ)` = เขียนลง `macro_log_วันที่.txt` (แสดงเป็น `[PLUGIN]`)
 - `ctx["cfg"]["lang"]` = `"th"` หรือ `"en"` (ถ้า plugin อยากแสดงข้อความสองภาษา)
+- `ctx["stop_check"]()` = **v1.20** — เรียกเป็นระยะในลูปยาว คืน `False` เมื่อผู้ใช้กด STOP
+  → plugin ต้องเลิกทำงานทันที (เช่น `while ctx["stop_check"](): ...`)
+- `ctx["ui"]["msg"](ข้อความ, color="#080")` = **v1.20** — แสดงข้อความใน statusbar
+  (CLI: print ออกจอ) · `ctx["ui"]["beep"]()` = ส่งเสียงเตือน
+
+## ตัวอย่าง: ลูปยาวที่หยุดตาม STOP ได้ (v1.20)
+
+```python
+ACTION_NAME = "Count (plugin)"
+
+def run(ctx, row):
+    i = 0
+    while ctx["stop_check"]() and i < 100:   # กด STOP → stop_check() = False → ออกเอง
+        i += 1
+        ctx["ui"]["msg"]("นับ: %d" % i)
+        time.sleep(0.2)
+```
 
 ## กติกา
 
