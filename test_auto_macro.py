@@ -431,9 +431,80 @@ class TestGlobalHotkeyMapping(unittest.TestCase):
         from pynput.keyboard import Key as _Key
         on_press(mock.MagicMock())              # คีย์อื่น = เฉย ๆ ไม่ push
         self.assertEqual(len(pushed), 0)
-        for k in (_Key.f6, _Key.f8, _Key.f9, _Key.f10):
+        for k in (_Key.f6, _Key.f8, _Key.f9, _Key.f10,
+                  _Key.f1, _Key.f2, _Key.f3, _Key.f4):   # v1.9: รวม hot-profile
             on_press(k)
-        self.assertEqual(len(pushed), 4)        # ทุกปุ่มถูกผลักเข้า main thread
+        self.assertEqual(len(pushed), 8)        # ทุกปุ่มถูกผลักเข้า main thread
+
+
+class TestMenuItems(unittest.TestCase):
+    """เมนูไอคอนต้องอ้างเมธอดที่มีจริงทั้งหมด (กันพิมพ์ชื่อผิด)"""
+
+    def test_menu_methods_exist(self):
+        for icon, label, name, color in am.MacroApp._menu_items():
+            self.assertTrue(hasattr(am.MacroApp, name),
+                            "เมนู %s อ้างเมธอด %s ที่ไม่มีอยู่" % (label, name))
+
+    def test_log_and_hotprofile_in_menu(self):
+        names = [name for _, _, name, _ in am.MacroApp._menu_items()]
+        self.assertIn("view_log", names)
+        self.assertIn("hot_profile_dialog", names)
+
+
+class TestHotProfile(unittest.TestCase):
+    """Hot-profile F1-F4 (v1.9): เลือกไฟล์ลำดับที่ n เรียงตามชื่อ — ไม่แตะ Tk จริง"""
+
+    def _app(self, hp_dir):
+        app = mock.MagicMock()
+        app._hp_dir = hp_dir
+        app._loaded_file = None
+        app._log_src = None
+        app._ui_state = {"msg": None, "row": None, "prog": None, "reset": False}  # dict จริง
+        pushed = []
+        app.root.after.side_effect = lambda delay, fn: pushed.append(fn)
+        return app, pushed
+
+    def test_no_dir_shows_warning(self):
+        app, pushed = self._app(None)
+        am.MacroApp._hot_profile_load(app, 1)
+        self.assertEqual(len(pushed), 1)
+        pushed[0]()                             # รันงานที่ผลักเข้า main thread
+        self.assertIn("Hot-profile", app._ui_state["msg"][0])
+
+    def test_picks_nth_file_sorted(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for name in ("b.json", "a.json", "c.json"):
+                with open(os.path.join(d, name), "w", encoding="utf-8") as fh:
+                    fh.write('[{"button": "Beep", "secs": 0}]')
+            app, pushed = self._app(d)
+            started = []
+            app._start_player = mock.MagicMock(
+                side_effect=lambda loop: started.append(loop))
+            am.MacroApp._hot_profile_load(app, 2)       # ลำดับ 2 = b.json
+            self.assertEqual(len(pushed), 1)
+            pushed[0]()                                 # รันบน main thread จำลอง
+            self.assertEqual(app._loaded_file, os.path.join(d, "b.json"))
+            self.assertEqual(started, [False])          # โหลดแล้วเล่นทันที (ครั้งเดียว)
+
+    def test_index_out_of_range(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "only.json"), "w", encoding="utf-8") as fh:
+                fh.write("[]")
+            app, pushed = self._app(d)
+            am.MacroApp._hot_profile_load(app, 3)       # มีแค่ไฟล์เดียว
+            self.assertEqual(len(pushed), 1)
+            pushed[0]()
+            self.assertIn("F3", app._ui_state["msg"][0])
+
+    def test_empty_folder(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            app, pushed = self._app(d)
+            am.MacroApp._hot_profile_load(app, 1)
+            pushed[0]()
+            self.assertIn("ไม่มีไฟล์", app._ui_state["msg"][0])
 
 
 if __name__ == "__main__":

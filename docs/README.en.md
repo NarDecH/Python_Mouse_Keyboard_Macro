@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.8
+# 🖱️ Auto Mouse & Keyboard Macro v1.9
 
 <div align="center">
 
@@ -33,6 +33,8 @@
 | ▶️ **START / REPEAT** (F6) | Play enabled rows once, in a loop, or a fixed number of rounds |
 | ⏹️ **STOP** (F8) | Instant stop — even in the middle of a long delay; releases stuck keys/buttons automatically |
 | 🌐 **Global hotkeys** | F6/F8/F9/F10 work even when the window is not focused |
+| ⚡ **Hot-profiles** (F1–F4) | Pick a script folder once, then F1–F4 loads the 1st–4th .json (sorted by name) and plays it instantly |
+| 📜 **Log viewer** | Browse past play logs inside the app (📝 Log menu), per-day files |
 | 🖼️ **Image Click** | Find an image on screen (OpenCV) and click it — with search area `@x,y,w,h` and per-row confidence `#90` |
 | 📸 **Snapshot tool** | Drag a rectangle on screen to capture .png templates for Image Click, right inside the app |
 | 🎬 **16+ actions** | Click / double-click / modifier-click, scroll, move mouse (absolute/relative), save/restore cursor, type text (Thai supported), launch app, wait for image, beep, press/release/tap keys |
@@ -110,8 +112,20 @@ Every run appends to `macro_log_<YYYY-MM-DD>.txt` (rotates daily, trimmed to 500
 ```
 
 - **GUI:** toggle it in **Settings** (remembered automatically)
+- **Browse history:** the **📝 Log** menu opens a built-in log viewer with per-day files
 - **CLI:** disable with `--no-log`
 - Useful to audit what a script did, how long each row took, and when it was stopped
+
+## ⚡ Hot-profiles (F1–F4)
+
+For workflows that switch scripts constantly:
+
+1. **⚡ Hot-profile** menu → choose a folder containing your .json scripts (remembered)
+2. Files are sorted by name — positions 1–4 map to **F1–F4**
+3. Press **F1** to **F4** (works even unfocused) → that script loads and plays instantly
+4. Stop with F8 as usual
+
+Example: a folder with `a.json`, `b.json`, `c.json` → F1=a, F2=b, F3=c
 
 ---
 
@@ -124,7 +138,8 @@ Ready-to-load JSON scripts live in [`examples/`](../examples/) — from a safe a
 ## 🧪 Tests & build
 
 ```bash
-py -m unittest test_auto_macro -v    # 63 unit tests
+py -m unittest test_auto_macro -v    # 69 unit tests
+py -m unittest test_e2e -v           # 3 end-to-end tests (real CLI runs)
 build.bat                            # build dist/AutoMouseMacro.exe (PyInstaller)
 ```
 

@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.8 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.9 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -21,6 +21,8 @@
   ปุ่มจับภาพลากกรอบ, CI/CD (GitHub Actions + Release จาก tag), TUTORIAL
 - **ฟีเจอร์เสริม v1.8:** log การเล่น (`macro_log_วันที่.txt` เปิด/ปิดใน Settings),
   `--stop-file`, global hotkey ใช้ `keyboard.Listener` (ไม่ใช่ GlobalHotKeys — ดูหมายเหตุ)
+- **ฟีเจอร์เสริม v1.9:** Log viewer (เมนู 📝 Log), Hot-profile F1–F4 (โหลด+เล่นทันที),
+  E2E tests (`test_e2e.py` — รัน CLI จริงทดสอบการหยุดทุกครั้ง)
 
 ## เทคโนโลยี
 
@@ -87,13 +89,22 @@ build.bat                               # build .exe (หรือ: py -m PyInst
     Ctrl+C, และ `--stop-file`
 - **Hotkey:** Tk binding (เมื่อโฟกัส) + `keyboard.Listener` จับคู่คีย์เอง (กดได้แม้ไม่โฟกัส —
   เธรดแยก ห้ามแตะ Tk ตรง ๆ ต้อง `root.after(0, ...)` ผลักงานเข้า main thread)
-  F6 เล่น / F8 หยุด / F9 บันทึก / F10 วนซ้ำไม่จำกัด
+  F6 เล่น / F8 หยุด / F9 บันทึก / F10 วนซ้ำไม่จำกัด / F1–F4 hot-profile
+- **Hot-profile:** `self._hp_dir` (โฟลเดอร์จากเมนู ⚡, จำใน macro_conf.json) — F(n) โหลด
+  ไฟล์ .json ลำดับที่ n เรียงตามชื่อ (`_hot_profile_load`) แล้วเรียก `_start_player(False)`
+  เสมอผ่าน `root.after(0, ...)` ตามรูปแบบ thread-safe
+- **เมนู:** `_menu_items()` (classmethod) คืนรายการ (icon, label, method, color) —
+  เพิ่มปุ่มเมนูใหม่ที่นี่และทดสอบว่าเมธอดมีจริงด้วย `TestMenuItems`
   ⚠️ **อย่ากลับไปใช้ `GlobalHotKeys`** — พิสูจน์แล้ว (v1.8) ว่าบน pynput 1.8.x บางเครื่อง
   listener เริ่มทำงาน (`alive=True`) แต่ไม่ยิง callback แม้กดคีย์จริง; `keyboard.Listener`
   ธรรมดารับเหตุการณ์ได้ปกติ
 - **Log:** `log_write(mode, message, src)` เขียน `macro_log_YYYY-MM-DD.txt` (หมุนรายวัน,
   ตัดเกือบเหลือ 500 บรรทัดด้วย `prune_log`) — โหมด START/STEP/STOP/END ทั้ง GUI
   (คุมด้วย `self._log_enabled` จาก Settings, จำใน macro_conf.json) และ CLI (`--no-log`)
+  ดูย้อนหลังจากในโปรแกรมได้ด้วย `view_log()` (เมนู 📝 Log)
+- **E2E tests:** `test_e2e.py` รัน CLI จริงเป็น subprocess (สคริปต์ Beep ล้วนปลอดภัย) —
+  ทดสอบหยุดผ่าน stop-file กลางดีเลย์ยาว/จบเอง/หยุดก่อนเริ่ม รัน: `py -m unittest test_e2e -v`
+  ห้ามถือว่า listener ใช้ได้เพราะ `alive=True` — ต้องทดสอบด้วยการกด/หยุดจริง
 - **โปรไฟล์:** `macro_profiles.json` เก็บ dict ชื่อโปรไฟล์ → รายการแถว
   แถบเลือกโปรไฟล์อยู่ใต้เมนู (สร้าง/เปลี่ยนชื่อ/ลบ/สลับ — สลับก่อนบันทึกของเดิมอัตโนมัติ)
 - **Schedule:** เธรด `_sched_loop` ตรวจเวลาทุก 5 วิ ผลักคำสั่งเข้า `queue.Queue` →

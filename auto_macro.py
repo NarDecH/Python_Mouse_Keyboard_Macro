@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.8
+Auto Mouse & Keyboard Macro  v1.9
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -21,6 +21,8 @@ Auto Mouse & Keyboard Macro  v1.8
   คืนเมาส์กลับจุดเริ่มเมื่อจบรอบ, บันทึก scroll ตอน RECORD
 - v1.8: ระบบ log บันทึกการเล่นแต่ละรอบลงไฟล์ macro_log.txt (เปิด/ปิดได้ใน Settings,
   ใช้ทั้ง GUI และ CLI [คลี่ออกด้วย --no-log]), เก็บสถานะเปิด/ปิด log ใน macro_conf.json
+- v1.9: หน้าต่าง Log viewer (ดู log ย้อนหลังจากในโปรแกรม), Hot-profile F1–F4
+  (ตั้งโฟลเดอร์แล้วกด F1–F4 เพื่อโหลดสคริปต์ลำดับที่ 1–4 แล้วเล่นทันที), E2E tests
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -37,6 +39,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import datetime
+import glob
 
 try:
     from pynput import keyboard, mouse
@@ -56,7 +59,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.8"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.9"
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -279,6 +282,7 @@ class MacroApp:
         self._log_enabled = True           # บันทึก log การเล่นลงไฟล์ (ตั้งใน Settings)
         self._log_src = None               # ชื่อสคริปต์ล่าสุด (แสดงใน log)
         self._loaded_file = None           # ไฟล์สคริปต์ที่ Load/Save ล่าสุด
+        self._hp_dir = None                # โฟลเดอร์ hot-profile (F1–F4 โหลดสคริปต์จากที่นี้)
 
         # การหยุดที่แม่นยำ (v1.7.1)
         self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
@@ -314,6 +318,18 @@ class MacroApp:
         st.configure("Treeview", rowheight=24, font=("Segoe UI", 10))
         st.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
 
+    @classmethod
+    def _menu_items(cls):
+        """รายการเมนูไอคอน (icon, label, method_name, color) — แยกออกมาเพื่อทดสอบได้"""
+        return [("💾", "Save", "save_script", "#333"),
+                ("📂", "Load", "load_script", "#333"),
+                ("📝", "Log", "view_log", "#333"),
+                ("⚡", "Hot-profile", "hot_profile_dialog", "#333"),
+                ("⚙️", "Settings", "settings_dialog", "#333"),
+                ("ℹ️", "About", "about", "#333"),
+                ("❓", "Help", "help_dialog", "#333"),
+                ("⏻", "Exit", "_on_close", "#b00")]
+
     def _build_menu(self):
         top = tk.Frame(self.root, bg="#fafafa")
         top.pack(fill="x")
@@ -326,12 +342,8 @@ class MacroApp:
             for wgt in (f,) + tuple(f.winfo_children()):
                 wgt.bind("<Button-1>", lambda e: cmd())
 
-        btn("💾", "Save", self.save_script)
-        btn("📂", "Load", self.load_script)
-        btn("⚙️", "Settings", self.settings_dialog)
-        btn("ℹ️", "About", self.about)
-        btn("❓", "Help", self.help_dialog)
-        btn("⏻", "Exit", self._on_close, color="#b00")
+        for icon, label, name, color in self._menu_items():
+            btn(icon, label, getattr(self, name), color)
 
     def _build_table(self):
         wrap = tk.Frame(self.root)
@@ -496,7 +508,12 @@ class MacroApp:
         hotmap = {keyboard.Key.f6: self.start_play,
                   keyboard.Key.f8: self.stop_all,
                   keyboard.Key.f9: self.toggle_record,
-                  keyboard.Key.f10: self._toggle_forever}
+                  keyboard.Key.f10: self._toggle_forever,
+                  # Hot-profile (v1.9): F1–F4 โหลดสคริปต์ลำดับที่ 1–4 จากโฟลเดอร์ที่เลือกแล้วเล่นทันที
+                  keyboard.Key.f1: lambda: self._hot_profile_load(1),
+                  keyboard.Key.f2: lambda: self._hot_profile_load(2),
+                  keyboard.Key.f3: lambda: self._hot_profile_load(3),
+                  keyboard.Key.f4: lambda: self._hot_profile_load(4)}
 
         def on_press(key):
             fn = hotmap.get(key)
@@ -1408,6 +1425,9 @@ class MacroApp:
                     if isinstance(data.get("rows"), list):
                         self._load_rows(data["rows"])
                     self._log_enabled = bool(data.get("log_enabled", True))
+                    hp = data.get("hot_profile_dir")
+                    if isinstance(hp, str) and hp and os.path.isdir(hp):
+                        self._hp_dir = hp
             except Exception:
                 pass
 
@@ -1437,12 +1457,125 @@ class MacroApp:
         try:
             with open(CONF, "w", encoding="utf-8") as fh:
                 json.dump({"rows": self._serialize(),
-                           "log_enabled": self._log_enabled},
+                           "log_enabled": self._log_enabled,
+                           "hot_profile_dir": self._hp_dir},
                           fh, ensure_ascii=False, indent=2)
         except OSError:
             pass
 
     # ------------------------------------------------------------- dialogs ---
+    # -------------------------------------------------- log viewer (v1.9) ----
+    def view_log(self):
+        """เปิดหน้าต่างอ่าน log การเล่นย้อนหลัง — เลือกดูไฟล์รายวันได้"""
+        files = sorted(glob.glob(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "macro_log_*.txt")), reverse=True)
+        win = tk.Toplevel(self.root)
+        win.title("Log การเล่น")
+        win.geometry("860x520")
+        bar = tk.Frame(win)
+        bar.pack(fill="x", padx=8, pady=(8, 2))
+        tk.Label(bar, text="ไฟล์:").pack(side="left")
+        cmb = ttk.Combobox(bar, state="readonly", width=40,
+                           values=[os.path.basename(f) for f in files])
+        if files:
+            cmb.set(os.path.basename(files[0]))       # วันนี้ (ไฟล์ใหม่สุด)
+        cmb.pack(side="left", padx=6)
+        txt = tk.Text(win, wrap="none", font=("Consolas", 10),
+                      bg="#0f172a", fg="#e2e8f0")
+        ysb = ttk.Scrollbar(win, orient="vertical", command=txt.yview)
+        txt.configure(yscrollcommand=ysb.set)
+
+        def refresh(_e=None):
+            txt.delete("1.0", "end")
+            f = os.path.join(os.path.dirname(os.path.abspath(__file__)), cmb.get())
+            try:
+                with open(f, encoding="utf-8", errors="replace") as fh:
+                    txt.insert("1.0", fh.read())
+            except OSError:
+                txt.insert("1.0", "(ยังไม่มี log — เล่นสคริปต์ครั้งแรกแล้วไฟล์จะปรากฏที่นี่)")
+            txt.see("end")
+
+        def open_folder():
+            d = os.path.dirname(os.path.abspath(__file__))
+            if hasattr(os, "startfile"):
+                os.startfile(d)
+
+        cmb.bind("<<ComboboxSelected>>", refresh)
+        tk.Button(bar, text="รีเฟรช", command=refresh).pack(side="left", padx=2)
+        tk.Button(bar, text="เปิดโฟลเดอร์", command=open_folder).pack(side="left", padx=2)
+        ysb.pack(side="right", fill="y")
+        txt.pack(fill="both", expand=True, padx=(8, 0), pady=(2, 8))
+        refresh()
+
+    # ---------------------------------------------- hot-profile (v1.9) ------
+    def hot_profile_dialog(self):
+        """ตั้งโฟลเดอร์สคริปต์สำหรับ F1–F4: ไฟล์ .json เรียงตามชื่อ ตำแหน่ง 1–4
+        กด F1–F4 (ได้แม้ไม่โฟกัส) = โหลดสคริปต์นั้นแล้วเล่นทันที"""
+        win = tk.Toplevel(self.root)
+        win.title("Hot-profile (F1–F4)")
+        win.resizable(False, False)
+        tk.Label(win, text="โฟลเดอร์สคริปต์ (.json):",
+                 font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=16, pady=(14, 2))
+        row = tk.Frame(win)
+        row.pack(fill="x", padx=16)
+        var_dir = tk.StringVar(value=self._hp_dir or "")
+        tk.Entry(row, textvariable=var_dir, width=46).pack(side="left")
+
+        def browse():
+            d = filedialog.askdirectory(initialdir=var_dir or os.getcwd())
+            if d:
+                var_dir.set(os.path.normpath(d))
+
+        tk.Button(row, text="เลือก...", command=browse).pack(side="left", padx=4)
+        tk.Label(win, justify="left", fg="#555", text=(
+            "F1–F4 = โหลดไฟล์ .json ลำดับที่ 1–4 (เรียงตามชื่อไฟล์) แล้วเล่นทันที\n"
+            "เช่น ในโฟลเดอร์มี a.json, b.json, c.json → F1=a, F2=b, F3=c\n"
+            "เหมาะกับงานที่สลับสคริปต์บ่อย เช่น เกมหลายตัว / งานเอกสารหลายแบบ")).pack(
+            anchor="w", padx=16, pady=8)
+
+        def save():
+            d = var_dir.get().strip()
+            self._hp_dir = d or None
+            win.destroy()
+            if d:
+                self._ui_state["msg"] = ("Hot-profile พร้อม: " + d + "  (F1–F4)", "#080")
+
+        tk.Button(win, text="บันทึก", width=10, command=save).pack(pady=(2, 14))
+
+    def _hot_profile_load(self, n):
+        """F(n): โหลดไฟล์ลำดับที่ n จากโฟลเดอร์ hot-profile แล้วเล่นทันที
+        (ถูกเรียกจาก listener thread → ห้ามแตะ Tk ตรง ๆ ต้อง after(0, ...))"""
+        def say(text):
+            self.root.after(0, lambda: self._ui_state.__setitem__("msg", (text, "#a60")))
+
+        if not self._hp_dir:
+            say("ยังไม่ได้ตั้งโฟลเดอร์ Hot-profile — เมนู ⚡ Hot-profile")
+            return
+        files = sorted(glob.glob(os.path.join(self._hp_dir, "*.json")))
+        if not files:
+            say("โฟลเดอร์ Hot-profile ไม่มีไฟล์ .json")
+            return
+        if n > len(files):
+            say("F%d: มีสคริปต์แค่ %d ไฟล์" % (n, len(files)))
+            return
+        f = files[n - 1]
+
+        def do_load():
+            try:
+                with open(f, encoding="utf-8") as fh:
+                    data = json.load(fh)
+                if not isinstance(data, list):
+                    raise ValueError("รูปแบบไฟล์ไม่ถูกต้อง")
+                self._load_rows(data)
+                self._loaded_file = f
+                self._log_src = f
+                self._ui_state["msg"] = ("F%d → %s — เริ่มเล่น" % (n, os.path.basename(f)), "#080")
+                self._start_player(False)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                self._ui_state["msg"] = ("F%d โหลดไม่สำเร็จ: %s" % (n, exc), "#a60")
+
+        self.root.after(0, do_load)
+
     def settings_dialog(self):
         win = tk.Toplevel(self.root)
         win.title("Settings")
@@ -1453,6 +1586,7 @@ class MacroApp:
         frm.pack(padx=20, pady=4)
         rows = [("เริ่มเล่นสคริปต์", "F6"), ("หยุดทั้งหมด", "F8"),
                 ("เริ่ม/หยุดบันทึก", "F9"), ("สลับวนซ้ำไม่จำกัด", "F10"),
+                ("Hot-profile: เล่นสคริปต์ลำดับ 1-4", "F1-F4"),
                 ("ลบแถวที่เลือก", "Delete"), ("แก้ค่าในเซลล์", "ดับเบิลคลิก"),
                 ("ตัวคูณความเร็ว / จำนวนรอบ", "แถบปุ่มด้านล่าง"),
                 ("ดีเลย์สุ่มรายแถว", "Secs = 1-3")]
@@ -1479,9 +1613,8 @@ class MacroApp:
     def about(self):
         messagebox.showinfo("About",
                             APP_TITLE + "\n\nโปรแกรมสั่งงานเมาส์/คีย์บอร์ดอัตโนมัติ\n"
-                            "Python " + sys.version.split()[0] + "  •  Tkinter + pynput\n\n"
-                            "F6 เล่น | F8 หยุด | F9 บันทึก | F10 วนซ้ำ\n"
-                            "(คีย์ลัดกดได้แม้ไม่โฟกัสหน้าต่าง)")
+                            "Python " + sys.version.split()[0] + "  •  Tkinter + pynput\n\n"            "F6 เล่น | F8 หยุด | F9 บันทึก | F10 วนซ้ำ | F1-F4 hot-profile\n"
+            "(คีย์ลัดกดได้แม้ไม่โฟกัสหน้าต่าง)")
 
     def help_dialog(self):
         messagebox.showinfo("Help",
@@ -1500,7 +1633,9 @@ class MacroApp:
             "   Move Mouse (+Offset), Save/Restore Cursor, Type Text, Launch App,\n"
             "   Wait for Image, Beep\n"
             "11) ช่อง Secs ใส่แบบสุ่มได้ เช่น 1-3 = สุ่มดีเลย์ 1–3 วิ\n"
-            "12) ปุ่มล่าง: ความเร็ว (0.25×–4×), จำนวนรอบ (0=ไม่จำกัด), คืนเมาส์จุดเดิม\n\n"
+            "12) ปุ่มล่าง: ความเร็ว (0.25×–4×), จำนวนรอบ (0=ไม่จำกัด), คืนเมาส์จุดเดิม\n"
+            "13) เมนู 📝 Log — ดู log การเล่นย้อนหลังในโปรแกรม (เลือกไฟล์รายวันได้)\n"
+            "14) เมนู ⚡ Hot-profile — ตั้งโฟลเดอร์สคริปต์ แล้วกด F1-F4 เพื่อโหลด+เล่นทันที\n\n"
             "หมายเหตุ: Secs คือเวลารอก่อนทำคำสั่งในแถวนั้น, Repeat คือจำนวนครั้งที่ทำซ้ำ")
 
     def _on_close(self):
