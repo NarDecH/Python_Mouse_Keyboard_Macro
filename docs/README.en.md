@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.14
+# 🖱️ Auto Mouse & Keyboard Macro v1.15
 
 <div align="center">
 
@@ -54,7 +54,7 @@
 | 🎬 **16+ actions** | Click / double-click / modifier-click, scroll, move mouse (absolute/relative), save/restore cursor, type text (Thai supported), launch app, wait for image, beep, press/release/tap keys |
 | 🎲 **Shuffle & sampling** | Randomize row order and/or play only x% of rows — resampled every round |
 | 🧙 **Record wizard** | Record → review → trial-play → save, all in one dialog |
-| 📊 **Play statistics** | Aggregated from daily logs + a 14-day bar chart: runs, user-stops, watchdog restarts, slowest row |
+| 📊 **Play statistics** | Daily 14-day chart + monthly totals (12 months) aggregated from logs |
 | 💾 **Export/Import settings** | Move PCs or back up everything (rows + profiles + options) as one file from Settings |
 | 🗄️ **Automatic backups** | Every app close snapshots settings into backups/ — keep 1–90 days (default 7) |
 | 🌐 **Switchable UI language** | Thai / English from Settings — applies instantly |

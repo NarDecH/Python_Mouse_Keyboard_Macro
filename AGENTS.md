@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.14 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.15 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -39,6 +39,10 @@
 - **ฟีเจอร์เสริม v1.14:** ตั้งค่า backup ได้ (เปิด/ปิด + 1–90 วัน ใน conf), i18n ไทย/อังกฤษ
   (`TR` + `tr(lang, key)` + `self._t(key)` — สลับใน Settings ผ่าน `_apply_language`)
   และ `docs/ANNOUNCE.md` โพสต์แนะนำโปรแกรมสำเร็จรูป
+- **ฟีเจอร์เสริม v1.15:** i18n ครบทุก dialog (Settings/context menu/หัวตาราง),
+  สรุปการใช้งานรวมรายเดือน (`log_monthly_series` + กราฟใน Stats),
+  CONTRIBUTING.md + issue/PR templates, เทสต์เปิด dialog จริงด้วย Tk จำลอง
+  (TestUiDialogs — ไม่มี display จะ skip อัตโนมัติ)
 
 ## เทคโนโลยี
 
@@ -129,7 +133,7 @@ build.bat                               # build .exe (หรือ: py -m PyInst
 - **Backup:** `_on_close` เรียก `_on_close_backup()` → `backup_snapshot()` เขียน
   backups/backup_วันที่_เวลา.json แล้ว `prune_backups()` ลบเก่าตาม `self._backup_days`
   (เปิด/ปิดด้วย `self._backup_enabled` — จำใน macro_conf.json) — ทน error ทุกจุด
-- **i18n:** ข้อความปุ่ม/สถานะหลักอยู่ใน `TR` (th/en) — ใช้ `self._t("key")`
+- **i18n:** ข้อความปุ่ม/สถานะหลัก + dialog ทุกตัวอยู่ใน `TR` (th/en) — ใช้ `self._t("key")`
   สลับผ่าน `_apply_language()` ตอนบันทึก Settings (เพิ่มข้อความใหม่ใส่ทั้งสองภาษาเสมอ)
 - **E2E tests:** `test_e2e.py` รัน CLI จริงเป็น subprocess (สคริปต์ Beep ล้วนปลอดภัย) —
   ทดสอบหยุดผ่าน stop-file กลางดีเลย์ยาว/จบเอง/หยุดก่อนเริ่ม รัน: `py -m unittest test_e2e -v`

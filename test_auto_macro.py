@@ -822,6 +822,110 @@ class TestBackup(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self._bk(), "backup_notadate.json")))
 
 
+class TestMonthlySeries(unittest.TestCase):
+    """สรุปการใช้งานรวมรายเดือน (v1.15)"""
+
+    def test_monthly_aggregates(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for day, runs in (("2026-08-15", 2), ("2026-08-31", 1), ("2026-09-05", 4)):
+                with open(os.path.join(d, "macro_log_%s.txt" % day), "w", encoding="utf-8") as fh:
+                    fh.write("".join("%s [START] x  <- s.json\n" % day for _ in range(runs)))
+            s = am.log_monthly_series(d)
+            self.assertEqual([x["month"] for x in s], ["2026-08", "2026-09"])
+            self.assertEqual([x["runs"] for x in s], [3, 4])     # รวมเดือนเดียวกัน
+
+    def test_monthly_limit(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for ym in ("2026-04", "2026-05", "2026-06", "2026-07"):
+                with open(os.path.join(d, "macro_log_%s-10.txt" % ym), "w", encoding="utf-8") as fh:
+                    fh.write("x [START] y\n")
+            s = am.log_monthly_series(d, limit=2)
+            self.assertEqual([x["month"] for x in s], ["2026-06", "2026-07"])
+
+    def test_monthly_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(am.log_monthly_series(d), [])
+
+
+class TestUiDialogs(unittest.TestCase):
+    """เปิด dialog จริงด้วย Tk จำลอง (withdraw) — ต้องสร้างได้ครบไม่ crash (v1.15)
+    รันด้วย xvfb บน Linux CI ก็ผ่าน (Tk ไม่ต้องเห็นจอ แค่มี display จำลอง)"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+            cls.has_tk = True
+        except am.tk.TclError:
+            cls.has_tk = False          # ไม่มี display (CI บางที่) — ข้ามชุดนี้
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.has_tk:
+            cls.root.destroy()
+
+    def setUp(self):
+        if not self.has_tk:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        self.app = mock.MagicMock()
+        self.app.root = self.root
+        self.app._lang = "th"
+        self.app._t = lambda key: am.tr("th", key)
+        self.app._ui_state = {"msg": None, "row": None, "prog": None, "reset": False}
+        self.app._serialize.return_value = []
+        self.app._profiles = {"ค่าเริ่มต้น": []}
+        self.app._active_profile = "ค่าเริ่มต้น"
+        self.app._log_enabled = True
+        self.app._backup_enabled = True
+        self.app._backup_days = 7
+        self.app._hp_dir = None
+        self.app._gk = None
+        self.app._checks = {"mouse": True, "hotkey": True, "opencv": True,
+                            "admin": False, "conf_writable": True}
+        self.app.running = False
+        self.app.recording = False
+        self.app._pending_rows = []
+        self.app._loaded_file = None
+        self.app._log_src = None
+        self.app._hp_dir = None
+
+    def test_settings_dialog_opens(self):
+        am.MacroApp.settings_dialog(self.app)        # สร้าง Toplevel จริง
+        tops = [w for w in self.root.winfo_children() if isinstance(w, am.tk.Toplevel)]
+        self.assertTrue(tops)
+        for w in tops:
+            w.destroy()
+
+    def test_help_dialog_opens(self):
+        am.MacroApp.help_dialog(self.app)
+        self._close_tops()
+
+    def test_view_stats_opens(self):
+        am.MacroApp.view_stats(self.app)
+        self._close_tops()
+
+    def test_view_log_opens(self):
+        am.MacroApp.view_log(self.app)
+        self._close_tops()
+
+    def test_hot_profile_dialog_opens(self):
+        am.MacroApp.hot_profile_dialog(self.app)
+        self._close_tops()
+
+    def test_record_wizard_opens(self):
+        am.MacroApp.record_wizard(self.app)
+        self._close_tops()
+
+    def _close_tops(self):
+        for w in self.root.winfo_children():
+            if isinstance(w, am.tk.Toplevel):
+                w.destroy()
+
+
 class TestMenuItems(unittest.TestCase):
     """เมนูไอคอนต้องอ้างเมธอดที่มีจริงทั้งหมด (กันพิมพ์ชื่อผิด)"""
 

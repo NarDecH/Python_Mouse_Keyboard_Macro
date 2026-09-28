@@ -4,6 +4,27 @@
 
 ---
 
+## [1.15] — 2026-09-28
+
+### ✨ เพิ่มใหม่
+- **🌐 i18n ครบทุก dialog** — Settings (คีย์ลัด, log, ภาษา, backup, export/import),
+  context menu คลิกขวาบนตาราง และหัวคอลัมน์ "Button / Action" รองรับสองภาษาตามระบบ TR
+  สลับแล้วปรับทันที (`_apply_language` อัพเดตหัวตารางด้วย)
+- **📊 สรุปการใช้งานรวมรายเดือน** — 📊 Stats เพิ่มกราฟยอดรวมรายเดือน (12 เดือนล่าสุด,
+  รวมจาก log ทุกวันในเดือนนั้น) เห็นการใช้งานสะสมตั้งแต่ติดตั้ง (`log_monthly_series`)
+
+### 🤝 ชุมชน
+- เพิ่ม **CONTRIBUTING.md** (คู่มือร่วมพัฒนา: เริ่มต้น 3 นาที, เกณฑ์ก่อน PR, ประเด็นที่ยินดีรับ)
+- เพิ่ม **แม่แบบ issue** (bug report / feature request) + **PULL_REQUEST_TEMPLATE**
+  + config ชี้ TUTORIAL ก่อนเปิด issue
+
+### 🧪 ทดสอบ
+- เพิ่ม 9 unit tests: log_monthly_series รวมเดือน/limit/ว่าง และ**เปิด dialog จริง
+  6 ตัว** (Settings/Help/Stats/Log/Hot-profile/Wizard) ด้วย Tk จำลอง — กัน crash ตอนเปิด
+  (ถ้า CI ไม่มี display จะข้ามชุดนี้อัตโนมัติ) → รวม **109 unit + 7 E2E tests ผ่านหมด**
+
+---
+
 ## [1.14] — 2026-09-28
 
 ### ✨ เพิ่มใหม่

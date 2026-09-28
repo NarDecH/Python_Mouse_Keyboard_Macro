@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.14
+Auto Mouse & Keyboard Macro  v1.15
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -34,6 +34,8 @@ Auto Mouse & Keyboard Macro  v1.14
   เมนู Help ฉบับเต็มครอบทุกฟีเจอร์ + ปุ่มเปิด TUTORIAL
 - v1.14: ตั้งค่า backup ได้ใน Settings (เปิด/ปิด + จำนวนวัน 1-90), สลับภาษา
   ไทย/English ได้ใน Settings (TR + _t) จำค่าใน macro_conf.json
+- v1.15: i18n ครบทุก dialog (Settings/Help/Wizard/Stats/Log/Hot-profile/context menu),
+  สรุปการใช้งานรวม + กราฟรายเดือนใน Stats (log_monthly_series)
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -70,7 +72,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.14"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.15"
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
 BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
 
@@ -85,7 +87,25 @@ TR = {
            "stopped": "หยุดแล้ว — ปล่อยคีย์/ปุ่มที่ค้างแล้ว",
            "mode_once": "เล่นครั้งเดียว", "mode_loop": "วนซ้ำ",
            "no_rows": "ยังไม่มีรายการที่เปิดใช้ (☑) ให้เล่น",
-           "selfcheck_warn": "⚠️ self-check: บางส่วนไม่พร้อม — ดูรายละเอียดใน Settings"},
+           "selfcheck_warn": "⚠️ self-check: บางส่วนไม่พร้อม — ดูรายละเอียดใน Settings",
+           "col_action": "Button / Action", "ctx_copy": "📋 คัดลอกแถวนี้",
+           "ctx_above": "⬆️ แทรกแถวใหม่ด้านบน", "ctx_below": "⬇️ แทรกแถวใหม่ด้านล่าง",
+           "ctx_del": "🗑️ ลบแถวนี้",
+           "save": "บันทึก", "close": "ปิด", "language": "ภาษา (Language):",
+           "backup_label": "Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
+           "days": "วัน — 1–90)", "log_label": "บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
+           "open_log_folder": "เปิดโฟลเดอร์ log", "selftest_btn": "🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)",
+           "selftest_ok": "🧪 ทดสอบแล้ว: เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง — "
+                          "ถ้าเมาส์ไม่ขยับหรือไม่ได้ยินเสียง แสดงว่าระบบมีปัญหาจริง",
+           "export_btn": "⬆️ Export การตั้งค่า", "import_btn": "⬇️ Import การตั้งค่า",
+           "export_note": "Export = งานปัจจุบัน + โปรไฟล์ทุกชุด + ตั้งค่า log/hot-profile "
+                          "เป็นไฟล์เดียว (ย้ายเครื่อง/สำรอง)",
+           "hotkeys_title": "คีย์ลัดของโปรแกรม (ทำงานได้ทั้งแบบโฟกัสและไม่โฟกัส)",
+           "sc_play": "เริ่มเล่นสคริปต์", "sc_stop": "หยุดทั้งหมด", "sc_rec": "เริ่ม/หยุดบันทึก",
+           "sc_forever": "สลับวนซ้ำไม่จำกัด", "sc_hp": "Hot-profile: เล่นสคริปต์ลำดับ 1-4",
+           "sc_del": "ลบแถวที่เลือก", "sc_edit": "แก้ค่าในเซลล์", "sc_speed": "ตัวคูณความเร็ว / จำนวนรอบ",
+           "sc_rand": "ดีเลย์สุ่มรายแถว", "gk_ok": "ทำงานอยู่ ✅ (กดได้ทุกที่)",
+           "gk_bad": "ไม่ทำงาน ⚠️ (ต้องโฟกัสหน้าต่าง)", "sc_check": "ตรวจสุขภาพระบบ (self-check ตอนเปิดโปรแกรม):"},
     "en": {"start": "START", "stop": "STOP", "repeat": "REPEAT", "record": "RECORD",
            "forever": "Loop forever (F10)", "restore": "Restore mouse position",
            "shuffle": "Shuffle", "pct": "Row %:", "speed": "Speed:",
@@ -94,7 +114,25 @@ TR = {
            "stopped": "Stopped — released stuck keys/buttons",
            "mode_once": "play once", "mode_loop": "loop",
            "no_rows": "No enabled (☑) rows to play",
-           "selfcheck_warn": "⚠️ self-check: some parts not ready — see Settings"},
+           "selfcheck_warn": "⚠️ self-check: some parts not ready — see Settings",
+           "col_action": "Button / Action", "ctx_copy": "📋 Duplicate row",
+           "ctx_above": "⬆️ Insert row above", "ctx_below": "⬇️ Insert row below",
+           "ctx_del": "🗑️ Delete row",
+           "save": "Save", "close": "Close", "language": "Language (ภาษา):",
+           "backup_label": "Auto backup on close (keep last",
+           "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
+           "open_log_folder": "Open log folder", "selftest_btn": "🧪 Real system test (move mouse + beep)",
+           "selftest_ok": "🧪 Tested: mouse moved in a triangle and returned + 2 beeps — "
+                          "if nothing moved or you heard nothing, the system has a real problem",
+           "export_btn": "⬆️ Export settings", "import_btn": "⬇️ Import settings",
+           "export_note": "Export = current rows + all profiles + log/hot-profile options "
+                          "as one file (move PC / backup)",
+           "hotkeys_title": "Hotkeys (work both focused and unfocused)",
+           "sc_play": "Play script", "sc_stop": "Stop all", "sc_rec": "Start/stop recording",
+           "sc_forever": "Toggle infinite loop", "sc_hp": "Hot-profile: play script 1-4",
+           "sc_del": "Delete selected row", "sc_edit": "Edit a cell", "sc_speed": "Speed / loops",
+           "sc_rand": "Random delay per row", "gk_ok": "Running ✅ (works everywhere)",
+           "gk_bad": "Not running ⚠️ (needs window focus)", "sc_check": "System health (self-check at startup):"},
 }
 
 
@@ -348,6 +386,23 @@ def log_daily_series(base_dir=None, limit=14):
     return out[-limit:]
 
 
+def log_monthly_series(base_dir=None, limit=12):
+    """สรุปการใช้งานรวมรายเดือน (v1.15) — จาก log ทุกไฟล์ จับคู่เดือนจากชื่อไฟล์
+    คืนรายการ dict: {"month": "2026-09", "runs": n, "steps": n} เรียงเดือนเก่า → ใหม่"""
+    d = base_dir or os.path.dirname(os.path.abspath(__file__))
+    agg = {}
+    for f in glob.glob(os.path.join(d, "macro_log_*.txt")):
+        name = os.path.basename(f)
+        month = name[len("macro_log_"):len("macro_log_") + 7]      # YYYY-MM
+        if not re.match(r"\d{4}-\d{2}$", month):
+            continue
+        s = parse_log_stats(f)
+        a = agg.setdefault(month, {"month": month, "runs": 0, "steps": 0})
+        a["runs"] += s["runs"]
+        a["steps"] += s["steps"]
+    return sorted(agg.values(), key=lambda x: x["month"])[-limit:]
+
+
 def prune_log(keep=MAX_LOG_LINES):
     """เก็บ log ไว้ไม่เกิน `keep` บรรทัด (ตัดบรรทัดเก่าสุดออก) — เรียกตอนจบการเล่น"""
     try:
@@ -516,7 +571,7 @@ class MacroApp:
         self.tree.heading("num", text="#")
         self.tree.column("num", width=40, stretch=False, anchor="center")
         for key, txt, wdt, anch in [("x", "X", 70, "center"), ("y", "Y", 70, "center"),
-                                    ("button", "Button / Action", 150, "w"),
+                                    ("button", self._t("col_action"), 150, "w"),
                                     ("additional", "Additional", 110, "w"),
                                     ("mins", "Mins", 50, "center"),
                                     ("secs", "Secs", 50, "center"),
@@ -870,11 +925,11 @@ class MacroApp:
         self.tree.selection_set(iid)
         self.tree.focus(iid)
         menu = tk.Menu(self.root, tearoff=0)
-        menu.add_command(label="📋 คัดลอกแถวนี้", command=lambda: self._row_duplicate(iid))
-        menu.add_command(label="⬆️ แทรกแถวใหม่ด้านบน", command=lambda: self._row_insert_above(iid))
-        menu.add_command(label="⬇️ แทรกแถวใหม่ด้านล่าง", command=lambda: self._row_insert_below(iid))
+        menu.add_command(label=self._t("ctx_copy"), command=lambda: self._row_duplicate(iid))
+        menu.add_command(label=self._t("ctx_above"), command=lambda: self._row_insert_above(iid))
+        menu.add_command(label=self._t("ctx_below"), command=lambda: self._row_insert_below(iid))
         menu.add_separator()
-        menu.add_command(label="🗑️ ลบแถวนี้", command=self._on_del)
+        menu.add_command(label=self._t("ctx_del"), command=self._on_del)
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
@@ -1838,6 +1893,35 @@ class MacroApp:
         tk.Label(win, justify="left", fg="#555", text=(
             "แถวที่ใช้เวลานานสุดเท่าที่ log มี:\n" + (slow[0] if slow else "(ยังไม่มีข้อมูล — เล่นสคริปต์ก่อน)")
         ).replace("  <-", "\n   <-")).pack(padx=24, pady=(10, 4), anchor="w")
+        # สรุปการใช้งานรวม (v1.15): กราฟรายเดือน — ยอดสะสมทั้งหมดตั้งแต่ติดตั้ง
+        monthly = log_monthly_series()
+        if len(monthly) >= 2:
+            tk.Label(win, text="ยอดรวมรายเดือน (%d เดือนล่าสุด — เขียวเข้ม = เริ่มเล่น, เขียวอ่อน = เหตุการณ์)"
+                     % len(monthly)).pack(pady=(10, 2))
+            mw, mh = 620, 130
+            mcvs = tk.Canvas(win, width=mw, height=mh, bg="#fafafa",
+                             highlightthickness=1, highlightbackground="#ddd")
+            mcvs.pack(padx=24, pady=(0, 4))
+            mruns = max(x["runs"] for x in monthly) or 1
+            msteps = max(x["steps"] for x in monthly) or 1
+            n = len(monthly)
+            gap, bw = 8, max(10, min(34, (mw - 40) // n - 8))
+            x0 = (mw - (n * (bw * 2 + gap) - gap)) // 2
+            base_y = mh - 24
+            mcvs.create_line(20, base_y, mw - 20, base_y, fill="#bbb")
+            for i, m in enumerate(monthly):
+                cx = x0 + i * (bw * 2 + gap)
+                hs = int((base_y - 26) * m["steps"] / msteps)
+                hr = int((base_y - 26) * m["runs"] / mruns)
+                mcvs.create_rectangle(cx, base_y - hs, cx + bw, base_y,
+                                      fill="#a7d8b0", outline="")
+                mcvs.create_rectangle(cx + bw, base_y - hr, cx + bw * 2, base_y,
+                                      fill="#1f7a34", outline="")
+                if m["steps"]:
+                    mcvs.create_text(cx + bw, base_y - hs - 8, text=str(m["steps"]),
+                                     font=("Segoe UI", 8), fill="#555")
+                mcvs.create_text(cx + bw, mh - 10, text=m["month"],
+                                 font=("Segoe UI", 8), fill="#777")
         # กราฟแท่งรายวัน (v1.12): เหตุการณ์ (STEP) ต่อวัน + จำนวนครั้งที่เริ่มเล่น
         series = log_daily_series()
         if series:
@@ -1895,6 +1979,7 @@ class MacroApp:
         self.lbl_loops.config(text=self._t("loops"))
         self.lbl_loops_note.config(text=self._t("loops_note"))
         self.btn_rec.config(text=self._t("record"))
+        self.tree.heading("button", text=self._t("col_action"))   # หัวตาราง (v1.15)
         if not self.running:
             self._ui_state["msg"] = ("ภาษา: ไทย" if self._lang == "th"
                                      else "Language: English", "#080")
@@ -2069,24 +2154,25 @@ class MacroApp:
         win = tk.Toplevel(self.root)
         win.title("Settings")
         win.resizable(False, False)
-        tk.Label(win, text="คีย์ลัดของโปรแกรม (ทำงานได้ทั้งแบบโฟกัสและไม่โฟกัส)",
+        tk.Label(win, text=self._t("hotkeys_title"),
                  font=("Segoe UI", 11, "bold")).pack(padx=20, pady=(14, 6))
         frm = tk.Frame(win)
         frm.pack(padx=20, pady=4)
-        rows = [("เริ่มเล่นสคริปต์", "F6"), ("หยุดทั้งหมด", "F8"),
-                ("เริ่ม/หยุดบันทึก", "F9"), ("สลับวนซ้ำไม่จำกัด", "F10"),
-                ("Hot-profile: เล่นสคริปต์ลำดับ 1-4", "F1-F4"),
-                ("ลบแถวที่เลือก", "Delete"), ("แก้ค่าในเซลล์", "ดับเบิลคลิก"),
-                ("ตัวคูณความเร็ว / จำนวนรอบ", "แถบปุ่มด้านล่าง"),
-                ("ดีเลย์สุ่มรายแถว", "Secs = 1-3")]
+        rows = [(self._t("sc_play"), "F6"), (self._t("sc_stop"), "F8"),
+                (self._t("sc_rec"), "F9"), (self._t("sc_forever"), "F10"),
+                (self._t("sc_hp"), "F1-F4"),
+                (self._t("sc_del"), "Delete"), (self._t("sc_edit"), "Double-click"),
+                (self._t("sc_speed"), self._t("sc_speed") if False else
+                 ("แถบปุ่มด้านล่าง" if self._lang == "th" else "bottom bar")),
+                (self._t("sc_rand"), "Secs = 1-3")]
         for i, (name, key) in enumerate(rows):
             tk.Label(frm, text=name + ":").grid(row=i, column=0, sticky="e", padx=4, pady=3)
             tk.Label(frm, text=key, font=("Consolas", 10, "bold"), fg="#06c").grid(
                 row=i, column=1, sticky="w", padx=4, pady=3)
-        gk_state = "ทำงานอยู่ ✅ (กดได้ทุกที่)" if self._gk else "ไม่ทำงาน ⚠️ (ต้องโฟกัสหน้าต่าง)"
+        gk_state = self._t("gk_ok") if self._gk else self._t("gk_bad")
         tk.Label(win, text="Global Hotkey: " + gk_state,
                  fg="#080" if self._gk else "#a60").pack(pady=(10, 0))
-        tk.Label(win, text="ตรวจสุขภาพระบบ (self-check ตอนเปิดโปรแกรม):",
+        tk.Label(win, text=self._t("sc_check"),
                  font=("Segoe UI", 9, "bold")).pack(pady=(10, 2))
         for name, ok, note in self.self_check_text():
             tk.Label(win, text="%s %s — %s" % ("✅" if ok else "⚠️", name, note),
@@ -2095,12 +2181,12 @@ class MacroApp:
                  "ยังไม่พร้อม — ติดตั้งด้วย: pip install opencv-python Pillow"),
                  fg="#080" if HAS_CV else "#a60").pack()
         self.var_log = tk.BooleanVar(value=self._log_enabled)
-        tk.Checkbutton(win, text="บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
+        tk.Checkbutton(win, text=self._t("log_label"),
                        variable=self.var_log).pack(pady=(10, 0))
         # ภาษา (v1.14) + backup ตั้งค่าได้ (v1.14)
         langbar = tk.Frame(win)
         langbar.pack(pady=(12, 0))
-        tk.Label(langbar, text="ภาษา (Language):", font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(langbar, text=self._t("language"), font=("Segoe UI", 9, "bold")).pack(side="left")
         self.cmb_lang = ttk.Combobox(langbar, width=10, state="readonly",
                                      values=["ไทย (Thai)", "English"])
         self.cmb_lang.set("ไทย (Thai)" if self._lang == "th" else "English")
@@ -2109,39 +2195,37 @@ class MacroApp:
         self.spin_days = tk.Spinbox(win, from_=1, to=90, width=4)
         self.spin_days.delete(0, "end")
         self.spin_days.insert(0, str(self._backup_days))
-        tk.Checkbutton(win, text="Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
+        tk.Checkbutton(win, text=self._t("backup_label"),
                        variable=self.var_backup).pack(pady=(10, 0))
         daybar = tk.Frame(win)
         daybar.pack()
         self.spin_days.pack(side="left")
-        tk.Label(daybar, text="วัน — 1–90)", fg="#666").pack(side="left", padx=(4, 0))
-        tk.Button(win, text="เปิดโฟลเดอร์ log", width=14,
+        tk.Label(daybar, text=self._t("days"), fg="#666").pack(side="left", padx=(4, 0))
+        tk.Button(win, text=self._t("open_log_folder"), width=14,
                   command=lambda: os.startfile(os.path.dirname(os.path.abspath(__file__)))
                   if hasattr(os, "startfile") else None).pack(pady=(4, 0))
         # 🧪 ทดสอบระบบจริง (v1.12): ขยับเมาส์ไปจุดสังเกต → คืนจุดเดิม → บี๊บ 2 ครั้ง
         def self_test():
             try:
                 self._self_test_actions()
-                res.config(text="🧪 ทดสอบแล้ว: เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง — "
-                                "ถ้าเมาส์ไม่ขยับหรือไม่ได้ยินเสียง แสดงว่าระบบมีปัญหาจริง", fg="#080")
+                res.config(text=self._t("selftest_ok"), fg="#080")
             except Exception as exc:
                 res.config(text="🧪 ทดสอบล้มเหลว: %s" % exc, fg="#b00")
 
-        tk.Button(win, text="🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)", width=30,
+        tk.Button(win, text=self._t("selftest_btn"), width=30,
                   command=self_test).pack(pady=(10, 0))
         res = tk.Label(win, text="", fg="#080", justify="left", wraplength=380)
         res.pack(padx=20)
         # Export/Import การตั้งค่า (v1.12)
         eib = tk.Frame(win)
         eib.pack(pady=(10, 0))
-        tk.Button(eib, text="⬆️ Export การตั้งค่า", width=18,
+        tk.Button(eib, text=self._t("export_btn"), width=18,
                   command=self.export_settings).pack(side="left", padx=4)
-        tk.Button(eib, text="⬇️ Import การตั้งค่า", width=18,
+        tk.Button(eib, text=self._t("import_btn"), width=18,
                   command=self.import_settings).pack(side="left", padx=4)
-        tk.Label(win, text="Export = งานปัจจุบัน + โปรไฟล์ทุกชุด + ตั้งค่า log/hot-profile "
-                 "เป็นไฟล์เดียว (ย้ายเครื่อง/สำรอง)", fg="#888",
+        tk.Label(win, text=self._t("export_note"), fg="#888",
                  justify="left", wraplength=400).pack(padx=20, pady=(4, 0))
-        tk.Button(win, text="บันทึก", width=8,
+        tk.Button(win, text=self._t("save"), width=8,
                   command=lambda: self._settings_save(win)).pack(pady=(8, 14))
 
     def _settings_save(self, win):
