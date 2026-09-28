@@ -6,6 +6,7 @@ Unit tests สำหรับฟังก์ชันล้วน ๆ ของ 
 รันด้วย:  py -m unittest test_auto_macro -v
 """
 
+import json
 import os
 import random
 import sys
@@ -583,6 +584,104 @@ class TestSelfCheck(unittest.TestCase):
         chk = am.MacroApp._self_check(app)                    # ต้องไม่ raise
         self.assertFalse(chk["mouse"])
         self.assertFalse(chk["hotkey"])
+
+
+class TestDailySeries(unittest.TestCase):
+    """สถิติรายวันสำหรับกราฟ (v1.12)"""
+
+    def test_series_sorted_and_limited(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for day, runs in (("2026-09-26", 1), ("2026-09-27", 3), ("2026-09-28", 2)):
+                with open(os.path.join(d, "macro_log_%s.txt" % day), "w", encoding="utf-8") as fh:
+                    fh.write("".join("%s [START] x  <- s.json\n" % day for _ in range(runs)))
+            s = am.log_daily_series(d)
+            self.assertEqual([x["day"] for x in s],
+                             ["2026-09-26", "2026-09-27", "2026-09-28"])  # เก่า → ใหม่
+            self.assertEqual([x["runs"] for x in s], [1, 3, 2])
+            s2 = am.log_daily_series(d, limit=2)
+            self.assertEqual([x["day"] for x in s2], ["2026-09-27", "2026-09-28"])  # เอาวันล่าสุด
+
+    def test_series_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(am.log_daily_series(d), [])
+
+
+class TestExportImport(unittest.TestCase):
+    """Export/Import การตั้งค่า (v1.12) — mock filedialog และ messagebox ทั้งหมด"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        app._serialize.return_value = [{"button": "Beep", "secs": 0}]
+        app._profiles = {"ค่าเริ่มต้น": [{"button": "Beep"}], "งาน B": []}
+        app._active_profile = "ค่าเริ่มต้น"
+        app._log_enabled = False
+        app._hp_dir = None
+        app._ui_state = {"msg": None}
+        return app
+
+    def test_export_writes_full_settings(self):
+        import tempfile
+        app = self._app()
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "settings.json")
+            with mock.patch.object(am.filedialog, "asksaveasfilename", return_value=f):
+                am.MacroApp.export_settings(app)
+            data = json.load(open(f, encoding="utf-8"))
+            self.assertEqual(data["kind"], "automousemacro-settings")
+            self.assertEqual(data["active_profile"], "ค่าเริ่มต้น")
+            self.assertEqual(set(data["profiles"]), {"ค่าเริ่มต้น", "งาน B"})
+            self.assertIn("log_enabled", data)
+            self.assertIn("ส่งออก", app._ui_state["msg"][0])
+
+    def test_import_roundtrip(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "settings.json")
+            json.dump({"kind": "automousemacro-settings", "version": 1,
+                       "rows": [{"button": "Beep", "secs": 1}],
+                       "profiles": {"A": [{"button": "Beep"}], "B": []},
+                       "active_profile": "B",
+                       "log_enabled": True, "hot_profile_dir": None},
+                      open(f, "w", encoding="utf-8"))
+            app = self._app()
+            app._load_rows = mock.MagicMock()
+            app._refresh_profile_ui = mock.MagicMock()
+            with mock.patch.object(am.filedialog, "askopenfilename", return_value=f), \
+                 mock.patch.object(am.messagebox, "askyesno", return_value=True):
+                am.MacroApp.import_settings(app)
+            self.assertEqual(app._active_profile, "B")
+            self.assertTrue(app._log_enabled)
+            app._load_rows.assert_called_once()               # งานถูกโหลดแทนที่
+            self.assertIn("นำเข้า", app._ui_state["msg"][0])
+
+    def test_import_rejects_wrong_file(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "other.json")
+            with open(f, "w", encoding="utf-8") as fh:
+                json.dump([{"button": "Beep"}], fh)           # ไฟล์สคริปต์ปกติ (ไม่ใช่ settings)
+            app = self._app()
+            app._load_rows = mock.MagicMock()
+            with mock.patch.object(am.filedialog, "askopenfilename", return_value=f), \
+                 mock.patch.object(am.messagebox, "showerror") as err:
+                am.MacroApp.import_settings(app)              # ต้องไม่เปลี่ยนอะไร
+            app._load_rows.assert_not_called()
+            err.assert_called_once()                          # แจ้ง error (ผ่าน mock ไม่เด้ง dialog จริง)
+
+    def test_import_cancelled(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "settings.json")
+            json.dump({"kind": "automousemacro-settings", "profiles": {}, "rows": []},
+                      open(f, "w", encoding="utf-8"))
+            app = self._app()
+            app._load_rows = mock.MagicMock()
+            with mock.patch.object(am.filedialog, "askopenfilename", return_value=f), \
+                 mock.patch.object(am.messagebox, "askyesno", return_value=False):
+                am.MacroApp.import_settings(app)
+            app._load_rows.assert_not_called()                # ไม่ยอมรับ = ไม่แตะข้อมูล
 
 
 class TestMenuItems(unittest.TestCase):

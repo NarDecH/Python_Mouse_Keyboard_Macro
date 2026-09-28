@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.11
+Auto Mouse & Keyboard Macro  v1.12
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -28,6 +28,8 @@ Auto Mouse & Keyboard Macro  v1.11
 - v1.11: Self-check ตรวจสุขภาพระบบตอนเปิด (pynput/OpenCV/hotkey/admin แสดงใน Settings),
   หน้าต่าง 📊 Stats สรุปสถิติการเล่นจาก log (จำนวนรอบ/หยุด/watchdog/แถวที่ช้าสุด),
   สคริปต์เดโม่เฝ้าระบบ + run_watchdog.bat, หน้าเว็บแนะนำโปรแกรม (docs/LANDING.html)
+- v1.12: กราฟสถิติต่อวันในหน้า 📊 Stats (canvas วาดเอง), Export/Import การตั้งค่า
+  ทั้งหมดเป็นไฟล์เดียวย้ายเครื่องได้ (Settings), ปุ่ม 🧪 ทดสอบระบบจริงใน Settings
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -64,7 +66,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.11"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.12"
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -264,6 +266,20 @@ def log_stats_summary(base_dir=None):
                              or s["slowest"][1] > total["slowest"][1]):
             total["slowest"] = s["slowest"]
     return total
+
+
+def log_daily_series(base_dir=None, limit=14):
+    """สถิติรายวันสำหรับกราฟ (v1.12) — เรียงวันเก่า → ใหม่ เอา `limit` วันล่าสุด
+    คืนรายการ dict: {"day": "2026-09-28", "runs": n, "steps": n, "restarts": n}"""
+    d = base_dir or os.path.dirname(os.path.abspath(__file__))
+    out = []
+    for f in sorted(glob.glob(os.path.join(d, "macro_log_*.txt"))):
+        name = os.path.basename(f)                    # macro_log_YYYY-MM-DD.txt
+        day = name[len("macro_log_"):-len(".txt")]
+        s = parse_log_stats(f)
+        out.append({"day": day, "runs": s["runs"],
+                    "steps": s["steps"], "restarts": s["restarts"]})
+    return out[-limit:]
 
 
 def prune_log(keep=MAX_LOG_LINES):
@@ -1559,6 +1575,70 @@ class MacroApp:
         except OSError:
             pass
 
+    # --------------------------------- export/import การตั้งค่า (v1.12) ------
+    def export_settings(self):
+        """ส่งออกการตั้งค่าทั้งหมดเป็นไฟล์เดียว: งานปัจจุบัน + โปรไฟล์ทุกชุด +
+        log_enabled + hot_profile_dir — ใช้ย้ายเครื่อง/สำรองข้อมูล"""
+        f = filedialog.asksaveasfilename(defaultextension=".json",
+                                         filetypes=[("Macro settings", "*.json")],
+                                         initialfile="macro_settings.json")
+        if not f:
+            return
+        data = {"kind": "automousemacro-settings", "version": 1,
+                "rows": self._serialize(),
+                "profiles": self._profiles,
+                "active_profile": self._active_profile,
+                "log_enabled": self._log_enabled,
+                "hot_profile_dir": self._hp_dir}
+        try:
+            with open(f, "w", encoding="utf-8") as fh:
+                json.dump(data, fh, ensure_ascii=False, indent=2)
+            self._ui_state["msg"] = ("ส่งออกการตั้งค่าแล้ว: " + os.path.basename(f), "#080")
+        except OSError as exc:
+            messagebox.showerror(APP_TITLE, "ส่งออกไม่สำเร็จ:\n%s" % exc)
+
+    def import_settings(self):
+        """นำเข้าไฟล์ที่ Export ไว้ — ประเมินผลก่อน แล้วถามยืนยัน (แทนที่ทั้งหมด)"""
+        f = filedialog.askopenfilename(filetypes=[("Macro settings", "*.json"),
+                                                  ("All files", "*.*")])
+        if not f or not os.path.isfile(f):
+            return
+        try:
+            with open(f, encoding="utf-8") as fh:
+                data = json.load(fh)
+            if not isinstance(data, dict) or data.get("kind") != "automousemacro-settings":
+                raise ValueError("ไฟล์นี้ไม่ใช่ไฟล์การตั้งค่าของโปรแกรม")
+            n_prof = len(data.get("profiles") or {})
+            n_rows = len(data.get("rows") or [])
+            if not messagebox.askyesno(APP_TITLE,
+                    "นำเข้าการตั้งค่า?\n"
+                    "- งานปัจจุบัน: %d แถว\n- โปรไฟล์: %d ชุด (แทนที่ทั้งหมด)\n"
+                    "- โฟลเดอร์ hot-profile: %s\n\nดำเนินการต่อ?"
+                    % (n_rows, n_prof, data.get("hot_profile_dir") or "ไม่ตั้ง")):
+                return
+            self._stop_all_silent()
+            self._profiles = {k: v for k, v in (data.get("profiles") or {}).items()
+                              if isinstance(v, list)}
+            if not self._profiles:
+                self._profiles = {DEFAULT_PROFILE: []}
+            self._active_profile = (data.get("active_profile")
+                                    if data.get("active_profile") in self._profiles
+                                    else next(iter(self._profiles)))
+            self._load_rows(data.get("rows") or [])
+            self._log_enabled = bool(data.get("log_enabled", True))
+            hp = data.get("hot_profile_dir")
+            self._hp_dir = hp if (isinstance(hp, str) and hp and os.path.isdir(hp)) else None
+            self._refresh_profile_ui()
+            self._save_profiles()
+            self._save_conf()
+            self._ui_state["msg"] = ("นำเข้าการตั้งค่าแล้ว: " + os.path.basename(f), "#080")
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            messagebox.showerror(APP_TITLE, "นำเข้าไม่สำเร็จ:\n%s" % exc)
+
+    def _stop_all_silent(self):
+        """หยุดเล่น/อัดแบบเงียบ (ใช้ก่อน import แทนที่ข้อมูล)"""
+        self.stop_all(silent=True)
+
     # ------------------------------------------------------------- dialogs ---
     # ------------------------------------------- record wizard (v1.10) ------
     def record_wizard(self):
@@ -1668,6 +1748,35 @@ class MacroApp:
         tk.Label(win, justify="left", fg="#555", text=(
             "แถวที่ใช้เวลานานสุดเท่าที่ log มี:\n" + (slow[0] if slow else "(ยังไม่มีข้อมูล — เล่นสคริปต์ก่อน)")
         ).replace("  <-", "\n   <-")).pack(padx=24, pady=(10, 4), anchor="w")
+        # กราฟแท่งรายวัน (v1.12): เหตุการณ์ (STEP) ต่อวัน + จำนวนครั้งที่เริ่มเล่น
+        series = log_daily_series()
+        if series:
+            tk.Label(win, text="เหตุการณ์ต่อวัน (%d วันล่าสุด — แท่งเขียวเข้ม = เริ่มเล่น, เขียวอ่อน = เหตุการณ์)"
+                     % len(series)).pack(pady=(10, 2))
+            cw, chh = 620, 150
+            cvs = tk.Canvas(win, width=cw, height=chh, bg="#fafafa",
+                            highlightthickness=1, highlightbackground="#ddd")
+            cvs.pack(padx=24, pady=(0, 4))
+            max_steps = max(x["steps"] for x in series) or 1
+            max_runs = max(x["runs"] for x in series) or 1
+            n = len(series)
+            gap, bw = 6, max(8, min(28, (cw - 40) // n - 6))
+            x0 = (cw - (n * (bw * 2 + gap) - gap)) // 2
+            base_y = chh - 22
+            cvs.create_line(20, base_y, cw - 20, base_y, fill="#bbb")
+            for i, d in enumerate(series):
+                cx = x0 + i * (bw * 2 + gap)
+                hs = int((base_y - 26) * d["steps"] / max_steps)
+                hr = int((base_y - 26) * d["runs"] / max_runs)
+                cvs.create_rectangle(cx, base_y - hs, cx + bw, base_y,
+                                     fill="#a7d8b0", outline="")
+                cvs.create_rectangle(cx + bw, base_y - hr, cx + bw * 2, base_y,
+                                     fill="#1f7a34", outline="")
+                if d["steps"]:
+                    cvs.create_text(cx + bw, base_y - hs - 8, text=str(d["steps"]),
+                                    font=("Segoe UI", 8), fill="#555")
+                cvs.create_text(cx + bw, chh - 9, text=d["day"][5:],
+                                font=("Segoe UI", 8), fill="#777")
         tk.Button(win, text="เปิด Log viewer", command=self.view_log).pack(pady=(2, 2))
         tk.Button(win, text="ปิด", width=8, command=win.destroy).pack(pady=(4, 14))
 
@@ -1860,6 +1969,36 @@ class MacroApp:
         tk.Button(win, text="เปิดโฟลเดอร์ log", width=14,
                   command=lambda: os.startfile(os.path.dirname(os.path.abspath(__file__)))
                   if hasattr(os, "startfile") else None).pack(pady=(4, 0))
+        # 🧪 ทดสอบระบบจริง (v1.12): ขยับเมาส์ไปจุดสังเกต → คืนจุดเดิม → บี๊บ 2 ครั้ง
+        def self_test():
+            try:
+                cur = self.mouse_ctl.position
+                self.mouse_ctl.position = (cur[0] + 120, cur[1])
+                time.sleep(0.25)
+                self.mouse_ctl.position = (cur[0] + 120, cur[1] + 60)
+                time.sleep(0.25)
+                self.mouse_ctl.position = cur
+                self.root.bell()
+                win.after(250, self.root.bell)
+                res.config(text="🧪 ทดสอบแล้ว: เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง — "
+                                "ถ้าเมาส์ไม่ขยับหรือไม่ได้ยินเสียง แสดงว่าระบบมีปัญหาจริง", fg="#080")
+            except Exception as exc:
+                res.config(text="🧪 ทดสอบล้มเหลว: %s" % exc, fg="#b00")
+
+        tk.Button(win, text="🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)", width=30,
+                  command=self_test).pack(pady=(10, 0))
+        res = tk.Label(win, text="", fg="#080", justify="left", wraplength=380)
+        res.pack(padx=20)
+        # Export/Import การตั้งค่า (v1.12)
+        eib = tk.Frame(win)
+        eib.pack(pady=(10, 0))
+        tk.Button(eib, text="⬆️ Export การตั้งค่า", width=18,
+                  command=self.export_settings).pack(side="left", padx=4)
+        tk.Button(eib, text="⬇️ Import การตั้งค่า", width=18,
+                  command=self.import_settings).pack(side="left", padx=4)
+        tk.Label(win, text="Export = งานปัจจุบัน + โปรไฟล์ทุกชุด + ตั้งค่า log/hot-profile "
+                 "เป็นไฟล์เดียว (ย้ายเครื่อง/สำรอง)", fg="#888",
+                 justify="left", wraplength=400).pack(padx=20, pady=(4, 0))
         tk.Button(win, text="บันทึก", width=8,
                   command=lambda: (setattr(self, "_log_enabled", self.var_log.get()),
                                    win.destroy())).pack(pady=(8, 14))

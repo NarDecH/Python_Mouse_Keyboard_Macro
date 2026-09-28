@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.11 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.12 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -30,6 +30,9 @@
   Settings), สถิติจาก log (`parse_log_stats`/`log_stats_summary` + เมนู 📊 Stats),
   สคริปต์เฝ้าระบบ `examples/05` + `run_watchdog.bat`, หน้าเว็บ `docs/LANDING.html`
   ⚠️ ตั้งชื่อคลาสเทสต์ซ้ำกันไม่ได้ — คลาสหลังจะบังคลาสหน้า (เคยทำให้เทสต์ hotkey หาย) ตรวจด้วย `grep -c "class Test"`
+- **ฟีเจอร์เสริม v1.12:** กราฟสถิติรายวันใน Stats (`log_daily_series` + canvas),
+  Export/Import การตั้งค่าทั้งหมด (Settings — kind=automousemacro-settings),
+  ปุ่ม 🧪 ทดสอบระบบจริงใน Settings (ขยับเมาส์+บี๊บ)
 
 ## เทคโนโลยี
 
@@ -114,6 +117,9 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   `view_stats()` (เมนู 📊) ที่อ่านผ่าน `log_stats_summary()`
 - **Self-check:** `_self_check()` รันตอน __init__ เก็บผลใน `self._checks`
   (mouse/hotkey/opencv/admin/conf_writable) — แสดงผลผ่าน `self_check_text()` ใน Settings
+  พร้อมปุ่ม 🧪 ทดสอบระบบจริง (self_test ใน settings_dialog — ขยับเมาส์/บี๊บให้ผู้ใช้ยืนยันเอง)
+- **Export/Import:** `export_settings()`/`import_settings()` — ไฟล์เดียวรวม rows +
+  profiles + log_enabled + hot_profile_dir (ตรวจ `kind=automousemacro-settings` ก่อนนำเข้า)
 - **E2E tests:** `test_e2e.py` รัน CLI จริงเป็น subprocess (สคริปต์ Beep ล้วนปลอดภัย) —
   ทดสอบหยุดผ่าน stop-file กลางดีเลย์ยาว/จบเอง/หยุดก่อนเริ่ม รัน: `py -m unittest test_e2e -v`
   ห้ามถือว่า listener ใช้ได้เพราะ `alive=True` — ต้องทดสอบด้วยการกด/หยุดจริง
