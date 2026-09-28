@@ -1225,6 +1225,8 @@ class TestIfImage(unittest.TestCase):
         self.assertEqual(played, ["c"])
 
     def test_find_image_pos_missing_file(self):
+        if not am.HAS_CV:
+            self.skipTest("ไม่มี opencv — CI ไม่ติดตั้ง (ฟีเจอร์ภาพปิดอัตโนมัติ)")
         app = mock.MagicMock()
         app._ui_state = {}
         app._parse_search_area = getattr(am.MacroApp, "_parse_search_area").__get__(app)
