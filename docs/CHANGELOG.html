@@ -65,8 +65,35 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.18</h2>
+      <h2>เวอร์ชัน 1.18.1</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้บั๊ก</h3>
+    <ul>
+      <li><b>🚨 ปุ่ม START/REPEAT ใน GUI พังทั้งหมด</b> — <code>_rows_for_play</code> หายไปตั้งแต่ v1.10
+        (rename เป็น <code>_play_options</code> แล้วลืมสร้างเมธอดเดิมกลับ) กด START =
+        AttributeError ทันที — กู้คืนแล้ว (เทสต์เดิมไม่จับเพราะ mock ไว้ และ E2E ทดสอบแต่ CLI)</li>
+      <li><b>🔁 REPEAT / วนซ้ำไม่จำกัด เล่นแค่ 1 รอบแล้วจบ</b> — ลูป <code>if loop: break</code>
+        สวนความหมายเดิมของ v1.4 — กลับไปวนจนกด STOP, Schedule ใช้
+        <code>once=True</code> เล่นรอบเดียวต่อการเรียกเหมือนเดิม</li>
+      <li><b>🎲 สุ่มลำดับ/สัดส่วนแถวของ GUI ไม่มีผล</b> — <code>_player</code> บังคับ
+        <code>_shuffle=False / _pct=100</code> ทับค่าจาก UI ทุกครั้ง — ใช้ค่าจาก UI จริงแล้ว</li>
+      <li><b>⌨️ อัดคีย์ตอน RECORD พังตั้งแต่ v1.4</b> — <code>on_kb</code> อ้างตัวแปร
+        <code>pressed</code> ที่ไม่มีอยู่ (NameError) ไม่มีแถว Tap Key ถูกอัด — แก้แล้ว</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม TestPlayLoopFixes 3 ตัว + TestPlayLoopGui 5 ตัว (เล่นจริงใน GUI แถว Beep ล้วน) →
+        <b>149 unit + 8 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.18</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

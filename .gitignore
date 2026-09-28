@@ -13,6 +13,7 @@ dist/
 # ไฟล์ config ที่โปรแกรมสร้างเอง (ของผู้ใช้แต่ละคน)
 macro_conf.json
 macro_profiles.json
+backups/
 
 # ไฟล์ภาพสำหรับ Image Click ของผู้ใช้ (ภาพจอของแต่ละคนต่างกัน)
 *.png

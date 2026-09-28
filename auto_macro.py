@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.16
+Auto Mouse & Keyboard Macro  v1.18
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -78,7 +78,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.18"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.18.1"
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
 BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
@@ -951,7 +951,7 @@ class MacroApp:
                 txt = str(key).replace("Key.", "")
             if txt:
                 self._live_key = txt
-            if self.recording and pressed is not False and txt and len(txt) <= 12 and not txt.startswith(" "):
+            if self.recording and txt and len(txt) <= 12 and not txt.startswith(" "):
                 dt = round(time.time() - self._rec_t0, 2)
                 self._pending_rows.append(dict(x="", y="", button="Tap Key",
                                                additional=txt, mins=0, secs=dt, repeat=1))
@@ -1336,6 +1336,9 @@ class MacroApp:
         except ValueError:
             pct = 100
         return max(5, min(100, pct))
+
+    def _rows_for_play(self):
+        """แถวที่เปิดใช้ (☑) ทั้งหมด ในลำดับของตาราง — ใช้เป็นสคริปต์ที่จะเล่น"""
         rows = []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
@@ -1375,7 +1378,9 @@ class MacroApp:
     def start_repeat(self):
         self._start_player(True)
 
-    def _start_player(self, loop):
+    def _start_player(self, loop, once=False):
+        """เริ่มเล่น — loop=True = วนไม่จำกัดจนกด STOP (REPEAT/F10)
+        once=True = เล่นครั้งเดียวจบรอบเดียว (ใช้โดย schedule — ไม่สนช่อง รอบ:/forever)"""
         rows = self._rows_for_play()
         if not rows:
             messagebox.showinfo(APP_TITLE, self._t("no_rows"))
@@ -1400,6 +1405,8 @@ class MacroApp:
         except ValueError:
             loops = 1
         self._script_loops = max(0, loops)
+        if once:
+            loop, self._script_loops = False, 1   # schedule: เล่นรอบเดียวต่อการเรียก
         self._restore_pos = self.chk_restore.get()
         self._shuffle = self.chk_shuffle.get()
         self._pct = self._play_options()
@@ -1569,8 +1576,6 @@ class MacroApp:
             loop_no = 0
             outer = True
             play_started = time.time()
-            self._shuffle = False
-            self._pct = 100
             while outer:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
@@ -1641,7 +1646,8 @@ class MacroApp:
                 if self._restore_pos and start_pos and self._gen_ok(gen):
                     self.mouse_ctl.position = start_pos
                 if loop:
-                    break                      # REPEAT/forever คุมรอบอยู่แล้ว
+                    outer = self._gen_ok(gen)  # REPEAT/วนซ้ำไม่จำกัด = เล่นจนกด STOP
+                    continue
                 if self._script_loops == 0:
                     outer = self._gen_ok(gen)  # ไม่จำกัดรอบ
                 else:
@@ -1777,7 +1783,7 @@ class MacroApp:
             while True:
                 self._sched_q.get_nowait()
                 if not self.running:
-                    self._start_player(True)   # เล่นแบบวนซ้ำ 1 รอบจบ (F8 หยุดได้)
+                    self._start_player(False, once=True)   # เล่น 1 รอบจบทุกครั้งที่ถึงเวลา (F8 หยุดได้)
         except Exception:
             pass
         if not self._sched_stop.is_set():

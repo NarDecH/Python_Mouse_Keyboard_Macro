@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.18 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.18.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -61,6 +61,15 @@
   เจอ → ข้ามกลุ่ม B ตาม Repeat, ไม่เจอ → เล่นกลุ่ม B),
   สถิติราย Action (`parse_log_stats` รวม dict `actions` + `top_actions_summary` + ตารางใน Stats),
   เดโม่ `examples/07_conditions.json` + TUTORIAL บทที่ 5A
+- **แก้บั๊ก v1.18.1 (4 จุด พิสูจน์ด้วยการรันจริง):**
+  (1) `_rows_for_play` หายไปตั้งแต่ v1.10 — rename เป็น `_play_options` แล้วลืมสร้างเมธอดเดิม
+  (body เดิมกลายเป็น dead code ค้างท้ายฟังก์ชัน) → กด START ใน GUI พังทันที
+  ⚠️ อย่า mock `_start_player` ในเทสต์จนไม่ได้ทดสอบการเรียกจริง — ตอนนี้มี
+  `TestPlayLoopFixes` + `TestPlayLoopGui` (เล่นจริงด้วยแถว Beep ล้วน ไม่มีจอ skip)
+  (2) `_player` เดิม `if loop: break` ทำ REPEAT/วนซ้ำไม่จำกัด เล่นแค่ 1 รอบ —
+  แก้เป็นวนจน STOP; **schedule ใช้ `_start_player(False, once=True)`** เล่นรอบเดียวต่อการเรียก
+  (3) `_player` เดิมบังคับ `_shuffle=False/_pct=100` ทับค่าจาก UI → สุ่มลำดับ/สัดส่วนไม่มีผล
+  (4) `on_kb` อ้างตัวแปร `pressed` ที่ไม่มีจริง → กดคีย์ตอน RECORD เป็น NameError ไม่มีแถวถูกอัด
 
 ## เทคโนโลยี
 

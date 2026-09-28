@@ -10,6 +10,7 @@ import json
 import os
 import random
 import sys
+import time
 import unittest
 from unittest import mock
 
@@ -1366,6 +1367,196 @@ class TestActionStats(unittest.TestCase):
                              "c": {"count": 1, "total": 5.0, "max": 5.0}}}
         tops = am.top_actions_summary(stats, limit=2)
         self.assertEqual([t[0] for t in tops], ["b", "c"])
+
+
+class TestPlayLoopFixes(unittest.TestCase):
+    """Regression v1.18.1 — บั๊ก 4 จุดที่พบจากการตรวจโค้ด (แก้แล้วทั้งหมด)
+    1) _rows_for_play หายไปตอน v1.10 (rename เป็น _play_options แล้วลืมสร้างใหม่)
+       → กด START/REPEAT ใน GUI พังทันที (AttributeError) — เทสต์เดิมไม่จับเพราะ mock ไว้
+    2) _player บังคับ _shuffle=False/_pct=100 ทับค่าจาก UI → สุ่มลำดับ/สัดส่วนแถวไม่มีผล
+    3) on_kb อ้างตัวแปร pressed ที่ไม่มีอยู่ → กดคีย์ตอน RECORD เกิด NameError ไม่มีแถวถูกอัด
+    4) "if loop: break" กลับความหมายจาก v1.4 → REPEAT/วนซ้ำไม่จำกัด เล่นแค่ 1 รอบแล้วจบ
+    (กลุ่มที่ใช้ Tk/จอ: Beep ล้วนไม่แตะเมาส์/คีย์จริง — ไม่มีจอแล้ว skip อัตโนมัติ)"""
+
+    def test_rows_for_play_returns_enabled_only(self):
+        app = mock.MagicMock()
+        vals = [["☑", 1, "10", "20", "Beep", "", "0", "1", "1"],
+                ["☐", 2, "", "", "Tap Key", "a", "0", "1", "1"],
+                ["☑", 3, "", "", "Beep", "", "0", "1", "1"]]
+        app.tree.get_children.return_value = ["i1", "i2", "i3"]
+        app.tree.item.side_effect = lambda iid, key: {"values": vals[int(iid[1]) - 1]}[key]
+        rows = am.MacroApp._rows_for_play(app)          # เดิม: AttributeError — เมธอดหาย
+        self.assertEqual([r["button"] for r in rows], ["Beep", "Beep"])
+
+    def test_play_options_clamps(self):
+        app = mock.MagicMock()
+        for txt, expect in (("50", 50), ("250", 100), ("abc", 100), ("5", 5)):
+            app.ent_pct.get.return_value = txt
+            self.assertEqual(am.MacroApp._play_options(app), expect)
+
+    def test_record_keystroke_no_nameerror(self):
+        """RECORD: กดคีย์ต้องได้แถว Tap Key — on_kb เดิมพังที่ตัวแปร pressed"""
+        captured = {}
+
+        class FakeMouseListener:
+            def __init__(self, **kw):
+                pass
+            def start(self):
+                pass
+
+        class FakeKbListener:
+            def __init__(self, on_press=None, **kw):
+                captured["on_press"] = on_press
+            def start(self):
+                pass
+
+        app = mock.MagicMock()
+        with mock.patch.object(am.mouse, "Listener", FakeMouseListener), \
+             mock.patch.object(am.keyboard, "Listener", FakeKbListener):
+            am.MacroApp._start_listeners(app)
+        on_press = captured["on_press"]
+        self.assertIsNotNone(on_press)
+        app.recording = True
+        app._rec_t0 = time.time()
+        on_press(am.KeyCode.from_char("a"))             # เดิม: NameError ที่ตัวแปร pressed
+        self.assertEqual(len(app._pending_rows), 1)
+        self.assertEqual(app._pending_rows[0]["button"], "Tap Key")
+        self.assertEqual(app._pending_rows[0]["additional"], "a")
+        app.recording = False
+        on_press(am.KeyCode.from_char("b"))             # ไม่ได้อัด = ไม่เพิ่มแถว
+        self.assertEqual(len(app._pending_rows), 1)
+
+
+class TestPlayLoopGui(unittest.TestCase):
+    """พฤติกรรมการเล่นจริงของ GUI (Regression v1.18.1 ข้อ 2/4 + START ใช้ได้)
+    ใช้แถว Beep ล้วน (secs=0) ไม่แตะเมาส์/คีย์ — ไม่มีจอ (CI บางที่) skip อัตโนมัติ"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._orig_log = am.log_write
+        cls.steps = []
+        def counting_log(mode, message, src=None):
+            if mode == "STEP":
+                cls.steps.append(message)
+            return cls._orig_log(mode, message, src)
+        am.log_write = counting_log
+        cls.app = None
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+        except am.tk.TclError:
+            cls.root = None
+            return
+        try:
+            cls.app = am.MacroApp(cls.root)
+            cls.app._log_enabled = True
+        except Exception:
+            cls.root.destroy()
+            cls.root = None
+            cls.app = None
+
+    @classmethod
+    def tearDownClass(cls):
+        am.log_write = cls._orig_log
+        if cls.app is not None:
+            try:
+                cls.app.stop_all(silent=True)
+            except Exception:
+                pass
+        if cls.root is not None:
+            cls.root.destroy()
+
+    def setUp(self):
+        if self.app is None:
+            self.skipTest("ไม่มีจอ/สร้าง MacroApp จริงไม่ได้ — ข้ามกลุ่มเล่นจริง")
+        self.app.stop_all(silent=True)
+        self._clean_table(2)
+
+    def _clean_table(self, n):
+        app = self.app
+        app.tree.delete(*app.tree.get_children())    # ล้างงานจาก macro_conf.json ออกก่อน
+        for _ in range(n):
+            app._append_row(button="Beep", secs=0)
+        app.chk_forever.set(False)
+        app.chk_shuffle.set(False)
+        app.ent_pct.delete(0, "end")
+        app.ent_pct.insert(0, "100")
+        app.ent_loops.delete(0, "end")
+        app.ent_loops.insert(0, "1")
+
+    def _run_until(self, start_fn, cond, timeout=10.0):
+        """เริ่มเล่นด้วย start_fn แล้วเข้า mainloop จน cond เป็นจริง (หรือ timeout)
+        หมายเหตุ: การเรียก Tk ข้ามเธรดของ player (tree.get_children/bell) marshal
+        ได้เฉพาะตอน main thread อยู่ใน mainloop() — update() ไม่พอ"""
+        outcome = {"ok": False}
+        t0 = time.time()
+
+        def poll():
+            if cond():
+                outcome["ok"] = True
+                self.root.quit()
+            elif time.time() - t0 > timeout:
+                self.root.quit()                    # timeout — ปล่อยให้ assert ตัวรองจับ
+            else:
+                self.root.after(30, poll)
+
+        def start():
+            start_fn()
+            self.root.after(30, poll)
+
+        self.root.after(30, start)
+        self.root.mainloop()
+        return outcome["ok"]
+
+    def test_start_play_runs_and_honors_loops(self):
+        """กด START ต้องเล่นได้จริง + ช่อง รอบ: 3 = 2 แถว × 3 = 6 steps (เดิม START พังทั้งปุ่ม)"""
+        self.app.ent_loops.delete(0, "end")
+        self.app.ent_loops.insert(0, "3")
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: not self.app.running)
+        self.assertTrue(ok)
+        self.assertEqual(len(self.steps), 6)
+
+    def test_repeat_button_loops_until_stop(self):
+        """REPEAT ต้องวนต่อเนื่องจนกด STOP (เดิมพัง: เล่น 1 รอบแล้วจบเอง)"""
+        self.steps.clear()
+        ok = self._run_until(self.app.start_repeat, lambda: len(self.steps) >= 6)
+        self.app.stop_all(silent=True)
+        self.assertTrue(ok)
+        self.assertFalse(self.app.running)
+
+    def test_forever_checkbox_loops_until_stop(self):
+        """ติ๊ก วนซ้ำไม่จำกัด + START ต้องวนต่อเนื่อง (เดิมพัง: เล่น 1 รอบแล้วจบเอง)"""
+        self.app.chk_forever.set(True)
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: len(self.steps) >= 6)
+        self.app.stop_all(silent=True)
+        self.app.chk_forever.set(False)
+        self.assertTrue(ok)
+
+    def test_shuffle_and_pct_apply(self):
+        """สุ่มลำดับ 50% + รอบ 2 กับ 4 แถว = เล่นรอบละ 2 แถว × 2 รอบ = 4 steps
+        (เดิมพัง: _player บังคับ pct=100 → ได้ 8 steps)"""
+        self._clean_table(4)
+        self.app.chk_shuffle.set(True)
+        self.app.ent_pct.delete(0, "end")
+        self.app.ent_pct.insert(0, "50")
+        self.app.ent_loops.delete(0, "end")
+        self.app.ent_loops.insert(0, "2")
+        self.steps.clear()
+        ok = self._run_until(self.app.start_play, lambda: not self.app.running)
+        self.assertTrue(ok)
+        self.assertEqual(len(self.steps), 4)
+
+    def test_schedule_once_single_pass(self):
+        """schedule (once=True) ต้องเล่นรอบเดียว ไม่สนช่อง รอบ: 5"""
+        self.app.ent_loops.delete(0, "end")
+        self.app.ent_loops.insert(0, "5")
+        self.steps.clear()
+        ok = self._run_until(lambda: self.app._start_player(False, once=True),
+                             lambda: not self.app.running)
+        self.assertTrue(ok)
+        self.assertEqual(len(self.steps), 2)
 
 
 if __name__ == "__main__":
