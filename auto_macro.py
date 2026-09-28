@@ -40,6 +40,8 @@ Auto Mouse & Keyboard Macro  v1.16
   (ประกาศ ACTION_NAME + run(ctx, row)) เป็น Action ใหม่ได้โดยไม่แก้โค้ดหลัก
 - v1.17: ค้นหาแถว (Ctrl+F), Undo ลบแถว (Ctrl+Z), วางสคริปต์จากคลิปบอร์ด,
   If Image — ภาพไม่เจอ → ข้าม N แถวถัดไป (ตั้งจำนวนใน Repeat)
+- v1.18: Wait for Pixel Color (รอจุดสี, หน่วงใน Additional), Else If Image
+  (เงื่อนไขสองทาง A/B), สถิติราย Action ในหน้า 📊 Stats
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -76,7 +78,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.17"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.18"
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
 BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
@@ -103,6 +105,8 @@ TR = {
            "clip_bad": "คลิปบอร์ดไม่ใช่สคริปต์ JSON (ต้องเป็นรายการแถว)",
            "clip_added": "วางจากคลิปบอร์ดแล้ว %d แถว",
            "ifimg_skip": "If Image ไม่เจอ → ข้าม %d แถวถัดไป", "ifimg_hit": "If Image เจอ → เล่นต่อ",
+           "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
+           "pixel_title": "🎨 Wait for Pixel Color", "pixel_label": "x,y = จุดที่ต้องการ · #RRGGBB = สีที่รอ · วินาที = หน่วงก่อนตรวจ (พิมพ์ใน Additional)",
            "save": "บันทึก", "close": "ปิด", "language": "ภาษา (Language):",
            "backup_label": "Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
            "days": "วัน — 1–90)", "log_label": "บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
@@ -175,14 +179,70 @@ MOUSE_BTNS = list(BTN_TH.keys())
 KEY_ACTIONS = ["Press Key", "Release Key", "Tap Key"]
 IMAGE_ACTION = "Image Click"
 IF_IMAGE = "If Image"            # เงื่อนไข v1.17: ภาพไม่เจอ → ข้าม N แถวถัดไป
+ELSE_IMAGE = "Else If Image"     # เงื่อนไข v1.18: สองทาง — เจอ → กลุ่ม A (ก่อนหน้า), ไม่เจอ → กลุ่ม B (หลัง)
+WAIT_PIXEL = "Wait for Pixel Color"  # v1.18: รอจุดสี (x,y + #RRGGBB) ก่อนทำงานต่อ
 # ฟีเจอร์เพิ่มเติมแรงบันดาลใจจาก automouseclick.com (v1.5)
 SCROLL_ACTIONS = ["Scroll Up", "Scroll Down"]
 DBL_ACTIONS = ["Double Left Click", "Double Right Click"]
 MOD_CLICKS = ["Ctrl+Click", "Shift+Click", "Alt+Click", "Ctrl+Right Click"]
 MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cursor"]
 EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
-ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE] + SCROLL_ACTIONS
-               + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS)
+ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
+               + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS)
+
+# ------------------------------------------- pixel color helpers (v1.18) ----
+def parse_color_hex(txt):
+    """แปลง #RGB / #RRGGBB / RRGGBB → (r, g, b) — รูปแบบไม่ถูกคืน None"""
+    s = str(txt or "").strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(c * 2 for c in s)
+    if len(s) != 6:
+        return None
+    try:
+        return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+    except ValueError:
+        return None
+
+
+def parse_pixel_spec(additional):
+    """แยก Additional ของ Wait for Pixel Color → (x, y, (r,g,b))
+    รูปแบบ: "x,y #rrggbb" (ตัวเลือกหน่วงจะถูกอ่านแยกจากคอลัมน์ Secs)
+    คืน (x, y, rgb) เมื่อถูกต้อง หรือ None"""
+    s = str(additional or "").strip()
+    if not s:
+        return None
+    parts = s.replace(",", " ").replace("#", " #").split()
+    xy, rgb = None, None
+    for p in parts:
+        if p.startswith("#"):
+            if rgb is None:
+                rgb = parse_color_hex(p)
+        else:
+            if xy is None and p.isdigit():
+                xy = (int(p), 0)
+            elif xy is not None and xy[1] == 0 and p.isdigit():
+                xy = (xy[0], int(p))
+    if xy is None or rgb is None:
+        return None
+    return (xy[0], xy[1], rgb)
+
+
+def pixel_color_at(x, y):
+    """อ่านสีจุด (x, y) บนหน้าจอ → (r, g, b) หรือ None ถ้าอ่านไม่ได้
+    ใช้ PIL.ImageGrab (ไม่เพิ่ม dependency)"""
+    try:
+        px = ImageGrab.grab().load()[x, y]
+        return (px[0], px[1], px[2])[:3]
+    except Exception:
+        return None
+
+
+def color_close(c1, c2, tol=20):
+    """สีใกล้เคียงกันภายใน tolerance ต่อช่อง (ค่าเริ่มต้น 20)"""
+    if not c1 or not c2:
+        return False
+    return all(abs(a - b) <= tol for a, b in zip(c1, c2))
+
 
 # ------------------------------------------------ plugin actions (v1.16) ----
 def load_plugins(base_dir=None):
@@ -362,7 +422,8 @@ def parse_log_stats(path):
     """สรุปสถิติจากไฟล์ log 1 ไฟล์ (1 วัน) — ไฟล์ไม่มี = ค่าศูนย์ทั้งหมด
     คืน dict: runs เริ่มเล่น, steps เหตุการณ์, stops หยุดโดยผู้ใช้,
     restarts รีสตาร์ต (watchdog), slowest = (บรรทัด, วินาที) แถวที่ใช้เวลานานสุด"""
-    stats = {"runs": 0, "steps": 0, "stops": 0, "restarts": 0, "slowest": None}
+    stats = {"runs": 0, "steps": 0, "stops": 0, "restarts": 0, "slowest": None,
+             "actions": {}}
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -371,9 +432,21 @@ def parse_log_stats(path):
                 elif "[STEP]" in line:
                     stats["steps"] += 1
                     m = re.search(r"\(([\d.]+) วิ\)", line)
-                    if m and (stats["slowest"] is None
-                              or float(m.group(1)) > stats["slowest"][1]):
-                        stats["slowest"] = (line.strip(), float(m.group(1)))
+                    if m:
+                        t = float(m.group(1))
+                        if stats["slowest"] is None or t > stats["slowest"][1]:
+                            stats["slowest"] = (line.strip(), t)
+                        # v1.18: สถิติราย Action — "รอบ N แถว i/total <Action> <additional> (T วิ)"
+                        mm = re.match(r".*?แถว\s+\d+/\d+\s+(.+?)\s*\([^)]*\)\s*$", line.strip())
+                        if mm:
+                            label = mm.group(1).strip()
+                            # additional อยู่ท้าย label ก่อนวงเล็บเวลา — ตัดเหลือเฉพาะชื่อ action
+                            am = re.match(r"^(.*?)\s+[^\s]*$", label)
+                            act = am.group(1).strip() if am and am.group(1).strip() else label
+                            ent = stats["actions"].setdefault(act, {"count": 0, "total": 0.0, "max": 0.0})
+                            ent["count"] += 1
+                            ent["total"] += t
+                            ent["max"] = max(ent["max"], t)
                 elif "[STOP]" in line:
                     stats["stops"] += 1
                 elif "[WATCHDOG]" in line:
@@ -388,15 +461,29 @@ def log_stats_summary(base_dir=None):
     d = base_dir or os.path.dirname(os.path.abspath(__file__))
     files = sorted(glob.glob(os.path.join(d, "macro_log_*.txt")))
     total = {"files": len(files), "runs": 0, "steps": 0,
-             "stops": 0, "restarts": 0, "slowest": None}
+             "stops": 0, "restarts": 0, "slowest": None, "actions": {}}
     for f in files:
         s = parse_log_stats(f)
         for k in ("runs", "steps", "stops", "restarts"):
             total[k] += s[k]
+        for act, ent in s["actions"].items():
+            acc = total["actions"].setdefault(act, {"count": 0, "total": 0.0, "max": 0.0})
+            acc["count"] += ent["count"]
+            acc["total"] += ent["total"]
+            acc["max"] = max(acc["max"], ent["max"])
         if s["slowest"] and (total["slowest"] is None
                              or s["slowest"][1] > total["slowest"][1]):
             total["slowest"] = s["slowest"]
     return total
+
+
+def top_actions_summary(stats, limit=5):
+    """สรุป Action ที่ใช้เวลารวมมากสุด (v1.18) — เรียงจากมากไปน้อย
+    คืน list ของ (action, count, total_secs, max_secs)"""
+    acts = stats.get("actions") or {}
+    out = [(a, e["count"], e["total"], e["max"]) for a, e in acts.items()]
+    out.sort(key=lambda x: -x[2])
+    return out[:limit]
 
 
 # ------------------------------------------------ backup อัตโนมัติ (v1.13) --
@@ -534,6 +621,7 @@ class MacroApp:
         self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None}
         self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
         self._ifimg_skip = 0               # v1.17: ตัวนับข้ามแถวของ If Image
+        self._last_if_found = False        # v1.18: ผล If Image ล่าสุด (ให้ Else If Image ใช้)
 
         # โปรไฟล์ / schedule / global hotkey
         self._profiles = {}                # ชื่อโปรไฟล์ -> รายการแถว
@@ -1209,6 +1297,8 @@ class MacroApp:
                     "Launch App": "พาธโปรแกรม หรือ URL เช่น https://example.com",
                     "Image Click": "ชื่อไฟล์ .png เช่น button.png",
                     "If Image": "ชื่อไฟล์ .png — Repeat = จำนวนแถวที่ข้ามถ้าภาพไม่เจอ",
+                    "Else If Image": "ชื่อไฟล์ .png — ตัวแบ่งกลุ่ม A/B แบบสองทาง (v1.18)",
+                    "Wait for Pixel Color": "x,y แล้ว #RRGGBB เช่น 100,200 #ff0000",
                     "Wait for Image": "ชื่อไฟล์ .png เช่น button.png",
                     "Scroll Up": "จำนวนจังหวะ เช่น 3",
                     "Scroll Down": "จำนวนจังหวะ เช่น 3"}.get(str(vals[4]), "")
@@ -1269,7 +1359,7 @@ class MacroApp:
                 continue                    # Custom Action — ตรวจรูปแบบภายใน plugin เอง
             if r["button"] == "Launch App" and not (r["additional"] or "").strip():
                 return False
-            if r["button"] in (IMAGE_ACTION, "Wait for Image", IF_IMAGE):
+            if r["button"] in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
                 p, _a, _t = self._parse_search_area(r)
                 if not p:
                     return False
@@ -1428,6 +1518,8 @@ class MacroApp:
                     self.mouse_ctl.position = self._saved_pos
             elif btn == IMAGE_ACTION:                            # คลิกตามภาพ
                 self._do_image_click(r)
+            elif btn == WAIT_PIXEL:                              # รอจุดสี (v1.18)
+                self._do_wait_for_pixel(r)
             elif btn == "Wait for Image":                        # รอภาพปรากฏ
                 self._do_wait_for_image(r)
             elif btn == "Type Text":                             # พิมพ์ข้อความ
@@ -1508,18 +1600,36 @@ class MacroApp:
                                     found = self._find_image_pos(r) is not None
                                 except Exception:
                                     found = False
+                            self._last_if_found = found        # จำผลให้ Else If Image (v1.18)
                             if found:
+                                det = "เจอ"
                                 self._ui_state["msg"] = (self._t("ifimg_hit"), "#080")
                             else:
                                 n = parse_int(r.get("repeat"), 1)   # Repeat = จำนวนแถวที่ข้าม
                                 self._ifimg_skip = n
+                                det = "ข้าม %d แถว" % n
                                 self._ui_state["msg"] = (self._t("ifimg_skip") % n, "#a60")
                             if self._log_enabled:
                                 log_write("STEP", "รอบ %d แถว %d/%d If Image %s → %s (%.1f วิ)" %
                                           (loop_no, i + 1, total, r["additional"] or "",
-                                           "เจอ" if found else "ข้าม %d แถว" % n,
-                                           time.time() - step_t0), self._log_src)
+                                           det, time.time() - step_t0), self._log_src)
                             break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
+                        if r["button"] == ELSE_IMAGE:
+                            # v1.18 เงื่อนไขสองทาง: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว)
+                            #                    If Image ไม่เจอ → เล่นกลุ่ม B ต่อ (ไม่ข้าม)
+                            n = parse_int(r.get("repeat"), 1)
+                            if self._last_if_found:
+                                self._ifimg_skip = n
+                                det = "If เจอ → ข้ามกลุ่ม B %d แถว" % n
+                                self._ui_state["msg"] = (self._t("ifimg_skip") % n, "#a60")
+                            else:
+                                det = "If ไม่เจอ → เล่นกลุ่ม B ต่อ"
+                                self._ui_state["msg"] = (self._t("ifimg_hit"), "#080")
+                            if self._log_enabled:
+                                log_write("STEP", "รอบ %d แถว %d/%d Else If Image %s → %s (%.1f วิ)" %
+                                          (loop_no, i + 1, total, r["additional"] or "",
+                                           det, time.time() - step_t0), self._log_src)
+                            break                       # ตัวแบ่งกลุ่มทำงานรอบเดียว
                         do_step(r)
                         if self._log_enabled:
                             log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
@@ -1849,6 +1959,27 @@ class MacroApp:
         return (off_x + maxloc[0] + tmpl.shape[1] // 2,
                 off_y + maxloc[1] + tmpl.shape[0] // 2)
 
+    def _do_wait_for_pixel(self, r):
+        """รอจนสีจุด (x, y) ตรงตามที่กำหนด (v1.18)
+        Additional: "x,y #rrggbb" — หน่วงก่อนตรวจ (วินาที) อยู่ในคอลัมน์ Secs
+        รองรับ Search Area ไม่ได้ (เป็นจุดเดียว) — timeout 30 วิเหมือน Wait for Image"""
+        spec = parse_pixel_spec(r.get("additional"))
+        if not spec:
+            self._ui_state["msg"] = ("Wait for Pixel Color: รูปแบบ Additional ไม่ถูกต้อง "
+                                     "(ต้องเป็น x,y #rrggbb)", "#c00")
+            return
+        x, y, rgb = spec
+        lo, _hi = delay_range(r.get("secs"))
+        if not self._sleep_check(max(0.0, lo) / max(0.01, self._speed_mult), self._play_gen):
+            return
+        deadline = time.time() + 30
+        while time.time() < deadline and self._gen_ok(self._play_gen):
+            if color_close(pixel_color_at(x, y), rgb):
+                self._ui_state["msg"] = ("Wait for Pixel Color: เจอสีที่รอ (%d,%d)" % (x, y), "#080")
+                return
+            time.sleep(0.25)
+        self._ui_state["msg"] = ("Wait for Pixel Color: ไม่เจอสีภายใน 30 วิ (%d,%d)" % (x, y), "#a60")
+
     def _do_image_click(self, r):
         """หาภาพย่อยบนหน้าจอแล้วคลิกที่จุดศูนย์กลาง
         ช่อง Additional: ไฟล์.png / ไฟล์.png@x,y,กว้าง,สูง / ...#threshold"""
@@ -2149,6 +2280,19 @@ class MacroApp:
         tk.Label(win, justify="left", fg="#555", text=(
             "แถวที่ใช้เวลานานสุดเท่าที่ log มี:\n" + (slow[0] if slow else "(ยังไม่มีข้อมูล — เล่นสคริปต์ก่อน)")
         ).replace("  <-", "\n   <-")).pack(padx=24, pady=(10, 4), anchor="w")
+        # v1.18: สถิติราย Action — Action ไหนกินเวลารวมมากสุด (หา bottleneck)
+        tops = top_actions_summary(s, limit=5)
+        if tops:
+            tk.Label(win, text="⏱ Action ที่ใช้เวลารวมมากสุด (5 อันดับ)").pack(
+                padx=24, pady=(8, 2), anchor="w")
+            af = tk.Frame(win)
+            af.pack(padx=24, anchor="w")
+            for j, (act, cnt, tot, mx) in enumerate(tops):
+                tk.Label(af, text="%d. %s" % (j + 1, act)).grid(
+                    row=j, column=0, sticky="w", padx=(0, 12), pady=1)
+                tk.Label(af, text="%d ครั้ง · รวม %.1f วิ · สูงสุด %.1f วิ" % (cnt, tot, mx),
+                         font=("Consolas", 9), fg="#06c").grid(
+                    row=j, column=1, sticky="w", pady=1)
         # สรุปการใช้งานรวม (v1.15): กราฟรายเดือน — ยอดสะสมทั้งหมดตั้งแต่ติดตั้ง
         monthly = log_monthly_series()
         if len(monthly) >= 2:
@@ -2704,6 +2848,8 @@ def cli_main(argv):
                 if not running[0]:
                     return
                 kb_ctl.tap(KeyCode.from_char(ch))
+        elif btn == WAIT_PIXEL:
+            cli_pixel_ready(r)                       # เช็คครั้งเดียว (CLI ไม่รอ — โปรแกรมอื่นคุมเวลาแทน)
         elif btn == "Beep":
             print("\a", end="", flush=True)
         else:
@@ -2797,6 +2943,20 @@ def cli_main(argv):
     cli_plugins = {n: m for n, m in load_plugins()}    # Custom Actions สำหรับ CLI (v1.16)
     if cli_plugins:
         print("  •  plugins: " + ", ".join(cli_plugins))
+
+    def cli_pixel_ready(r):
+        """เช็คสีจุด (x,y) ว่าใกล้เคียงสีเป้าหมาย (ใช้โดย Wait for Pixel Color ใน CLI)"""
+        sp = parse_pixel_spec(r.get("additional"))
+        if not sp:
+            print("  Wait for Pixel Color: รูปแบบ Additional ไม่ถูกต้อง (ต้องเป็น x,y #rrggbb)")
+            return False
+        x, y, rgb = sp
+        okc = color_close(pixel_color_at(x, y), rgb)
+        if okc:
+            print("  Wait for Pixel Color: เจอสีที่รอ (%d,%d)" % (x, y))
+        else:
+            print("  Wait for Pixel Color: สีไม่ตรง (%d,%d) — ข้ามการรอ" % (x, y))
+        return okc
 
     def play_once():
         """เล่นสคริปต์ 1 ครั้ง — คืน True = จบครบเอง, False = ถูกหยุดกลางคัน"""

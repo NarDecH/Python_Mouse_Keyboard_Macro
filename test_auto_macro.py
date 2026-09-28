@@ -1236,5 +1236,137 @@ class TestIfImage(unittest.TestCase):
         self.assertIn("ไม่พบไฟล์ภาพ", app._ui_state["msg"][0])
 
 
+class TestPixelColor(unittest.TestCase):
+    """v1.18: Wait for Pixel Color — parse spec/สี/เทียบสี"""
+
+    def test_parse_color_hex(self):
+        self.assertEqual(am.parse_color_hex("#ff0000"), (255, 0, 0))
+        self.assertEqual(am.parse_color_hex("ff0000"), (255, 0, 0))
+        self.assertEqual(am.parse_color_hex("#f00"), (255, 0, 0))     # รูปแบบสั้น
+        self.assertEqual(am.parse_color_hex("#zzzzzz"), None)
+        self.assertEqual(am.parse_color_hex(""), None)
+
+    def test_parse_pixel_spec(self):
+        self.assertEqual(am.parse_pixel_spec("100,200 #ff0000"), (100, 200, (255, 0, 0)))
+        self.assertEqual(am.parse_pixel_spec("100,200 #f00"), (100, 200, (255, 0, 0)))
+        self.assertIsNone(am.parse_pixel_spec("ไม่มีสี"))
+        self.assertIsNone(am.parse_pixel_spec(""))
+
+    def test_color_close(self):
+        self.assertTrue(am.color_close((255, 0, 0), (250, 5, 3)))     # ภายใน tol 20
+        self.assertFalse(am.color_close((255, 0, 0), (200, 0, 0)))
+        self.assertFalse(am.color_close(None, (255, 0, 0)))
+
+    def test_pixel_color_at_returns_rgb_or_none(self):
+        c = am.pixel_color_at(5, 5)
+        self.assertTrue(c is None or (isinstance(c, tuple) and len(c) == 3))
+
+    def test_wait_pixel_bad_spec_shows_error(self):
+        app = mock.MagicMock()
+        app._ui_state = {}
+        app._play_gen = 0
+        app._speed_mult = 1.0
+        app._sleep_check = lambda *a: True
+        am.MacroApp._do_wait_for_pixel(app, {"additional": "รูปแบบพัง", "secs": "0"})
+        self.assertIn("ไม่ถูกต้อง", app._ui_state["msg"][0])
+
+    def test_action_registered(self):
+        self.assertIn(am.WAIT_PIXEL, am.ACTIONS_ALL)
+        self.assertIn(am.ELSE_IMAGE, am.ACTIONS_ALL)
+
+
+class TestElseIfImage(unittest.TestCase):
+    """v1.18: Else If Image — If เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B"""
+
+    def test_validate_requires_png(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        app._parse_search_area = getattr(am.MacroApp, "_parse_search_area").__get__(app)
+        ok = am.MacroApp._validate_rows(
+            app, [{"button": am.ELSE_IMAGE, "additional": "nope_missing.png"}])
+        self.assertFalse(ok)
+
+    def test_skip_semantics(self):
+        # จำลองลูปเล่น: If เจอ → กลุ่ม A เล่นหมด, Else ตั้ง skip=Repeat → กลุ่ม B (2 แถว) ถูกข้าม
+        played = []
+        last_if_found = True
+        skip = 0
+        rows = ["IF", "A1", "A2", "ELSE(2)", "B1", "B2"]
+        for r in rows:
+            if r == "IF":                     # If ประเมินก่อนเสมอ (ไม่โดนนับ skip)
+                played.append("IF")
+                continue
+            if skip > 0:
+                skip -= 1
+                continue
+            if r.startswith("ELSE"):
+                if last_if_found:
+                    skip = int(r[5:-1])       # เจอ → ข้ามกลุ่ม B ตาม Repeat
+                played.append("ELSE")
+                continue
+            played.append(r)
+        self.assertEqual(played, ["IF", "A1", "A2", "ELSE"])
+
+    def test_skip_semantics_if_missed(self):
+        # If ไม่เจอ → If ตั้ง skip=2 (ข้าม A1 A2), Else ไม่ข้ามอะไร → เล่นกลุ่ม B ต่อ
+        played = []
+        skip = 0
+        rows = ["IF(2)", "A1", "A2", "ELSE", "B1"]
+        for r in rows:
+            if r.startswith("IF"):
+                skip = int(r[3:-1])           # ไม่เจอ → ข้ามแถวถัดไปตาม Repeat
+                played.append("IF")
+                continue
+            if skip > 0:
+                skip -= 1
+                continue
+            if r == "ELSE":
+                played.append("ELSE")         # If ไม่เจอ → ไม่ตั้ง skip
+                continue
+            played.append(r)
+        self.assertEqual(played, ["IF", "ELSE", "B1"])
+
+
+class TestActionStats(unittest.TestCase):
+    """v1.18: สถิติราย Action จาก log"""
+
+    LINES = [
+        "[START] เริ่มเล่น 3 แถว",
+        "[STEP] รอบ 1 แถว 1/3 Beep  (0.10 วิ)",
+        "[STEP] รอบ 1 แถว 2/3 Type Text สวัสดี (2.50 วิ)",
+        "[STEP] รอบ 1 แถว 3/3 Beep  (0.30 วิ)",
+        "[END] เล่นจบ",
+    ]
+
+    def _tmplog(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "macro_log_2099-01-01.txt")   # ต้องตรง glob macro_log_*.txt
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("\n".join(self.LINES))
+        return p
+
+    def test_parse_counts_actions(self):
+        s = am.parse_log_stats(self._tmplog())
+        self.assertEqual(s["actions"]["Beep"]["count"], 2)
+        self.assertAlmostEqual(s["actions"]["Beep"]["total"], 0.4, places=2)
+        self.assertAlmostEqual(s["actions"]["Type Text"]["total"], 2.5, places=2)
+        self.assertAlmostEqual(s["actions"]["Type Text"]["max"], 2.5, places=2)
+
+    def test_summary_aggregates(self):
+        p = self._tmplog()
+        total = am.log_stats_summary(base_dir=os.path.dirname(p))
+        self.assertIn("Type Text", total["actions"])
+        tops = am.top_actions_summary(total)
+        self.assertEqual(tops[0][0], "Type Text")            # ใช้เวลารวมมากสุด
+        self.assertGreaterEqual(tops[0][2], 2.5)
+
+    def test_top_actions_sorted_limit(self):
+        stats = {"actions": {"a": {"count": 1, "total": 1.0, "max": 1.0},
+                             "b": {"count": 1, "total": 9.0, "max": 9.0},
+                             "c": {"count": 1, "total": 5.0, "max": 5.0}}}
+        tops = am.top_actions_summary(stats, limit=2)
+        self.assertEqual([t[0] for t in tops], ["b", "c"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

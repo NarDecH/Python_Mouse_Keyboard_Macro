@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.17
+# 🖱️ Auto Mouse & Keyboard Macro v1.18
 
 <div align="center">
 
@@ -115,6 +115,9 @@
 - **Beep** — เสียงเตือน
 - **🔌 Custom Action (v1.16)** — เพิ่ม Action ของคุณเองด้วยไฟล์ Python สั้น ๆ ใน `plugins/` (ดู [plugins/README.md](../plugins/README.md))
 - **🔀 If Image (v1.17)** — เงื่อนไข: ภาพ**ไม่เจอ** → ข้ามแถวถัดไป N แถว (N = ค่าในคอลัมน์ Repeat ของแถว If Image) ใช้ Search Area/threshold ร่วมกับ Image Click ได้
+- **🔀 Else If Image (v1.18)** — เงื่อนไขสองทาง: If เจอ → เล่นกลุ่ม A แล้วข้ามกลุ่ม B, ไม่เจอ → เล่นกลุ่ม B
+- **🎨 Wait for Pixel Color (v1.18)** — รอจนจุด (x,y) มีสีที่กำหนด (`300,300 #ffffff`) ก่อนทำงานต่อ
+- **⏱ สถิติราย Action (v1.18)** — Stats แสดง Action ที่กินเวลารวมมากสุด 5 อันดับ หา bottleneck ได้ทันที
 - **🔍 Ctrl+F ค้นหาแถว** · **↩️ Ctrl+Z กู้คืนแถวที่ลบ** · **📋 เมนู Paste วางสคริปต์ JSON จากคลิปบอร์ด** (v1.17)
 
 > 💡 **ดีเลย์สุ่ม:** ใส่ Secs แบบ `1-3` = สุ่มดีเลย์ 1–3 วิ ทุกรอบ

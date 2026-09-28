@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.17
+# 🖱️ Auto Mouse & Keyboard Macro v1.18
 
 <div align="center">
 
@@ -72,6 +72,9 @@
 | ⌨️ **CLI mode** | Run scripts without the GUI — great for Windows Task Scheduler |
 | 🔌 **Custom Action plugins** (v1.16) | Drop a small .py into `plugins/` and it becomes a new Action — see [plugins/README.md](../plugins/README.md) |
 | 🔀 **If Image** (v1.17) | Condition: image **not found** → skip the next N rows (N = the row's Repeat value). Supports Search Area & threshold like Image Click |
+| 🔀 **Else If Image** (v1.18) | Two-way condition: If found → play group A then skip group B; not found → play group B |
+| 🎨 **Wait for Pixel Color** (v1.18) | Wait until point (x,y) matches a color (`300,300 #ffffff`) before continuing |
+| ⏱ **Per-action stats** (v1.18) | Stats shows the top 5 time-consuming Actions — spot your script's bottleneck instantly |
 | 🔍 **Find / Undo / Paste** (v1.17) | `Ctrl+F` search rows · `Ctrl+Z` undo delete (50 levels) · 📋 Paste menu inserts JSON rows from clipboard |
 
 ---

@@ -15,6 +15,16 @@ py auto_macro.py examples/06_plugin_demo.json
 สาธิต plugin ที่มากับโปรเจกต์: **Message Box** (เด้งกล่องข้อความ) + **Sleep (plugin)**
 (หน่วง) — เหมาะใช้เป็นแม่แบบเขียน plugin ของคุณเอง ดู `plugins/README.md`
 
+### ตัวอย่างเงื่อนไข (v1.18+)
+
+```bash
+py auto_macro.py examples/07_conditions.json
+```
+
+สาธิต **If Image → กลุ่ม A/B** (Else If Image) และ **Wait for Pixel Color** —
+ลองบัง/เลิกบังหน้าต่างที่มี target.png แล้วเล่นใหม่ เส้นทางจะเปลี่ยน
+(แบบฝึกหัดเต็มอยู่ใน TUTORIAL บทที่ 5A)
+
 ### ตัวอย่างงานเฝ้าระบบ (v1.10+)
 
 ```bash
@@ -36,6 +46,7 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `04_scroll_gallery.json` | Scroll ดูรูป/เว็บ, Move Mouse, Double Click (ปิด enabled) | ⚠️ มีแถวคลิกที่ปิดไว้ |
 | `05_watchdog_monitor.json` | งานเฝ้าระบบ: Beep + พิมพ์สถานะ + Save/Restore Cursor + Scroll | ✅ ไม่คลิก |
 | `06_plugin_demo.json` | **Custom Action plugins**: Message Box + Sleep (plugin) — แม่แบบเขียน plugin | ✅ ไม่คลิก |
+| `07_conditions.json` | **เงื่อนไข (v1.18)**: If Image → กลุ่ม A/B (Else If Image) + Wait for Pixel Color | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 
 ทุกสคริปต์แถวแรกคือ `Save Cursor` และแถวสุดท้าย `Restore Cursor` เสมอ

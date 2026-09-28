@@ -74,6 +74,7 @@
       <li><a href="#ch3">เข้าใจทุกคอลัมน์</a></li>
       <li><a href="#ch4">Action ทั้งหมด</a></li>
       <li><a href="#ch5">Image Click + Search Area + Threshold</a></li>
+      <li><a href="#ch5a">เงื่อนไข: If Image / Else If Image / Wait Pixel Color (v1.17+)</a></li>
       <li><a href="#ch6">ตัวเลือกการเล่นขั้นสูง</a></li>
       <li><a href="#ch7">โปรไฟล์ + เล่นตามเวลา</a></li>
       <li><a href="#ch8">CLI ไม่เปิดหน้าต่าง</a></li>
@@ -137,6 +138,8 @@ py auto_macro.py                        # หรือดับเบิลค�
       <tr><td>Type Text</td><td>ข้อความ (รองรับไทย)</td><td><code>สวัสดี world</code></td></tr>
       <tr><td>Launch App</td><td>โปรแกรม/URL</td><td><code>notepad.exe</code>, <code>https://...</code></td></tr>
       <tr><td>Image Click / Wait for Image</td><td>ไฟล์.png หรือ <code>ไฟล์.png@x,y,w,h#threshold</code></td><td><code>btn.png@100,200,300,80#90</code></td></tr>
+      <tr><td>If Image / Else If Image (v1.17+)</td><td>ไฟล์.png (เหมือน Image Click) — Repeat มีความหมายพิเศษ</td><td><code>btn.png</code></td></tr>
+      <tr><td>Wait for Pixel Color (v1.18)</td><td><code>x,y #RRGGBB</code> (หน่วงก่อนตรวจใส่ใน Secs)</td><td><code>300,300 #ffffff</code></td></tr>
       <tr><td>Move Mouse by Offset</td><td>ระยะเปลี่ยนแปลง (ใส่ใน X,Y)</td><td>X=50 Y=-20</td></tr>
       <tr><td>อื่น ๆ (Click/Down/Up/Move/Save/Restore/Beep)</td><td>ไม่ต้องใส่</td><td>—</td></tr>
     </table>
@@ -151,7 +154,8 @@ py auto_macro.py                        # หรือดับเบิลค�
       <li><b>จดจำตำแหน่ง:</b> Save Cursor → … → Restore Cursor (คู่ต้องใช้ด้วยกัน)</li>
       <li><b>คีย์บอร์ด:</b> Tap/Press/Release Key, Type Text</li>
       <li><b>ภายนอก:</b> Launch App (เปิดโปรแกรม/เว็บ)</li>
-      <li><b>อัจฉริยะ:</b> Image Click (หาภาพแล้วคลิก), Wait for Image (รอภาพก่อนทำต่อ)</li>
+      <li><b>อัจฉริยะ:</b> Image Click (หาภาพแล้วคลิก), Wait for Image (รอภาพก่อนทำต่อ), Wait for Pixel Color (v1.18 — รอจุดสี)</li>
+      <li><b>เงื่อนไข (v1.17+):</b> If Image (ไม่เจอ → ข้าม N แถว), Else If Image (สองทาง A/B — ดูบทที่ 5A)</li>
       <li><b>เสียง:</b> Beep (จุดเช็คว่าสคริปต์ถึงไหน)</li>
     </ul>
     <div class="note"><b>หลักคิด: พิกัด vs ภาพ</b><br>
@@ -175,6 +179,37 @@ py auto_macro.py                        # หรือดับเบิลค�
     <div class="note">💡 Search Area คือเครื่องมือที่ทำให้ Image Click ใช้งานจริงได้ —
     กรอบแคบ = เร็วขึ้นหลายเท่า + ไม่คลิกภาพเดียวกันที่อยู่มุมอื่น<br>
     threshold สูง (90–95) = เข้มงวด, ต่ำ (60–70) = ทนสี/แสงเปลี่ยน แต่เสี่ยงคลิกผิด</div>
+  </div>
+
+  <div class="card" id="ch5a">
+    <h2 class="chapter">บทที่ 5A — เงื่อนไข: If Image และ Else If Image (v1.17+)</h2>
+    <h3>If Image — ไม่เจอแล้วข้าม</h3>
+    <ul>
+      <li>Additional = ไฟล์ .png (ใช้ Search Area/threshold ได้เหมือน Image Click)</li>
+      <li><b>ภาพเจอ</b> → เล่นแถวถัดไปตามปกติ</li>
+      <li><b>ภาพไม่เจอ</b> → ข้ามแถวถัดไป <b>N แถว</b> (N = ค่าคอลัมน์ <b>Repeat</b> ของแถว If Image)</li>
+      <li>เหมาะกับ: "ถ้าโฆษณาเด้ง → กดปิด, ไม่เด้ง → เล่นต่อ"</li>
+    </ul>
+    <h3>Else If Image — เงื่อนไขสองทาง (v1.18)</h3>
+    <p>วาง<b>หลังกลุ่ม A</b> เพื่อแบ่งสคริปต์เป็นสองทาง:</p>
+    <pre>แถว 1  If Image (btn.png)      ← เช็คเงื่อนไข
+แถว 2-3  ...กลุ่ม A (เล่นเมื่อเจอภาพ)
+แถว 4  Else If Image Repeat = 2   ← Repeat = จำนวนแถวกลุ่ม B ที่จะข้าม
+แถว 5-6  ...กลุ่ม B (เล่นเมื่อไม่เจอภาพ)</pre>
+    <ul>
+      <li>If Image <b>เจอ</b> → เล่นกลุ่ม A หมด → Else <b>ข้ามกลุ่ม B</b> (ตาม Repeat ของ Else)</li>
+      <li>If Image <b>ไม่เจอ</b> → กลุ่ม A ถูกข้าม → Else <b>เล่นกลุ่ม B ต่อ</b></li>
+      <li>⚠️ Else ใช้ผล If Image <b>ล่าสุด</b> เสมอ — วางคู่กันให้ถูกลำดับ</li>
+    </ul>
+    <h3>Wait for Pixel Color — รอจุดสี (v1.18)</h3>
+    <ul>
+      <li>Additional: <code>x,y #RRGGBB</code> เช่น <code>300,300 #ffffff</code> — รอจนจุดนั้นมีสีใกล้เคียง</li>
+      <li>หน่วงก่อนตรวจใส่ใน Secs (รองรับ <code>1-3</code> สุ่มได้) · รอสูงสุด 30 วิ แล้วข้ามต่อ</li>
+      <li>เหมาะกับ: รอ progress bar เต็ม, รอไฟสถานะเขียว, รอปุ่มเปลี่ยนสี</li>
+    </ul>
+    <div class="note"><b>แบบฝึกหัด (ไม่คลิก ปลอดภัย):</b> เปิด <code>examples/07_conditions.json</code>
+    → กด START → ลองบัง/เลิกบังหน้าต่างที่มี target.png แล้วเล่นใหม่ — เส้นทางต้องเปลี่ยน
+    → เปิด 📊 Stats ดู Action ที่กินเวลามากสุด</div>
   </div>
 
   <div class="card" id="ch6">
@@ -211,13 +246,15 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></
   </div>
 
   <div class="card" id="ch9">
-    <h2 class="chapter">บทที่ 9 — ตัวอย่างจริง 4 แบบ (มีให้ในโปรเจกต์)</h2>
+    <h2 class="chapter">บทที่ 9 — ตัวอย่างจริง (มีให้ในโปรเจกต์)</h2>
     <table>
       <tr><th>ไฟล์</th><th>สถานการณ์</th><th>จุดสำคัญ</th></tr>
       <tr><td><code>demo_script.json</code></td><td>เดโม่รวม: Notepad+พิมพ์ไทย+Enter+Beep</td><td>ดีเลย์สุ่ม, Repeat, Restore</td></tr>
       <tr><td><code>examples/01_auto_typer.json</code></td><td>พิมพ์ซ้ำอัตโนมัติ</td><td>โครง Save→ทำงาน→Restore</td></tr>
       <tr><td><code>examples/02_form_filler.json</code></td><td>กรอกฟอร์มชื่อ/อีเมล/โทร</td><td>แบ่งบรรทัดต่อช่อง + Enter</td></tr>
       <tr><td><code>examples/03_image_click.json</code></td><td>คลิกตามภาพ</td><td>Search Area <code>@x,y,w,h#90</code>, แถวคลิกปิดไว้ก่อนทดสอบ</td></tr>
+      <tr><td><code>examples/06_plugin_demo.json</code></td><td>Custom Action plugins</td><td>Message Box + Sleep (plugin)</td></tr>
+      <tr><td><code>examples/07_conditions.json</code></td><td><b>เงื่อนไข (v1.18)</b></td><td>If Image → กลุ่ม A/B, Wait for Pixel Color — ไม่คลิก ปลอดภัย</td></tr>
       <tr><td><code>examples/04_scroll_gallery.json</code></td><td>เลื่อนดูรูป/เว็บ</td><td>Scroll คู่ขึ้น-ลง</td></tr>
     </table>
   </div>
@@ -231,9 +268,10 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></
     <h3>10.2 Export / Import (สำรองแบบควบคุมเอง)</h3>
     <p>Settings → <b>⬆️ Export</b> = ไฟล์เดียวจบ เอาไปเปิดเครื่องอื่นด้วย <b>⬇️ Import</b>
       — มีพรีวิวและถามยืนยันก่อนเสมอ</p>
-    <h3>10.3 ดูสถิติ + กราฟ</h3>
+    <h3>10.3 ดูสถิติ + กราฟ + สถิติราย Action (v1.18)</h3>
     <p>เมนู <b>📊 Stats</b> — สรุปจาก log ทุกวัน (เล่น/ถูกหยุด/watchdog/แถวช้าสุด)
-      + กราฟแท่ง 14 วันล่าสุด (เขียวเข้ม = เริ่มเล่น, เขียวอ่อน = เหตุการณ์)</p>
+      + กราฟแท่ง 14 วันล่าสุด (เขียวเข้ม = เริ่มเล่น, เขียวอ่อน = เหตุการณ์)
+      + <b>⏱ Action ที่ใช้เวลารวมมากสุด 5 อันดับ</b> — หา bottleneck ของสคริปต์ได้ทันที</p>
     <h3>10.4 ตรวจว่าระบบพร้อมจริง</h3>
     <p>Settings → <b>🧪 ทดสอบระบบจริง</b> = เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง
       — ถ้าไม่ขยับลอง Run as Administrator (ดู self-check ที่หัว Settings)</p>

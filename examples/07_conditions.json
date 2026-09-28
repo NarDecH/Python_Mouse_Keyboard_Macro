@@ -1,0 +1,10 @@
+[
+  {"enabled": true,  "x": "", "y": "", "button": "Message Box",          "additional": "เดโม่เงื่อนไข (v1.18)\n1. If Image — ถ้าเจอ target.png เล่นกลุ่ม A, ไม่เจอข้าม 2 แถว\n2. Else If Image — ตัดสินกลุ่ม B\n3. Wait for Pixel Color — รอจุดสีขาวที่ 300,300", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "If Image",             "additional": "target.png", "mins": 0, "secs": 1, "repeat": 2},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",                 "additional": "กลุ่ม A (เจอภาพ) — เสียงที่ 1", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",                 "additional": "กลุ่ม A (เจอภาพ) — เสียงที่ 2", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Else If Image",        "additional": "target.png", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",                 "additional": "กลุ่ม B (ไม่เจอภาพ)", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Wait for Pixel Color", "additional": "300,300 #ffffff", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Message Box",          "additional": "จบเดโม่เงื่อนไข — ลองเปิด/ปิดหน้าต่างบัง target.png แล้วเล่นใหม่เพื่อเห็นทั้งสองเส้นทาง", "mins": 0, "secs": 0, "repeat": 1}
+]

@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.17 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.18 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -54,6 +54,13 @@
   ลูปเล่นข้าม N แถวถัดไป; N = คอลัมน์ Repeat ของแถว If Image),
   `_find_image_pos()` รวมตรรกะค้นภาพ (Image Click/If Image ใช้ร่วมกัน),
   เดโม่ `examples/06_plugin_demo.json`
+- **ฟีเจอร์เสริม v1.18:** Wait for Pixel Color (`WAIT_PIXEL` — Additional `x,y #RRGGBB`,
+  parse ผ่าน `parse_pixel_spec`/`parse_color_hex`, อ่านสีด้วย `pixel_color_at` (PIL),
+  เทียบด้วย `color_close` tol 20; GUI รอจริง 30 วิ, CLI เช็คครั้งเดียว),
+  Else If Image (`ELSE_IMAGE` — ใช้ `self._last_if_found` จาก If Image ล่าสุด:
+  เจอ → ข้ามกลุ่ม B ตาม Repeat, ไม่เจอ → เล่นกลุ่ม B),
+  สถิติราย Action (`parse_log_stats` รวม dict `actions` + `top_actions_summary` + ตารางใน Stats),
+  เดโม่ `examples/07_conditions.json` + TUTORIAL บทที่ 5A
 
 ## เทคโนโลยี
 
