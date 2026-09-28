@@ -65,8 +65,31 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.20.1</h2>
+      <h2>เวอร์ชัน 1.20.2</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">28 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้บั๊ก</h3>
+    <ul>
+      <li><b>⌨️ Type Text เพี้ยนเมื่อ layout คีย์บอร์ด active เป็นภาษาอื่น</b> — เดิม
+        แปลงอักขระผ่าน virtual key ของ layout (layout ไทยพิมพ์อังกฤษแล้วกลายเป็น
+        "Auto Typer ิemo" / "RRRRRRRRR") → พิมพ์ใหม่ด้วย <b>SendInput
+        KEYEVENTF_UNICODE</b> ส่งรหัส Unicode ตรง ไม่ผ่าน layout — ไทย/อังกฤษ/
+        อิโมจิถูกต้องทุกตัวโดยไม่ต้องสลับ layout (ctypes ล้วน ไม่เพิ่ม dependency;
+        OS อื่น fallback เหมือนเดิม) · <code>\n</code> = กด Enter</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม TestUnicodeTyping 5 ตัว + พิสูจน์พิมพ์จริง →
+        <b>188 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.20.1</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

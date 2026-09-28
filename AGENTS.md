@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.20.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.20.2 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -92,6 +92,12 @@
   ดับเบิลคลิกแก้เซลล์แล้วกดตกลง/Enter = AttributeError ค่าไม่ถูกบันทึก; X/Y ใช้อีกเส้นทาง
   จึงไม่เจอ) ⚠️ dialog ทุกตัวควรมีเทสต์ "เปิด + ใช้งานจริง" อย่างน้อย 1 ตัว —
   บั๊กชนิดนี้อยู่รอดได้เพราะมีแต่เทสต์ "เปิดได้ไม่ crash"
+- **แก้บั๊ก v1.20.2:** Type Text เดิมใช้ `KeyCode.from_char()` พึ่ง keyboard layout
+  active (VkKeyScanW) — เครื่องที่ active เป็น layout ไทยพิมพ์อังกฤษ/สัญลักษณ์แล้ว
+  เพี้ยนทั้งบรรทัด ("D" → "ิ", "RRRRRRRRR") → ตอนนี้พิมพ์ผ่าน `send_unicode_char()`
+  = SendInput KEYEVENTF_UNICODE (ctypes ล้วน, Windows; OS อื่น fallback ทาง pynput)
+  ⚠️ อย่ากลับไปพิมพ์ข้อความด้วย virtual key — พิมพ์ข้อความให้ใช้ Unicode path เสมอ
+  (`\n` = Enter, อักขระเกิน BMP แยก surrogate pair — ดู `_unicode_input_records`)
 
 ## เทคโนโลยี
 

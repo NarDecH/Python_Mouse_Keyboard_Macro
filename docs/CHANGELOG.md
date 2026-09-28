@@ -4,6 +4,27 @@
 
 ---
 
+## [1.20.2] — 2026-09-28
+
+### 🐛 แก้บั๊ก
+- **⌨️ Type Text เพี้ยนเมื่อ layout คีย์บอร์ด active เป็นภาษาอื่น** — เดิมพิมพ์ด้วย
+  pynput `KeyCode.from_char()` = แปลงอักขระเป็น virtual key ตาม layout ที่ active
+  (VkKeyScanW) — เครื่องที่ active เป็น layout ไทยแล้วพิมพ์อังกฤษ/สัญลักษณ์
+  กลายเป็นอักขระอื่นทั้งหมด เช่น "Auto Typer Demo" → "Auto Typer ิemo ิ ิิิิ",
+  "ครั้งด้วย" → "RRRRRRRRR" (ตัวอย่างจริงจาก 01_auto_typer.json)
+  → **พิมพ์ใหม่ด้วย SendInput KEYEVENTF_UNICODE** ส่งรหัส Unicode ตรง ไม่ผ่าน
+  layout (แนวเดียวกับ AutoHotkey) — อังกฤษ/ไทย/อิโมจิ/สัญลักษณ์ถูกต้องทุกตัว
+  โดยไม่ต้องสลับ layout และไม่เพิ่ม dependency (ctypes ล้วน, Windows เท่านั้น —
+  OS อื่น fallback ไปทาง pynput เหมือนเดิม) · `\n` ในข้อความ = กด Enter
+
+### 🧪 ทดสอบ
+- เพิ่ม TestUnicodeTyping 5 ตัว (records ASCII/สระไทย/surrogate pair, fallback
+  non-Windows) — พิสูจน์ด้วยการพิมพ์จริงลงหน้าต่างโฟกัส: "Auto Typer Demo —
+  พิมพ์อัตโนมัติ 123 !@#" ถูกต้องทุกตัว
+  → รวม **188 unit + 11 E2E tests ผ่านหมด**
+
+---
+
 ## [1.20.1] — 2026-09-28
 
 ### 🐛 แก้บั๊ก

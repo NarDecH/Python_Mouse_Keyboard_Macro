@@ -48,6 +48,8 @@ Auto Mouse & Keyboard Macro  v1.18
 - v1.20: Set/Read Clipboard (ตั้ง/อ่านคลิปบอร์ด เก็บเป็นตัวแปรได้, รองรับไทยบน CLI
   ด้วย Win32 API), Plugin API v2 (ctx.stop_check() + ctx.ui)
 - v1.20.1: แก้ HotkeyEdit ลืมเก็บ on_done — ดับเบิลคลิกแก้เซลล์แล้วกดตกลงพังมาตั้งแต่ v1.4
+- v1.20.2: Type Text พิมพ์ด้วย SendInput KEYEVENTF_UNICODE — ถูกต้องแม้ layout
+  คีย์บอร์ด active เป็นภาษาอื่น (เดิม layout ไทยพิมพ์อังกฤษแล้วเพี้ยนเป็น "ิ" ฯลฯ)
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -84,7 +86,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.20.1"
+__version__ = "1.20.2"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -423,6 +425,74 @@ def clip_get():
         return None
     except Exception:
         return None
+
+
+# ------------------------------------ พิมพ์ข้อความไม่ขึ้นกับ layout (v1.20.2) --
+# Type Text เดิมใช้ pynput KeyCode.from_char() = แปลงอักขระเป็น virtual key ตาม
+# layout ที่ active (VkKeyScanW) — เครื่องที่ active เป็น layout ไทยแล้วพิมพ์อังกฤษ/
+# สัญลักษณ์จะกลายเป็นอักขระอื่น ("D" → "ิ" ฯลฯ) — ใช้ SendInput KEYEVENTF_UNICODE
+# ส่งรหัส Unicode ตรง ไม่ผ่าน layout (แนวเดียวกับ AutoHotkey)
+_KEYEVENTF_UNICODE = 0x0004
+_KEYEVENTF_KEYUP = 0x0002
+_INPUT_KEYBOARD = 1
+
+
+def _unicode_input_records(ch):
+    """สร้างลำดับ event (scan_code, is_keyup) ของอักขระ ch สำหรับ SendInput
+    (pure — ไม่ส่ง event จริง เพื่อทดสอบได้) — อักขระเกิน BMP แยกเป็น surrogate
+    คู่: down ตามลำดับ แล้ว up ย้อนกลับ"""
+    raw = ch.encode("utf-16-le")
+    units = [raw[i] | (raw[i + 1] << 8) for i in range(0, len(raw), 2)]
+    return ([(u, False) for u in units] + [(u, True) for u in reversed(units)])
+
+
+def _send_unicode_events(records):
+    """ส่ง event คีย์บอร์ดทั้งชุดด้วย SendInput ครั้งเดียว — คืน True ถ้าสำเร็จทั้งหมด"""
+    import ctypes
+
+    class _KEYBDINPUT(ctypes.Structure):
+        _fields_ = [("wVk", ctypes.c_ushort), ("wScan", ctypes.c_ushort),
+                    ("dwFlags", ctypes.c_ulong), ("time", ctypes.c_ulong),
+                    ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+    class _MOUSEINPUT(ctypes.Structure):
+        _fields_ = [("dx", ctypes.c_long), ("dy", ctypes.c_long),
+                    ("mouseData", ctypes.c_ulong), ("dwFlags", ctypes.c_ulong),
+                    ("time", ctypes.c_ulong),
+                    ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+    class _HARDWAREINPUT(ctypes.Structure):
+        _fields_ = [("uMsg", ctypes.c_ulong), ("wParamL", ctypes.c_ushort),
+                    ("wParamH", ctypes.c_ushort)]
+
+    class _INPUTunion(ctypes.Union):
+        _fields_ = [("mi", _MOUSEINPUT), ("ki", _KEYBDINPUT),
+                    ("hi", _HARDWAREINPUT)]     # mi ใหญ่สุด — ต้องอยู่ใน union
+
+    class _INPUT(ctypes.Structure):
+        _fields_ = [("type", ctypes.c_ulong), ("union", _INPUTunion)]
+
+    u32 = ctypes.windll.user32
+    arr = (_INPUT * len(records))()
+    for i, (code, keyup) in enumerate(records):
+        arr[i].type = _INPUT_KEYBOARD
+        arr[i].union.ki.wVk = 0
+        arr[i].union.ki.wScan = code
+        arr[i].union.ki.dwFlags = (_KEYEVENTF_UNICODE
+                                   | (_KEYEVENTF_KEYUP if keyup else 0))
+    sent = u32.SendInput(len(records), arr, ctypes.sizeof(_INPUT))
+    return sent == len(records)
+
+
+def send_unicode_char(ch):
+    """พิมพ์อักขระ 1 ตัวแบบไม่ขึ้นกับ keyboard layout (v1.20.2 — Windows เท่านั้น)
+    คืน True ถ้าส่งสำเร็จ, False เพื่อให้ผู้เรียก fallback ไปทาง pynput (OS อื่น)"""
+    if os.name != "nt":
+        return False
+    try:
+        return _send_unicode_events(_unicode_input_records(ch))
+    except Exception:
+        return False
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -1805,7 +1875,10 @@ class MacroApp:
                 for ch in str(r["additional"] or ""):
                     if not self._gen_ok(gen):
                         return
-                    self.kb_ctl.tap(self.kb_ctrl_char(ch))
+                    if ch == "\n":
+                        self.kb_ctl.tap(Key.enter)
+                    elif not send_unicode_char(ch):              # v1.20.2: ไม่ขึ้นกับ layout
+                        self.kb_ctl.tap(self.kb_ctrl_char(ch))   # fallback (OS อื่น)
             elif btn == "Launch App":                            # เปิดแอป/เว็บ
                 target = str(r["additional"] or "").strip()
                 if target:
@@ -1960,7 +2033,8 @@ class MacroApp:
                     prune_log()
 
     def kb_ctrl_char(self, ch):
-        """แปลงอักขระเป็น KeyCode สำหรับ Type Text (รองรับไทย/อังกฤษ/ตัวเลข/สัญลักษณ์)"""
+        """แปลงอักขระเป็น KeyCode สำหรับ Type Text — fallback เมื่อพิมพ์แบบ Unicode
+        ไม่ได้ (OS อื่น) — เส้นทางหลักบน Windows คือ send_unicode_char() (v1.20.2)"""
         return KeyCode.from_char(ch)
 
     def _build_profile_bar(self):
@@ -3201,7 +3275,10 @@ def cli_main(argv):
             for ch in str(r.get("additional") or ""):
                 if not running[0]:
                     return
-                kb_ctl.tap(KeyCode.from_char(ch))
+                if ch == "\n":
+                    kb_ctl.tap(Key.enter)
+                elif not send_unicode_char(ch):          # v1.20.2: ไม่ขึ้นกับ layout
+                    kb_ctl.tap(KeyCode.from_char(ch))    # fallback (OS อื่น)
         elif btn == WAIT_PIXEL:
             cli_pixel_ready(r)                       # เช็คครั้งเดียว (CLI ไม่รอ — โปรแกรมอื่นคุมเวลาแทน)
         elif btn == "Set Variable":                  # ตัวแปรในสคริปต์ (v1.19)

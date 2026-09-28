@@ -2022,5 +2022,32 @@ class TestHotkeyEdit(unittest.TestCase):
             dlg.destroy()
 
 
+class TestUnicodeTyping(unittest.TestCase):
+    """Regression v1.20.2 — Type Text เดิมใช้ KeyCode.from_char() ซึ่งพึ่ง keyboard
+    layout ที่ active (VkKeyScanW) — เครื่องที่ active เป็น layout ไทยแล้วพิมพ์อังกฤษ/
+    สัญลักษณ์กลายเป็นอักขระอื่น ("D" → "ิ", "RRRRRRRRR" ฯลฯ) — ตอนนี้ใช้ SendInput
+    KEYEVENTF_UNICODE ส่งรหัสตรง ไม่ผ่าน layout"""
+
+    def test_records_ascii(self):
+        self.assertEqual(am._unicode_input_records("A"),
+                         [(65, False), (65, True)])
+
+    def test_records_thai_mark(self):
+        self.assertEqual(am._unicode_input_records("\u0e36"),   # สระอิ
+                         [(0xE36, False), (0xE36, True)])
+
+    def test_records_astral_surrogate_pair(self):
+        self.assertEqual(am._unicode_input_records("\U0001F600"),   # 😀
+                         [(0xD83D, False), (0xDE00, False),
+                          (0xDE00, True), (0xD83D, True)])
+
+    def test_non_windows_returns_false_for_fallback(self):
+        with mock.patch.object(am.os, "name", "posix"):
+            self.assertIs(am.send_unicode_char("A"), False)
+
+    def test_action_type_text_unaffected(self):
+        self.assertIn("Type Text", am.ACTIONS_ALL)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
