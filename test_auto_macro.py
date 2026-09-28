@@ -1435,8 +1435,10 @@ class TestPlayLoopGui(unittest.TestCase):
     def setUpClass(cls):
         cls._orig_log = am.log_write
         cls.steps = []
+        cls.expected_gen = None            # นับเฉพาะ STEP ของการเล่นรุ่นปัจจุบัน
         def counting_log(mode, message, src=None):
-            if mode == "STEP":
+            if (mode == "STEP" and cls.expected_gen is not None
+                    and cls.app is not None and cls.app._play_gen == cls.expected_gen):
                 cls.steps.append(message)
             return cls._orig_log(mode, message, src)
         am.log_write = counting_log
@@ -1470,6 +1472,15 @@ class TestPlayLoopGui(unittest.TestCase):
         if self.app is None:
             self.skipTest("ไม่มีจอ/สร้าง MacroApp จริงไม่ได้ — ข้ามกลุ่มเล่นจริง")
         self.app.stop_all(silent=True)
+        # เทสต์ก่อนหน้าอาจเหลือเธรด player ค้างอยู่ใน do_step (รอ marshal ข้ามเธรดของ Tk)
+        # — ปั่น update() ให้ event ค้างถูกประมวลผลก่อน ไม่งั้น STEP ตกค้างมานับรวมในเทสต์นี้
+        self.__class__.expected_gen = None
+        for _ in range(10):
+            try:
+                self.root.update()
+            except Exception:
+                pass
+            time.sleep(0.01)
         self._clean_table(2)
 
     def _clean_table(self, n):
@@ -1502,6 +1513,7 @@ class TestPlayLoopGui(unittest.TestCase):
 
         def start():
             start_fn()
+            self.__class__.expected_gen = self.app._play_gen   # เริ่มนับเฉพาะรุ่นนี้
             self.root.after(30, poll)
 
         self.root.after(30, start)

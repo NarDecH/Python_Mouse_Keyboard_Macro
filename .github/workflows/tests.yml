@@ -27,7 +27,21 @@ jobs:
           pip install pynput
 
       - name: รัน unit tests
-        run: python -m unittest test_auto_macro -v
+        run: |
+          python -m unittest test_auto_macro -v 2>&1 | Tee-Object -FilePath unit_output.txt
+          exit $LASTEXITCODE
+
+      # เก็บ output ไว้ใน Step Summary — ดู log ตอนพังได้จากหน้า run โดยไม่ต้องล็อกอิน
+      - name: แนบผล unit tests ลง Step Summary
+        if: always()
+        shell: pwsh
+        run: |
+          Add-Content $env:GITHUB_STEP_SUMMARY "### ผล unit tests ($env:PYTHON_VERSION)"
+          Add-Content $env:GITHUB_STEP_SUMMARY '```text'
+          Get-Content unit_output.txt | Add-Content $env:GITHUB_STEP_SUMMARY
+          Add-Content $env:GITHUB_STEP_SUMMARY '```'
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
 
       # E2E: รัน CLI จริง (สคริปต์ Beep ล้วน ปลอดภัย) — หยุดผ่าน stop-file ทั้งหมด
       - name: รัน E2E tests
