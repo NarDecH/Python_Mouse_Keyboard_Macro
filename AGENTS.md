@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.13 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.14 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -36,6 +36,9 @@
 - **ฟีเจอร์เสริม v1.13:** Backup อัตโนมัติตอนปิดโปรแกรม (`backup_snapshot`/`prune_backups`
   ลง backups/ เก็บ 7 วัน), Help ฉบับเต็ม (หน้าต่างเลื่อนได้ + ปุ่มเปิด TUTORIAL.html)
   ⚠️ ลิงก์ใน docs/*.md ที่อยู่นอกโฟลเดอร์ตัวเองต้องมี ../ นำหน้า — ตรวจลิงก์ทุกไฟล์ก่อน push
+- **ฟีเจอร์เสริม v1.14:** ตั้งค่า backup ได้ (เปิด/ปิด + 1–90 วัน ใน conf), i18n ไทย/อังกฤษ
+  (`TR` + `tr(lang, key)` + `self._t(key)` — สลับใน Settings ผ่าน `_apply_language`)
+  และ `docs/ANNOUNCE.md` โพสต์แนะนำโปรแกรมสำเร็จรูป
 
 ## เทคโนโลยี
 
@@ -123,8 +126,11 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   พร้อมปุ่ม 🧪 ทดสอบระบบจริง (self_test ใน settings_dialog — ขยับเมาส์/บี๊บให้ผู้ใช้ยืนยันเอง)
 - **Export/Import:** `export_settings()`/`import_settings()` — ไฟล์เดียวรวม rows +
   profiles + log_enabled + hot_profile_dir (ตรวจ `kind=automousemacro-settings` ก่อนนำเข้า)
-- **Backup:** `_on_close` เรียก `backup_snapshot()` เขียน backups/backup_วันที่_เวลา.json
-  แล้ว `prune_backups()` ลบเก่าเกิน 7 วัน — ทน error ทุกจุด
+- **Backup:** `_on_close` เรียก `_on_close_backup()` → `backup_snapshot()` เขียน
+  backups/backup_วันที่_เวลา.json แล้ว `prune_backups()` ลบเก่าตาม `self._backup_days`
+  (เปิด/ปิดด้วย `self._backup_enabled` — จำใน macro_conf.json) — ทน error ทุกจุด
+- **i18n:** ข้อความปุ่ม/สถานะหลักอยู่ใน `TR` (th/en) — ใช้ `self._t("key")`
+  สลับผ่าน `_apply_language()` ตอนบันทึก Settings (เพิ่มข้อความใหม่ใส่ทั้งสองภาษาเสมอ)
 - **E2E tests:** `test_e2e.py` รัน CLI จริงเป็น subprocess (สคริปต์ Beep ล้วนปลอดภัย) —
   ทดสอบหยุดผ่าน stop-file กลางดีเลย์ยาว/จบเอง/หยุดก่อนเริ่ม รัน: `py -m unittest test_e2e -v`
   ห้ามถือว่า listener ใช้ได้เพราะ `alive=True` — ต้องทดสอบด้วยการกด/หยุดจริง

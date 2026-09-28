@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Auto Mouse & Keyboard Macro  v1.13
+Auto Mouse & Keyboard Macro  v1.14
 โปรแกรมสั่งให้เมาส์/คีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่ตั้งไว้
 
 - RECORD (F9)      : บันทึกการคลิกเมาส์ / การกดคีย์แบบเรียลไทม์
@@ -32,6 +32,8 @@ Auto Mouse & Keyboard Macro  v1.13
   ทั้งหมดเป็นไฟล์เดียวย้ายเครื่องได้ (Settings), ปุ่ม 🧪 ทดสอบระบบจริงใน Settings
 - v1.13: Backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม (backups/ เก็บย้อนหลัง 7 วัน),
   เมนู Help ฉบับเต็มครอบทุกฟีเจอร์ + ปุ่มเปิด TUTORIAL
+- v1.14: ตั้งค่า backup ได้ใน Settings (เปิด/ปิด + จำนวนวัน 1-90), สลับภาษา
+  ไทย/English ได้ใน Settings (TR + _t) จำค่าใน macro_conf.json
 
 ต้องใช้ Python 3.8+ และไลบรารี pynput  →  pip install pynput
 ทดสอบบน Windows และทำงานได้บน Linux / macOS ด้วยไลบรารีเดียวกัน
@@ -68,9 +70,37 @@ try:
 except ImportError:
     HAS_CV = False
 
-APP_TITLE = "Auto Mouse & Keyboard Macro v1.13"
+APP_TITLE = "Auto Mouse & Keyboard Macro v1.14"
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
-BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน
+BACKUP_KEEP_DAYS = 7            # เก็บ snapshot ย้อนหลังกี่วัน (ค่าเริ่มต้น)
+
+# ------------------------------------------------------- ข้อความ 2 ภาษา ----
+# i18n (v1.14): ปุ่มหลัก/ข้อความสถานะ — เลือกภาษาใน Settings แล้วจำใน macro_conf.json
+TR = {
+    "th": {"start": "START", "stop": "STOP", "repeat": "REPEAT", "record": "RECORD",
+           "forever": "วนซ้ำไม่จำกัด (F10)", "restore": "คืนเมาส์จุดเดิม",
+           "shuffle": "สุ่มลำดับ", "pct": "สัดส่วนแถว:", "speed": "ความเร็ว:",
+           "loops": "รอบ:", "loops_note": "(0=ไม่จำกัด)",
+           "playing": "กำลังเล่นสคริปต์ (%s) — F8 หยุด", "done": "เล่นจบแล้ว ✔",
+           "stopped": "หยุดแล้ว — ปล่อยคีย์/ปุ่มที่ค้างแล้ว",
+           "mode_once": "เล่นครั้งเดียว", "mode_loop": "วนซ้ำ",
+           "no_rows": "ยังไม่มีรายการที่เปิดใช้ (☑) ให้เล่น",
+           "selfcheck_warn": "⚠️ self-check: บางส่วนไม่พร้อม — ดูรายละเอียดใน Settings"},
+    "en": {"start": "START", "stop": "STOP", "repeat": "REPEAT", "record": "RECORD",
+           "forever": "Loop forever (F10)", "restore": "Restore mouse position",
+           "shuffle": "Shuffle", "pct": "Row %:", "speed": "Speed:",
+           "loops": "Loops:", "loops_note": "(0 = unlimited)",
+           "playing": "Playing script (%s) — F8 to stop", "done": "Finished ✔",
+           "stopped": "Stopped — released stuck keys/buttons",
+           "mode_once": "play once", "mode_loop": "loop",
+           "no_rows": "No enabled (☑) rows to play",
+           "selfcheck_warn": "⚠️ self-check: some parts not ready — see Settings"},
+}
+
+
+def tr(lang, key):
+    """ดึงข้อความตามภาษา (lang: 'th'/'en') — คีย์หาย = ใช้ภาษาไทย fallback"""
+    return TR.get(lang, TR["th"]).get(key, TR["th"].get(key, key))
 CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
 PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
@@ -273,9 +303,9 @@ def log_stats_summary(base_dir=None):
 
 
 # ------------------------------------------------ backup อัตโนมัติ (v1.13) --
-def backup_snapshot(base_dir, data, now=None):
-    """เขียน backup การตั้งค่า 1 snapshot ลง <base_dir>/backups/ แล้วตัดไฟล์เก่าเกิน 7 วัน
-    คืนพาธไฟล์ที่เขียน (ทนต่อ error — backup ห้ามทำโปรแกรมพัง)"""
+def backup_snapshot(base_dir, data, now=None, keep_days=BACKUP_KEEP_DAYS):
+    """เขียน backup การตั้งค่า 1 snapshot ลง <base_dir>/backups/ แล้วตัดไฟล์เก่า
+    เกิน keep_days วัน — คืนพาธไฟล์ที่เขียน (ทนต่อ error — backup ห้ามทำโปรแกรมพัง)"""
     try:
         bk = os.path.join(base_dir, BACKUP_DIR)
         os.makedirs(bk, exist_ok=True)
@@ -283,7 +313,7 @@ def backup_snapshot(base_dir, data, now=None):
         path = os.path.join(bk, "backup_%s.json" % t.strftime("%Y-%m-%d_%H%M%S"))
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2)
-        prune_backups(bk)
+        prune_backups(bk, keep_days=keep_days)
         return path
     except Exception:
         return None
@@ -404,6 +434,9 @@ class MacroApp:
         self._log_src = None               # ชื่อสคริปต์ล่าสุด (แสดงใน log)
         self._loaded_file = None           # ไฟล์สคริปต์ที่ Load/Save ล่าสุด
         self._hp_dir = None                # โฟลเดอร์ hot-profile (F1–F4 โหลดสคริปต์จากที่นี้)
+        self._backup_enabled = True        # backup อัตโนมัติตอนปิดโปรแกรม (v1.14)
+        self._backup_days = BACKUP_KEEP_DAYS  # เก็บ backup ย้อนหลังกี่วัน
+        self._lang = "th"                  # ภาษา UI: 'th' / 'en' (v1.14)
 
         # การหยุดที่แม่นยำ (v1.7.1)
         self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
@@ -411,7 +444,8 @@ class MacroApp:
         self._pressed_btns = set()         # ปุ่มเมาส์ที่กดค้าง (* Down) เพื่อปล่อยตอน STOP
 
         self._build_style()
-        self._build_menu()
+        self._t = lambda key: tr(self._lang, key)   # ตัวย่อดึงข้อความตามภาษา (v1.14)
+        self._build_menu()  # สร้างก่อนโหลด conf — _apply_language จะปรับข้อความทีหลัง
         self._build_profile_bar()
         self._build_table()
         self._build_bottom()
@@ -426,7 +460,7 @@ class MacroApp:
         self._load_conf()  # โหลดงานล่าสุดของโปรไฟล์ที่ใช้อยู่ (ถ้ามี)
         self._self_check()  # ตรวจสุขภาพระบบ (v1.11) — ผลแสดงใน Settings
         if not (self._checks.get("mouse") and self._checks.get("hotkey")):
-            self._ui_state["msg"] = ("⚠️ self-check: บางส่วนไม่พร้อม — ดูรายละเอียดใน Settings", "#a60")
+            self._ui_state["msg"] = (self._t("selfcheck_warn"), "#a60")
 
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -584,30 +618,40 @@ class MacroApp:
         self.btn_rec.pack(side="left", padx=4)
 
         self.chk_forever = tk.BooleanVar(value=False)
-        tk.Checkbutton(bot, text="วนซ้ำไม่จำกัด (F10)", variable=self.chk_forever).pack(side="left", padx=6)
+        self.chk_forever_btn = tk.Checkbutton(bot, text=self._t("forever"),
+                                              variable=self.chk_forever)
+        self.chk_forever_btn.pack(side="left", padx=6)
         self.chk_restore = tk.BooleanVar(value=False)
-        tk.Checkbutton(bot, text="คืนเมาส์จุดเดิม", variable=self.chk_restore).pack(side="left", padx=6)
+        self.chk_restore_btn = tk.Checkbutton(bot, text=self._t("restore"),
+                                              variable=self.chk_restore)
+        self.chk_restore_btn.pack(side="left", padx=6)
         self.chk_shuffle = tk.BooleanVar(value=False)
-        tk.Checkbutton(bot, text="สุ่มลำดับ", variable=self.chk_shuffle).pack(side="left", padx=6)
-        tk.Label(bot, text="สัดส่วนแถว:").pack(side="left", padx=(10, 2))
+        self.chk_shuffle_btn = tk.Checkbutton(bot, text=self._t("shuffle"),
+                                              variable=self.chk_shuffle)
+        self.chk_shuffle_btn.pack(side="left", padx=6)
+        self.lbl_pct = tk.Label(bot, text=self._t("pct"))
+        self.lbl_pct.pack(side="left", padx=(10, 2))
         self.ent_pct = tk.Spinbox(bot, from_=5, to=100, increment=5, width=5)
         self.ent_pct.delete(0, "end")
         self.ent_pct.insert(0, "100")
         self.ent_pct.pack(side="left")
         tk.Label(bot, text="%", fg="#888").pack(side="left", padx=(2, 0))
 
-        tk.Label(bot, text="ความเร็ว:").pack(side="left", padx=(10, 2))
+        self.lbl_speed = tk.Label(bot, text=self._t("speed"))
+        self.lbl_speed.pack(side="left", padx=(10, 2))
         self.cmb_speed = ttk.Combobox(bot, width=5, state="readonly",
                                       values=["0.25", "0.5", "1", "2", "4"])
         self.cmb_speed.set("1")
         self.cmb_speed.pack(side="left")
 
-        tk.Label(bot, text="รอบ:").pack(side="left", padx=(10, 2))
+        self.lbl_loops = tk.Label(bot, text=self._t("loops"))
+        self.lbl_loops.pack(side="left", padx=(10, 2))
         self.ent_loops = tk.Spinbox(bot, from_=0, to=99999, width=6)
         self.ent_loops.delete(0, "end")
         self.ent_loops.insert(0, "1")
         self.ent_loops.pack(side="left")
-        tk.Label(bot, text="(0=ไม่จำกัด)", fg="#888").pack(side="left", padx=(2, 0))
+        self.lbl_loops_note = tk.Label(bot, text=self._t("loops_note"), fg="#888")
+        self.lbl_loops_note.pack(side="left", padx=(2, 0))
 
     def _build_statusbar(self):
         bar = tk.Frame(self.root, bg="#e6e6e6")
@@ -974,7 +1018,7 @@ class MacroApp:
     def _start_player(self, loop):
         rows = self._rows_for_play()
         if not rows:
-            messagebox.showinfo(APP_TITLE, "ยังไม่มีรายการที่เปิดใช้ (☑) ให้เล่น")
+            messagebox.showinfo(APP_TITLE, self._t("no_rows"))
             return
         if not self._validate_rows(rows):
             if not messagebox.askyesno(APP_TITLE,
@@ -1010,9 +1054,9 @@ class MacroApp:
                        len(rows), extra), self._log_src)
         self.btn_start.config(state="disabled", bg="#cfcfcf")
         self.btn_repeat.config(state="disabled", bg="#2e7d32")
-        mode = "วนซ้ำ" if loop else "เล่นครั้งเดียว"
+        mode = self._t("mode_loop") if loop else self._t("mode_once")
         self.root.title(APP_TITLE + "   [ RUNNING ]")
-        self._ui_state["msg"] = ("กำลังเล่นสคริปต์ (%s) — F8 หยุด" % mode, "#080")
+        self._ui_state["msg"] = (self._t("playing") % mode, "#080")
         threading.Thread(target=self._player, args=(rows, loop, gen), daemon=True).start()
 
     def _reset_ui(self):
@@ -1058,7 +1102,7 @@ class MacroApp:
         self._ui_state["prog"] = None
         self._ui_state["reset"] = True
         if was and not silent:
-            self._ui_state["msg"] = ("หยุดแล้ว — ปล่อยคีย์/ปุ่มที่ค้างแล้ว", "#a60")
+            self._ui_state["msg"] = (self._t("stopped"), "#a60")
             if self._log_enabled:
                 log_write("STOP", "หยุดโดยผู้ใช้ (F8/ปุ่ม STOP) — ปล่อยคีย์/ปุ่มที่ค้างแล้ว",
                           self._log_src)
@@ -1193,7 +1237,7 @@ class MacroApp:
                     self._script_loops -= 1
                     outer = self._script_loops > 0 and self._gen_ok(gen)
             if self._gen_ok(gen):
-                self._ui_state["msg"] = ("เล่นจบแล้ว ✔", "#080")
+                self._ui_state["msg"] = (self._t("done"), "#080")
                 if self._log_enabled:
                     log_write("END", "เล่นจบเองครบ %.1f วิ" % (time.time() - play_started),
                               self._log_src)
@@ -1576,6 +1620,13 @@ class MacroApp:
                     hp = data.get("hot_profile_dir")
                     if isinstance(hp, str) and hp and os.path.isdir(hp):
                         self._hp_dir = hp
+                    self._backup_enabled = bool(data.get("backup_enabled", True))
+                    try:
+                        self._backup_days = max(1, min(90, int(data.get("backup_days", BACKUP_KEEP_DAYS))))
+                    except (TypeError, ValueError):
+                        self._backup_days = BACKUP_KEEP_DAYS
+                    if data.get("lang") in ("th", "en"):
+                        self._lang = data["lang"]
             except Exception:
                 pass
 
@@ -1606,7 +1657,10 @@ class MacroApp:
             with open(CONF, "w", encoding="utf-8") as fh:
                 json.dump({"rows": self._serialize(),
                            "log_enabled": self._log_enabled,
-                           "hot_profile_dir": self._hp_dir},
+                           "hot_profile_dir": self._hp_dir,
+                           "backup_enabled": self._backup_enabled,
+                           "backup_days": self._backup_days,
+                           "lang": self._lang},
                           fh, ensure_ascii=False, indent=2)
         except OSError:
             pass
@@ -1817,6 +1871,34 @@ class MacroApp:
         tk.Button(win, text="ปิด", width=8, command=win.destroy).pack(pady=(4, 14))
 
     # ------------------------------------------------ self-check (v1.11) -----
+    def _on_close_backup(self, base_dir):
+        """เขียน backup ตอนปิดโปรแกรม (แยกเมธอดเพื่อทดสอบได้) — คืนพาธหรือ None"""
+        if not self._backup_enabled:
+            return None
+        return backup_snapshot(base_dir,
+                               {"kind": "automousemacro-settings", "version": 1,
+                                "rows": self._serialize(),
+                                "profiles": self._profiles,
+                                "active_profile": self._active_profile,
+                                "log_enabled": self._log_enabled,
+                                "hot_profile_dir": self._hp_dir},
+                               keep_days=self._backup_days)
+
+    # ------------------------------------------------ i18n สลับภาษา (v1.14) --
+    def _apply_language(self):
+        """ปรับข้อความปุ่ม/สถานะตามภาษาที่เลือก (เรียกทันทีจาก Settings — ไม่ต้องรีเปิด)"""
+        self.chk_forever_btn.config(text=self._t("forever"))
+        self.chk_restore_btn.config(text=self._t("restore"))
+        self.chk_shuffle_btn.config(text=self._t("shuffle"))
+        self.lbl_pct.config(text=self._t("pct"))
+        self.lbl_speed.config(text=self._t("speed"))
+        self.lbl_loops.config(text=self._t("loops"))
+        self.lbl_loops_note.config(text=self._t("loops_note"))
+        self.btn_rec.config(text=self._t("record"))
+        if not self.running:
+            self._ui_state["msg"] = ("ภาษา: ไทย" if self._lang == "th"
+                                     else "Language: English", "#080")
+
     def _self_test_actions(self):
         """🧪 ทดสอบระบบจริง (v1.12): ขยับเมาส์เป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง
         คืนตำแหน่งเมาส์ตอนเริ่ม (แยกออกมาจาก dialog เพื่อทดสอบได้)"""
@@ -2015,6 +2097,24 @@ class MacroApp:
         self.var_log = tk.BooleanVar(value=self._log_enabled)
         tk.Checkbutton(win, text="บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
                        variable=self.var_log).pack(pady=(10, 0))
+        # ภาษา (v1.14) + backup ตั้งค่าได้ (v1.14)
+        langbar = tk.Frame(win)
+        langbar.pack(pady=(12, 0))
+        tk.Label(langbar, text="ภาษา (Language):", font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.cmb_lang = ttk.Combobox(langbar, width=10, state="readonly",
+                                     values=["ไทย (Thai)", "English"])
+        self.cmb_lang.set("ไทย (Thai)" if self._lang == "th" else "English")
+        self.cmb_lang.pack(side="left", padx=6)
+        self.var_backup = tk.BooleanVar(value=self._backup_enabled)
+        self.spin_days = tk.Spinbox(win, from_=1, to=90, width=4)
+        self.spin_days.delete(0, "end")
+        self.spin_days.insert(0, str(self._backup_days))
+        tk.Checkbutton(win, text="Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
+                       variable=self.var_backup).pack(pady=(10, 0))
+        daybar = tk.Frame(win)
+        daybar.pack()
+        self.spin_days.pack(side="left")
+        tk.Label(daybar, text="วัน — 1–90)", fg="#666").pack(side="left", padx=(4, 0))
         tk.Button(win, text="เปิดโฟลเดอร์ log", width=14,
                   command=lambda: os.startfile(os.path.dirname(os.path.abspath(__file__)))
                   if hasattr(os, "startfile") else None).pack(pady=(4, 0))
@@ -2042,8 +2142,21 @@ class MacroApp:
                  "เป็นไฟล์เดียว (ย้ายเครื่อง/สำรอง)", fg="#888",
                  justify="left", wraplength=400).pack(padx=20, pady=(4, 0))
         tk.Button(win, text="บันทึก", width=8,
-                  command=lambda: (setattr(self, "_log_enabled", self.var_log.get()),
-                                   win.destroy())).pack(pady=(8, 14))
+                  command=lambda: self._settings_save(win)).pack(pady=(8, 14))
+
+    def _settings_save(self, win):
+        """กดบันทึกใน Settings — เก็บ log/backup/ภาษา แล้วปรับ UI ทันที"""
+        self._log_enabled = self.var_log.get()
+        self._backup_enabled = self.var_backup.get()
+        try:
+            self._backup_days = max(1, min(90, int(self.spin_days.get())))
+        except ValueError:
+            self._backup_days = BACKUP_KEEP_DAYS
+        old_lang = self._lang
+        self._lang = "th" if self.cmb_lang.get().startswith("ไทย") else "en"
+        if self._lang != old_lang:
+            self._apply_language()
+        win.destroy()
 
     def about(self):
         messagebox.showinfo("About",
@@ -2124,14 +2237,8 @@ py auto_macro.py script.json [--loop] [--loops N] [--speed 2] [--shuffle] [--row
     def _on_close(self):
         self.running = False
         self.recording = False
-        # backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม (v1.13) — เก็บ 7 วันย้อนหลัง
-        backup_snapshot(os.path.dirname(os.path.abspath(__file__)),
-                        {"kind": "automousemacro-settings", "version": 1,
-                         "rows": self._serialize(),
-                         "profiles": self._profiles,
-                         "active_profile": self._active_profile,
-                         "log_enabled": self._log_enabled,
-                         "hot_profile_dir": self._hp_dir})
+        # backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม (v1.13) — ปิด/จำนวนวันตั้งได้ใน Settings (v1.14)
+        self._on_close_backup(os.path.dirname(os.path.abspath(__file__)))
         if self._gk:
             try:
                 self._gk.stop()

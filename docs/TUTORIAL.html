@@ -61,7 +61,7 @@
 
 <div class="hero">
   <h1>📘 TUTORIAL — คู่มือฉบับสมบูรณ์</h1>
-  <p>สอนตั้งแต่ติดตั้งจนสร้างสคริปต์ซับซ้อน • ตรงกับโค้ด v1.7.1</p>
+  <p>สอนตั้งแต่ติดตั้งจนสร้างสคริปต์ซับซ้อน • ตรงกับโค้ด v1.14</p>
 </div>
 
 <div class="wrap">
@@ -223,13 +223,33 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></
   </div>
 
   <div class="card" id="ch10">
-    <h2 class="chapter">บทที่ 10 — แก้ปัญหาที่เจอบ่อย (FAQ)</h2>
+    <h2 class="chapter">บทที่ 10 — สำรอง/ย้ายเครื่อง และดูสถิติ</h2>
+    <h3>10.1 Backup อัตโนมัติ (v1.13+)</h3>
+    <p>ปิดโปรแกรมทุกครั้งจะสำรองงาน + โปรไฟล์ทุกชุด + การตั้งค่าลง
+      <code>backups/backup_วันที่_เวลา.json</code> และตัดไฟล์เก่าเหลือย้อนหลัง <b>7 วัน</b>
+      (ปรับได้ใน Settings) — เปิด/ปิดระบบนี้ได้ใน Settings</p>
+    <h3>10.2 Export / Import (สำรองแบบควบคุมเอง)</h3>
+    <p>Settings → <b>⬆️ Export</b> = ไฟล์เดียวจบ เอาไปเปิดเครื่องอื่นด้วย <b>⬇️ Import</b>
+      — มีพรีวิวและถามยืนยันก่อนเสมอ</p>
+    <h3>10.3 ดูสถิติ + กราฟ</h3>
+    <p>เมนู <b>📊 Stats</b> — สรุปจาก log ทุกวัน (เล่น/ถูกหยุด/watchdog/แถวช้าสุด)
+      + กราฟแท่ง 14 วันล่าสุด (เขียวเข้ม = เริ่มเล่น, เขียวอ่อน = เหตุการณ์)</p>
+    <h3>10.4 ตรวจว่าระบบพร้อมจริง</h3>
+    <p>Settings → <b>🧪 ทดสอบระบบจริง</b> = เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง
+      — ถ้าไม่ขยับลอง Run as Administrator (ดู self-check ที่หัว Settings)</p>
+    <h3>10.5 สลับภาษาโปรแกรม (v1.14+)</h3>
+    <p>Settings → <b>ภาษา (Language)</b> เลือก ไทย / English — เปลี่ยนทันที</p>
+  </div>
+
+  <div class="card">
+    <h2 class="chapter">บทที่ 11 — แก้ปัญหาที่เจอบ่อย (FAQ)</h2>
     <table>
       <tr><th>อาการ</th><th>สาเหตุ/วิธีแก้</th></tr>
       <tr><td>กด START แล้วไม่มีอะไรเกิดขึ้น</td><td>ตารางว่างหรือทุกแถวเป็น ☐ — เปิดแถวก่อน</td></tr>
       <tr><td>คลิกผิดตำแหน่ง</td><td>หน้าจอ scaling ไม่ตรง → จับพิกัดใหม่ด้วยดับเบิลคลิก X/Y หรือเปลี่ยนไปใช้ Image Click</td></tr>
       <tr><td>Image Click หาไม่เจอ</td><td>ลด threshold (#70), ขยาย Search Area, หรือจับภาพใหม่ตอนหน้าจอสถานะเดียวกับตอนเล่น</td></tr>
-      <tr><td>กด STOP แล้ว Ctrl/เมาส์ยังค้าง</td><td>ไม่ควรเกิดแล้วใน v1.7.1 — โปรแกรมปล่อยคีย์/ปุ่มค้างให้อัตโนมัติตอนหยุด</td></tr>
+      <tr><td>กด STOP แล้ว Ctrl/เมาส์ยังค้าง</td><td>ไม่ควรเกิดแล้ว (v1.7.1+) — โปรแกรมปล่อยคีย์/ปุ่มค้างให้อัตโนมัติทั้ง GUI และ CLI</td></tr>
+      <tr><td>กลัวแก้สคริปต์พัง</td><td>ไม่ต้องกลัว — ปิดโปรแกรมแต่ละครั้งมี backup อัตโนมัติย้อนหลัง 7 วันใน backups/</td></tr>
       <tr><td>เกมไม่รับคำสั่ง</td><td>เกมบางเกมกรอง injected input — ลองโหมด windowed หรือเกมนั้นใช้ไม่ได้</td></tr>
       <tr><td>พิมพ์ไทยไม่ออก</td><td>ใช้ Action "Type Text" (ไม่ใช่เคาะคีย์ไทยบนแป้นจริง)</td></tr>
       <tr><td>คีย์ลัดไม่ทำงาน</td><td>โปรแกรมอื่นจับ F6–F10 ไว้ — ดูสถานะที่ Settings</td></tr>
@@ -245,7 +265,7 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></
 
 </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v1.7.1</footer>
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v1.14</footer>
 
 </body>
 </html>

@@ -684,6 +684,95 @@ class TestExportImport(unittest.TestCase):
             app._load_rows.assert_not_called()                # ไม่ยอมรับ = ไม่แตะข้อมูล
 
 
+class TestI18n(unittest.TestCase):
+    """สลับภาษาไทย/อังกฤษ (v1.14)"""
+
+    def test_tr_th_en(self):
+        self.assertEqual(am.tr("th", "shuffle"), "สุ่มลำดับ")
+        self.assertEqual(am.tr("en", "shuffle"), "Shuffle")
+        self.assertEqual(am.tr("en", "mode_once"), "play once")
+
+    def test_tr_fallback(self):
+        self.assertEqual(am.tr("jp", "shuffle"), "สุ่มลำดับ")   # ภาษาไม่รู้จัก = ไทย
+        self.assertEqual(am.tr("th", "no_such_key"), "no_such_key")  # คีย์ไม่มี = คืนคีย์
+
+    def test_apply_language_updates_labels(self):
+        app = mock.MagicMock()
+        app._lang = "th"
+        app._t = lambda key: am.tr("th", key)
+        app.running = False
+        app._ui_state = {"msg": None}
+        am.MacroApp._apply_language(app)
+        app.chk_shuffle_btn.config.assert_called_with(text="สุ่มลำดับ")
+        self.assertIn("ไทย", app._ui_state["msg"][0])
+        # สลับเป็นอังกฤษ
+        app._lang = "en"
+        app._t = lambda key: am.tr("en", key)
+        am.MacroApp._apply_language(app)
+        app.chk_shuffle_btn.config.assert_called_with(text="Shuffle")
+
+
+class TestBackupSettings(unittest.TestCase):
+    """ตั้งค่า backup ได้ (v1.14): เปิด/ปิด + จำนวนวัน + จำใน conf"""
+
+    def test_backup_respects_enabled(self):
+        import tempfile
+        app = mock.MagicMock()
+        app._backup_enabled = False
+        app._serialize.return_value = []
+        app._profiles = {}
+        app._active_profile = "x"
+        app._log_enabled = True
+        app._hp_dir = None
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.object(am, "BACKUP_DIR", "backups_disabled_test"):
+            r = am.MacroApp._on_close_backup(app, d)
+            self.assertIsNone(r)                      # ปิดอยู่ = ไม่เขียน backup
+            self.assertFalse(os.path.isdir(os.path.join(d, "backups_disabled_test")))
+
+    def test_backup_uses_custom_days(self):
+        import datetime
+        import tempfile
+        app = mock.MagicMock()
+        app._backup_enabled = True
+        app._backup_days = 3
+        app._serialize.return_value = []
+        app._profiles = {}
+        app._active_profile = "x"
+        app._log_enabled = True
+        app._hp_dir = None
+        with tempfile.TemporaryDirectory() as d:
+            # สร้างไฟล์เก่า 5 วัน (เกิน 3 วันที่ตั้ง) แล้ว backup ใหม่ต้องตัดทิ้ง
+            bk = os.path.join(d, am.BACKUP_DIR)
+            os.makedirs(bk)
+            old = datetime.datetime.now() - datetime.timedelta(days=5)
+            old_path = am.backup_snapshot(d, {"old": 1}, now=old, keep_days=90)
+            self.assertTrue(os.path.isfile(old_path))                  # ยังไม่ตัด
+            am.MacroApp._on_close_backup(app, d)                       # ตัดตาม 3 วัน
+            files = os.listdir(bk)
+            self.assertEqual(len(files), 1)                            # เหลือแต่ตัวใหม่
+            self.assertNotIn(os.path.basename(old_path), files)        # ไฟล์เก่าหายจริง
+
+    def test_conf_roundtrip_new_fields(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            conf = os.path.join(d, "macro_conf.json")
+            with open(conf, "w", encoding="utf-8") as fh:
+                json.dump({"rows": [], "log_enabled": False,
+                           "backup_enabled": False, "backup_days": 21,
+                           "lang": "en"}, fh)
+            app = mock.MagicMock()
+            app._load_rows = mock.MagicMock()
+            app._backup_enabled = True
+            app._backup_days = 7
+            app._lang = "th"
+            with mock.patch.object(am, "CONF", conf):     # ชี้ conf ไปที่ไฟล์ทดสอบ
+                am.MacroApp._load_conf(app)
+            self.assertFalse(app._backup_enabled)
+            self.assertEqual(app._backup_days, 21)
+            self.assertEqual(app._lang, "en")
+
+
 class TestBackup(unittest.TestCase):
     """Backup อัตโนมัติ 7 วัน (v1.13) — ทำงานใน temp dir ล้วน"""
 
