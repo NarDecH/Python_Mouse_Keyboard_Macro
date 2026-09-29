@@ -566,7 +566,7 @@ class TestSelfCheck(unittest.TestCase):
         fake_win = mock.MagicMock()
         fake_win.shell32.IsUserAnAdmin.return_value = 1
         with mock.patch.object(am, "HAS_CV", True), \
-             mock.patch("ctypes.windll", fake_win):
+             mock.patch("ctypes.windll", fake_win, create=True):   # create: windll มีเฉพาะ Windows
             chk = am.MacroApp._self_check(app)
         self.assertTrue(all(chk.values()))
         lines = am.MacroApp.self_check_text(app)

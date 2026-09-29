@@ -60,34 +60,43 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: ตั้งค่า Python 3.12
+      - name: ตั้งค่า Python (macOS: 3.12 ผ่าน setup-python / Linux: system python3 + tk)
+        if: runner.os == 'macOS'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: ติดตั้ง X virtual (Linux — pynput/E2E ต้องมี display)
+      - name: ติดตั้ง X virtual + tkinter (Linux — pynput/Tk ต้องมี display)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb python3-tk python3-pip
 
       - name: ติดตั้งไลบรารี
-        run: |
-          python -m pip install --upgrade pip
-          pip install pynput
+        run: python -m pip install --upgrade pip && pip install pynput
+
+      - name: ตรวจ tkinter (ถ้าล้ม = import ชุดเทสต์พังทั้งชุด)
+        run: python -c "import tkinter; print('tkinter OK')" || echo "::error::tkinter import ล้มเหลว"
 
       - name: รัน unit tests
         run: |
           set -o pipefail
           python -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
 
-      - name: ระบุจุดที่พังเป็น annotation (อ่านจาก API ได้)
+      - name: ระบุจุดที่พังเป็น annotation (พา traceback — อ่านจาก API ได้)
         if: failure()
         run: |
-          grep -E "^(FAIL|ERROR):" unit_output.txt | head -8 | while IFS= read -r line; do
-            echo "::error::$line"
-          done
-          grep -A 6 -E "^(FAIL|ERROR): " unit_output.txt | head -40 >> "$GITHUB_STEP_SUMMARY" || true
+          awk '/^(FAIL|ERROR): /{n=14} n&&n-->0{print}' unit_output.txt > ctx.txt || true
+          [ -s ctx.txt ] || tail -n 30 unit_output.txt > ctx.txt || true
+          echo "::error::ctx|$(head -c 3500 ctx.txt | tr '\n' '~')"
+
+      - name: รัน E2E tests (Linux ใต้ xvfb)
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a python -m unittest test_e2e -v
+          else
+            python -m unittest test_e2e -v
+          fi
 
       - name: รัน E2E tests (Linux ใต้ xvfb)
         run: |
