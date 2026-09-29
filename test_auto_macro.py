@@ -482,6 +482,7 @@ class TestGlobalHotkeyMapping(unittest.TestCase):
         pushed = []
         app = mock.MagicMock()
         app.root.after.side_effect = lambda delay, fn: pushed.append(fn)
+        app._gk_start = lambda: am.MacroApp._gk_start(app)   # v2.4: เดินสายเมธอดใหม่
         with mock.patch.object(am.keyboard, "Listener", FakeListener):
             am.MacroApp._start_global_hotkeys(app)
             on_press = captured["on_press"]
@@ -892,6 +893,14 @@ class TestUiDialogs(unittest.TestCase):
         self.app._backup_days = 7
         self.app._hp_dir = None
         self.app._gk = None
+        self.app._gk_heal_at = 0.0        # v2.4: self-healing
+        self.app._time_limit_enabled = False   # v2.4: Safety timeout
+        self.app._time_limit_min = 30
+        self.app._sched_mode = ""         # v2.4: schedule label ใน Settings
+        self.app._sched_every = 10
+        self.app._sched_at = ""
+        self.app._sched_profile = ""
+        self.app._plugins = []            # v2.4: plugins status ใน Settings
         self.app._checks = {"mouse": True, "hotkey": True, "opencv": True,
                             "admin": False, "conf_writable": True}
         self.app.running = False
@@ -1673,6 +1682,44 @@ class TestPlayLoopGui(unittest.TestCase):
         self.assertEqual(tapped, [am.KeyCode.from_vk(0x57)])               # tap W
         self.assertEqual(released, [Key.ctrl])                             # ปล่อย modifier
 
+    def test_gk_self_heal_restarts_dead_listener(self):
+        """v2.4: listener F6-F10 ตายเงียบ ๆ → poller รีสตาร์ตให้เอง (กันยิงรัว <10 วิ)"""
+        app = self.app
+        if app._gk is None:
+            self.skipTest("เครื่องนี้เปิด global hotkey ไม่ได้")
+        app._gk_heal_at = 0.0
+
+        def fake_start():
+            fresh = mock.MagicMock()
+            fresh.is_alive.return_value = True
+            app._gk = fresh
+            return True
+
+        app._gk_start = fake_start
+        dead = mock.MagicMock()
+        dead.is_alive.return_value = False
+        app._gk = dead
+        app._start_poller()                       # หนึ่ง tick — เจอตัวตาย → heal
+        self.assertIsNot(app._gk, dead)
+        self.assertTrue(app._gk.is_alive())
+        dead2 = mock.MagicMock()
+        dead2.is_alive.return_value = False
+        app._gk = dead2
+        app._start_poller()                       # เพิ่ง heal ไป — ต้องไม่ยิงรัว
+        self.assertIs(app._gk, dead2)
+
+    def test_delete_multiple_selected_rows(self):
+        """v2.4: เลือกหลายแถว (extended) → Delete ลบทั้งชุด + Ctrl+Z กู้คืนได้"""
+        self._clean_table(0)
+        for _ in range(4):
+            self.app._append_row(button="Beep", secs=0)
+        kids = self.app.tree.get_children()
+        self.app.tree.selection_set([kids[0], kids[2]])
+        self.app._on_del()
+        self.assertEqual(len(self.app.tree.get_children()), 2)
+        self.app._undo_delete()
+        self.assertEqual(len(self.app.tree.get_children()), 4)
+
     def test_clipboard_actions_roundtrip(self):
         """Set Clipboard → Read Clipboard: ข้อความวนกลับเข้าตัวแปรได้ (v1.20)
         (แตะคลิปบอร์ดจริง — คืนค่าเดิมให้ผู้ใช้เมื่อจบเทสต์)"""
@@ -1867,6 +1914,9 @@ class TestPersistSettings(unittest.TestCase):
         app.chk_shuffle.get.return_value = True
         app.ent_pct.get.return_value = "50"
         app._play_options = lambda: 50          # อ่านค่าจาก widget จำลอง
+        app._time_limit_enabled = True          # v2.4: keys ใหม่ใน conf
+        app._time_limit_min = 30
+        app._sched_profile = ""
         app._sched_mode = "interval"
         app._sched_every = 15
         app._sched_at = ""
@@ -3515,6 +3565,210 @@ class TestBatchExport(unittest.TestCase):
     def test_menu_has_export_entry(self):
         names = [name for _, _, name, _ in am.MacroApp._menu_items()]
         self.assertIn("export_batch_files", names)
+
+
+class TestImageCache(unittest.TestCase):
+    """v2.4: แคช template — สคริปต์วน 1000 รอบไม่อ่านไฟล์ภาพซ้ำ (อ่านใหม่เมื่อไฟล์เปลี่ยน)"""
+
+    @unittest.skipUnless(me_mod.HAS_CV, "ต้องมี opencv")
+    def test_cache_avoids_repeated_reads_and_invalidates_on_change(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "t.png")
+            img = me_mod.np.full((20, 20, 3), 200, dtype=me_mod.np.uint8)
+            me_mod.cv2.imwrite(p, img)
+            me_mod._template_cache.clear()
+            with mock.patch.object(me_mod.cv2, "imread",
+                                   wraps=me_mod.cv2.imread) as rd:
+                me_mod.find_image_pos(p, None, 0.1)
+                me_mod.find_image_pos(p, None, 0.1)
+                self.assertEqual(rd.call_count, 1)       # ครั้งสองใช้แคช
+                time.sleep(0.05)
+                me_mod.cv2.imwrite(p, img + 10)          # ไฟล์เปลี่ยน → อ่านใหม่
+                me_mod.find_image_pos(p, None, 0.1)
+                self.assertEqual(rd.call_count, 2)
+            me_mod._template_cache.clear()
+
+
+class TestIfImageWait(unittest.TestCase):
+    """v2.4: If Image ต่อท้าย Additional ด้วย 'Ns' = ตรวจซ้ำจนครบ N วิก่อนตัดสิน A/B
+    (ไม่ใส่ = ตรวจครั้งเดียวเหมือนเดิม) — แก้ปัญหาหน้าจอโหลดไม่เสร็จแล้วตัดสินผิด"""
+
+    def _runner(self, find_cb, stop=lambda: True):
+        return me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                   stop_check=stop, find_image_cb=find_cb)
+
+    def test_retry_until_found(self):
+        calls = []
+
+        def cb(r):
+            calls.append(1)
+            return (10, 10) if len(calls) >= 3 else None
+
+        runner = self._runner(cb)
+        runner.execute({"button": me_mod.IF_IMAGE, "additional": "img.png 5s",
+                        "repeat": 2})
+        self.assertTrue(runner.last_if_found)
+        self.assertGreaterEqual(len(calls), 3)
+        self.assertEqual(runner.skip_n, 0)               # เจอ = ไม่ข้ามแถว
+
+    def test_no_token_checks_once_like_before(self):
+        calls = []
+
+        def cb(r):
+            calls.append(1)
+            return None
+
+        runner = self._runner(cb)
+        runner.execute({"button": me_mod.IF_IMAGE, "additional": "img.png",
+                        "repeat": 1})
+        self.assertEqual(len(calls), 1)                  # พฤติกรรมเดิม: ครั้งเดียว
+        self.assertFalse(runner.last_if_found)
+        self.assertEqual(runner.skip_n, 1)
+
+    def test_stop_stops_retry_immediately(self):
+        calls = []
+
+        def cb(r):
+            calls.append(1)
+            return None
+
+        runner = self._runner(cb, stop=lambda: False)    # STOP ค้างจากภายนอก
+        t0 = time.time()
+        runner.execute({"button": me_mod.IF_IMAGE, "additional": "img.png 30s",
+                        "repeat": 1})
+        self.assertLess(time.time() - t0, 3)             # ไม่รอครบ 30 วิ
+        self.assertFalse(runner.last_if_found)
+
+
+class TestSafetyTimeout(unittest.TestCase):
+    """v2.4: Safety timeout — หยุดเองหลังเล่น N นาที (Settings จำลง conf + player ตรวจทุกแถว)"""
+
+    def test_settings_save_clamps_and_persists(self):
+        app = mock.MagicMock()
+        app._log_enabled = True                     # _save_conf อ่าน attr นี้ตรง ๆ
+        app._hp_dir = None                          # _save_conf อ่าน attr นี้ตรง ๆ
+        app.var_log.get.return_value = True
+        app.var_backup.get.return_value = True
+        app.spin_days.get.return_value = "7"
+        app.var_time_limit.get.return_value = True
+        app.spin_limit.get.return_value = "9999"     # คลัมป์เหลือ 720
+        app.cmb_lang.get.return_value = "ไทย (Thai)"
+        app.cmb_speed.get.return_value = "1"         # widget อื่นใน _save_conf
+        app.ent_loops.get.return_value = "1"
+        app.chk_forever.get.return_value = False
+        app.chk_restore.get.return_value = False
+        app.chk_shuffle.get.return_value = False
+        app._play_options = lambda: 100
+        am.MacroApp._settings_save(app, mock.MagicMock())   # win = หน้าต่างจำลอง
+        self.assertTrue(app._time_limit_enabled)
+        self.assertEqual(app._time_limit_min, 720)
+        app._save_conf.assert_called_once()          # บันทึก conf ทันทีที่ Save
+
+    def test_conf_roundtrip(self):
+        import tempfile
+        app = mock.MagicMock()
+        app._serialize.return_value = []
+        app._log_enabled = True                     # _save_conf อ่าน attr นี้ตรง ๆ
+        app._hp_dir = None                          # _save_conf อ่าน attr นี้ตรง ๆ
+        app._backup_enabled = True
+        app._backup_days = 7
+        app._lang = "th"
+        app._time_limit_enabled = True              # v2.4: keys ใหม่ใน conf
+        app._time_limit_min = 45
+        app.var_log.get.return_value = True
+        app.var_backup.get.return_value = True
+        app.spin_days.get.return_value = "7"
+        app.var_time_limit.get.return_value = True
+        app.spin_limit.get.return_value = "45"
+        app.cmb_lang.get.return_value = "ไทย (Thai)"
+        app.cmb_speed.get.return_value = "1"
+        app.ent_loops.get.return_value = "1"
+        app.chk_forever.get.return_value = False
+        app.chk_restore.get.return_value = False
+        app.chk_shuffle.get.return_value = False
+        app._play_options = lambda: 100
+        app._sched_mode = ""
+        app._sched_every = 10
+        app._sched_at = ""
+        app._sched_profile = ""
+        with tempfile.TemporaryDirectory() as d:
+            conf = os.path.join(d, "macro_conf.json")
+            with mock.patch.object(am, "CONF", conf):
+                am.MacroApp._save_conf(app)
+                app2 = mock.MagicMock()
+                am.MacroApp._load_conf(app2)
+        self.assertTrue(app2._time_limit_enabled)
+        self.assertEqual(app2._time_limit_min, 45)
+
+
+class TestSchedProfilePoll(unittest.TestCase):
+    """v2.4: Schedule เลือกโปรไฟล์ได้ — ถึงเวลาแล้วโหลดแถวโปรไฟล์ก่อนเล่น"""
+
+    def test_poll_loads_profile_rows_then_plays_once(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app._sched_q.put("play")
+        app.running = False
+        app._log_enabled = False                 # กันเทสต์เขียน log จริงของผู้ใช้
+        app._profiles = {"งานเช้า": [{"button": "Beep", "secs": 1}]}
+        app._sched_profile = "งานเช้า"
+        am.MacroApp._sched_poll(app)
+        app._load_rows.assert_called_once_with([{"button": "Beep", "secs": 1}])
+        app._start_player.assert_called_once_with(False, once=True)
+
+    def test_poll_empty_profile_keeps_current_rows(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app._sched_q.put("play")
+        app.running = False
+        app._log_enabled = False                 # กันเทสต์เขียน log จริงของผู้ใช้
+        app._sched_profile = ""                      # งานที่เปิดค้าง — ไม่แตะตาราง
+        am.MacroApp._sched_poll(app)
+        app._load_rows.assert_not_called()
+        app._start_player.assert_called_once_with(False, once=True)
+
+    def test_poll_unknown_profile_keeps_current_rows(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app._sched_q.put("play")
+        app.running = False
+        app._log_enabled = False                 # กันเทสต์เขียน log จริงของผู้ใช้
+        app._profiles = {}
+        app._sched_profile = "โปรไฟล์ถูกลบไปแล้ว"
+        am.MacroApp._sched_poll(app)
+        app._load_rows.assert_not_called()           # ทนได้ — เล่นงานที่เปิดค้างแทน
+        app._start_player.assert_called_once_with(False, once=True)
+
+
+class TestValidateRowsEngine(unittest.TestCase):
+    """v2.4: --validate — ตรวจสคริปต์โดยไม่เล่น (engine ล้วน)"""
+
+    def test_ok_script(self):
+        rows = [{"button": "Tap Key", "additional": "Ctrl+W"},
+                {"button": "Type Text", "additional": "ok"},
+                {"button": "Beep"}]
+        self.assertEqual(me_mod.validate_rows(rows), [])
+
+    def test_problems_reported_with_row_numbers(self):
+        rows = [{"button": "Tap Key", "additional": "Ctrl+??"},
+                {"button": "Type Text", "additional": "ok"},
+                {"button": "What Action"},
+                {"button": "Launch App", "additional": ""},
+                {"button": "Set Variable", "additional": "พัง"},
+                {"button": "Read Clipboard", "additional": "มี ช่องว่าง"},
+                {"button": "Image Click", "additional": "no_such_img_abc.png"}]
+        issues = me_mod.validate_rows(rows)
+        self.assertEqual([i for i, _ in issues], [1, 3, 4, 5, 6, 7])
+
+    def test_plugin_action_accepted(self):
+        pl = dict(me_mod.load_plugins())
+        name = next(iter(pl))
+        rows = [{"button": name, "additional": ""}]
+        self.assertEqual(me_mod.validate_rows(rows, plugin_names=[name]), [])
 
 
 class TestCliVersion(unittest.TestCase):

@@ -22,7 +22,7 @@ import time
 import macro_engine as me
 from macro_engine import (ActionRunner, KEY_ACTIONS, SECTION_HEADER, delay_range,
                           delay_seconds, load_plugins, log_write, pick_play_order,
-                          prune_log, subst_row)
+                          prune_log, subst_row, validate_rows)
 from macro_engine import MouseController, KbController, Key
 
 
@@ -35,6 +35,10 @@ def build_parser():
                     version="engine_cli " + me.__version__,
                     help="แสดงเวอร์ชันแล้วจบ")
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
+    ap.add_argument("--validate", action="store_true",
+                    help="ตรวจสคริปต์อย่างเดียว ไม่เล่น (exit 1 เมื่อพบแถวมีปัญหา)")
+    ap.add_argument("--max-minutes", type=float, default=0.0, metavar="นาที",
+                    help="Safety timeout: หยุดเองหลังเล่นนานเท่านี้ (0 = ปิด, v2.4)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
     ap.add_argument("--no-log", action="store_true", help="ไม่บันทึก log การเล่น")
     ap.add_argument("--json-lines", action="store_true",
@@ -75,6 +79,18 @@ def main(argv=None):
     if err:
         print(err)
         return 1
+
+    # v2.4: --validate — ตรวจสคริปต์อย่างเดียว ไม่เล่น
+    if getattr(args, "validate", False):
+        plugin_names = sorted(dict(load_plugins()))
+        issues = validate_rows(rows, plugin_names=plugin_names)
+        if issues:
+            print("พบปัญหา %d แถว:" % len(issues))
+            for num, reason in issues:
+                print("  แถว %d: %s" % (num, reason))
+            return 1
+        print("สคริปต์ผ่านการตรวจ ✓ (%d แถว)" % len(rows))
+        return 0
 
     speed = max(0.1, min(10.0, args.speed))
     loops = max(0, args.loops)
@@ -154,6 +170,8 @@ def main(argv=None):
 
     rc = 1
     skipping = 0                  # ตัวนับข้ามแถวจาก If Loop/If Time (v2.1)
+    run_t0 = time.time()          # v2.4: Safety timeout (--max-minutes)
+    mx = max(0.0, float(getattr(args, "max_minutes", 0.0) or 0.0))
     try:
         n_loop = 0
         while True:
@@ -165,6 +183,10 @@ def main(argv=None):
             print("— รอบที่ %d —" % n_loop)
             for i, r in enumerate(pick_play_order(play_rows), 1):
                 if not running[0]:
+                    break
+                if mx and time.time() - run_t0 > mx * 60:
+                    print("⏱ หยุดอัตโนมัติ — เล่นครบ %g นาทีตามที่ตั้ง (--max-minutes)" % mx)
+                    running[0] = False
                     break
                 r = subst_row(r, vars_)            # แทน {ตัวแปร} ทุกคอลัมน์
                 if r.get("button") == SECTION_HEADER:   # แถวจัดระเบียบ — ไม่ทำอะไร

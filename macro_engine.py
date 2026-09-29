@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -544,6 +544,33 @@ def batch_export_sh(script_name, py_cmd="python3"):
         "# เพิ่มอาร์กิวเมนต์ได้ เช่น --loop --speed 2 (ดูทั้งหมด: python3 auto_macro.py --help)\n"
         "cd \"$(dirname \"$0\")\" || exit 1\n"
         "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
+
+
+def validate_rows(rows, plugin_names=()):
+    """ตรวจแถวสคริปต์โดยไม่เล่น (v2.4 — ใช้โดย CLI --validate)
+    คืน list ของ (ลำดับแถว 1-based, เหตุผล) — ว่าง = สคริปต์พร้อมเล่น"""
+    issues = []
+    plugin_names = set(plugin_names or ())
+    for i, r in enumerate(rows, 1):
+        btn = str(r.get("button", ""))
+        add = str(r.get("additional") or "")
+        if btn not in ACTIONS_ALL and btn not in plugin_names:
+            issues.append((i, "ไม่รู้จัก action: %s" % (btn or "-")))
+            continue
+        if btn in KEY_ACTIONS and not (parse_key(add) or parse_key_combo(add)):
+            issues.append((i, "คีย์ไม่ถูกต้อง: %s" % (add or "-")))
+        elif btn == "Launch App" and not add.strip():
+            issues.append((i, "Launch App ต้องระบุพาธ/URL"))
+        elif btn == "Set Variable" and not parse_set_var(add):
+            issues.append((i, "Set Variable รูปแบบไม่ถูก (name = ค่า หรือ name += จำนวน)"))
+        elif btn == "Read Clipboard" and not re.fullmatch(_VAR_NAME, add.strip() or ""):
+            issues.append((i, "Read Clipboard ต้องระบุชื่อตัวแปร เช่น mytext"))
+        elif btn in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
+            p = parse_search_area(add)[0] if add.strip() else ""
+            p = resolve_image_path(p) if p else ""
+            if not p or not os.path.isfile(p):
+                issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
+    return issues
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -1079,7 +1106,15 @@ class ActionRunner:
         elif btn == "Wait for Image":                                # รอภาพปรากฏ (v2.2: cb ผูกจาก GUI/CLI)
             self._do_wait_for_image(r)
         elif btn == IF_IMAGE:                                        # เงื่อนไขค้นภาพ (v2.2 — runner จัดการเอง)
-            pos = self._find_image_pos(r)
+            # v2.4: Additional ต่อท้ายด้วย "Ns" (เช่น "img.png 5s") = ตรวจซ้ำจนครบ 5 วิ
+            # ก่อนตัดสิน — แก้ปัญหาหน้าจอยังโหลดไม่เสร็จแล้ว If Image ตัดสินผิดทันที
+            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            rr = dict(r, additional=raw)
+            deadline = time.time() + wait
+            pos = self._find_image_pos(rr)
+            while pos is None and time.time() < deadline and self.stop_check():
+                time.sleep(0.25)
+                pos = self._find_image_pos(rr)
             self.last_if_found = pos is not None
             if pos is not None:
                 self.on_message("If Image เจอ → เล่นต่อ")
@@ -1231,6 +1266,26 @@ def resolve_image_path(path):
     return path
 
 
+_template_cache = {}      # path -> ((mtime, size), ndarray) — แคช imread (v2.4)
+
+
+def _load_template(path):
+    """อ่าน template ภาพพร้อมแคช (v2.4) — สคริปต์วน 1000 รอบไม่ต้องอ่านไฟล์ซ้ำ
+    อ่านใหม่อัตโนมัติเมื่อไฟล์เปลี่ยน (mtime/size ต่างจากเดิม) — คืน None ถ้าอ่านไม่ได้"""
+    try:
+        st = os.stat(path)
+        key = (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+    hit = _template_cache.get(path)
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+    if tmpl is not None:
+        _template_cache[path] = (key, tmpl)
+    return tmpl
+
+
 def find_image_pos(path, area=None, thr=None):
     """ค้นหาภาพย่อยบนหน้าจอ (cv2.matchTemplate) — คืน (x, y) จุดศูนย์กลาง หรือ None
     คืน None เมื่อ: ไม่มี opencv / ไฟล์หาย / อ่านไม่ได้ / ภาพใหญ่กว่ากรอบ / ไม่เจอ
@@ -1243,7 +1298,7 @@ def find_image_pos(path, area=None, thr=None):
     if not os.path.isfile(path):
         find_image_pos.last_error = "ไม่พบไฟล์ภาพ: %s" % path
         return None
-    tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+    tmpl = _load_template(path)
     if tmpl is None:
         find_image_pos.last_error = "อ่านไฟล์ภาพไม่ได้: %s" % path
         return None

@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -636,6 +636,33 @@ def batch_export_sh(script_name, py_cmd="python3"):
         "# เพิ่มอาร์กิวเมนต์ได้ เช่น --loop --speed 2 (ดูทั้งหมด: python3 auto_macro.py --help)\n"
         "cd \"$(dirname \"$0\")\" || exit 1\n"
         "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
+
+
+def validate_rows(rows, plugin_names=()):
+    """ตรวจแถวสคริปต์โดยไม่เล่น (v2.4 — ใช้โดย CLI --validate)
+    คืน list ของ (ลำดับแถว 1-based, เหตุผล) — ว่าง = สคริปต์พร้อมเล่น"""
+    issues = []
+    plugin_names = set(plugin_names or ())
+    for i, r in enumerate(rows, 1):
+        btn = str(r.get("button", ""))
+        add = str(r.get("additional") or "")
+        if btn not in ACTIONS_ALL and btn not in plugin_names:
+            issues.append((i, "ไม่รู้จัก action: %s" % (btn or "-")))
+            continue
+        if btn in KEY_ACTIONS and not (parse_key(add) or parse_key_combo(add)):
+            issues.append((i, "คีย์ไม่ถูกต้อง: %s" % (add or "-")))
+        elif btn == "Launch App" and not add.strip():
+            issues.append((i, "Launch App ต้องระบุพาธ/URL"))
+        elif btn == "Set Variable" and not parse_set_var(add):
+            issues.append((i, "Set Variable รูปแบบไม่ถูก (name = ค่า หรือ name += จำนวน)"))
+        elif btn == "Read Clipboard" and not re.fullmatch(_VAR_NAME, add.strip() or ""):
+            issues.append((i, "Read Clipboard ต้องระบุชื่อตัวแปร เช่น mytext"))
+        elif btn in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
+            p = parse_search_area(add)[0] if add.strip() else ""
+            p = resolve_image_path(p) if p else ""
+            if not p or not os.path.isfile(p):
+                issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
+    return issues
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -1171,7 +1198,15 @@ class ActionRunner:
         elif btn == "Wait for Image":                                # รอภาพปรากฏ (v2.2: cb ผูกจาก GUI/CLI)
             self._do_wait_for_image(r)
         elif btn == IF_IMAGE:                                        # เงื่อนไขค้นภาพ (v2.2 — runner จัดการเอง)
-            pos = self._find_image_pos(r)
+            # v2.4: Additional ต่อท้ายด้วย "Ns" (เช่น "img.png 5s") = ตรวจซ้ำจนครบ 5 วิ
+            # ก่อนตัดสิน — แก้ปัญหาหน้าจอยังโหลดไม่เสร็จแล้ว If Image ตัดสินผิดทันที
+            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            rr = dict(r, additional=raw)
+            deadline = time.time() + wait
+            pos = self._find_image_pos(rr)
+            while pos is None and time.time() < deadline and self.stop_check():
+                time.sleep(0.25)
+                pos = self._find_image_pos(rr)
             self.last_if_found = pos is not None
             if pos is not None:
                 self.on_message("If Image เจอ → เล่นต่อ")
@@ -1323,6 +1358,26 @@ def resolve_image_path(path):
     return path
 
 
+_template_cache = {}      # path -> ((mtime, size), ndarray) — แคช imread (v2.4)
+
+
+def _load_template(path):
+    """อ่าน template ภาพพร้อมแคช (v2.4) — สคริปต์วน 1000 รอบไม่ต้องอ่านไฟล์ซ้ำ
+    อ่านใหม่อัตโนมัติเมื่อไฟล์เปลี่ยน (mtime/size ต่างจากเดิม) — คืน None ถ้าอ่านไม่ได้"""
+    try:
+        st = os.stat(path)
+        key = (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+    hit = _template_cache.get(path)
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+    if tmpl is not None:
+        _template_cache[path] = (key, tmpl)
+    return tmpl
+
+
 def find_image_pos(path, area=None, thr=None):
     """ค้นหาภาพย่อยบนหน้าจอ (cv2.matchTemplate) — คืน (x, y) จุดศูนย์กลาง หรือ None
     คืน None เมื่อ: ไม่มี opencv / ไฟล์หาย / อ่านไม่ได้ / ภาพใหญ่กว่ากรอบ / ไม่เจอ
@@ -1335,7 +1390,7 @@ def find_image_pos(path, area=None, thr=None):
     if not os.path.isfile(path):
         find_image_pos.last_error = "ไม่พบไฟล์ภาพ: %s" % path
         return None
-    tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+    tmpl = _load_template(path)
     if tmpl is None:
         find_image_pos.last_error = "อ่านไฟล์ภาพไม่ได้: %s" % path
         return None
@@ -1562,7 +1617,9 @@ class MacroApp:
         self._active_profile = DEFAULT_PROFILE
         self._sched_next = 0.0             # เวลาที่จะเล่นรอบถัดไป (โหมดทุก N นาที)
         self._sched_last = ""              # กันยิงซ้ำในนาทีเดียวกัน (โหมดรายวัน)
+        self._sched_profile = ""           # โปรไฟล์ที่ schedule จะโหลดมาเล่น ("" = งานที่เปิดค้าง, v2.4)
         self._gk = None                    # GlobalHotKeys instance
+        self._gk_heal_at = 0.0             # เวลาที่รีสตาร์ต hotkey ล่าสุด (กันยิงรัว, v2.4)
         self._img_area = ()                # กรอบค้นหาภาพ (left, top, right, bottom)
         self._saved_pos = None             # ตำแหน่งเมาส์ที่เซฟไว้ (Save/Restore Cursor)
         self._speed_mult = 1.0             # ตัวคูณความเร็ว (0.1–10)
@@ -1574,6 +1631,8 @@ class MacroApp:
         self._hp_dir = None                # โฟลเดอร์ hot-profile (F1–F4 โหลดสคริปต์จากที่นี้)
         self._backup_enabled = True        # backup อัตโนมัติตอนปิดโปรแกรม (v1.14)
         self._backup_days = BACKUP_KEEP_DAYS  # เก็บ backup ย้อนหลังกี่วัน
+        self._time_limit_enabled = False   # หยุดเองหลังเล่นนานเกิน (Safety timeout, v2.4)
+        self._time_limit_min = 30          # จำนวนนาทีก่อนหยุดอัตโนมัติ (1–720)
         self._lang = "th"                  # ภาษา UI: 'th' / 'en' (v1.14)
         self._plugins = []                 # Custom Action plugins (v1.16): [(name, module)]
 
@@ -1678,7 +1737,7 @@ class MacroApp:
         wrap = tk.Frame(self.root)
         wrap.pack(fill="both", expand=True, padx=6, pady=(2, 2))
 
-        self.tree = ttk.Treeview(wrap, columns=COLS, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(wrap, columns=COLS, show="headings", selectmode="extended")  # v2.4: เลือกหลายแถว
         # คอลัมน์แรกเป็น checkbox จำลอง (☑ / ☐) คลิกเพื่อสลับ
         self.tree.heading("chk", text="☑")
         self.tree.column("chk", width=36, stretch=False, anchor="center")
@@ -1936,13 +1995,9 @@ class MacroApp:
         self.root.bind("<Control-z>", self._undo_delete)
 
     # --------------------------------------------- global hotkeys (ทุกที่) ---
-    def _start_global_hotkeys(self):
-        """F6/F8/F9/F10 ทำงานได้แม้หน้าต่างโปรแกรมไม่ได้โฟกัส
-        และออโต้ปิดตัวเองถ้าโปรแกรมอื่นใช้คีย์ชุดนี้อยู่แล้ว
-
-        v1.8: ใช้ keyboard.Listener จับคู่คีย์เอง — พบว่า GlobalHotKeys ของ
-        pynput 1.8.x บนบางเครื่องไม่ยิง callback แม้กดคีย์จริง (ทดสอบพบตอน
-        ตรวจสอบปุ่ม STOP) ส่วน Listener ธรรมดารับเหตุการณ์ได้ปกติ"""
+    def _gk_start(self):
+        """สร้าง/รีสตาร์ต listener ของ global hotkeys (v2.4 — แยกจาก _start_global_hotkeys
+        เพื่อให้ self-healing ใน poller เรียกซ้ำได้) — คืน True เมื่อเริ่มสำเร็จ"""
         hotmap = {keyboard.Key.f6: self.start_play,
                   keyboard.Key.f8: self.stop_all,
                   keyboard.Key.f9: self.toggle_record,
@@ -1962,9 +2017,22 @@ class MacroApp:
             self._gk = keyboard.Listener(on_press=on_press)
             self._gk.daemon = True
             self._gk.start()
+            return True
         except Exception as exc:
             self._gk = None
             self._ui_state["msg"] = ("เปิด global hotkey ไม่ได้ (%s) — ใช้คีย์เมื่อโฟกัสหน้าต่าง" % exc, "#a60")
+            return False
+
+    def _start_global_hotkeys(self):
+        """F6/F8/F9/F10 ทำงานได้แม้หน้าต่างโปรแกรมไม่ได้โฟกัส
+        และออโต้ปิดตัวเองถ้าโปรแกรมอื่นใช้คีย์ชุดนี้อยู่แล้ว
+
+        v1.8: ใช้ keyboard.Listener จับคู่คีย์เอง — พบว่า GlobalHotKeys ของ
+        pynput 1.8.x บนบางเครื่องไม่ยิง callback แม้กดคีย์จริง (ทดสอบพบตอน
+        ตรวจสอบปุ่ม STOP) ส่วน Listener ธรรมดารับเหตุการณ์ได้ปกติ
+        v2.4: แยกการสร้าง listener ไป _gk_start() — poller ตรวจ is_alive
+        แล้วรีสตาร์ตเองถ้าเธรดตายเงียบ ๆ (self-healing)"""
+        self._gk_start()
 
     def _toggle_forever(self):
         self.chk_forever.set(not self.chk_forever.get())
@@ -2089,6 +2157,17 @@ class MacroApp:
         else:
             self.progress.config(value=0)
             self.lbl_prog.config(text="")
+
+        # v2.4: self-healing — listener ของ F6-F10 ตายเงียบ ๆ ได้ (pynput) →
+        # รีสตาร์ตอัตโนมัติ (เว้นอย่างน้อย 10 วิ กันยิงรัว) หลักการข้อ 1: STOP ต้องใช้ได้เสมอ
+        if (self._gk is not None and not self._gk.is_alive()
+                and time.time() - self._gk_heal_at > 10):
+            self._gk_heal_at = time.time()
+            if self._gk_start():
+                self._ui_state["msg"] = ("รีสตาร์ต global hotkey แล้ว — F6-F10 กลับมาใช้ได้", "#a60")
+                if self._log_enabled:
+                    log_write("HOTKEY", "listener ตาย — รีสตาร์ตอัตโนมัติ (self-healing)",
+                              self._log_src)
 
         self.root.after(120, self._poller_tick)
 
@@ -2781,12 +2860,23 @@ class MacroApp:
             loop_no = 0
             outer = True
             play_started = time.time()
+            # v2.4: Safety timeout — เล่นนานเกินที่ตั้งให้หยุดเอง (กันวนไม่จำกัดลืมหยุด)
+            limit = (max(1, int(self._time_limit_min)) * 60
+                     if getattr(self, "_time_limit_enabled", False) else None)
             while outer:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
                 play_items = pick_play_order(items, pct=self._pct, shuffle=self._shuffle)
                 for i, (r, iid) in enumerate(play_items):
                     if not self._gen_ok(gen):
+                        return
+                    if limit is not None and time.time() - play_started > limit:
+                        self._ui_state["msg"] = ("⏱ หยุดอัตโนมัติ — เล่นครบ %d นาทีตามที่ตั้ง "
+                                                 "(Safety timeout)" % self._time_limit_min, "#a60")
+                        if self._log_enabled:
+                            log_write("STOP", "safety timeout — เล่นครบ %d นาที"
+                                      % self._time_limit_min, self._log_src)
+                        self.stop_all(silent=True)
                         return
                     # If Image (v1.17): แถวที่ถูกสั่งข้ามจาก If Image ก่อนหน้า → ข้ามเงียบ ๆ
                     if self._ifimg_skip > 0:
@@ -2966,6 +3056,13 @@ class MacroApp:
             while True:
                 self._sched_q.get_nowait()
                 if not self.running:
+                    # v2.4: เลือกโปรไฟล์ตอนตั้งเวลาได้ — โหลดแถวก่อนเล่น (ว่าง = งานที่เปิดค้าง)
+                    prof = getattr(self, "_sched_profile", "") or ""
+                    if prof and prof in self._profiles:
+                        self._load_rows(self._profiles[prof])
+                        if self._log_enabled:
+                            log_write("SCHED", "schedule เริ่มเล่นโปรไฟล์: " + prof,
+                                      self._log_src)
                     self._start_player(False, once=True)   # เล่น 1 รอบจบทุกครั้งที่ถึงเวลา (F8 หยุดได้)
         except Exception:
             pass
@@ -2994,18 +3091,31 @@ class MacroApp:
         ent_time = tk.Entry(frm, width=8)
         ent_time.insert(0, getattr(self, "_sched_at", "09:00") or "09:00")
         ent_time.grid(row=2, column=1, sticky="w")
+        # v2.4: เลือกโปรไฟล์ที่ schedule จะโหลดมาเล่น
+        tk.Label(frm, text="เล่นโปรไฟล์:").grid(row=3, column=0, sticky="w", pady=(8, 0))
+        cmb_prof = ttk.Combobox(frm, width=22, state="readonly")
+        cmb_prof["values"] = ["(งานที่เปิดค้าง)"] + sorted(self._profiles)
+        cmb_prof.current(0)
+        cmb_prof.grid(row=3, column=1, sticky="w", columnspan=2, pady=(8, 0))
+        cur_prof = getattr(self, "_sched_profile", "") or ""
+        if cur_prof and cur_prof in self._profiles:
+            cmb_prof.set(cur_prof)
 
         def apply():
             mode = var.get()
             self._sched_mode = "" if mode == "off" else mode
             self._sched_next = 0.0
+            # v2.4: โปรไฟล์ที่ schedule จะโหลดมาเล่น ("" = งานที่เปิดค้าง)
+            self._sched_profile = "" if cmb_prof.get().startswith("(") else cmb_prof.get()
+            prof_note = (" · โปรไฟล์: " + self._sched_profile) if self._sched_profile else ""
             if mode == "interval":
                 try:
                     self._sched_every = max(1, int(ent_min.get()))
                 except ValueError:
                     self._sched_every = 10
                 self._sched_next = time.time() + self._sched_every * 60
-                msg = "เล่นอัตโนมัติทุก %d นาที (รอบแรกในอีก %d นาที)" % (self._sched_every, self._sched_every)
+                msg = "เล่นอัตโนมัติทุก %d นาที (รอบแรกในอีก %d นาที)%s" % (
+                    self._sched_every, self._sched_every, prof_note)
             elif mode == "daily":
                 t = ent_time.get().strip()
                 if not re_match_hhmm(t):
@@ -3013,7 +3123,7 @@ class MacroApp:
                     return
                 self._sched_at = t
                 self._sched_last = ""
-                msg = "เล่นอัตโนมัติทุกวัน เวลา " + t
+                msg = "เล่นอัตโนมัติทุกวัน เวลา " + t + prof_note
             else:
                 msg = "ปิดโหมดเล่นอัตโนมัติแล้ว"
             self._ui_state["msg"] = (msg, "#080")
@@ -3225,6 +3335,12 @@ class MacroApp:
                         self._backup_days = BACKUP_KEEP_DAYS
                     if data.get("lang") in ("th", "en"):
                         self._lang = data["lang"]
+                    # Safety timeout (v2.4)
+                    self._time_limit_enabled = bool(data.get("time_limit_enabled", False))
+                    try:
+                        self._time_limit_min = max(1, min(720, int(data.get("time_limit_min", 30))))
+                    except (TypeError, ValueError):
+                        self._time_limit_min = 30
                     # ค่าการเล่น + ตารางเวลา (v1.19) — คืนค่าให้แถบเครื่องมือ/ตั้งค่าเดิม
                     try:
                         sp = float(data.get("speed", 1))
@@ -3257,6 +3373,8 @@ class MacroApp:
                         at = data.get("sched_at", "")
                         if re_match_hhmm(at):
                             self._sched_at = at
+                        sp2 = data.get("sched_profile", "")
+                        self._sched_profile = sp2 if (sp2 in self._profiles) else ""
                         self._sched_last = ""
                         if sm == "interval":
                             self._sched_next = time.time() + self._sched_every * 60
@@ -3294,6 +3412,9 @@ class MacroApp:
                            "backup_enabled": self._backup_enabled,
                            "backup_days": self._backup_days,
                            "lang": self._lang,
+                           # Safety timeout (v2.4)
+                           "time_limit_enabled": getattr(self, "_time_limit_enabled", False),
+                           "time_limit_min": getattr(self, "_time_limit_min", 30),
                            # ค่าการเล่น + ตารางเวลา (v1.19) — จำไว้เปิดครั้งหน้า
                            "speed": self.cmb_speed.get(),
                            "loops": self.ent_loops.get(),
@@ -3303,7 +3424,8 @@ class MacroApp:
                            "pct": self._play_options(),
                            "sched_mode": getattr(self, "_sched_mode", "") or "",
                            "sched_every": getattr(self, "_sched_every", 10),
-                           "sched_at": getattr(self, "_sched_at", "") or ""},
+                           "sched_at": getattr(self, "_sched_at", "") or "",
+                           "sched_profile": getattr(self, "_sched_profile", "") or ""},
                           fh, ensure_ascii=False, indent=2)
         except OSError:
             pass
@@ -3808,6 +3930,33 @@ class MacroApp:
         daybar.pack()
         self.spin_days.pack(side="left")
         tk.Label(daybar, text=self._t("days"), fg="#666").pack(side="left", padx=(4, 0))
+        # Safety timeout (v2.4): หยุดเองหลังเล่นนานเกิน — กันสคริปต์วนไม่จำกัดลืมหยุด
+        tbar = tk.Frame(win)
+        tbar.pack(pady=(10, 0))
+        self.var_time_limit = tk.BooleanVar(value=getattr(self, "_time_limit_enabled", False))
+        tk.Checkbutton(tbar, text="⏱ หยุดเองหลังเล่น", variable=self.var_time_limit).pack(side="left")
+        self.spin_limit = tk.Spinbox(tbar, from_=1, to=720, width=5)
+        self.spin_limit.delete(0, "end")
+        self.spin_limit.insert(0, str(getattr(self, "_time_limit_min", 30)))
+        self.spin_limit.pack(side="left", padx=(4, 2))
+        tk.Label(tbar, text="นาที", fg="#666").pack(side="left")
+        # ⏰ นัดหมายปัจจุบัน + 🔌 สถานะ plugins (v2.4)
+        sched = getattr(self, "_sched_mode", "") or ""
+        prof = getattr(self, "_sched_profile", "") or "งานที่เปิดค้าง"
+        if sched == "interval":
+            sched_txt = "ทุก %d นาที · โปรไฟล์: %s" % (getattr(self, "_sched_every", 10), prof)
+        elif sched == "daily":
+            sched_txt = "ทุกวัน %s · โปรไฟล์: %s" % (getattr(self, "_sched_at", ""), prof)
+        else:
+            sched_txt = "ปิดอยู่"
+        tk.Label(win, text="⏰ Schedule: " + sched_txt, fg="#555").pack(pady=(10, 0))
+        loaded = [n for n, _ in self._plugins]
+        failed = list(getattr(load_plugins, "last_failed", []) or [])
+        tk.Label(win, text="🔌 Plugins โหลดแล้ว %d ตัว: %s" % (len(loaded), ", ".join(loaded) or "-"),
+                 fg="#555", justify="left", wraplength=420).pack(padx=20, pady=(4, 0))
+        tk.Label(win, text=("🔌 Plugins ตก: " + "; ".join(failed)) if failed
+                 else "🔌 Plugins ทั้งหมดโหลดสำเร็จ ✅",
+                 fg="#a60" if failed else "#080", justify="left", wraplength=420).pack(padx=20)
         tk.Button(win, text=self._t("open_log_folder"), width=14,
                   command=lambda: os.startfile(os.path.dirname(os.path.abspath(__file__)))
                   if hasattr(os, "startfile") else None).pack(pady=(4, 0))
@@ -3836,17 +3985,24 @@ class MacroApp:
                   command=lambda: self._settings_save(win)).pack(pady=(8, 14))
 
     def _settings_save(self, win):
-        """กดบันทึกใน Settings — เก็บ log/backup/ภาษา แล้วปรับ UI ทันที"""
+        """กดบันทึกใน Settings — เก็บ log/backup/ภาษา/safety timeout แล้วปรับ UI ทันที"""
         self._log_enabled = self.var_log.get()
         self._backup_enabled = self.var_backup.get()
         try:
             self._backup_days = max(1, min(90, int(self.spin_days.get())))
         except ValueError:
             self._backup_days = BACKUP_KEEP_DAYS
+        # Safety timeout (v2.4)
+        self._time_limit_enabled = self.var_time_limit.get()
+        try:
+            self._time_limit_min = max(1, min(720, int(self.spin_limit.get())))
+        except (TypeError, ValueError):
+            self._time_limit_min = 30
         old_lang = self._lang
         self._lang = "th" if self.cmb_lang.get().startswith("ไทย") else "en"
         if self._lang != old_lang:
             self._apply_language()
+        self._save_conf()
         win.destroy()
 
     def about(self):
@@ -3999,6 +4155,10 @@ def cli_main(argv):
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
     ap.add_argument("--no-log", action="store_true",
                     help="ไม่บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt")
+    ap.add_argument("--validate", action="store_true",
+                    help="ตรวจสคริปต์อย่างเดียว ไม่เล่น (รายงานแถวที่มีปัญหา; exit 1 เมื่อพบ)")
+    ap.add_argument("--max-minutes", type=float, default=0.0, metavar="นาที",
+                    help="Safety timeout: หยุดเองหลังเล่นนานเท่านี้ (0 = ปิด, v2.4)")
     ap.add_argument("--stop-file", default=None, metavar="PATH",
                     help="ถ้าไฟล์นี้ถูกสร้าง โปรแกรมจะหยุดทันที (ใช้ควบคุมจากภายนอก/ทดสอบ)")
     ap.add_argument("--shuffle", action="store_true",
@@ -4034,6 +4194,18 @@ def cli_main(argv):
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print("อ่านไฟล์ไม่สำเร็จ:", exc)
         return 1
+
+    # v2.4: --validate — ตรวจสคริปต์อย่างเดียว ไม่เล่น (คู่หูของงานปล่อย watchdog ค้างคืน)
+    if getattr(args, "validate", False):
+        plugin_names = [n for n, _ in load_plugins()]
+        issues = validate_rows(rows, plugin_names=plugin_names)
+        if issues:
+            print("พบปัญหา %d แถว:" % len(issues))
+            for num, reason in issues:
+                print("  แถว %d: %s" % (num, reason))
+            return 1
+        print("สคริปต์ผ่านการตรวจ ✓ (%d แถว)" % len(rows))
+        return 0
 
     mouse_ctl = MouseController()
     kb_ctl = KbController()
@@ -4164,6 +4336,8 @@ def cli_main(argv):
         """เล่นสคริปต์ 1 ครั้ง — คืน True = จบครบเอง, False = ถูกหยุดกลางคัน"""
         try:
             loops = 0 if args.loop else max(0, args.loops)
+            run_t0 = time.time()            # v2.4: Safety timeout (--max-minutes)
+            mx = max(0.0, float(getattr(args, "max_minutes", 0.0) or 0.0))
             active = [r for r in rows if r.get("enabled", True) is not False]
             cli_vars.clear()                 # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
             skip_n = 0                       # ตัวนับข้ามแถวจาก If Loop/If Time (v1.21)
@@ -4174,6 +4348,10 @@ def cli_main(argv):
                 print("— รอบที่ %d —" % n_loop)
                 for i, r in enumerate(play_rows, 1):
                     if not running[0]:
+                        return False
+                    if mx and time.time() - run_t0 > mx * 60:
+                        print("⏱ หยุดอัตโนมัติ — เล่นครบ %g นาทีตามที่ตั้ง (--max-minutes)" % mx)
+                        running[0] = False
                         return False
                     r = subst_row(r, cli_vars)   # v1.19: แทน {ตัวแปร} ทุกคอลัมน์
                     if r.get("button") == SECTION_HEADER:  # v1.21: แถวจัดระเบียบ — ไม่ทำอะไร

@@ -47,6 +47,17 @@ jobs:
       - name: รัน E2E tests
         run: python -m unittest test_e2e -v
 
+      # v2.4: วัด coverage — หาจุดที่ยังไม่มีเทสต์เป็นระบบ (สรุปลง Step Summary)
+      - name: วัด coverage ของ engine + GUI
+        run: |
+          pip install coverage -q
+          coverage run --include="auto_macro.py,macro_engine.py" -m unittest test_auto_macro 2>&1 | Out-Null
+          coverage report | Tee-Object -FilePath cov.txt
+          Add-Content $env:GITHUB_STEP_SUMMARY '### Coverage (auto_macro.py + macro_engine.py)'
+          Add-Content $env:GITHUB_STEP_SUMMARY '```text'
+          Get-Content cov.txt | Add-Content $env:GITHUB_STEP_SUMMARY
+          Add-Content $env:GITHUB_STEP_SUMMARY '```'
+
   # v2.3: ยืนยันว่า engine รันข้ามแพลตฟอร์มได้จริง — เทสต์ mock ล้วนรันได้ทุก OS
   # (คลาสที่ต้องใช้จอ skip อัตโนมัติเมื่อไม่มี display) · Linux รัน E2E ใต้ xvfb
   # เพราะ pynput ต้องการ X · macOS runner อาจติดสิทธิ์ accessibility จึงไม่บล็อก CI

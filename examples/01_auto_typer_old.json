@@ -1,0 +1,13 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Save Cursor", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Launch App", "additional": "notepad.exe", "mins": 0, "secs": 1.5, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "Auto Typer Demo — พิมพ์อัตโนมัติ", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "บรรทัดนี้พิมพ์หลังดีเลย์สุ่ม 0.3-0.8 วิ", "mins": 0, "secs": "0.3-0.8", "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "Hello World 123 !@#", "mins": 0, "secs": 0.4, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Tap Key", "additional": "enter", "mins": 0, "secs": 0.2, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Type Text", "additional": "พิมพ์ซ้ำ 3 ครั้งด้วย Repeat ", "mins": 0, "secs": 0.3, "repeat": 3},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0.4, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Restore Cursor", "additional": "", "mins": 0, "secs": 0.4, "repeat": 1}
+]
