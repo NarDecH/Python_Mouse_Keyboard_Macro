@@ -87,17 +87,25 @@ jobs:
           $PY -m pip install --upgrade pip
           $PY -m pip install pynput
 
-      - name: ตรวจ tkinter + pynput (traceback ลง annotation)
+      - name: ตรวจ tkinter + pynput (Linux ใต้ xvfb — pynput import ต้องมี display)
         run: |
-          printf 'import traceback, sys\nok = True\nfor mod in ("tkinter", "pynput"):\n    try:\n        __import__(mod)\n        print(mod, "OK")\n    except Exception:\n        ok = False\n        traceback.print_exc()\nsys.exit(0 if ok else 1)\n' > probe.py
-          $PY probe.py > probe_out.txt 2>&1 || true
+          printf 'import traceback, sys\nok = True\nfor mod in ("tkinter", "pynput"):\n    try:\n        __import__(mod)\n        print(mod, "OK")\n    except Exception:\n        ok = False\n        traceback.print_exc()\nprint("RESULT:", "OK" if ok else "FAIL")\nsys.exit(0 if ok else 1)\n' > probe.py
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a $PY probe.py > probe_out.txt 2>&1 || true
+          else
+            $PY probe.py > probe_out.txt 2>&1 || true
+          fi
           cat probe_out.txt
-          echo "::error::probe|$(head -c 3000 probe_out.txt | tr '\n' '~')"
+          grep -q "RESULT: FAIL" probe_out.txt && echo "::error::probe|$(head -c 3000 probe_out.txt | tr '\n' '~')" || true
 
       - name: รัน unit tests
         run: |
           set -o pipefail
-          $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+          else
+            $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+          fi
 
       - name: ระบุจุดที่พังเป็น annotation (พา traceback — อ่านจาก API ได้)
         if: failure()
