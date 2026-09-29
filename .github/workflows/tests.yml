@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: ตั้งค่า Python (macOS: 3.12 ผ่าน setup-python / Linux: system python3 + tk)
+      - name: ตั้งค่า Python (macOS ผ่าน setup-python / Linux ใช้ system python3+tk)
         if: runner.os == 'macOS'
         uses: actions/setup-python@v7
         with:
