@@ -57,10 +57,11 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.os == 'macos-latest' }}
-    env:
-      PY: ${{ runner.os == 'Linux' && 'python3' || 'python' }}   # ทุก step ต้องใช้อินเทอร์พรีเตอร์เดียวกัน
     steps:
       - uses: actions/checkout@v7
+
+      - name: กำหนดอินเทอร์พรีเตอร์ $PY (ทุก step ต้องใช้ตัวเดียวกัน)
+        run: echo "PY=$(if [ "$RUNNER_OS" = "Linux" ]; then echo python3; else echo python; fi)" >> "$GITHUB_ENV"
 
       - name: ตั้งค่า Python (macOS ผ่าน setup-python / Linux ใช้ system python3+tk)
         if: runner.os == 'macOS'
