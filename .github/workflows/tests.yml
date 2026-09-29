@@ -77,7 +77,17 @@ jobs:
           pip install pynput
 
       - name: รัน unit tests
-        run: python -m unittest test_auto_macro -v
+        run: |
+          set -o pipefail
+          python -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+
+      - name: ระบุจุดที่พังเป็น annotation (อ่านจาก API ได้)
+        if: failure()
+        run: |
+          grep -E "^(FAIL|ERROR):" unit_output.txt | head -8 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          grep -A 6 -E "^(FAIL|ERROR): " unit_output.txt | head -40 >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: รัน E2E tests (Linux ใต้ xvfb)
         run: |
