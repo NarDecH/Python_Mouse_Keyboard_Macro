@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.2.1"
+__version__ = "2.3.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -610,6 +610,32 @@ def send_unicode_char(ch):
         return _send_unicode_events(_unicode_input_records(ch))
     except Exception:
         return False
+
+
+# -------------------------------------- ส่งออกสคริปต์เป็นแบตช์ (v2.3) ----
+def batch_export_bat(script_name, py_cmd="py"):
+    """เนื้อหาไฟล์ .bat สำหรับดับเบิลคลิกรันสคริปต์ผ่าน CLI (v2.3)
+    script_name = ชื่อไฟล์สคริปต์ (ไม่รวมพาธ) — ไฟล์ .bat ต้องอยู่โฟลเดอร์เดียวกับ
+    auto_macro.py และไฟล์สคริปต์ · %* ส่งต่ออาร์กิวเมนต์ เช่น --loop --speed 2"""
+    return (
+        "@echo off\r\n"
+        "rem Auto Mouse & Keyboard Macro v%s - double-click runner\r\n"
+        "rem Add CLI args if needed, e.g. --loop --speed 2  (see: py auto_macro.py --help)\r\n"
+        "cd /d \"%%~dp0\"\r\n"
+        "%s auto_macro.py \"%s\" %%*\r\n"
+        "pause\r\n" % (__version__, py_cmd, script_name))
+
+
+def batch_export_sh(script_name, py_cmd="python3"):
+    """เนื้อหาไฟล์ .sh สำหรับรันสคริปต์ผ่าน CLI บน Linux/macOS (v2.3)
+    script_name = ชื่อไฟล์สคริปต์ (ไม่รวมพาธ) — ไฟล์ .sh ต้องอยู่โฟลเดอร์เดียวกับ
+    auto_macro.py และไฟล์สคริปต์ · "$@" ส่งต่ออาร์กิวเมนต์"""
+    return (
+        "#!/bin/sh\n"
+        "# Auto Mouse & Keyboard Macro v%s — รันสคริปต์นี้ผ่าน CLI\n"
+        "# เพิ่มอาร์กิวเมนต์ได้ เช่น --loop --speed 2 (ดูทั้งหมด: python3 auto_macro.py --help)\n"
+        "cd \"$(dirname \"$0\")\" || exit 1\n"
+        "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----
@@ -1594,12 +1620,36 @@ class MacroApp:
         st.configure("Treeview", rowheight=24, font=("Segoe UI", 10))
         st.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
 
+    def export_batch_files(self):
+        """📤 ส่งออกไฟล์แบตช์ .bat/.sh ข้างสคริปต์ปัจจุบัน — ดับเบิลคลิกรันผ่าน CLI
+        ได้เลยไม่ต้องพิมพ์คำสั่ง (v2.3) — ต้อง 💾 Save สคริปต์ก่อน"""
+        if not self._loaded_file or not os.path.isfile(self._loaded_file):
+            messagebox.showinfo(APP_TITLE,
+                                "ยังไม่มีไฟล์สคริปต์ — กด 💾 Save บันทึกก่อน "
+                                "แล้วจึงส่งออกไฟล์แบตช์ได้")
+            return
+        base = os.path.splitext(self._loaded_file)[0]
+        name = os.path.basename(self._loaded_file)
+        try:
+            with open(base + ".bat", "w", encoding="ascii", errors="replace",
+                      newline="") as fh:
+                fh.write(batch_export_bat(name))
+            with open(base + ".sh", "w", encoding="utf-8", newline="") as fh:
+                fh.write(batch_export_sh(name))
+        except OSError as exc:
+            messagebox.showerror(APP_TITLE, "ส่งออกแบตช์ไม่สำเร็จ:\n%s" % exc)
+            return
+        self._ui_state["msg"] = ("ส่งออกแบตช์แล้ว: %s.bat + %s.sh — ดับเบิลคลิกเพื่อเล่น "
+                                 "(อาร์กิวเมนต์เพิ่มได้ เช่น --loop)" %
+                                 (os.path.basename(base), os.path.basename(base)), "#080")
+
     @classmethod
     def _menu_items(cls):
         """รายการเมนูไอคอน (icon, label, method_name, color) — แยกออกมาเพื่อทดสอบได้"""
         return [("💾", "Save", "save_script", "#333"),
                 ("📂", "Load", "load_script", "#333"),
                 ("📋", "Paste", "_paste_rows_clipboard", "#333"),
+                ("📤", "Export Bat", "export_batch_files", "#333"),
                 ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
                 ("📊", "Stats", "view_stats", "#333"),
@@ -3942,6 +3992,8 @@ def cli_main(argv):
         prog="AutoMouseMacro",
         description="เล่นสคริปต์เมาส์/คีย์บอร์ด .json โดยไม่เปิดหน้าต่าง (Ctrl+C หยุด)")
     ap.add_argument("script", help="ไฟล์สคริปต์ .json ที่บันทึกจากโปรแกรม")
+    ap.add_argument("--version", action="version", version=APP_TITLE,
+                    help="แสดงเวอร์ชันโปรแกรมแล้วจบ")
     ap.add_argument("--loop", action="store_true", help="เล่นวนซ้ำไม่จำกัด")
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")

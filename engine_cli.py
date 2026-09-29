@@ -31,6 +31,9 @@ def build_parser():
         prog="engine_cli",
         description="เล่นสคริปต์เมาส์/คีย์บอร์ด .json ด้วย engine ล้วน (ไม่เปิด GUI)")
     ap.add_argument("script", help="ไฟล์สคริปต์ .json")
+    ap.add_argument("--version", action="version",
+                    version="engine_cli " + me.__version__,
+                    help="แสดงเวอร์ชันแล้วจบ")
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
     ap.add_argument("--no-log", action="store_true", help="ไม่บันทึก log การเล่น")

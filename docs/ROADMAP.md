@@ -9,16 +9,16 @@
 
 - [ ] **รวบรวม plugin จากชุมชน (ต่อยอดตลาด v2.1)** — เปิดรับ PR เพิ่ม `plugins/*.py` +
       แนวทางรีวิวใน docs/PLUGINS.md (เกณฑ์: stdlib/pynput เท่านั้น, ทน error, มีตัวอย่างในเอกสาร)
-- [ ] **ไฟล์ plugin ในโปรเจกต์ทำเทสต์ครบ** — ทุก plugin ที่แจกมาต้องมี test ที่รัน `run(ctx, row)`
-      ด้วย ctx จำลอง (แบบเดียวกับ TestV22Plugins)
+- [x] ~~**ไฟล์ plugin ในโปรเจกต์ทำเทสต์ครบ**~~ ✅ v2.3.0 (TestPluginsComplete — ครบ 5 ตัว
+      รัน run(ctx, row) ด้วย ctx จำลอง + ทน input พัง)
 - [ ] **Multi-language docs (จีน/ญี่ปุ่น)** — i18n ตัวโปรแกรมรองรับแล้ว · พื้นฐาน EN ครบแล้ว
       (TUTORIAL.en.md) — รอผู้ร่วมแปล แปลจาก TUTORIAL.en.md ได้ทันที
-- [ ] **cross-platform จริง (Linux/macOS)** — engine ล้วนพาขึ้นได้: คลิปบอร์ดมีทาง pbcopy/
-      wl-copy/xclip แล้ว, Unicode typing fallback ทาง pynput, ลอง CI เพิ่ม job ubuntu/macos
-      (เทสต์ mock ล้วนรันได้ทุก OS ตั้งแต่ v2.2.1)
+- [x] ~~**cross-platform จริง (Linux/macOS)**~~ ✅ v2.3.0 (CI เพิ่ม job ubuntu/macos —
+      unit ทุก OS, E2E ฝั่ง Linux ใต้ xvfb, macOS continue-on-error รอสิทธิ์ accessibility)
 - [ ] **Schedule ฉบับสมบูรณ์** — เลือกเล่นโปรไฟล์ที่ตอนตั้งเวลา (ตอนนี้เล่นงานที่เปิดค้าง),
       แสดงรายการนัดหมายในหน้า Settings
-- [ ] **ส่งออกสคริปต์เป็นแบตช์ (.bat/.sh)** — ดับเบิลคลิกรันผ่าน CLI ได้เลย ไม่ต้องพิมพ์คำสั่ง
+- [x] ~~**ส่งออกสคริปต์เป็นแบตช์ (.bat/.sh)**~~ ✅ v2.3.0 (เมนู 📤 Export Bat — สร้าง
+      .bat + .sh ข้างสคริปต์ ดับเบิลคลิกรันผ่าน CLI, อาร์กิวเมนต์ส่งต่อด้วย %*/"$@")
 
 ## 🚀 v1.17 — ถัดไปอันใกล้ (ประวัติ)
 

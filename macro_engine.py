@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.2.1"
+__version__ = "2.3.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -518,6 +518,32 @@ def send_unicode_char(ch):
         return _send_unicode_events(_unicode_input_records(ch))
     except Exception:
         return False
+
+
+# -------------------------------------- ส่งออกสคริปต์เป็นแบตช์ (v2.3) ----
+def batch_export_bat(script_name, py_cmd="py"):
+    """เนื้อหาไฟล์ .bat สำหรับดับเบิลคลิกรันสคริปต์ผ่าน CLI (v2.3)
+    script_name = ชื่อไฟล์สคริปต์ (ไม่รวมพาธ) — ไฟล์ .bat ต้องอยู่โฟลเดอร์เดียวกับ
+    auto_macro.py และไฟล์สคริปต์ · %* ส่งต่ออาร์กิวเมนต์ เช่น --loop --speed 2"""
+    return (
+        "@echo off\r\n"
+        "rem Auto Mouse & Keyboard Macro v%s - double-click runner\r\n"
+        "rem Add CLI args if needed, e.g. --loop --speed 2  (see: py auto_macro.py --help)\r\n"
+        "cd /d \"%%~dp0\"\r\n"
+        "%s auto_macro.py \"%s\" %%*\r\n"
+        "pause\r\n" % (__version__, py_cmd, script_name))
+
+
+def batch_export_sh(script_name, py_cmd="python3"):
+    """เนื้อหาไฟล์ .sh สำหรับรันสคริปต์ผ่าน CLI บน Linux/macOS (v2.3)
+    script_name = ชื่อไฟล์สคริปต์ (ไม่รวมพาธ) — ไฟล์ .sh ต้องอยู่โฟลเดอร์เดียวกับ
+    auto_macro.py และไฟล์สคริปต์ · "$@" ส่งต่ออาร์กิวเมนต์"""
+    return (
+        "#!/bin/sh\n"
+        "# Auto Mouse & Keyboard Macro v%s — รันสคริปต์นี้ผ่าน CLI\n"
+        "# เพิ่มอาร์กิวเมนต์ได้ เช่น --loop --speed 2 (ดูทั้งหมด: python3 auto_macro.py --help)\n"
+        "cd \"$(dirname \"$0\")\" || exit 1\n"
+        "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
 
 
 # ------------------------------------------------ plugin actions (v1.16) ----

@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.2.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.3.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -137,6 +137,12 @@
   ตัวเดียวสำหรับเงื่อนไขทั้ง 4 ④ **CLI ค้นภาพได้จริง** (ทั้งตัวหลักและ engine_cli —
   `--json-lines` อ่าน 1 แถว/บรรทัด ข้าม #comment) ⑤ plugin ใหม่ play_sound/webhook/
   multi_image_click · ⚠️ poller ทน msg tuple ไม่ครบ (`len(msg) == 2` เช็คใน _start_poller)
+- **v2.3 (ชุมชน/cross-platform):** เมนู 📤 Export Bat (`export_batch_files` — สร้าง
+  .bat/.sh ข้างสคริปต์ที่ Save แล้ว ดับเบิลคลิกรันผ่าน CLI ได้; helpers
+  `batch_export_bat`/`batch_export_sh` อยู่ใน engine), `--version` flag ทั้ง CLI หลัก
+  และ engine_cli, plugin ที่แจกมา 5 ตัวมีเทสต์ครบ (`TestPluginsComplete` — มาตรฐาน:
+  รัน run(ctx, row) ด้วย ctx จำลอง + ทน input พัง), CI เพิ่ม job ubuntu/macos
+  (Linux รัน E2E ใต้ xvfb, macOS continue-on-error เพราะสิทธิ์ accessibility)
 
 ## เทคโนโลยี
 

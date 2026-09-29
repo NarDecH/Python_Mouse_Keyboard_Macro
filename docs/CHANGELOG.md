@@ -4,6 +4,34 @@
 
 ---
 
+## [2.3.0] — 2026-09-29
+
+### ✨ เพิ่มใหม่
+- **📤 ส่งออกสคริปต์เป็นไฟล์แบตช์ (.bat/.sh)** (แผน v2.3) — เมนูใหม่ 📤 Export Bat
+  สร้างไฟล์ `.bat` + `.sh` ข้างสคริปต์ปัจจุบัน ดับเบิลคลิกเล่นผ่าน CLI ได้เลย
+  ไม่ต้องพิมพ์คำสั่ง · อาร์กิวเมนต์ส่งต่ออัตโนมัติ (`%*` / `"$@"`) เช่น `--loop --speed 2`
+  · helpers `batch_export_bat`/`batch_export_sh` อยู่ใน engine (ต้องมีไฟล์สคริปต์
+  อยู่โฟลเดอร์เดียวกับ auto_macro.py)
+- **🏷️ `--version` flag** — ทั้ง CLI หลักและ engine_cli แสดงเวอร์ชันแล้วจบด้วย exit 0
+
+### 🌏 Cross-platform (แผน v2.3)
+- **CI เพิ่ม job ubuntu-latest + macos-latest** — ยืนยันว่า engine รันข้ามแพลตฟอร์มได้จริง
+  (เทสต์ mock ล้วนทุก OS · คลาสที่ต้องใช้จอ skip อัตโนมัติ · E2E ฝั่ง Linux รันใต้ xvfb
+  เพราะ pynput ต้องมี display · macOS ตั้ง continue-on-error เพราะ runner ต้องขอ
+  สิทธิ์ accessibility สำหรับ pynput จึงไม่บล็อก CI)
+
+### 🧪 ทดสอบ
+- **Plugin ที่แจกมาครบทั้ง 5 ตัวมีเทสต์** (แผน v2.3 — มาตรฐานแบบเดียวกับ
+  TestV22Plugins: รัน `run(ctx, row)` ด้วย ctx จำลอง + ทน input พัง)
+  · TestPluginsComplete 13 ตัว: Sleep (หน่วงตามค่า/พัง→ค่าเริ่มต้น/ติดลบ→0),
+  Message Box (แสดง/ไม่มีจอ→log), Play Sound (บี๊บตามจำนวน/คลัมป์ 1-10/
+  ไม่มี winsound→bell), Webhook (HTTP error รายงานไม่พัง/ไม่มี ui ก็จบ), 
+  Multi Image Click (คลิกครบตามลำดับ/STOP แล้วไม่คลิกต่อ/ว่าง=noop)
+  · TestBatchExport 4 ตัว + TestCliVersion 1 ตัว
+  → รวม **299 unit + 10 E2E tests ผ่านหมด** (จาก 291+10)
+
+---
+
 ## [2.2.1] — 2026-09-29
 
 ### 🐛 แก้ (จับได้จากการเขียนเทสต์เล่นจริง)

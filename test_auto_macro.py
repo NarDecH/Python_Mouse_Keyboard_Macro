@@ -3340,5 +3340,194 @@ class TestCrossPlatform(unittest.TestCase):
         self.assertEqual(ups, list(reversed(downs)))           # up ย้อนลำดับ
 
 
+class TestPluginsComplete(unittest.TestCase):
+    """v2.3: เทสต์ plugin ที่แจกมาครบทั้ง 5 ตัว — ทุกตัวรัน run(ctx, row) ด้วย ctx
+    จำลองตามมาตรฐานแผน v2.3 (แบบเดียวกับ TestV22Plugins): โหลดได้ / ทำงานถูก /
+    ทน input พังโดยไม่ raise"""
+
+    def _plugin(self, name):
+        pl = dict(me_mod.load_plugins())
+        self.assertIn(name, pl, "plugin %s ต้องโหลดได้" % name)
+        return pl[name]
+
+    def test_all_five_loaded(self):
+        pl = dict(me_mod.load_plugins())
+        for name in ("Sleep (plugin)", "Message Box", "Play Sound",
+                     "Webhook", "Multi Image Click"):
+            self.assertIn(name, pl)
+
+    # ---------------- Sleep (plugin) ----------------
+    def test_sleep_sleeps_requested_seconds(self):
+        pl = self._plugin("Sleep (plugin)")
+        with mock.patch.object(pl.time, "sleep") as slept:
+            pl.run({"log": lambda m: None}, {"additional": "2"})
+        slept.assert_called_once_with(2.0)
+
+    def test_sleep_bad_and_negative_input(self):
+        pl = self._plugin("Sleep (plugin)")
+        with mock.patch.object(pl.time, "sleep") as slept:
+            pl.run({"log": lambda m: None}, {"additional": "abc"})   # พัง → 1.0
+            pl.run({"log": lambda m: None}, {"additional": ""})      # ว่าง → 1.0
+            pl.run({"log": lambda m: None}, {"additional": "-9"})    # ติดลบ → 0.0
+        self.assertEqual(slept.call_args_list,
+                         [mock.call(1.0), mock.call(1.0), mock.call(0.0)])
+
+    # ---------------- Message Box ----------------
+    def test_message_box_shows_text(self):
+        pl = self._plugin("Message Box")
+        shown = []
+        with mock.patch("tkinter.messagebox.showinfo",
+                        lambda *a, **k: shown.append(a)):
+            pl.run({"log": lambda m: None}, {"additional": "สวัสดีจากเทสต์"})
+        self.assertTrue(any("สวัสดีจากเทสต์" in str(a) for a in shown))
+
+    def test_message_box_no_display_logs_instead(self):
+        pl = self._plugin("Message Box")
+        logs = []
+        with mock.patch("tkinter.Tk", side_effect=Exception("no display")):
+            pl.run({"log": logs.append}, {"additional": "hello"})
+        self.assertTrue(any("แสดงไม่ได้" in m for m in logs))       # ทนได้ ไม่ raise
+
+    # ---------------- Play Sound ----------------
+    @unittest.skipUnless(os.name == "nt", "winsound = Windows เท่านั้น")
+    def test_play_sound_beeps_requested_times(self):
+        pl = self._plugin("Play Sound")
+        with mock.patch("winsound.Beep") as beep:
+            pl.run({"log": lambda m: None}, {"additional": "3"})
+        self.assertEqual(beep.call_count, 3)
+
+    @unittest.skipUnless(os.name == "nt", "winsound = Windows เท่านั้น")
+    def test_play_sound_clamps_count(self):
+        pl = self._plugin("Play Sound")
+        with mock.patch("winsound.Beep") as beep:
+            pl.run({"log": lambda m: None}, {"additional": "99"})    # คลัมป์ 1..10
+        self.assertEqual(beep.call_count, 10)
+        with mock.patch("winsound.Beep") as beep2:
+            pl.run({"log": lambda m: None}, {"additional": "abc"})   # พัง → 1
+        self.assertEqual(beep2.call_count, 1)
+
+    def test_play_sound_fallback_bell_without_winsound(self):
+        pl = self._plugin("Play Sound")
+        beeps = []
+        ctx = {"log": lambda m: None, "ui": {"beep": lambda: beeps.append(1)}}
+        with mock.patch.dict(sys.modules, {"winsound": None}):
+            pl.run(ctx, {"additional": "2"})             # ไม่มี winsound → bell ของระบบ
+        self.assertEqual(len(beeps), 2)
+
+    # ---------------- Webhook (เสริมจาก TestV22Plugins) ----------------
+    def test_webhook_reports_http_error_without_crash(self):
+        pl = self._plugin("Webhook")
+        msgs = []
+        import urllib.request
+        import urllib.error
+
+        def fail(req, timeout=5):
+            raise urllib.error.URLError("connection refused")
+
+        with mock.patch.object(urllib.request, "urlopen", fail):
+            pl.run({"log": lambda m: None,
+                    "ui": {"msg": lambda t, c="#080": msgs.append(t)}},
+                   {"additional": "https://example.com/x"})
+        self.assertTrue(any("ส่งไม่สำเร็จ" in m for m in msgs))
+
+    def test_webhook_tolerates_missing_ui_and_log(self):
+        pl = self._plugin("Webhook")
+        pl.run({}, {"additional": "ftp://bad"})          # ไม่มี ui/log เลยก็ต้องไม่ raise
+
+    # ---------------- Multi Image Click (เสริมจาก TestV22Plugins) ----------------
+    def test_multi_image_click_clicks_found_images(self):
+        pl = self._plugin("Multi Image Click")
+        if not me_mod.HAS_CV:
+            self.skipTest("ต้องมี opencv เพื่อทดสอบเส้นทางคลิก")
+        mouse = mock.MagicMock()
+        with mock.patch.object(me_mod, "HAS_CV", True), \
+             mock.patch.object(me_mod, "find_image_pos",
+                               lambda path, area, thr: (10, 20)):
+            pl.run({"log": lambda m: None, "mouse": mouse,
+                    "ui": {"msg": lambda t, c="#080": None},
+                    "stop_check": lambda: True},
+                   {"additional": "a.png|b.png"})
+        self.assertEqual(mouse.click.call_count, 2)      # คลิกครบ 2 ภาพตามลำดับ
+
+    def test_multi_image_click_stops_when_stop_check_false(self):
+        pl = self._plugin("Multi Image Click")
+        if not me_mod.HAS_CV:
+            self.skipTest("ต้องมี opencv เพื่อทดสอบเส้นทางคลิก")
+        mouse = mock.MagicMock()
+        with mock.patch.object(me_mod, "HAS_CV", True), \
+             mock.patch.object(me_mod, "find_image_pos",
+                               lambda path, area, thr: (1, 1)):
+            pl.run({"log": lambda m: None, "mouse": mouse,
+                    "ui": {"msg": lambda t, c="#080": None},
+                    "stop_check": lambda: False},        # ผู้ใช้กด STOP แล้ว
+                   {"additional": "a.png|b.png"})
+        mouse.click.assert_not_called()                  # ไม่คลิกต่อแม้ภาพยังเจอ
+
+    def test_multi_image_click_empty_is_noop(self):
+        pl = self._plugin("Multi Image Click")
+        mouse = mock.MagicMock()
+        pl.run({"log": lambda m: None, "mouse": mouse,
+                "ui": {"msg": lambda t, c="#080": None}},
+               {"additional": ""})
+        mouse.click.assert_not_called()
+
+
+class TestBatchExport(unittest.TestCase):
+    """v2.3: เมนู 📤 Export Bat — ส่งออก .bat/.sh ข้างสคริปต์ ดับเบิลคลิกรันผ่าน CLI ได้"""
+
+    def test_bat_content(self):
+        s = me_mod.batch_export_bat("myscript.json")
+        self.assertTrue(s.startswith("@echo off"))
+        self.assertIn('py auto_macro.py "myscript.json" %*', s)
+        self.assertIn("pause", s)
+        self.assertIn('cd /d "%~dp0"', s)                # วิ่งไปโฟลเดอร์ของตัวเอง
+
+    def test_sh_content(self):
+        s = me_mod.batch_export_sh("myscript.json")
+        self.assertTrue(s.startswith("#!/bin/sh"))
+        self.assertIn('cd "$(dirname "$0")"', s)
+        self.assertIn('python3 auto_macro.py "myscript.json" "$@"', s)
+
+    def test_gui_method_exports_both_files_next_to_script(self):
+        import tempfile
+        app = mock.MagicMock()
+        with tempfile.TemporaryDirectory() as d:
+            script = os.path.join(d, "my.json")
+            with open(script, "w", encoding="utf-8") as fh:
+                fh.write("[]")
+            app._loaded_file = None
+            with mock.patch.object(am.messagebox, "showinfo") as info:
+                am.MacroApp.export_batch_files(app)      # ยังไม่ Save → แจ้งแล้วจบ
+            self.assertTrue(info.called)
+            app._loaded_file = script
+            am.MacroApp.export_batch_files(app)          # เขียนไฟล์จริงข้างสคริปต์
+            bat = os.path.join(d, "my.bat")
+            shp = os.path.join(d, "my.sh")
+            self.assertTrue(os.path.isfile(bat))
+            self.assertTrue(os.path.isfile(shp))
+            with open(bat, encoding="ascii") as fh:
+                self.assertIn('"my.json"', fh.read())
+            with open(shp, encoding="utf-8") as fh:
+                self.assertIn('"my.json"', fh.read())
+
+    def test_menu_has_export_entry(self):
+        names = [name for _, _, name, _ in am.MacroApp._menu_items()]
+        self.assertIn("export_batch_files", names)
+
+
+class TestCliVersion(unittest.TestCase):
+    """v2.3: --version แสดงเวอร์ชันแล้วจบด้วย exit code 0 (ทั้ง CLI หลักและ engine_cli)"""
+
+    def test_main_cli_version(self):
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with self.assertRaises(SystemExit) as cm:
+            with contextlib.redirect_stdout(buf):
+                am.cli_main(["--version"])
+        self.assertEqual(cm.exception.code, 0)
+        self.assertIn("v" + am.__version__, buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -46,3 +46,43 @@ jobs:
       # E2E: รัน CLI จริง (สคริปต์ Beep ล้วน ปลอดภัย) — หยุดผ่าน stop-file ทั้งหมด
       - name: รัน E2E tests
         run: python -m unittest test_e2e -v
+
+  # v2.3: ยืนยันว่า engine รันข้ามแพลตฟอร์มได้จริง — เทสต์ mock ล้วนรันได้ทุก OS
+  # (คลาสที่ต้องใช้จอ skip อัตโนมัติเมื่อไม่มี display) · Linux รัน E2E ใต้ xvfb
+  # เพราะ pynput ต้องการ X · macOS runner อาจติดสิทธิ์ accessibility จึงไม่บล็อก CI
+  cross-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: ตั้งค่า Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: ติดตั้ง X virtual (Linux — pynput/E2E ต้องมี display)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: ติดตั้งไลบรารี
+        run: |
+          python -m pip install --upgrade pip
+          pip install pynput
+
+      - name: รัน unit tests
+        run: python -m unittest test_auto_macro -v
+
+      - name: รัน E2E tests (Linux ใต้ xvfb)
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a python -m unittest test_e2e -v
+          else
+            python -m unittest test_e2e -v
+          fi
