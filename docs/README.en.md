@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.18
+# 🖱️ Auto Mouse & Keyboard Macro v2.1
 
 <div align="center">
 
@@ -10,7 +10,8 @@
 
 [**📦 Get AutoMouseMacro.exe for Windows**](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest)<br>
 [All releases](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases) ·
-[ภาษาไทย](README.md)
+[ภาษาไทย](README.md) · [🔌 Plugin marketplace](PLUGINS.md) ·
+[🧩 Engine (embed in your own project)](../macro_engine.py)
 
 </div>
 
@@ -24,7 +25,8 @@
 ![Library](https://img.shields.io/badge/pynput-1.8.2-orange)
 ![Platform](https://img.shields.io/badge/Platform-Windows-blue)
 
-[📄 เอกสารภาษาไทย (README)](README.md) • [📘 คู่มือฉบับสมบูรณ์ (TUTORIAL)](TUTORIAL.md) • [📋 CHANGELOG](CHANGELOG.md)
+[📄 เอกสารภาษาไทย (README)](README.md) • [📘 Full guide EN (TUTORIAL)](TUTORIAL.en.md) •
+[🔌 Plugin marketplace](PLUGINS.md) • [📋 CHANGELOG](CHANGELOG.md) • [🗺️ ROADMAP](ROADMAP.md)
 
 </div>
 

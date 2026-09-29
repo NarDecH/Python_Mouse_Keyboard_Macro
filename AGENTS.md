@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.0.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.1.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -121,6 +121,13 @@
   ระหว่างป้าย `# === ENGINE-BEGIN` … `# === ENGINE-END` — **ห้ามแก้บล็อกใน auto_macro.py ตรง ๆ**
   แก้ที่ macro_engine.py แล้วรัน `py build_singlefile.py` (เทสต์ TestEngineSplit ตรวจว่า sync ตรงกัน
   ด้วย inspect.getsource ทุกฟังก์ชันสำคัญ) — build .exe ยังใช้ auto_macro.py ไฟล์เดียวเสมอ
+- **v2.1 (phase 2):** ActionRunner ใน macro_engine.py = กลไก "ทำ 1 แถว" แหล่งเดียว —
+  GUI/CLI ส่ง controller + callbacks (`stop_check/on_beep/on_message/on_clipboard_*`/
+  `plugin_lookup/unsupported_cb`) เข้า runner แล้วเรียก `execute(r)` · ⚠️ อย่ากลับไปเขียน
+  do_step สองชุด, คีย์ค้างอยู่ใน `runner.pressed_keys/pressed_btns` + `release_all()`,
+  เงื่อนไข If Loop/If Time ประเมินผ่าน `ActionRunner.evaluate_condition()` (skip_n + msg),
+  CLI ย่อย `engine_cli.py` import engine ตรง ๆ ไม่แตะ Tk · ปุ่ม 🔌 = `open_plugins_folder`
+  (ตลาด plugin: docs/PLUGINS.md) · เอกสารอังกฤษเต็ม docs/TUTORIAL.en.md
 
 ## เทคโนโลยี
 

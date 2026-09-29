@@ -114,6 +114,8 @@
   - 🆕 **Search Area:** ใส่ท้ายชื่อไฟล์ได้ เช่น `button.png@100,200,300,400` = ค้นเฉพาะกรอบซ้ายบน (100,200) กว้าง 300 × สูง 400 — ไม่ใส่ @ = ค้นทั้งจอ
 - **Beep** — เสียงเตือน
 - **🔌 Custom Action (v1.16)** — เพิ่ม Action ของคุณเองด้วยไฟล์ Python สั้น ๆ ใน `plugins/` (ดู [plugins/README.md](../plugins/README.md))
+- **🏪 ตลาด plugin (v2.1)** — [docs/PLUGINS.md](PLUGINS.md) รวม API/กฎ/แนวคิด + ปุ่ม **🔌 plugins** บนแถบเครื่องมือเปิดโฟลเดอร์ให้ทันที
+- **🧩 engine แยกจาก GUI (v2.0–2.1)** — [macro_engine.py](../macro_engine.py) ไม่มี Tk นำไปฝังที่อื่นได้ · CLI ย่อย `py engine_cli.py script.json` สำหรับใช้ engine ล้วน
 - **🔀 If Image (v1.17)** — เงื่อนไข: ภาพ**ไม่เจอ** → ข้ามแถวถัดไป N แถว (N = ค่าในคอลัมน์ Repeat ของแถว If Image) ใช้ Search Area/threshold ร่วมกับ Image Click ได้
 - **🔀 Else If Image (v1.18)** — เงื่อนไขสองทาง: If เจอ → เล่นกลุ่ม A แล้วข้ามกลุ่ม B, ไม่เจอ → เล่นกลุ่ม B
 - **🎨 Wait for Pixel Color (v1.18)** — รอจนจุด (x,y) มีสีที่กำหนด (`300,300 #ffffff`) ก่อนทำงานต่อ

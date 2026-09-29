@@ -290,9 +290,10 @@ class TestE2ECliWarnings(unittest.TestCase):
         return p
 
     def test_warns_on_unsupported_action(self):
-        # Move Mouse = action ที่ CLI ยังไม่ทำ (ต้องไม่ขยับเมาส์จริง) → เตือนแล้วเล่นแถวอื่นต่อ
+        # v2.1: ActionRunner ทำให้ CLI ทำ Move Mouse ได้จริงแล้ว — คงคำเตือนเดิมเฉพาะ
+        # action ค้นภาพ (Image Click / Wait for Image) ที่ logic opencv ยังอยู่ฝั่ง GUI
         script = self._script([
-            {"enabled": True, "button": "Move Mouse", "x": 5, "y": 5,
+            {"enabled": True, "button": "Image Click", "additional": "no_such_target.png",
              "mins": 0, "secs": 0, "repeat": 1},
             {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
         ])
@@ -303,7 +304,7 @@ class TestE2ECliWarnings(unittest.TestCase):
             out = "\n".join(ch.lines)
             self.assertEqual(rc, 0)
             self.assertIn("ยังไม่รองรับใน CLI", out)
-            self.assertIn("Move Mouse", out)
+            self.assertIn("Image Click", out)
             self.assertIn("จบแล้ว", out)
         finally:
             ch.close()

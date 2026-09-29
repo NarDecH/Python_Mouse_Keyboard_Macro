@@ -72,6 +72,8 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import datetime
 import glob
 
+import macro_engine   # v2.0: engine (ค่าคงที่/parser/ActionRunner) อยู่ที่ macro_engine.py
+
 try:
     from pynput import keyboard, mouse
     from pynput.keyboard import (Controller as KbController, GlobalHotKeys,
@@ -118,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.22.0"
+__version__ = "2.1.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -963,6 +965,266 @@ def prune_log(keep=MAX_LOG_LINES):
         pass
 
 
+# ============================== ActionRunner (v2.1 — phase 2) =================
+# กลไก "ทำ 1 แถว" ของ player ทั้ง GUI และ CLI — เครื่องมือล้วน ไม่มี Tk
+# GUI/CLI ส่ง controller (mouse/kb) + callbacks เข้ามา แล้ว runner จัดการเอง
+class ActionRunner:
+    """ทำ 1 แถวสคริปต์ — แหล่งเดียวของกลไก execute (GUI และ CLI ใช้ร่วมกัน, v2.1)
+
+    พารามิเตอร์: mouse_ctl/kb_ctl (pynput Controller), stop_check() → False เมื่อหยุด,
+    on_beep(), on_message(text, color), on_clipboard_set(text), on_clipboard_read(),
+    variables (dict ตัวแปร), plugin_lookup(name) → module/None, log_src,
+    unsupported_cb(btn) (เรียกเมื่อ action ไม่รองรับ)
+    สถานะ: pressed_keys/pressed_btns (ปล่อยด้วย release_all), saved_pos, last_if_found
+    """
+
+    def __init__(self, mouse_ctl, kb_ctl, stop_check=lambda: True,
+                 on_beep=lambda: None, on_message=lambda t, c="#080": None,
+                 on_clipboard_set=lambda t: None, on_clipboard_read=lambda: None,
+                 variables=None, plugin_lookup=lambda name: None,
+                 log_src=None, unsupported_cb=lambda btn: None):
+        self.mouse_ctl = mouse_ctl
+        self.kb_ctl = kb_ctl
+        self.stop_check = stop_check
+        self.on_beep = on_beep
+        self.on_message = on_message
+        self.on_clipboard_set = on_clipboard_set
+        self.on_clipboard_read = on_clipboard_read
+        self.variables = variables if variables is not None else {}
+        self.plugin_lookup = plugin_lookup
+        self.log_src = log_src
+        self.unsupported_cb = unsupported_cb
+        self.pressed_keys = set()
+        self.pressed_btns = set()
+        self.saved_pos = None
+        self.last_if_found = None
+
+    def release_all(self):
+        """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้าง (เรียกตอนหยุด — กัน Ctrl ติด)"""
+        try:
+            for k in list(self.pressed_keys):
+                self.kb_ctl.release(k)
+            self.pressed_keys.clear()
+            for b in list(self.pressed_btns):
+                self.mouse_ctl.release(b)
+            self.pressed_btns.clear()
+        except Exception:
+            pass
+
+    def _do_mod_click(self, r, mods):
+        """คลิกพร้อมกด modifier เช่น Ctrl+Click"""
+        mod_keys = {"ctrl": Key.ctrl, "shift": Key.shift, "alt": Key.alt}
+        pressed = []
+        try:
+            for m in mods:
+                k = mod_keys.get(m)
+                if k:
+                    self.kb_ctl.press(k)
+                    pressed.append(k)
+            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
+                self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                time.sleep(0.03)
+            self.mouse_ctl.click(Button.right if "Right" in r["button"] else Button.left, 1)
+        finally:
+            for k in reversed(pressed):
+                self.kb_ctl.release(k)
+
+    def _find_image_pos(self, r):
+        """พิกัดกึ่งกลางภาพที่เจอ หรือ None — GUI ผูก find_image_cb เข้ามา (กันซ้ำ logic opencv)"""
+        cb = getattr(self, "find_image_cb", None)
+        return cb(r) if cb else None
+
+    def _do_wait_for_image(self, r):
+        """รอภาพปรากฏ — ผูก wait_image_cb จากฝั่ง GUI/CLI (runner เป็นจุด dispatch)"""
+        cb = getattr(self, "wait_image_cb", None)
+        if cb:
+            cb(r)
+
+    def _do_wait_for_pixel(self, r):
+        """รอจุดสี — runner ตรวจครั้งเดียว (โปรแกรมเรียกวนเองด้วย stop_check ได้)"""
+        sp = parse_pixel_spec(r.get("additional"))
+        if not sp:
+            self.on_message("Wait for Pixel Color: รูปแบบ Additional ไม่ถูกต้อง (ต้องเป็น x,y #rrggbb)", "#c00")
+            return False
+        x, y, rgb = sp
+        okc = color_close(pixel_color_at(x, y), rgb)
+        if okc:
+            self.on_message("Wait for Pixel Color: เจอสีที่รอ (%d,%d)" % (x, y))
+        else:
+            self.on_message("Wait for Pixel Color: สีไม่ตรง (%d,%d) — ข้ามการรอ" % (x, y))
+        return okc
+
+    @staticmethod
+    def evaluate_condition(btn, additional, repeat, n_loop, now=None):
+        """ประเมินแถวเงื่อนไข If Loop / If Time (v2.1 — ใช้ร่วม CLI ทุกตัว)
+        คืน (skip_n, message):
+          ไม่ใช่เงื่อนไขที่รองรับ → (0, None)
+          ยังไม่ถึงรอบ/เวลา → (0, ข้อความ "เล่นต่อ")
+          ถึงรอบ/ผ่านเวลา → (จำนวนแถวที่ข้าม = Repeat, ข้อความ "ข้าม N แถว")
+          Additional ไม่ถูก → (0, ข้อความเตือน)"""
+        if btn == IF_LOOP:
+            n = parse_if_loop(additional)
+            if n is None:
+                return 0, "If Loop %s → Additional ไม่ถูก (ต้องเป็นเลข >= 1) เล่นต่อ" % (additional or "")
+            if n_loop < n:
+                return 0, "If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ" % (additional, n_loop, n)
+            skip = parse_int(repeat, 1)
+            return skip, "If Loop %s → รอบที่ %d >= %d ข้าม %d แถว" % (additional, n_loop, n, skip)
+        if btn == IF_TIME:
+            spec = parse_if_time(additional)
+            lt = now or time.localtime()
+            if spec is None:
+                return 0, "If Time %s → Additional ไม่ถูก (ต้องเป็น HH:MM) เล่นต่อ" % (additional or "")
+            if (lt.tm_hour, lt.tm_min) < spec:
+                return 0, "If Time %02d:%02d → ยังไม่ถึง %02d:%02d เล่นต่อ" % (
+                    lt.tm_hour, lt.tm_min, spec[0], spec[1])
+            skip = parse_int(repeat, 1)
+            return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
+                spec[0], spec[1], skip)
+        return 0, None
+
+    def execute(self, r):
+        """ทำ action ตามแถว r — คืน False เฉพาะเมื่อ Type Text ถูกสั่งหยุดกลางคัน"""
+        btn = r.get("button", "")
+        if btn in BTN_TH:                                            # เมาส์ทั่วไป
+            b, act = BTN_TH[btn]
+            btn_obj = getattr(Button, b.lower())
+            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
+                self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                time.sleep(0.03)
+            if act == "Down":
+                self.mouse_ctl.press(btn_obj)
+                self.pressed_btns.add(btn_obj)      # จำไว้ปล่อยตอน STOP กลางคัน
+            elif act == "Up":
+                self.mouse_ctl.release(btn_obj)
+                self.pressed_btns.discard(btn_obj)
+            else:
+                self.mouse_ctl.click(btn_obj, 1)
+        elif btn in SCROLL_ACTIONS:                                  # เลื่อนล้อเมาส์
+            try:
+                notches = int(str(r.get("additional") or "1"))
+            except ValueError:
+                notches = 1
+            self.mouse_ctl.scroll(0, notches if btn == "Scroll Up" else -notches)
+        elif btn in DBL_ACTIONS:                                     # ดับเบิลคลิก
+            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
+                self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+                time.sleep(0.03)
+            self.mouse_ctl.click(Button.right if "Right" in btn else Button.left, 2)
+        elif btn in MOD_CLICKS:                                      # คลิก+modifier
+            mods = [m for m in ("ctrl", "shift", "alt") if m.capitalize() in btn]
+            self._do_mod_click(r, mods)
+        elif btn == "Move Mouse":                                    # ย้ายเมาส์
+            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
+                self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
+        elif btn == "Move Mouse by Offset":                          # ย้ายแบบสัมพัทธ์
+            try:
+                dx = int(str(r.get("x") or 0))
+                dyo = int(str(r.get("y") or 0))
+            except ValueError:
+                dx = dyo = 0
+            cx, cy = self.mouse_ctl.position
+            self.mouse_ctl.position = (cx + dx, cy + dyo)
+        elif btn == "Save Cursor":                                   # เซฟตำแหน่งเมาส์
+            self.saved_pos = self.mouse_ctl.position
+        elif btn == "Restore Cursor":                                # คืนตำแหน่งเมาส์
+            if self.saved_pos:
+                self.mouse_ctl.position = self.saved_pos
+        elif btn == IMAGE_ACTION:                                    # คลิกตามภาพ
+            pos = self._find_image_pos(r)
+            if pos:
+                self.mouse_ctl.position = pos
+                time.sleep(0.03)
+                self.mouse_ctl.click(Button.left, 1)
+        elif btn == WAIT_PIXEL:                                      # รอจุดสี (v1.18)
+            self._do_wait_for_pixel(r)
+        elif btn == "Wait for Image":                                # รอภาพปรากฏ
+            self._do_wait_for_image(r)
+        elif btn == "Type Text":                                     # พิมพ์ข้อความ
+            for ch in str(r.get("additional") or ""):
+                if not self.stop_check():
+                    return False
+                if ch == "\n":
+                    self.kb_ctl.tap(Key.enter)
+                elif not send_unicode_char(ch):      # v1.20.2: ไม่ขึ้นกับ layout
+                    self.kb_ctl.tap(KeyCode.from_char(ch))   # fallback (OS อื่น)
+                time.sleep(0.015)                    # v1.20.3: กันแอป busy กลืน burst
+        elif btn == "Launch App":                                    # เปิดแอป/เว็บ
+            target = str(r.get("additional") or "").strip()
+            if target:
+                try:
+                    os.startfile(target)      # Windows
+                except (OSError, AttributeError):
+                    import subprocess
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.Popen([opener, target])
+        elif btn == "Beep":                                          # เสียงเตือน
+            self.on_beep()
+        elif btn in KEY_ACTIONS:                                     # คีย์บอร์ด
+            combo = parse_key_combo(r.get("additional", ""))   # v1.20.4: Ctrl+W ฯลฯ
+            mods, k = combo if combo else ((), parse_key(r.get("additional", "")))
+            if k is None:
+                return True
+            if btn == "Press Key":
+                for m in mods:
+                    self.kb_ctl.press(m)
+                    self.pressed_keys.add(m)
+                self.kb_ctl.press(k)
+                self.pressed_keys.add(k)           # จำไว้ปล่อยตอน STOP กลางคัน
+            elif btn == "Release Key":
+                self.kb_ctl.release(k)
+                self.pressed_keys.discard(k)
+                for m in reversed(mods):
+                    self.kb_ctl.release(m)
+                    self.pressed_keys.discard(m)
+            else:
+                for m in mods:
+                    self.kb_ctl.press(m)
+                    self.pressed_keys.add(m)
+                self.kb_ctl.tap(k)
+                for m in reversed(mods):
+                    self.kb_ctl.release(m)
+                    self.pressed_keys.discard(m)
+        elif btn == "Set Variable":                                  # ตัวแปร (v1.19)
+            if not apply_set_var(self.variables, r.get("additional", "")):
+                self.on_message("Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น "
+                                "name = ค่า หรือ name += จำนวน" % (r.get("additional") or ""), "#c00")
+        elif btn == "Set Clipboard":                                 # ตั้งคลิปบอร์ด (v1.20)
+            text = str(r.get("additional") or "")
+            if text:
+                self.on_clipboard_set(text)
+        elif btn == "Read Clipboard":                                # อ่านคลิปบอร์ดเป็นตัวแปร (v1.20)
+            m = re.fullmatch(_VAR_NAME, str(r.get("additional") or "").strip())
+            if not m:
+                self.on_message("Read Clipboard: พิมพ์ชื่อตัวแปรใน Additional เช่น mytext", "#c00")
+            elif getattr(self, "read_clipboard_mode", "direct") == "ui":
+                # GUI: ผลักงานเข้า poller (main thread อ่านคลิปบอร์ด + ตั้งตัวแปรเอง)
+                self.ui_read_clipboard(m.group(0))
+            else:
+                got = self.on_clipboard_read()
+                if got is None:
+                    self.on_message("⚠ Read Clipboard: อ่านคลิปบอร์ดไม่สำเร็จบนระบบนี้", "#a60")
+                else:
+                    self.variables[m.group(0)] = got
+        else:                                                        # Custom Action (v1.16)
+            mod = self.plugin_lookup(btn)
+            if mod is not None:
+                ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
+                       "log": lambda m: log_write("PLUGIN", m, self.log_src),
+                       "cfg": {"lang": "th"},
+                       "stop_check": self.stop_check,                  # v1.20
+                       "ui": {"msg": lambda text, color="#080":
+                                  self.on_message(str(text), color),      # v1.20
+                              "beep": self.on_beep}}
+                try:
+                    mod.run(ctx, dict(r))
+                except Exception as exc:
+                    self.on_message("plugin error (%s): %s" % (btn, exc), "#c00")
+            else:
+                self.unsupported_cb(btn)
+        return True
+
+
 # === ENGINE-END
 
 
@@ -1032,6 +1294,25 @@ class MacroApp:
         self._last_if_found = False        # v1.18: ผล If Image ล่าสุด (ให้ Else If Image ใช้)
         self._loop_no = 1                  # v1.21: เลขรอบปัจจุบัน (ให้ If Loop ใช้)
         self._vars = {}                    # v1.19: ตัวแปรของการเล่น (รีเซ็ตทุกครั้งที่เริ่มเล่น)
+        # v2.1 (phase 2): ActionRunner ตัวเดียวใช้ร่วมทุกเธรดเล่น — callbacks ผูกเข้า _ui_state
+        # ตามรูปแบบ thread-safe เดิม (ห้ามเรียก Tk ข้ามเธรด)
+        self._action_runner = macro_engine.ActionRunner(
+            self.mouse_ctl, self.kb_ctl,
+            stop_check=lambda: True,
+            on_beep=lambda: self._ui_state.__setitem__("beep", True),
+            on_message=lambda text, color="#080": self._ui_state.__setitem__("msg", (str(text), color)),
+            on_clipboard_set=lambda text: self._ui_state.__setitem__("clipboard", text),
+            on_clipboard_read=lambda: None,
+            variables=self._vars,
+            plugin_lookup=self._plugin_module,
+            log_src=None,
+            unsupported_cb=lambda btn: None)
+        self._action_runner.find_image_cb = self._find_image_pos      # opencv อยู่ฝั่ง GUI
+        self._action_runner.wait_image_cb = self._do_wait_for_image   # รอภาพจริง (timeout)
+        self._action_runner.read_clipboard_mode = "ui"                # ให้ poller อ่านบน main thread
+        self._action_runner.ui_read_clipboard = lambda name: (
+            self._ui_state.__setitem__("read_clipboard", name),
+            time.sleep(0.2))[0]           # รอ poller (120ms) อ่านให้ก่อน
 
         # โปรไฟล์ / schedule / global hotkey
         self._profiles = {}                # ชื่อโปรไฟล์ -> รายการแถว
@@ -1172,6 +1453,7 @@ class MacroApp:
             tk.Button(tools, text="📸 จับภาพ (ลากกรอบบนจอ)", command=self._capture_snip).pack(side="right", padx=2)
             tk.Button(tools, text="🎨 จับสี (คลิกบนจอ)", command=self._pick_pixel_color).pack(side="right", padx=2)
         tk.Button(tools, text="🕐 เวลานี้ (+15 นาที)", command=self._apply_current_time).pack(side="right", padx=2)  # v1.22
+        tk.Button(tools, text="🔌 plugins", command=self.open_plugins_folder).pack(side="right", padx=2)  # v2.1: ตลาด plugin
 
     # -------------------------------------------------- จับภาพหน้าจอ (snip) ---
     def _capture_snip(self):
@@ -1271,6 +1553,24 @@ class MacroApp:
         self._append_row(button=WAIT_PIXEL, additional=spec, secs=1)
         self._ui_state["msg"] = ("เพิ่มแถวรอสี: " + spec + " — แก้จุด/สีได้ที่ช่อง Additional", "#080")
         return False
+
+    def open_plugins_folder(self):
+        """🔌 ตลาด plugin (v2.1): เปิดโฟลเดอร์ plugins/ — วางไฟล์ .py แล้วรีสตาร์ตโปรแกรม"""
+        base = (os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+                else os.path.dirname(os.path.abspath(__file__)))
+        d = os.path.join(base, PLUGINS_DIR)
+        try:
+            os.makedirs(d, exist_ok=True)
+            os.startfile(d)                 # Windows
+        except (OSError, AttributeError):
+            try:
+                import subprocess
+                opener = "open" if sys.platform == "darwin" else "xdg-open"
+                subprocess.Popen([opener, d])
+            except Exception:
+                self._ui_state["msg"] = ("เปิดโฟลเดอร์ plugins ไม่สำเร็จ: " + d, "#c00")
+                return
+        self._ui_state["msg"] = ("เปิดโฟลเดอร์ plugins แล้ว — วางไฟล์ .py แล้วรีสตาร์ตโปรแกรม", "#080")
 
     def _apply_current_time(self):
         """🕐 ปุ่มจับเวลา (v1.22): เติม HH:MM (เวลาปัจจุบัน +15 นาที) ให้แถว If Time ที่เลือก
@@ -2119,6 +2419,7 @@ class MacroApp:
         self._shuffle = self.chk_shuffle.get()
         self._pct = self._play_options()
         self._vars = {}                   # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
+        self._action_runner.variables = self._vars   # v2.1: runner ใช้ dict ใหม่นี้
         self._loop_no = 1                 # ตัวนับรอบเริ่มใหม่ (If Loop, v1.21)
         self._log_src = self._loaded_file or "ตารางในโปรแกรม"
         if self._log_enabled:
@@ -2187,134 +2488,18 @@ class MacroApp:
     def _player(self, items, loop, gen=0):
         """เธรดผู้เล่น — เช็ค self._gen_ok(gen) ทุกจุด: STOP หรือ START ใหม่ = หยุดทันที
         items = คู่ (แถว, iid ในตาราง) — player ไม่เรียก Tk เอง สื่อสารผ่าน _ui_state เท่านั้น"""
+        # v2.1 (phase 2): กลไก "ทำ 1 แถว" ย้ายไป macro_engine.ActionRunner —
+        # GUI ผูก callbacks เข้ากับ _ui_state ตามรูปแบบ thread-safe เดิม (ห้ามเรียก Tk ข้ามเธรด)
+        runner = self._action_runner
+        runner.stop_check = lambda: self._gen_ok(gen)
+        runner.log_src = self._log_src
+
         def do_step(r):
-            btn = r["button"]
-            if btn in BTN_TH:                                    # เมาส์ทั่วไป
-                b, act = BTN_TH[r["button"]]
-                btn_obj = getattr(Button, b.lower())
-                if str(r["x"]) != "" and str(r["y"]) != "":
-                    self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
-                    time.sleep(0.03)
-                if act == "Down":
-                    self.mouse_ctl.press(btn_obj)
-                    self._pressed_btns.add(btn_obj)  # จำไว้ปล่อยตอน STOP กลางคัน
-                elif act == "Up":
-                    self.mouse_ctl.release(btn_obj)
-                    self._pressed_btns.discard(btn_obj)
-                else:
-                    self.mouse_ctl.click(btn_obj, 1)
-            elif btn in SCROLL_ACTIONS:                          # เลื่อนล้อเมาส์
-                try:
-                    notches = int(str(r["additional"] or "1"))
-                except ValueError:
-                    notches = 1
-                dy = notches if btn == "Scroll Up" else -notches
-                self.mouse_ctl.scroll(0, dy)
-            elif btn in DBL_ACTIONS:                             # ดับเบิลคลิก
-                if str(r["x"]) != "" and str(r["y"]) != "":
-                    self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
-                    time.sleep(0.03)
-                self.mouse_ctl.click(Button.right if "Right" in btn else Button.left, 2)
-            elif btn in MOD_CLICKS:                              # คลิก+modifier
-                mods = [m for m in ("ctrl", "shift", "alt") if m.capitalize() in btn]
-                self._do_mod_click(r, mods)
-            elif btn == "Move Mouse":                            # ย้ายเมาส์
-                if str(r["x"]) != "" and str(r["y"]) != "":
-                    self.mouse_ctl.position = (int(r["x"]), int(r["y"]))
-            elif btn == "Move Mouse by Offset":                  # ย้ายแบบสัมพัทธ์
-                try:
-                    dx = int(str(r["x"] or 0))
-                    dyo = int(str(r["y"] or 0))
-                except ValueError:
-                    dx = dyo = 0
-                cx, cy = self.mouse_ctl.position
-                self.mouse_ctl.position = (cx + dx, cy + dyo)
-            elif btn == "Save Cursor":                           # เซฟตำแหน่งเมาส์
-                self._saved_pos = self.mouse_ctl.position
-            elif btn == "Restore Cursor":                        # คืนตำแหน่งเมาส์
-                if self._saved_pos:
-                    self.mouse_ctl.position = self._saved_pos
-            elif btn == IMAGE_ACTION:                            # คลิกตามภาพ
-                self._do_image_click(r)
-            elif btn == WAIT_PIXEL:                              # รอจุดสี (v1.18)
-                self._do_wait_for_pixel(r)
-            elif btn == "Wait for Image":                        # รอภาพปรากฏ
-                self._do_wait_for_image(r)
-            elif btn == "Type Text":                             # พิมพ์ข้อความ
-                for ch in str(r["additional"] or ""):
-                    if not self._gen_ok(gen):
-                        return
-                    if ch == "\n":
-                        self.kb_ctl.tap(Key.enter)
-                    elif not send_unicode_char(ch):              # v1.20.2: ไม่ขึ้นกับ layout
-                        self.kb_ctl.tap(self.kb_ctrl_char(ch))   # fallback (OS อื่น)
-                    # v1.20.3: เว้นจังหวะระหว่างตัวอักษร — แอปเป้าหมายที่ยัง busy
-                    # (เช่น Notepad เพิ่งเปิด) ไม่ทันประมวลผล burst เร็ว ๆ อาจกลืน/เพี้ยน
-                    time.sleep(0.015)
-            elif btn == "Launch App":                            # เปิดแอป/เว็บ
-                target = str(r["additional"] or "").strip()
-                if target:
-                    try:
-                        os.startfile(target)      # Windows
-                    except (OSError, AttributeError):
-                        import subprocess
-                        opener = "open" if sys.platform == "darwin" else "xdg-open"
-                        subprocess.Popen([opener, target])
-            elif btn == "Beep":                                  # เสียงเตือน — ขอผ่าน poller
-                self._ui_state["beep"] = True                    # (main thread เป็นคน bell)
-            elif btn in KEY_ACTIONS:                             # คีย์บอร์ด
-                combo = parse_key_combo(r["additional"])         # v1.20.4: Ctrl+W ฯลฯ
-                mods, k = combo if combo else ((), parse_key(r["additional"]))
-                if k is None:
-                    return
-                if btn == "Press Key":
-                    for m in mods:
-                        self.kb_ctl.press(m)
-                        self._pressed_keys.add(m)
-                    self.kb_ctl.press(k)
-                    self._pressed_keys.add(k)      # จำไว้ปล่อยตอน STOP กลางคัน
-                elif btn == "Release Key":
-                    self.kb_ctl.release(k)
-                    self._pressed_keys.discard(k)
-                    for m in reversed(mods):
-                        self.kb_ctl.release(m)
-                        self._pressed_keys.discard(m)
-                else:
-                    for m in mods:
-                        self.kb_ctl.press(m)
-                        self._pressed_keys.add(m)
-                    self.kb_ctl.tap(k)
-                    for m in reversed(mods):
-                        self.kb_ctl.release(m)
-                        self._pressed_keys.discard(m)
-            elif btn == "Set Variable":                          # ตัวแปรในสคริปต์ (v1.19)
-                if not apply_set_var(self._vars, r["additional"]):
-                    self._ui_state["msg"] = ("Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น "
-                                             "name = ค่า หรือ name += จำนวน" % (r["additional"] or ""), "#c00")
-            elif btn == "Set Clipboard":                         # ตั้งคลิปบอร์ด (v1.20)
-                text = str(r["additional"] or "")
-                if text:
-                    self._ui_state["clipboard"] = text           # poller ตั้งบน main thread
-            elif btn == "Read Clipboard":                        # อ่านคลิปบอร์ดเก็บเป็นตัวแปร (v1.20)
-                m = re.fullmatch(_VAR_NAME, str(r["additional"] or "").strip())
-                if not m:
-                    self._ui_state["msg"] = ("Read Clipboard: พิมพ์ชื่อตัวแปรใน Additional "
-                                             "เช่น mytext", "#c00")
-                    return
-                self._ui_state["read_clipboard"] = m.group(0)
-                self._sleep_check(0.2, gen)                      # รอ poller (120ms) อ่านให้ก่อน
-            else:                                                # Custom Action (v1.16)
-                mod = self._plugin_module(btn)
-                if mod is None:
-                    return
-                ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
-                       "log": lambda m: log_write("PLUGIN", m, self._log_src),
-                       "cfg": {"lang": self._lang},
-                       "stop_check": lambda: self._gen_ok(gen),        # v1.20
-                       "ui": {"msg": lambda text, color="#080":        # v1.20
-                                  self._ui_state.__setitem__("msg", (str(text), color)),
-                              "beep": lambda: self._ui_state.__setitem__("beep", True)}}
-                mod.run(ctx, dict(r))
+            # v2.1: ดึง controller สดจาก self ทุกแถว — เทสต์/รหัสอื่นเปลี่ยน
+            # self.mouse_ctl/self.kb_ctl ภายหลัง __init__ ได้ runner ยังใช้ตัวใหม่
+            runner.mouse_ctl = self.mouse_ctl
+            runner.kb_ctl = self.kb_ctl
+            runner.execute(r)
 
         # บั๊กฟิกซ์ v1.6: เดิมลูปนี้ถูกแทรกหลัง return ของ kb_ctrl_char ทำให้เป็น dead code
         # v1.7.1: ใช้ _gen_ok/_sleep_check — STOP แม่นทันทีแม้ดีเลย์ยาว + กันเล่นซ้อนเธรด
@@ -3673,114 +3858,34 @@ def cli_main(argv):
     mouse_ctl = MouseController()
     kb_ctl = KbController()
     running = [True]
-    pending_keys = []            # คีย์/ปุ่มที่กดค้าง (Press Key / Down) — ปล่อยตอนหยุด
+    # v2.1: คีย์/ปุ่มค้างถูกจัดการใน ActionRunner (pressed_keys/pressed_btns + release_all)
     cli_vars = {}                # ตัวแปรของการเล่น (v1.19) — เริ่มใหม่ทุกครั้งที่เริ่มเล่น
     speed = min(10.0, max(0.1, args.speed))
 
+    # v2.1 (phase 2): CLI ใช้ ActionRunner จาก engine เป็นแหล่งเดียวกับ GUI —
+    # พฤติกรรมทุก action ตรงกัน ไม่ต้องดูแล do_step สองชุดอีกต่อไป
+    cli_runner = macro_engine.ActionRunner(
+        mouse_ctl, kb_ctl,
+        stop_check=lambda: running[0],
+        on_beep=lambda: print("\a", end="", flush=True),
+        on_message=lambda text, color="#080": print("  " + str(text)),
+        on_clipboard_set=lambda text: None if clip_set(text)
+        else print("  ⚠ Set Clipboard: ตั้งคลิปบอร์ดไม่สำเร็จบนระบบนี้"),
+        on_clipboard_read=clip_get,
+        variables=cli_vars,
+        plugin_lookup=lambda name: cli_plugins.get(name),
+        log_src=args.script,
+        unsupported_cb=lambda btn: print(
+            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn))
+
     def do_step(r):
         btn = r.get("button", "")
-        if btn in BTN_TH:
-            b, act = BTN_TH[btn]
-            btn_obj = getattr(Button, b.lower())
-            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
-                mouse_ctl.position = (int(r["x"]), int(r["y"]))
-                time.sleep(0.03)
-            if act == "Down":
-                mouse_ctl.press(btn_obj)
-                pending_keys.append(("m", btn_obj))
-            elif act == "Up":
-                mouse_ctl.release(btn_obj)
-                if ("m", btn_obj) in pending_keys:
-                    pending_keys.remove(("m", btn_obj))
-            else:
-                mouse_ctl.click(btn_obj, 1)
-        elif btn in SCROLL_ACTIONS:
-            try:
-                n = int(str(r.get("additional") or 1))
-            except ValueError:
-                n = 1
-            mouse_ctl.scroll(0, n if btn == "Scroll Up" else -n)
-        elif btn in DBL_ACTIONS:
-            if str(r.get("x", "")) != "" and str(r.get("y", "")) != "":
-                mouse_ctl.position = (int(r["x"]), int(r["y"]))
-                time.sleep(0.03)
-            mouse_ctl.click(Button.right if "Right" in btn else Button.left, 2)
-        elif btn in KEY_ACTIONS:
-            combo = parse_key_combo(r.get("additional", ""))     # v1.20.4: Ctrl+W ฯลฯ
-            mods, k = combo if combo else ((), parse_key(r.get("additional", "")))
-            if k is not None:
-                if btn == "Press Key":
-                    for m in mods:
-                        kb_ctl.press(m)
-                        pending_keys.append(("k", m))
-                    kb_ctl.press(k)
-                    pending_keys.append(("k", k))
-                elif btn == "Release Key":
-                    kb_ctl.release(k)
-                    if ("k", k) in pending_keys:
-                        pending_keys.remove(("k", k))
-                    for m in reversed(mods):
-                        kb_ctl.release(m)
-                        if ("k", m) in pending_keys:
-                            pending_keys.remove(("k", m))
-                else:
-                    for m in mods:
-                        kb_ctl.press(m)
-                        pending_keys.append(("k", m))
-                    kb_ctl.tap(k)
-                    for m in reversed(mods):
-                        kb_ctl.release(m)
-                        if ("k", m) in pending_keys:
-                            pending_keys.remove(("k", m))
-        elif btn == "Type Text":
-            for ch in str(r.get("additional") or ""):
-                if not running[0]:
-                    return
-                if ch == "\n":
-                    kb_ctl.tap(Key.enter)
-                elif not send_unicode_char(ch):          # v1.20.2: ไม่ขึ้นกับ layout
-                    kb_ctl.tap(KeyCode.from_char(ch))    # fallback (OS อื่น)
-                time.sleep(0.015)                        # v1.20.3: กันแอป busy กลืน burst
-        elif btn == WAIT_PIXEL:
-            cli_pixel_ready(r)                       # เช็คครั้งเดียว (CLI ไม่รอ — โปรแกรมอื่นคุมเวลาแทน)
-        elif btn == "Set Variable":                  # ตัวแปรในสคริปต์ (v1.19)
-            if not apply_set_var(cli_vars, r.get("additional", "")):
-                print("  Set Variable: รูปแบบไม่ถูก (%s) — ต้องเป็น name = ค่า หรือ name += จำนวน"
-                      % (r.get("additional") or ""))
-        elif btn == "Set Clipboard":                 # คลิปบอร์ด (v1.20)
-            text = str(r.get("additional") or "")
-            if text and not clip_set(text):
-                print("  ⚠ Set Clipboard: ตั้งคลิปบอร์ดไม่สำเร็จบนระบบนี้")
-        elif btn == "Read Clipboard":
-            m = re.fullmatch(_VAR_NAME, str(r.get("additional") or "").strip())
-            if not m:
-                print("  Read Clipboard: พิมพ์ชื่อตัวแปรใน Additional เช่น mytext")
-            else:
-                got = clip_get()
-                if got is None:
-                    print("  ⚠ Read Clipboard: อ่านคลิปบอร์ดไม่สำเร็จบนระบบนี้")
-                else:
-                    cli_vars[m.group(0)] = got
-        elif btn == "Beep":
-            print("\a", end="", flush=True)
-        else:
-            # Custom Action plugins (v1.16) — ทำงานใน CLI ด้วย
-            mod = cli_plugins.get(btn)
-            if mod is not None:
-                ctx = {"mouse": mouse_ctl, "kb": kb_ctl,
-                       "log": lambda m: log_write("PLUGIN", m, args.script) if log_enabled else None,
-                       "cfg": {"lang": "th"},
-                       "stop_check": lambda: running[0],              # v1.20
-                       "ui": {"msg": lambda text, color="#080": print("  " + str(text)),
-                              "beep": lambda: print("\a", end="", flush=True)}}
-                try:
-                    mod.run(ctx, dict(r))
-                except Exception as exc:
-                    print("  plugin error (%s): %s" % (btn, exc))
-            else:
-                # v1.19: เตือนชัด ๆ แทนการข้ามเงียบ ๆ — Image Click/Wait for Image/
-                # If Image/Else Image/คลิก+Modifier/Move Mouse/Launch App ยังใช้ GUI เท่านั้น
-                print("  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn)
+        if btn in (IMAGE_ACTION, "Wait for Image"):
+            # v2.1: กลไก execute รวมเป็น ActionRunner แล้ว — เหลือเฉพาะค้นภาพ (opencv)
+            # ที่ยังผูกอยู่ฝั่ง GUI จึงคงคำเตือนเดิม (ผ่าน runner callback ภายหลังได้)
+            print("  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn)
+            return
+        cli_runner.execute(r)
 
     # หยุดด้วย F8/Esc ได้ทุกที่ — ใช้ Listener จับคู่เอง (เหตุผลเดียวกับ GUI v1.8)
     _stop_keys = {keyboard.Key.f8, keyboard.Key.esc}
@@ -3968,13 +4073,8 @@ def cli_main(argv):
     try:
         while True:
             ok = play_once()
-            # ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ (กัน Ctrl/ปุ่มเมาส์ติดหลังหยุดกลางคัน)
-            for kind, obj in pending_keys:
-                try:
-                    (kb_ctl if kind == "k" else mouse_ctl).release(obj)
-                except Exception:
-                    pass
-            pending_keys.clear()
+            # ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ (กัน Ctrl/ปุ่มเมาส์ติดหลังหยุดกลางคัน) — v2.1: runner จัดการ
+            cli_runner.release_all()
             if log_enabled:
                 log_write("STOP" if not ok else "END",
                           "หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)" if not ok
@@ -4004,12 +4104,7 @@ def cli_main(argv):
         return 130
     finally:
         running[0] = False
-        for kind, obj in pending_keys:      # กันเหลือค้างจาก play_once ที่ raise
-            try:
-                (kb_ctl if kind == "k" else mouse_ctl).release(obj)
-            except Exception:
-                pass
-        pending_keys.clear()
+        cli_runner.release_all()            # กันเหลือค้างจาก play_once ที่ raise (v2.1)
         try:
             stopper.stop()
         except Exception:

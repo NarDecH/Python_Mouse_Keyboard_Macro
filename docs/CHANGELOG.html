@@ -65,8 +65,41 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.0.0</h2>
+      <h2>เวอร์ชัน 2.1.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">29 กันยายน 2026</span>
+    </div>
+
+    <h3>🧩 phase 2 ของ v2.0 — แยกกลไก player ต่อ</h3>
+    <ul>
+      <li><b>ActionRunner ใน macro_engine.py</b> — กลไก "ทำ 1 แถว" ทั้งหมดถูกดึงออกจาก
+        MacroApp เป็นคลาสล้วน — <b>GUI และ CLI ใช้ runner ตัวเดียวกัน</b> (ลบ do_step สองชุด)
+        · GUI ผูก callbacks เข้า _ui_state ตามรูปแบบ thread-safe เดิม</li>
+      <li><b>evaluate_condition()</b> — กลไก If Loop/If Time รวมศูนย์ ใช้ร่วมทุก CLI</li>
+      <li><b>CLI ฉลาดขึ้น</b> — Move Mouse / Save-Restore Cursor / คลิก+Modifier / Double Click /
+        Launch App ทำงานใน CLI ได้จริง (เดิมเตือน "ยังไม่รองรับ") · เหลือเฉพาะ action
+        ค้นภาพ opencv ที่ยังอยู่ฝั่ง GUI</li>
+      <li><b>engine_cli.py</b> — CLI ย่อย import engine ตรง ๆ <b>ไม่แตะ tkinter เลย</b> —
+        ตัวอย่างการฝัง engine ในโปรเจกต์อื่น</li>
+    </ul>
+
+    <h3>✨ ตลาด plugin + เอกสารอังกฤษเต็ม</h3>
+    <ul>
+      <li><b>docs/PLUGINS.md</b> — ตลาด plugin: ตัวอย่าง, API v2 ครบ, กฎ, แนวคิดชวนเขียน ·
+        ปุ่ม <b>🔌 plugins</b> บนแถบเครื่องมือเปิดโฟลเดอร์ plugins ทันที</li>
+      <li><b>docs/TUTORIAL.en.md</b> — คู่มืออังกฤษฉบับเต็ม 12 บท สมมาตรกับฉบับไทย</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>TestActionRunner 8 + TestEngineCli 3 + TestPluginMarket 2 →
+        <b>240 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.0.0</h2>
       <span class="date">29 กันยายน 2026</span>
     </div>
 

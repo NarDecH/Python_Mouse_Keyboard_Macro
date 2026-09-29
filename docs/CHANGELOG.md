@@ -4,6 +4,35 @@
 
 ---
 
+## [2.1.0] — 2026-09-29
+
+### 🧩 phase 2 ของ v2.0 — แยกกลไก player ต่อ
+- **ActionRunner ใน macro_engine.py** — กลไก "ทำ 1 แถว" (เมาส์/คีย์/scroll/ดับเบิลคลิก/
+  คลิก+modifier/move/save-restore/Type Text/Launch App/Beep/ตัวแปร/คลิปบอร์ด/พิกเซล/plugins)
+  ถูกดึงออกจาก MacroApp เป็นคลาสล้วนใน engine — **GUI และ CLI ใช้ runner ตัวเดียวกัน**
+  (ลบ do_step ซ้ำซ้อนสองชุดทิ้ง) · GUI ผูก callbacks เข้า `_ui_state` ตามรูปแบบ thread-safe เดิม
+- **กลไกเงื่อนไขรวมศูนย์** — `ActionRunner.evaluate_condition()` ประเมิน If Loop/If Time
+  (คืน skip_n + ข้อความ) ให้ทุก CLI ใช้ร่วมกัน — กฎ Repeat = จำนวนแถวที่ข้ามยังอยู่ครบ
+- **CLI ฉลาดขึ้นจาก runner เดียวกัน** — Move Mouse / Move by Offset / Save-Restore Cursor /
+  คลิก+Modifier / Double Click / Launch App ทำงานใน CLI ได้จริงแล้ว (เดิมเตือน "ยังไม่รองรับ")
+  · เหลือเฉพาะ Image Click/Wait for Image ที่ค้นภาพด้วย opencv ฝั่ง GUI (E2E อัพเดตตาม)
+- **engine_cli.py (CLI ย่อย)** — import macro_engine ตรง ๆ **ไม่แตะ tkinter เลย** —
+  ตัวอย่างการฝัง engine ในโปรเจกต์อื่น: `py engine_cli.py script.json --loops 3`
+
+### ✨ ตลาด plugin + เอกสารอังกฤษเต็ม
+- **docs/PLUGINS.md** — หน้าตลาด plugin: ตัวอย่างในโปรเจกต์, API v2 ครบทุกคีย์, กฎ 4 ข้อ,
+  แนวคิดชวนเขียน · ปุ่ม **🔌 plugins** บนแถบเครื่องมือเปิดโฟลเดอร์ plugins ทันที (สร้างถ้ายังไม่มี)
+- **docs/TUTORIAL.en.md** — คู่มืออังกฤษฉบับเต็ม 12 บท สมมาตรกับฉบับไทย
+  (ติดตั้ง/อัด/เล่น/เงื่อนไข/ตัวแปร/schedule/CLI/สถิติ/plugins/แก้ปัญหา/คีย์ลัด)
+
+### 🧪 ทดสอบ
+- TestActionRunner 8 ตัว (คลิกพร้อมย้าย/คีย์ค้าง+release_all/คอมโบ Ctrl+W/ตัวแปร/คลิปบอร์ด/
+  unsupported/plugin ctx v2/evaluate_condition) + TestEngineCli 3 ตัว (import ไม่มี Tk/
+  โหลดสคริปต์ผิด/เล่น Beep จบจริง) + TestPluginMarket 2 ตัว →
+  รวม **240 unit + 11 E2E tests ผ่านหมด**
+
+---
+
 ## [2.0.0] — 2026-09-29
 
 ### 🏗️ ปรับโครงใหญ่ (จาก ROADMAP — phase 1)

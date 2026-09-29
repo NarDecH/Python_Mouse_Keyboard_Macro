@@ -20,6 +20,7 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import auto_macro as am  # noqa: E402
+import macro_engine as me_mod  # noqa: E402  (v2.1: engine ล้วน — เทสต์แยกได้)
 
 
 class TestParseKey(unittest.TestCase):
@@ -2643,6 +2644,149 @@ class TestEngineSplit(unittest.TestCase):
                              inspect.getsource(getattr(me, name)),
                              "%s ต่างกันระหว่าง auto_macro กับ macro_engine — รัน build_singlefile.py" % name)
         self.assertEqual(am.CONF, me.CONF)
+
+
+# ================================ v2.1: ActionRunner + engine_cli =================
+class TestActionRunner(unittest.TestCase):
+    """v2.1 (phase 2): ActionRunner ใน macro_engine — กลไก execute แหล่งเดียว GUI+CLI"""
+
+    def _runner(self, **kw):
+        mouse = mock.MagicMock()
+        mouse.position = (10, 20)
+        kb = mock.MagicMock()
+        msgs = []
+        r = me_mod.ActionRunner(mouse, kb, on_message=lambda t, c="#080": msgs.append((t, c)), **kw)
+        return r, mouse, kb, msgs
+
+    def test_mouse_click_moves_then_clicks(self):
+        r, mouse, kb, msgs = self._runner()
+        r.execute({"button": "Left Click", "x": "11", "y": "22", "additional": ""})
+        self.assertEqual(mouse.position, (11, 22))   # assignment ทับ mock attr ตรง ๆ
+        mouse.click.assert_called_once()
+
+    def test_press_and_release_tracks_stuck_keys(self):
+        r, mouse, kb, msgs = self._runner()
+        k = am.parse_key("ctrl")
+        r.execute({"button": "Press Key", "additional": "ctrl"})
+        self.assertIn(k, r.pressed_keys)
+        r.release_all()
+        kb.release.assert_called_once_with(k)      # ปล่อยคีย์ค้างตอนหยุด
+        self.assertEqual(r.pressed_keys, set())
+
+    def test_combo_press_tap_release_order(self):
+        r, mouse, kb, msgs = self._runner()
+        r.execute({"button": "Tap Key", "additional": "Ctrl+W"})
+        pressed = [c.args[0] for c in kb.press.call_args_list]
+        tapped = [c.args[0] for c in kb.tap.call_args_list]
+        released = [c.args[0] for c in kb.release.call_args_list]
+        self.assertEqual(pressed, [am.Key.ctrl])
+        self.assertEqual(tapped, [am.KeyCode.from_vk(0x57)])
+        self.assertEqual(released, [am.Key.ctrl])
+
+    def test_set_variable_and_substitution(self):
+        r, mouse, kb, msgs = self._runner()
+        r.execute({"button": "Set Variable", "additional": "n = 10"})
+        self.assertEqual(r.variables.get("n"), "10")
+        self.assertEqual(am.substitute_vars("{n}", r.variables), "10")
+
+    def test_clipboard_uses_callbacks(self):
+        sets, reads = [], {"x": "ข้อความ"}
+        r = me_mod.ActionRunner(
+            mock.MagicMock(), mock.MagicMock(),
+            on_clipboard_set=sets.append,
+            on_clipboard_read=lambda: reads["x"])
+        r.execute({"button": "Set Clipboard", "additional": "hello"})
+        self.assertEqual(sets, ["hello"])
+        r.execute({"button": "Read Clipboard", "additional": "v"})
+        self.assertEqual(r.variables.get("v"), "ข้อความ")
+
+    def test_unsupported_action_calls_callback(self):
+        seen = []
+        r = me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                unsupported_cb=lambda btn: seen.append(btn))
+        r.execute({"button": "Mystery Action"})
+        self.assertEqual(seen, ["Mystery Action"])
+
+    def test_plugin_gets_ctx_v2(self):
+        holder = {}
+        mod = type("M", (), {"run": staticmethod(lambda ctx, row: holder.update(ctx))})()
+        r = me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                plugin_lookup=lambda name: mod, stop_check=lambda: False)
+        r.execute({"button": "Fake Plugin", "additional": ""})
+        self.assertTrue(callable(holder.get("stop_check")))
+        self.assertIn("ui", holder)
+
+    def test_evaluate_condition_if_loop_and_time(self):
+        ec = me_mod.ActionRunner.evaluate_condition
+        skip, msg = ec(am.IF_LOOP, "3", 2, n_loop=3)
+        self.assertEqual(skip, 2)                       # Repeat = จำนวนแถวที่ข้าม
+        self.assertIn("ข้าม 2 แถว", msg)
+        skip, msg = ec(am.IF_LOOP, "3", 2, n_loop=2)
+        self.assertEqual((skip, msg), (0, None) if False else (0, msg))
+        self.assertIn("เล่นต่อ", msg)
+        skip, msg = ec(am.IF_TIME, "22:30", 4, n_loop=1,
+                       now=__import__("time").struct_time((2026, 9, 29, 23, 0, 0, 0, 0, 0)))
+        self.assertEqual(skip, 4)
+        skip, msg = ec(am.IF_TIME, "22:30", 4, n_loop=1,
+                       now=__import__("time").struct_time((2026, 9, 29, 10, 0, 0, 0, 0, 0)))
+        self.assertEqual(skip, 0)
+        self.assertIn("เล่นต่อ", msg)
+        skip, msg = ec("Beep", "", 1, n_loop=1)
+        self.assertEqual((skip, msg), (0, None))
+
+
+class TestEngineCli(unittest.TestCase):
+    """v2.1: engine_cli.py — CLI ย่อย import engine ตรง ๆ (ไม่แตะ auto_macro/tkinter)"""
+
+    def test_module_imports_without_gui(self):
+        import engine_cli
+        self.assertFalse(hasattr(engine_cli, "tk"))
+        self.assertTrue(callable(engine_cli.main))
+
+    def test_load_script_errors(self):
+        import engine_cli
+        rows, err = engine_cli.load_script("no_such_file.json")
+        self.assertIsNone(rows)
+        self.assertIn("ไม่พบไฟล์สคริปต์", err)
+        tmp = tempfile.mkdtemp(prefix="ecli_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        p = os.path.join(tmp, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("{bad json")
+        rows, err = engine_cli.load_script(p)
+        self.assertIn("JSON พัง", err)
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{"enabled": True, "button": "Beep", "secs": 0}], fh)
+        rows, err = engine_cli.load_script(p)
+        self.assertIsNone(err)
+        self.assertEqual(len(rows), 1)
+
+    def test_cli_runs_beep_script(self):
+        import engine_cli
+        tmp = tempfile.mkdtemp(prefix="ecli_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        p = os.path.join(tmp, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{"enabled": True, "button": "Beep", "secs": 0}], fh)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = engine_cli.main([p, "--no-log"])
+        self.assertEqual(rc, 0)
+        self.assertIn("จบแล้ว", out.getvalue())
+
+
+class TestPluginMarket(unittest.TestCase):
+    """v2.1: ปุ่มตลาด plugin — เปิดโฟลเดอร์ plugins/ ด้วยเมธอดเดิมที่ทดสอบแล้ว"""
+
+    def test_open_plugins_folder_method_exists(self):
+        self.assertTrue(hasattr(am.MacroApp, "open_plugins_folder"))
+
+    def test_open_plugins_folder_uses_opener(self):
+        app = mock.MagicMock()
+        with mock.patch.object(am, "os") as fake_os:
+            am.MacroApp.open_plugins_folder(app)
+            fake_os.makedirs.assert_called_once()      # สร้างโฟลเดอร์ถ้ายังไม่มี
+            fake_os.startfile.assert_called_once()     # เปิดโฟลเดอร์
 
 
 if __name__ == "__main__":

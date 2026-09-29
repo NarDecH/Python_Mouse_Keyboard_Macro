@@ -1,6 +1,6 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v2.0.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v2.1.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
 ## 🚀 v1.17 — ถัดไปอันใกล้
 
@@ -33,9 +33,13 @@
 - [x] ~~**แยก engine ออกจาก GUI (phase 1)** — `macro_engine.py` ค่าคงที่/parser/คลิปบอร์ด/unicode/
       log/stats/plugins ล้วน ไม่มี Tk~~ ✅ v2.0 (รักษาสัญญา "ไฟล์เดียวจบ" ด้วย `build_singlefile.py`
       รวมกลับเป็น `auto_macro.py` ก่อน build .exe · phase 2: ย้าย player/recorder ออกจาก MacroApp)
+- [x] ~~**phase 2: กลไก "ทำ 1 แถว" (ActionRunner) รวมเป็นแหล่งเดียว GUI+CLI**~~ ✅ v2.1
+      (CLI ทำ Move/Cursor/Modifier/Double/Launch ได้จริง + `engine_cli.py` ย่อย)
+- [x] ~~**ตลาด plugin** — หน้ารวม plugin + API เอกสาร + ปุ่มเปิดโฟลเดอร์~~ ✅ v2.1 (docs/PLUGINS.md + ปุ่ม 🔌)
+- [x] ~~**Multi-language docs** — เอกสารอังกฤษฉบับเต็ม~~ ✅ v2.1 (TUTORIAL.en.md 12 บท — จีน/ญี่ปุ่นค่อยว่างกันชุมชน)
 - [x] ~~**Plugin API v2** — ctx เพิ่ม `stop_check()` (plugin หยุดตาม STOP ได้), `ui` (toast/statusbar)~~ ✅ v1.20
-- [ ] **ตลาด plugin** — หน้าเว็บรวม plugin ของชุมชน + คำสั่งติดตั้ง (ดาวน์โหลดลง plugins/)
-- [ ] **Multi-language docs** — เพิ่มภาษาจีน/ญี่ปุ่น (i18n ตัวโปรแกรมรองรับแล้ว)
+- [ ] **รวบรวม plugin จากชุมชน** — PR เข้า docs/PLUGINS.md + ตัวอย่างเพิ่มใน plugins/ ได้เลย
+- [ ] **Multi-language docs (จีน/ญี่ปุ่น)** — i18n ตัวโปรแกรมรองรับแล้ว · พื้นฐาน EN ครบแล้ว (TUTORIAL.en.md)
 
 ## 🎯 หลักการที่ห้ามฝ่าฝืน
 
@@ -45,4 +49,4 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v2.0 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*
+*อัพเดตล่าสุด: v2.1 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*
