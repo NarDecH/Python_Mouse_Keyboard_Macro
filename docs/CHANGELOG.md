@@ -4,6 +4,18 @@
 
 ---
 
+## [2.4.1] — 2026-09-29
+
+### 📚 เอกสาร
+- **🎥 คลิปสอนกลุ่ม IMAGE** (`docs/images/tutorial_image.mp4` ~1 นาที) — ถ่ายจาก
+  โปรแกรมจริงบนฉากหลังสะอาด พร้อมคำบรรยายไทย: จับภาพด้วย 📸 → Image Click +
+  Search Area/Threshold → เล่นคลิกจริง (ป้ายกระพริบเมื่อโดนคลิก) → If Image
+  ทางแยก A/B (เจอ/ไม่เจอ) → Wait for Image → Multi Image Click
+- สร้างด้วย `tools/make_image_tutorial.py` (รันใหม่ได้เมื่อ UI เปลี่ยน) ·
+  ลิงก์แล้วที่ README + TUTORIAL บทที่ 5
+
+---
+
 ## [2.4.0] — 2026-09-29
 
 ### ✨ เพิ่มใหม่

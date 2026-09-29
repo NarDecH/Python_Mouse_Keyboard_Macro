@@ -99,6 +99,9 @@ If Loop / If Time (นับรอบ/เวลา — ดูบทที่ 5B)
 
 ## บทที่ 5 — Image Click + Search Area + Threshold
 
+> 🎥 **ดูคลิปสอนก่อนได้:** [docs/images/tutorial_image.mp4](images/tutorial_image.mp4) —
+> สาธิตจริงตั้งแต่จับภาพ → ตั้งค่า → เล่นคลิก → If Image A/B → Wait for Image
+
 ### 5.1 เตรียมภาพ
 กดปุ่ม **📸 จับภาพ (ลากกรอบบนจอ)** → โปรแกรมหดตัวเอง → ลากครอบปุ่ม/วัตถุที่ต้องการ → ตั้งชื่อไฟล์ (เช่น `play.png`) — เซฟไว้ที่โฟลเดอร์โปรแกรม
 

@@ -60,6 +60,10 @@
 <br><em>เคอร์เซอร์ไล่ตามสคริปต์ (อัดจากการรันโปรแกรมจริง)</em>
 </div>
 
+**🎥 คลิปสอนกลุ่ม IMAGE (v2.4):** [docs/images/tutorial_image.mp4](images/tutorial_image.mp4) —
+สอนครบทั้งขั้น: 📸 จับภาพ → Image Click + Search Area/Threshold → เล่นคลิกจริง →
+If Image ทางแยก A/B → Wait for Image (สร้างด้วย `tools/make_image_tutorial.py`)
+
 ---
 
 ## 🖼️ ต้นแบบเดิม (Auto Mouse v1.3)
