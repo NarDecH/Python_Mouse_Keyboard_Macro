@@ -143,6 +143,16 @@
   และ engine_cli, plugin ที่แจกมา 5 ตัวมีเทสต์ครบ (`TestPluginsComplete` — มาตรฐาน:
   รัน run(ctx, row) ด้วย ctx จำลอง + ทน input พัง), CI เพิ่ม job ubuntu/macos
   (Linux รัน E2E ใต้ xvfb, macOS continue-on-error เพราะสิทธิ์ accessibility)
+- **v2.4 (ความทนทาน/การใช้งาน):** self-healing hotkey (`_gk_start()` แยกจาก
+  `_start_global_hotkeys` — poller ตรวจ `is_alive` รีสตาร์ตเอง กันยิงรัวด้วย
+  `_gk_heal_at`), Safety timeout (Settings "หยุดเองหลังเล่น N นาที" จำลง conf +
+  CLI `--max-minutes`), If Image retry window (Additional ต่อท้าย `Ns` ผ่าน
+  parse_wait_timeout — ไม่ใส่ = ตรวจครั้งเดียวเหมือนเดิม), ตารางเลือกหลายแถว
+  (extended — `_on_del` ลบทั้งชุดได้เลย), Schedule เลือกโปรไฟล์ (`_sched_profile`
+  จำ conf — ถึงเวลาโหลดแถวโปรไฟล์ก่อนเล่น), Settings แสดง schedule/plugins status,
+  แคช template ใน `find_image_pos` (`_template_cache` ตาม mtime+size), CLI
+  `--validate` (engine `validate_rows()` คืน list (แถว, เหตุผล)), CI coverage report
+  ใน Step Summary
 
 ## เทคโนโลยี
 
