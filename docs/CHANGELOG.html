@@ -65,8 +65,47 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.20.4</h2>
+      <h2>เวอร์ชัน 1.21.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">29 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เพิ่มใหม่ (ดึงจาก ROADMAP)</h3>
+    <ul>
+      <li><b>🔁 If Loop (เงื่อนไขนับรอบ)</b> — Additional = เลขรอบ N เช่น <code>3</code>:
+        รอบที่ 3 ขึ้นไป → ข้ามแถวถัดไปจำนวน N (คอลัมน์ Repeat) — เหมาะกับ
+        "รอบแรก setup รอบถัดไปข้าม" · ทำงานทั้ง GUI และ CLI</li>
+      <li><b>🕐 If Time (เงื่อนไขเวลา)</b> — Additional = <code>HH:MM</code> เช่น
+        <code>22:30</code>: ผ่านเวลากำหนดของวันนี้แล้ว → ข้าม N แถวถัดไป (Repeat) ·
+        ทำงานทั้ง GUI และ CLI</li>
+      <li><b>🗂️ หัวข้อ Section (จัดระเบียบตาราง)</b> — คลิกขวา → "เปลี่ยนเป็นหัวข้อ Section" /
+        "เพิ่มหัวข้อ Section": แถวเป็นป้ายชื่อกลุ่มสีเทาเข้ม ไม่ถูกเล่น ไม่นับเลขลำดับ
+        ไม่หน่วง — สคริปต์ยาวอ่านง่ายขึ้นทันที</li>
+      <li><b>📐 กฎเดียวของเงื่อนไขทั้งหมด</b> — คอลัมน์ Repeat ของแถวเงื่อนไข =
+        <b>จำนวนแถวที่ข้าม</b> เสมอ (If Image / Else If Image / If Loop / If Time)</li>
+    </ul>
+
+    <h3>🐛 แก้ (จากการรันเดโม่จริง)</h3>
+    <ul>
+      <li><b>CLI เล่นแถวเงื่อนไขซ้ำเป็น action</b> — เงื่อนไขไม่ทำงาน (ยังไม่ถึงรอบ/เวลา)
+        เดิมไหลลง do_step แล้วโดนเตือน "ยังไม่รองรับใน CLI" → แถวเงื่อนไข continue เสมอ
+        พร้อม print เหตุผลทุกกรณี</li>
+      <li><b>CLI เช็คการข้ามหลังดีเลย์</b> — แถวที่ถูกสั่งข้ามเดิมยังหน่วงตาม Mins/Secs
+        ก่อนถูกข้าม → ย้ายไปเช็คก่อนดีเลย์ เท่ากับ GUI</li>
+    </ul>
+
+    <h3>📘 เอกสาร + 🧪 ทดสอบ</h3>
+    <ul>
+      <li>TUTORIAL บทที่ 5B ใหม่ · เดโม่ <code>examples/10_conditions_v21.json</code>
+        (ทดสอบรัน 3 รอบจริงแล้ว)</li>
+      <li>เพิ่ม TestConditionsV21 + TestSectionsGui + TestV21GuiPlay (เล่นจริงผ่าน player)
+        + TestV21CliLoop → <b>198 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.20.4</h2>
       <span class="date">28 กันยายน 2026</span>
     </div>
 

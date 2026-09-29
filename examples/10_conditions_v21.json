@@ -1,0 +1,17 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม A — ตัวอย่างข้ามแถวเมื่อถึงรอบ 3",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Loop", "additional": "3", "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": 1, "x": "", "y": "", "button": "Beep", "additional": "รอบ 3 ขึ้นไปแถวนี้ถูกข้าม (จะได้ยิน 2 ครั้งแรกเท่านั้น)",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "เล่นทุกรอบ", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม B — ตัวอย่างเงื่อนไขเวลา",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Time", "additional": "12:00", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "ก่อนเที่ยงวันนี้: แถวนี้เล่น / หลังเที่ยง: ถูกข้าม",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "เล่นทุกรอบ จบการเดโม่",
+   "mins": 0, "secs": 0, "repeat": 1}
+]

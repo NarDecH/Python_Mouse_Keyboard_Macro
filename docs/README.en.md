@@ -74,6 +74,9 @@
 | 🔀 **If Image** (v1.17) | Condition: image **not found** → skip the next N rows (N = the row's Repeat value). Supports Search Area & threshold like Image Click |
 | 🔀 **Else If Image** (v1.18) | Two-way condition: If found → play group A then skip group B; not found → play group B |
 | 🎨 **Wait for Pixel Color** (v1.18) | Wait until point (x,y) matches a color (`300,300 #ffffff`) before continuing |
+| 🔁 **If Loop** (v1.21) | Round condition: Additional = round number N (e.g. `3`) → from round N on, skip the next N rows (Repeat) — great for "first round setup, skip afterwards" |
+| 🕐 **If Time** (v1.21) | Time condition: Additional = `HH:MM` (e.g. `22:30`) → past that time today, skip the next N rows (Repeat) |
+| 🗂️ **Section header** (v1.21) | Right-click → "Convert to Section header": a group label row that never plays or counts — long scripts stay readable |
 | ⏱ **Per-action stats** (v1.18) | Stats shows the top 5 time-consuming Actions — spot your script's bottleneck instantly |
 | 🔍 **Find / Undo / Paste** (v1.17) | `Ctrl+F` search rows · `Ctrl+Z` undo delete (50 levels) · 📋 Paste menu inserts JSON rows from clipboard |
 

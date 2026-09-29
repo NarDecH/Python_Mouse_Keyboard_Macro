@@ -90,7 +90,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.20.4"
+__version__ = "1.21.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -118,6 +118,8 @@ TR = {
            "clip_bad": "คลิปบอร์ดไม่ใช่สคริปต์ JSON (ต้องเป็นรายการแถว)",
            "clip_added": "วางจากคลิปบอร์ดแล้ว %d แถว",
            "ifimg_skip": "If Image ไม่เจอ → ข้าม %d แถวถัดไป", "ifimg_hit": "If Image เจอ → เล่นต่อ",
+           "ifloop_hit": "ยังไม่เกินรอบที่กำหนด → เล่นต่อ", "iftime_hit": "ยังไม่ผ่านเวลาที่กำหนด → เล่นต่อ",
+           "ctx_section": "🗂️ เปลี่ยนเป็นหัวข้อ Section", "section_new": "🗂️ เพิ่มหัวข้อ Section",
            "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
            "pixel_title": "🎨 Wait for Pixel Color", "pixel_label": "x,y = จุดที่ต้องการ · #RRGGBB = สีที่รอ · วินาที = หน่วงก่อนตรวจ (พิมพ์ใน Additional)",
            "save": "บันทึก", "close": "ปิด", "language": "ภาษา (Language):",
@@ -154,6 +156,8 @@ TR = {
            "clip_bad": "Clipboard is not a JSON row list",
            "clip_added": "Pasted %d rows from clipboard",
            "ifimg_skip": "If Image miss → skip next %d rows", "ifimg_hit": "If Image found → continue",
+           "ifloop_hit": "Round below threshold → continue", "iftime_hit": "Before the set time → continue",
+           "ctx_section": "🗂️ Convert to Section header", "section_new": "🗂️ Add Section header",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",
            "backup_label": "Auto backup on close (keep last",
            "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
@@ -194,6 +198,8 @@ IMAGE_ACTION = "Image Click"
 IF_IMAGE = "If Image"            # เงื่อนไข v1.17: ภาพไม่เจอ → ข้าม N แถวถัดไป
 ELSE_IMAGE = "Else If Image"     # เงื่อนไข v1.18: สองทาง — เจอ → กลุ่ม A (ก่อนหน้า), ไม่เจอ → กลุ่ม B (หลัง)
 WAIT_PIXEL = "Wait for Pixel Color"  # v1.18: รอจุดสี (x,y + #RRGGBB) ก่อนทำงานต่อ
+IF_LOOP = "If Loop"              # เงื่อนไข v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
+IF_TIME = "If Time"              # เงื่อนไข v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
 # ฟีเจอร์เพิ่มเติมแรงบันดาลใจจาก automouseclick.com (v1.5)
 SCROLL_ACTIONS = ["Scroll Up", "Scroll Down"]
 DBL_ACTIONS = ["Double Left Click", "Double Right Click"]
@@ -202,9 +208,13 @@ MOVE_ACTIONS = ["Move Mouse", "Move Mouse by Offset", "Save Cursor", "Restore Cu
 EXTRA_ACTIONS = ["Type Text", "Launch App", "Wait for Image", "Beep"]
 VAR_ACTIONS = ["Set Variable"]   # v1.19: ตัวแปรในสคริปต์ — ใช้ {ชื่อ} แทนค่าในช่องอื่น
 CLIP_ACTIONS = ["Set Clipboard", "Read Clipboard"]  # v1.20: ตั้ง/อ่านคลิปบอร์ด
+LOOP_ACTIONS = ["If Loop"]       # v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
+TIME_ACTIONS = ["If Time"]       # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+SECTION_HEADER = "⬛ หัวข้อ"      # v1.21: แถวจัดระเบียบ — ไม่ทำอะไรตอนเล่น
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
-               + VAR_ACTIONS + CLIP_ACTIONS)
+               + VAR_ACTIONS + CLIP_ACTIONS + LOOP_ACTIONS + TIME_ACTIONS
+               + [SECTION_HEADER])
 
 # ------------------------------------------- pixel color helpers (v1.18) ----
 def parse_color_hex(txt):
@@ -218,6 +228,30 @@ def parse_color_hex(txt):
         return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
     except ValueError:
         return None
+
+
+# -------------------------------- เงื่อนไขนับรอบ/เวลา (v1.21) ----
+def parse_if_loop(txt):
+    """แปลง Additional ของ If Loop → N (เล่นได้ถึงรอบ N-1, ตั้งแต่รอบ N ขึ้นไป = ข้าม)
+    ไม่ถูกต้อง/น้อยกว่า 1 คืน None"""
+    try:
+        n = int(str(txt or "").strip())
+    except (TypeError, ValueError):
+        return None
+    return n if n >= 1 else None
+
+
+def parse_if_time(txt):
+    """แปลง Additional ของ If Time "HH:MM" → (HH, MM)
+    ผ่าน HH:MM ของวันนี้แล้ว → ข้าม N แถวถัดไป (N = คอลัมน์ Repeat)
+    ไม่ถูกต้องคืน None"""
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", str(txt or "").strip())
+    if not m:
+        return None
+    hh, mm = int(m.group(1)), int(m.group(2))
+    if hh > 23 or mm > 59:
+        return None
+    return (hh, mm)
 
 
 def parse_pixel_spec(additional):
@@ -914,6 +948,7 @@ class MacroApp:
         self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
         self._ifimg_skip = 0               # v1.17: ตัวนับข้ามแถวของ If Image
         self._last_if_found = False        # v1.18: ผล If Image ล่าสุด (ให้ Else If Image ใช้)
+        self._loop_no = 1                  # v1.21: เลขรอบปัจจุบัน (ให้ If Loop ใช้)
         self._vars = {}                    # v1.19: ตัวแปรของการเล่น (รีเซ็ตทุกครั้งที่เริ่มเล่น)
 
         # โปรไฟล์ / schedule / global hotkey
@@ -1040,6 +1075,7 @@ class MacroApp:
         self.tree.tag_configure("odd", background="#ffffff")
         self.tree.tag_configure("even", background="#f2f6fb")
         self.tree.tag_configure("run", background="#c8e6c9")
+        self.tree.tag_configure("section", background="#cfe3f7", foreground="#1a3d6d")  # v1.21
 
         tools = tk.Frame(self.root)
         tools.pack(fill="x", padx=6)
@@ -1410,7 +1446,8 @@ class MacroApp:
         vals = ["☑", len(self.tree.get_children()) + 1,
                 kw.get("x", ""), kw.get("y", ""), kw.get("button", ""),
                 kw.get("additional", ""), fmt_num(kw.get("mins", 0)),
-                fmt_num(kw.get("secs", 1)), fmt_num(kw.get("repeat", 1))]
+                fmt_num(0 if kw.get("button") == SECTION_HEADER else kw.get("secs", 1)),
+                fmt_num(kw.get("repeat", 1))]
         n = len(self.tree.get_children())
         self.tree.insert("", "end", values=vals, tags=("even" if n % 2 else "odd",))
         self.tree.see(self.tree.get_children()[-1])
@@ -1419,10 +1456,16 @@ class MacroApp:
         self._append_row(button="Left Click", secs=1)
 
     def refresh_nums(self):
-        for i, iid in enumerate(self.tree.get_children(), 1):
+        """รีเลขลำดับคอลัมน์ # — ข้ามแถว Section (v1.21) และตั้ง/ล้างสไตล์หัวข้อ"""
+        n = 0
+        for iid in self.tree.get_children():
             vals = list(self.tree.item(iid, "values"))
-            vals[1] = i
-            self.tree.item(iid, values=vals)
+            if str(vals[4]) == SECTION_HEADER:
+                self.tree.item(iid, tags=("section",))
+                continue
+            n += 1
+            vals[1] = n
+            self.tree.item(iid, values=vals, tags=("even" if n % 2 else "odd",))
 
     def _on_click(self, event):
         if self.tree.identify("region", event.x, event.y) != "cell":
@@ -1583,7 +1626,9 @@ class MacroApp:
         menu.add_command(label=self._t("ctx_copy"), command=lambda: self._row_duplicate(iid))
         menu.add_command(label=self._t("ctx_above"), command=lambda: self._row_insert_above(iid))
         menu.add_command(label=self._t("ctx_below"), command=lambda: self._row_insert_below(iid))
+        menu.add_command(label=self._t("section_new"), command=lambda: self._add_section(iid))
         menu.add_separator()
+        menu.add_command(label=self._t("ctx_section"), command=lambda: self._row_toggle_section(iid))
         menu.add_command(label=self._t("ctx_del"), command=self._on_del)
         try:
             menu.tk_popup(event.x_root, event.y_root)
@@ -1613,6 +1658,25 @@ class MacroApp:
         vals = ["☑", "#", "", "", "Left Click", "", 0, 1, 1]
         idx = self.tree.index(src)
         new_iid = self.tree.insert("", idx + 1, values=vals)
+        self.tree.selection_set(new_iid)
+        self.refresh_nums()
+
+    def _row_toggle_section(self, iid):
+        """v1.21: สลับแถวเป็นหัวข้อ Section (หรือกลับเป็นแถวธรรมดา Left Click)"""
+        vals = list(self.tree.item(iid, "values"))
+        if str(vals[4]) == SECTION_HEADER:
+            vals[4] = "Left Click"
+            self.tree.item(iid, values=vals)
+        else:
+            vals[4] = SECTION_HEADER
+            self.tree.item(iid, values=vals)
+        self.refresh_nums()
+
+    def _add_section(self, src):
+        """v1.21: แทรกหัวข้อ Section ใหม่ใต้แถวที่เลือก (ใช้คอลัมน์ Additional เป็นชื่อหัวข้อ)"""
+        idx = self.tree.index(src)
+        new_iid = self.tree.insert("", idx + 1,
+                                   values=["☑", "#", "", "", SECTION_HEADER, "", 0, 0, 1])
         self.tree.selection_set(new_iid)
         self.refresh_nums()
 
@@ -1661,6 +1725,8 @@ class MacroApp:
                     "If Image": "ชื่อไฟล์ .png — Repeat = จำนวนแถวที่ข้ามถ้าภาพไม่เจอ",
                     "Else If Image": "ชื่อไฟล์ .png — ตัวแบ่งกลุ่ม A/B แบบสองทาง (v1.18)",
                     "Wait for Pixel Color": "x,y #RRGGBB เช่น 100,200 #ff0000 (ตามด้วย 60s = รอ 60 วิ)",
+                    "If Loop": "เลขรอบ เช่น 5 = รอบที่ 5 ขึ้นไปข้าม N แถวถัดไป (N = Repeat)",
+                    "If Time": "HH:MM เช่น 22:30 = ผ่าน 22:30 แล้วข้าม N แถวถัดไป (N = Repeat)",
                     "Tap Key": "ชื่อคีย์ เช่น enter, w, F5 — หรือคอมโบ Ctrl+W, Ctrl+Shift+T",
                     "Press Key": "กดค้าง เช่น ctrl, w — หรือคอมโบ Ctrl+W (ต้องมี Release คู่)",
                     "Release Key": "ชื่อคีย์/คอมโบเดียวกับ Press Key ที่กดค้างไว้",
@@ -1746,6 +1812,10 @@ class MacroApp:
             if r["button"] == "Read Clipboard" and not re.fullmatch(
                     _VAR_NAME, str(r["additional"] or "").strip()):
                 return False
+            if r["button"] == IF_LOOP and parse_if_loop(r["additional"]) is None:
+                return False
+            if r["button"] == IF_TIME and parse_if_time(r["additional"]) is None:
+                return False
             if r["button"] in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
                 p, _a, _t = self._parse_search_area(r)
                 if not p:
@@ -1796,6 +1866,7 @@ class MacroApp:
         self._shuffle = self.chk_shuffle.get()
         self._pct = self._play_options()
         self._vars = {}                   # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
+        self._loop_no = 1                 # ตัวนับรอบเริ่มใหม่ (If Loop, v1.21)
         self._log_src = self._loaded_file or "ตารางในโปรแกรม"
         if self._log_enabled:
             extra = " สุ่มลำดับ" if self._shuffle else ""
@@ -2011,13 +2082,16 @@ class MacroApp:
                     if self._ifimg_skip > 0:
                         self._ifimg_skip -= 1
                         continue
+                    self._loop_no = loop_no          # v1.21: เลขรอบปัจจุบัน (ให้ If Loop ใช้)
                     r = subst_row(r, self._vars)     # v1.19: แทน {ตัวแปร} ทุกคอลัมน์
+                    if r["button"] == SECTION_HEADER:  # v1.21: แถวจัดระเบียบ — ไม่ทำอะไร
+                        continue
                     self._ui_state["row"] = iid      # ไฮไลต์ตรงแถวที่เล่นจริง (v1.19)
                     self._ui_state["prog"] = (i + 1, total, loop_no)
                     for _ in range(parse_int(r["repeat"])):
                         if not self._gen_ok(gen):
                             return
-                        lo, hi = delay_range(r["secs"])
+                        lo, hi = delay_range(r["secs"])            # 0s = ผ่าน (เงื่อนไขไม่ต้องหน่วง)
                         base = delay_seconds(r["mins"], 0) + (lo if lo == hi else random.uniform(lo, hi))
                         if not self._sleep_check(base / self._speed_mult, gen):
                             return
@@ -2059,6 +2133,45 @@ class MacroApp:
                                           (loop_no, i + 1, total, r["additional"] or "",
                                            det, time.time() - step_t0), self._log_src)
                             break                       # ตัวแบ่งกลุ่มทำงานรอบเดียว
+                        if r["button"] == IF_LOOP:      # v1.21: รอบที่ >= N → ข้าม N แถว
+                            n = parse_if_loop(r.get("additional"))
+                            if n is None:
+                                det = "Additional ไม่ถูก (ต้องเป็นเลข >= 1) — เล่นต่อ"
+                            elif self._loop_no < n:
+                                det = "รอบ %d < %d → เล่นต่อ" % (self._loop_no, n)
+                                self._ui_state["msg"] = (self._t("ifloop_hit"), "#080")
+                            else:
+                                n_skip = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
+                                self._ifimg_skip = n_skip
+                                det = "รอบที่ %d >= %d → ข้าม %d แถว" % (self._loop_no, n, n_skip)
+                                self._ui_state["msg"] = (self._t("ifimg_skip") % n_skip, "#a60")
+                            if self._log_enabled:
+                                log_write("STEP", "รอบ %d แถว %d/%d If Loop %s → %s (%.1f วิ)" %
+                                          (loop_no, i + 1, total, r["additional"] or "",
+                                           det, time.time() - step_t0), self._log_src)
+                            break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
+                        if r["button"] == IF_TIME:      # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถว
+                            spec = parse_if_time(r.get("additional"))
+                            if spec is None:
+                                det = "Additional ไม่ถูก (ต้องเป็น HH:MM) — เล่นต่อ"
+                            else:
+                                hh, mm = spec
+                                now = time.localtime()
+                                passed = (now.tm_hour, now.tm_min) >= (hh, mm)
+                                if not passed:
+                                    det = "%02d:%02d ยังไม่ถึง %02d:%02d → เล่นต่อ" % (
+                                        now.tm_hour, now.tm_min, hh, mm)
+                                    self._ui_state["msg"] = (self._t("iftime_hit"), "#080")
+                                else:
+                                    n_skip = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
+                                    self._ifimg_skip = n_skip
+                                    det = "ผ่าน %02d:%02d แล้ว → ข้าม %d แถว" % (hh, mm, n_skip)
+                                    self._ui_state["msg"] = (self._t("ifimg_skip") % n_skip, "#a60")
+                            if self._log_enabled:
+                                log_write("STEP", "รอบ %d แถว %d/%d If Time %s → %s (%.1f วิ)" %
+                                          (loop_no, i + 1, total, r["additional"] or "",
+                                           det, time.time() - step_t0), self._log_src)
+                            break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
                         do_step(r)
                         if self._log_enabled:
                             log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
@@ -2274,6 +2387,8 @@ class MacroApp:
 
     def _untag(self, iid):
         try:
+            if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:
+                return                             # คงสไตล์หัวข้อเดิมไว้ (v1.21)
             i = self.tree.index(iid)
             self.tree.item(iid, tags=("even" if i % 2 else "odd",))
         except tk.TclError:
@@ -2441,8 +2556,8 @@ class MacroApp:
         out = []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
-            out.append(dict(enabled=str(v[0]) == "☑", x=v[2], y=v[3], button=v[4],
-                            additional=v[5], mins=v[6], secs=v[7], repeat=v[8]))
+            out.append(dict(enabled=str(v[0]) == "☑", x=str(v[2]), y=str(v[3]), button=str(v[4]),
+                            additional=str(v[5]), mins=v[6], secs=v[7], repeat=v[8]))
         return out
 
     def _load_rows(self, rows):
@@ -2457,6 +2572,8 @@ class MacroApp:
             iid = self.tree.get_children()[-1]
             vals = list(self.tree.item(iid, "values"))
             vals[0] = "☑" if r.get("enabled", True) else "☐"
+            if str(vals[4]) == SECTION_HEADER:
+                vals[7] = "0"                      # Section ไม่หน่วง — ไม่ผ่านเส้นทางเล่น (v1.21)
             self.tree.item(iid, values=vals)
         self.refresh_nums()
 
@@ -3496,6 +3613,7 @@ def cli_main(argv):
             loops = 0 if args.loop else max(0, args.loops)
             active = [r for r in rows if r.get("enabled", True) is not False]
             cli_vars.clear()                 # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
+            skip_n = 0                       # ตัวนับข้ามแถวจาก If Loop/If Time (v1.21)
             n_loop = 0
             while True:
                 n_loop += 1
@@ -3505,6 +3623,11 @@ def cli_main(argv):
                     if not running[0]:
                         return False
                     r = subst_row(r, cli_vars)   # v1.19: แทน {ตัวแปร} ทุกคอลัมน์
+                    if r.get("button") == SECTION_HEADER:  # v1.21: แถวจัดระเบียบ — ไม่ทำอะไร
+                        continue
+                    if skip_n > 0:               # แถวถูกสั่งข้ามจากเงื่อนไขก่อนหน้า (v1.21)
+                        skip_n -= 1
+                        continue
                     lo, hi = delay_range(r.get("secs", 1))
                     base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else random.uniform(lo, hi))
                     # หยุดทันทีกลางดีเลย์: แบ่ง sleep ชิ้นละ 50 ms เช็ค running ทุกชิ้น
@@ -3517,6 +3640,42 @@ def cli_main(argv):
                     if not running[0]:
                         return False
                     step_t0 = time.time()
+                    btn = r.get("button", "")
+                    if btn == IF_LOOP:            # v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
+                        n = parse_if_loop(r.get("additional"))
+                        if n is None:
+                            print("  [%d/%d] If Loop %s → Additional ไม่ถูก (ต้องเป็นเลข >= 1) เล่นต่อ"
+                                  % (i, len(play_rows), r.get("additional", "")))
+                        elif n_loop < n:
+                            print("  [%d/%d] If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ"
+                                  % (i, len(play_rows), r.get("additional", ""), n_loop, n))
+                        else:
+                            skip_n = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
+                            print("  [%d/%d] If Loop %s → รอบที่ %d >= %d ข้าม %d แถว"
+                                  % (i, len(play_rows), r.get("additional", ""), n_loop, n, skip_n))
+                            if log_enabled:
+                                log_write("STEP", "รอบ %d แถว %d/%d If Loop %s → ข้าม %d แถว (%.1f วิ)"
+                                          % (n_loop, i, len(play_rows), r.get("additional", ""),
+                                             skip_n, time.time() - step_t0), args.script)
+                        continue                   # แถวเงื่อนไขไม่ถูกเล่นซ้ำเป็น action
+                    if btn == IF_TIME:            # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+                        spec = parse_if_time(r.get("additional"))
+                        now = time.localtime()
+                        if spec is None:
+                            print("  [%d/%d] If Time %s → Additional ไม่ถูก (ต้องเป็น HH:MM) เล่นต่อ"
+                                  % (i, len(play_rows), r.get("additional", "")))
+                        elif (now.tm_hour, now.tm_min) >= spec:
+                            skip_n = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
+                            print("  [%d/%d] If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว"
+                                  % (i, len(play_rows), spec[0], spec[1], skip_n))
+                            if log_enabled:
+                                log_write("STEP", "รอบ %d แถว %d/%d If Time %02d:%02d → ข้าม %d แถว (%.1f วิ)"
+                                          % (n_loop, i, len(play_rows), spec[0], spec[1], skip_n,
+                                             time.time() - step_t0), args.script)
+                        else:
+                            print("  [%d/%d] If Time %02d:%02d → ยังไม่ถึง %02d:%02d เล่นต่อ"
+                                  % (i, len(play_rows), now.tm_hour, now.tm_min, spec[0], spec[1]))
+                        continue                   # แถวเงื่อนไขไม่ถูกเล่นซ้ำเป็น action
                     do_step(r)
                     if log_enabled:
                         log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %

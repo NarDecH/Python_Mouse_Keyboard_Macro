@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.20.4 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.21.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -98,6 +98,14 @@
   = SendInput KEYEVENTF_UNICODE (ctypes ล้วน, Windows; OS อื่น fallback ทาง pynput)
   ⚠️ อย่ากลับไปพิมพ์ข้อความด้วย virtual key — พิมพ์ข้อความให้ใช้ Unicode path เสมอ
   (`\n` = Enter, อักขระเกิน BMP แยก surrogate pair — ดู `_unicode_input_records`)
+- **ฟีเจอร์เสริม v1.21:** เงื่อนไขนับรอบ/เวลา (`If Loop`/`If Time` — Additional เลขรอบ N /
+  HH:MM, parse ผ่าน `parse_if_loop`/`parse_if_time`, **กฎเดียว: Repeat = จำนวนแถวที่ข้าม**
+  ทุกเงื่อนไขรวม If Image/Else, GUI ใช้ `self._ifimg_skip` + `self._loop_no` ในลูปเล่น,
+  CLI ใช้ `skip_n` — ⚠️ แถวเงื่อนไขต้อง `break`/`continue` **ก่อน** do_step เสมอ ไม่งั้นโดน
+  เตือน "ยังไม่รองรับใน CLI" และเช็คการข้ามต้องอยู่ **ก่อนดีเลย์** ทั้งสองโหมด),
+  หัวข้อ Section (`SECTION_HEADER` = "⬛ หัวข้อ" — แถวจัดระเบียบ: ไม่เล่น/ไม่นับเลขใน
+  `refresh_nums`/ไม่หน่วง, สลับกลับเป็น Left Click ได้ผ่าน `_row_toggle_section`,
+  เพิ่มด้วยเมนูขวา `_add_section`), เดโม่ `examples/10_conditions_v21.json`
 
 ## เทคโนโลยี
 

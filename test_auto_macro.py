@@ -6,6 +6,8 @@ Unit tests สำหรับฟังก์ชันล้วน ๆ ของ 
 รันด้วย:  py -m unittest test_auto_macro -v
 """
 
+import datetime
+import io
 import json
 import os
 import random
@@ -2168,6 +2170,252 @@ class TestKeyCombo(unittest.TestCase):
         ok2 = am.MacroApp._validate_rows(
             app, [{"button": "Tap Key", "additional": "Ctrl+??"}])
         self.assertFalse(ok2)
+
+# ================================ v1.21: เงื่อนไขนับรอบ/เวลา + จัดระเบียบตาราง ====
+class TestConditionsV21(unittest.TestCase):
+    """v1.21: If Loop / If Time — parse, validate และเล่นจริงผ่าน player (Beep ล้วน)"""
+
+    def test_parse_if_loop_valid(self):
+        self.assertEqual(am.parse_if_loop("5"), 5)
+        self.assertEqual(am.parse_if_loop(" 3 "), 3)
+
+    def test_parse_if_loop_invalid(self):
+        self.assertIsNone(am.parse_if_loop(""))
+        self.assertIsNone(am.parse_if_loop("abc"))
+        self.assertIsNone(am.parse_if_loop("0"))
+        self.assertIsNone(am.parse_if_loop("-2"))
+
+    def test_parse_if_time_valid(self):
+        self.assertEqual(am.parse_if_time("22:30"), (22, 30))
+        self.assertEqual(am.parse_if_time("8:05"), (8, 5))
+        self.assertEqual(am.parse_if_time(" 23:59 "), (23, 59))
+
+    def test_parse_if_time_invalid(self):
+        self.assertIsNone(am.parse_if_time(""))
+        self.assertIsNone(am.parse_if_time("25:00"))
+        self.assertIsNone(am.parse_if_time("12:60"))
+        self.assertIsNone(am.parse_if_time("xx:30"))
+        self.assertIsNone(am.parse_if_time("22:30|0"))    # |N ไม่รองรับแล้ว — N ใช้ Repeat
+
+    def test_validate_rows_accepts_new_conditions(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        ok = am.MacroApp._validate_rows(app, [
+            {"button": am.IF_LOOP, "additional": "5"},
+            {"button": am.IF_TIME, "additional": "22:30"},
+        ])
+        self.assertTrue(ok)
+        bad = am.MacroApp._validate_rows(app, [
+            {"button": am.IF_LOOP, "additional": "abc"},
+            {"button": am.IF_TIME, "additional": "99:99"},
+        ])
+        self.assertFalse(bad)
+
+    def test_section_header_ignored_by_validate(self):
+        app = mock.MagicMock()
+        app._plugin_module.return_value = None
+        ok = am.MacroApp._validate_rows(app, [{"button": am.SECTION_HEADER,
+                                               "additional": "กลุ่มที่ 1"}])
+        self.assertTrue(ok)
+
+
+class TestSectionsGui(unittest.TestCase):
+    """v1.21: Section header — refresh_nums ข้ามเลข + ให้สี + สลับกลับเป็นแถวธรรมดา"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        kids = iter("r%d" % i for i in range(1, 999))
+        store = {"i1": ["☑", 1, "", "", "Beep", "", "0", "1", "1"],
+                 "i2": ["☑", 2, "", "", "Beep", "", "0", "1", "1"]}
+
+        def insert(parent, index, **kw):
+            iid = next(kids)
+            store[iid] = list(kw["values"])
+            return iid
+        app.tree.get_children.side_effect = lambda: list(store.keys())
+
+        def _item(iid, *args, **kw):
+            if "values" in kw:
+                store[iid] = list(kw["values"])
+                return None
+            return store.get(iid)
+        app.tree.item.side_effect = _item
+        app.tree.insert = insert
+        app._ui_state = {}
+
+        def refresh_nums():
+            # เรียกเมธอดจริงผ่าน store mock — เหมือนแพตเทิร์น TestUndoFindPaste
+            am.MacroApp.refresh_nums(app)
+        app.refresh_nums = refresh_nums
+        for m in ("refresh_nums", "_row_toggle_section", "_add_section"):
+            setattr(app, m, getattr(am.MacroApp, m).__get__(app))
+        return app, store
+
+    def test_refresh_nums_skips_sections(self):
+        app, store = self._app()
+        app._add_section("i2")
+        self.assertIn("⬛ หัวข้อ", str(store))
+        sec_iid = [k for k, v in store.items() if v[4] == am.SECTION_HEADER][0]
+        self.assertIn(store[sec_iid][7], ("0", 0))         # Secs = 0
+        # เพิ่มแถวที่ 3 ธรรมดา — เลขต้องไล่ 1,2 ไม่นับหัวข้อ
+        app.tree.insert("", "end", values=["☑", "#", "", "", "Beep", "", "0", "1", "1"])
+        app.refresh_nums()
+        self.assertEqual(store["i1"][1], 1)
+        self.assertEqual(store["i2"][1], 2)
+        sec = [v for v in store.values() if v[4] == am.SECTION_HEADER][0]
+        self.assertEqual(sec[1], "#")                      # หัวข้อไม่ถูกรีเลข
+
+    def test_toggle_section_back_to_row(self):
+        app, store = self._app()
+        app._row_toggle_section("i1")                      # Beep → หัวข้อ
+        self.assertEqual(store["i1"][4], am.SECTION_HEADER)
+        app._row_toggle_section("i1")                      # หัวข้อ → กลับเป็นแถวธรรมดา
+        self.assertEqual(store["i1"][4], "Left Click")
+
+
+class TestV21GuiPlay(unittest.TestCase):
+    """v1.21: เล่นจริงผ่าน player (GUI) — If Loop/If Time ข้ามแถว + Section ไม่หยุดการเล่น
+    แถว Beep ล้วน (secs=0) ไม่แตะเมาส์/คีย์ — ไม่มีจอ skip อัตโนมัติ"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._orig_log = am.log_write
+        cls.steps = []
+
+        def counting_log(mode, message, src=None):
+            if mode == "STEP":
+                cls.steps.append(message)
+            return cls._orig_log(mode, message, src)
+        am.log_write = counting_log
+        cls.app = None
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+        except am.tk.TclError:
+            cls.root = None
+            return
+        try:
+            cls.app = am.MacroApp(cls.root)
+            cls.app._log_enabled = True
+        except Exception:
+            cls.root.destroy()
+            cls.root = None
+            cls.app = None
+
+    @classmethod
+    def tearDownClass(cls):
+        am.log_write = cls._orig_log
+        if cls.app is not None:
+            try:
+                cls.app.stop_all(silent=True)
+            except Exception:
+                pass
+        if cls.root is not None:
+            cls.root.destroy()
+
+    def setUp(self):
+        if self.app is None:
+            self.skipTest("ไม่มีจอ/สร้าง MacroApp จริงไม่ได้")
+        self.app.stop_all(silent=True)
+        self.app.ent_loops.delete(0, "end")
+        self.app.ent_loops.insert(0, "1")                  # กันค่าค้างจากเทสต์ก่อนหน้า
+        self.app._load_rows([{"enabled": True, "button": "Beep", "secs": 0, "repeat": 1}])
+        self.__class__.steps = []
+
+    def _wait_done(self, timeout=5.0):
+        end = time.time() + timeout
+        while time.time() < end:
+            try:
+                self.root.update()
+            except Exception:
+                pass
+            if not self.app.running:
+                return True
+            time.sleep(0.03)
+        return False
+
+    def test_if_loop_skips_from_round_n(self):
+        app = self.app
+        app._load_rows([
+            {"enabled": True, "button": "Beep", "secs": 0},
+            {"enabled": True, "button": am.IF_LOOP, "additional": "2", "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "secs": 0},
+        ])
+        app.ent_loops.delete(0, "end")
+        app.ent_loops.insert(0, "3")                       # เล่น 3 รอบแล้วจบเอง
+        app.start_play()
+        self.assertTrue(self._wait_done())
+        self.assertEqual(len([s for s in self.steps if "Beep" in s]), 4)   # Beep#1 ทุกรอบ(3) + Beep#2 รอบเดียว(1)
+        self.assertEqual(len([s for s in self.steps if "If Loop" in s]), 3)
+        skipped = [s for s in self.steps if "If Loop" in s and "ข้าม" in s]
+        self.assertEqual(len(skipped), 2)                  # รอบ 2 และ 3 ถูกข้าม
+        self.assertEqual(len([s for s in self.steps if "If Loop" in s and "ข้าม" not in s]), 1)
+
+    def test_if_time_before_time_plays_on(self):
+        app = self.app
+        t = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        app._load_rows([
+            {"enabled": True, "button": am.IF_TIME,
+             "additional": "%02d:%02d" % (t.hour, t.minute), "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "secs": 0},
+        ])
+        app.start_play()
+        self.assertTrue(self._wait_done())
+        self.assertEqual(len([s for s in self.steps if "If Time" in s]), 1)
+        self.assertEqual(len([s for s in self.steps if "Beep" in s]), 1)   # เล่นต่อปกติ
+
+    def test_section_row_played_through(self):
+        app = self.app
+        app._load_rows([
+            {"enabled": True, "button": "Beep", "secs": 0},
+            {"enabled": True, "button": am.SECTION_HEADER, "additional": "หัวข้อทดสอบ"},
+            {"enabled": True, "button": "Beep", "secs": 0},
+        ])
+        app.start_play()
+        self.assertTrue(self._wait_done())
+        self.assertEqual(len([s for s in self.steps if "Beep" in s]), 2)
+        self.assertEqual(len(self.steps), 2)               # Section ไม่เขียน log STEP เลย
+
+
+class TestV21CliLoop(unittest.TestCase):
+    """v1.21: CLI รองรับ If Loop/If Time + Section (รันผ่าน cli_main จริง)"""
+
+    def _run_cli(self, rows, extra=None):
+        tmp = tempfile.mkdtemp(prefix="v21cli_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "script.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path] + (extra or []))
+        return rc, out.getvalue()
+
+    def test_cli_if_loop_and_section(self):
+        rows = [
+            {"enabled": True, "button": "Beep", "secs": 0},
+            {"enabled": True, "button": am.IF_LOOP, "additional": "2", "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "secs": 0},
+            {"enabled": True, "button": am.SECTION_HEADER, "additional": "กลุ่ม"},
+        ]
+        rc, outp = self._run_cli(rows, ["--loops", "2"])
+        self.assertEqual(rc, 0)
+        # รอบ 1: Beep ทั้ง 2 จุด (ยังไม่ถึงรอบ 2); รอบ 2: If Loop ข้าม 1 แถว → Beep #1 อย่างเดียว
+        self.assertEqual(outp.count("Beep"), 3)
+        self.assertEqual(outp.count("ข้าม 1 แถว"), 1)
+        self.assertEqual(outp.count("[3/4]"), 1)           # แถว 3 ถูกเล่นเฉพาะรอบ 1
+        self.assertNotIn("กลุ่ม", outp)                     # Section ไม่ถูกพิมพ์เลย
+
+    def test_cli_if_time_future_time_plays_on(self):
+        t = datetime.datetime.now() + datetime.timedelta(minutes=5)
+        rows = [
+            {"enabled": True, "button": am.IF_TIME,
+             "additional": "%02d:%02d" % (t.hour, t.minute), "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "secs": 0},
+        ]
+        rc, outp = self._run_cli(rows)
+        self.assertEqual(rc, 0)
+        self.assertEqual(outp.count("Beep"), 1)
 
 
 if __name__ == "__main__":
