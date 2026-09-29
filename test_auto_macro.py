@@ -2871,7 +2871,12 @@ class TestV22ImageEngine(unittest.TestCase):
     def test_find_image_pos_missing_file_sets_last_error(self):
         import macro_engine as me
         self.assertIsNone(me.find_image_pos("no_such_v22.png"))
-        self.assertIn("ไม่พบไฟล์ภาพ", me.find_image_pos.last_error)
+        # ต้องรายงานเหตุผลเสมอ — เครื่องไม่มี opencv = เตือนติดตั้ง, มี = เตือนไฟล์หาย (v2.2)
+        self.assertTrue(me.find_image_pos.last_error)
+        if me.HAS_CV:
+            self.assertIn("ไม่พบไฟล์ภาพ", me.find_image_pos.last_error)
+        else:
+            self.assertIn("ติดตั้ง", me.find_image_pos.last_error)
 
     def test_runner_executes_if_image_and_sets_skip(self):
         """If Image ไม่เจอ (ไฟล์หาย) → skip_n = Repeat · เจอ/ผ่านเคสอื่นทำใน E2E"""
@@ -2991,6 +2996,7 @@ class TestV22Plugins(unittest.TestCase):
         self.assertTrue(any("HTTP 200" in m for m in logs))
 
     def test_multi_image_click_reports_missing(self):
+        import macro_engine as me
         pl = self._plugin("Multi Image Click")
         msgs = []
         ctx = {"ui": {"msg": lambda t, c="#080": msgs.append(t)},
@@ -2998,6 +3004,9 @@ class TestV22Plugins(unittest.TestCase):
                "mouse": mock.MagicMock(),
                "stop_check": lambda: True}
         pl.run(ctx, {"additional": "no_such_a.png | no_such_b.png"})
+        if not me.HAS_CV:                    # เครื่องไม่มี opencv = เตือนครั้งเดียว
+            self.assertTrue(any("opencv" in m for m in msgs))
+            return
         self.assertEqual(len([m for m in msgs if "ข้าม" in m]), 2)
         ctx["mouse"].position.assert_not_called()       # ไม่เจอสักภาพ = ไม่คลิก
 
