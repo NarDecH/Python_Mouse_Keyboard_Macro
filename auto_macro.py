@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.4.1"
+__version__ = "2.5.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -142,8 +142,12 @@ TR = {
            "ctx_above": "⬆️ แทรกแถวใหม่ด้านบน", "ctx_below": "⬇️ แทรกแถวใหม่ด้านล่าง",
            "ctx_del": "🗑️ ลบแถวนี้", "ctx_undo": "↩️ กู้คืนแถวที่ลบ (Ctrl+Z)",
            "nothing_undo": "ไม่มีอะไรให้กู้คืน", "undone": "กู้คืนแถวแล้ว",
-           "find_title": "🔍 ค้นหาแถว", "find_label": "ข้อความ (match ทุกคอลัมน์):",
+           "find_title": "🔍 ค้นหา/แทนที่แถว", "find_label": "ข้อความ (match ทุกคอลัมน์):",
            "find_btn": "ค้นหา", "found": "เจอที่แถว %d", "notfound": "ไม่เจอ: %s",
+           "replace_label": "ข้อความแทนที่ (ว่าง = ลบข้อความเดิม):",
+           "replace_btn": "🔁 แทนที่ทั้งหมด", "replaced": "แทนที่แล้ว %d จุด",
+           "col_note": "หมายเหตุ",
+           "nothing_redo": "ไม่มีอะไรให้ทำซ้ำ", "redone": "ทำซ้ำแล้ว",
            "clip_empty": "คลิปบอร์ดว่าง",
            "clip_bad": "คลิปบอร์ดไม่ใช่สคริปต์ JSON (ต้องเป็นรายการแถว)",
            "clip_added": "วางจากคลิปบอร์ดแล้ว %d แถว",
@@ -183,8 +187,12 @@ TR = {
            "ctx_above": "⬆️ Insert row above", "ctx_below": "⬇️ Insert row below",
            "ctx_del": "🗑️ Delete row", "ctx_undo": "↩️ Undo last delete (Ctrl+Z)",
            "nothing_undo": "Nothing to undo", "undone": "Rows restored",
-           "find_title": "🔍 Find row", "find_label": "Text to search (any column):",
+           "find_title": "🔍 Find / Replace rows", "find_label": "Text to search (any column):",
            "find_btn": "Find", "found": "Found at row %d", "notfound": "Not found: %s",
+           "replace_label": "Replacement (empty = remove matched text):",
+           "replace_btn": "🔁 Replace all", "replaced": "Replaced %d spot(s)",
+           "col_note": "Note",
+           "nothing_redo": "Nothing to redo", "redone": "Redone",
            "clip_empty": "Clipboard is empty",
            "clip_bad": "Clipboard is not a JSON row list",
            "clip_added": "Pasted %d rows from clipboard",
@@ -236,6 +244,9 @@ ELSE_IMAGE = "Else If Image"     # เงื่อนไข v1.18: สองท�
 WAIT_PIXEL = "Wait for Pixel Color"  # v1.18: รอจุดสี (x,y + #RRGGBB) ก่อนทำงานต่อ
 IF_LOOP = "If Loop"              # เงื่อนไข v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
 IF_TIME = "If Time"              # เงื่อนไข v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+IF_PIXEL = "If Pixel Color"      # เงื่อนไข v2.5: จุดสีตรง → เล่นต่อ, ไม่ตรง → ข้าม N แถว
+READ_PIXEL = "Read Pixel Color"  # v2.5: อ่านสีจุดเก็บเป็นตัวแปร (Additional: ชื่อ x,y)
+IF_VAR = "If Variable"           # เงื่อนไข v2.5: เทียบค่าตัวแปร → เล่นต่อ/ข้าม N แถว
 
 # v1.22: หมวดสีของแถวตารางตามชนิด Action — แยกกลุ่มเห็นภาพ แค่การจัดระเบียบ ไม่เปลี่ยนพฤติกรรม
 ROW_STYLE = {"run": {"background": "#c8e6c9"},
@@ -252,12 +263,12 @@ def row_tag(button):
     แถวเมาส์ทั่วไปใช้แถบสลับ even/odd เหมือนเดิม"""
     if button == SECTION_HEADER:
         return "section"
-    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME):
+    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR):
         return "cond"
     if button in ("Tap Key", "Press Key", "Release Key", "Type Text"):
         return "key"
     if button in ("Image Click", "Wait for Image", "Wait for Pixel Color", "Launch App",
-                  "Beep", "Set Clipboard", "Read Clipboard", "Set Variable"):
+                  "Beep", "Set Clipboard", "Read Clipboard", "Set Variable", READ_PIXEL):
         return "special"
     return None
 
@@ -289,11 +300,14 @@ VAR_ACTIONS = ["Set Variable"]   # v1.19: ตัวแปรในสคริ�
 CLIP_ACTIONS = ["Set Clipboard", "Read Clipboard"]  # v1.20: ตั้ง/อ่านคลิปบอร์ด
 LOOP_ACTIONS = ["If Loop"]       # v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
 TIME_ACTIONS = ["If Time"]       # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+PIXEL_COND = [IF_PIXEL]          # v2.5: เงื่อนไขสีจุด
+READ_PIXEL_ACTIONS = [READ_PIXEL]  # v2.5: อ่านสีเก็บตัวแปร
+VAR_COND = [IF_VAR]              # v2.5: เงื่อนไขตัวแปร
 SECTION_HEADER = "⬛ หัวข้อ"      # v1.21: แถวจัดระเบียบ — ไม่ทำอะไรตอนเล่น
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
                + VAR_ACTIONS + CLIP_ACTIONS + LOOP_ACTIONS + TIME_ACTIONS
-               + [SECTION_HEADER])
+               + PIXEL_COND + READ_PIXEL_ACTIONS + VAR_COND + [SECTION_HEADER])
 
 # ------------------------------------------- pixel color helpers (v1.18) ----
 def parse_color_hex(txt):
@@ -318,6 +332,24 @@ def parse_if_loop(txt):
     except (TypeError, ValueError):
         return None
     return n if n >= 1 else None
+
+
+def parse_if_var(txt):
+    """แยกเงื่อนไขตัวแปร (v2.5) — "name > 5" / "name = ค่า" / "name ~ ข้อความ"
+    ตัวดำเนินการ: = == != > >= < <= ~ (contains) — คืน (name, op, value) หรือ None"""
+    m = re.fullmatch(r"\s*(%s)\s*(==|!=|>=|<=|>|<|~=|=|~)\s*(.*?)\s*" % _VAR_NAME,
+                     str(txt or ""), re.UNICODE)
+    if not m:
+        return None
+    op = m.group(2)
+    if op == "==":
+        op = "="
+    if op == "~=":
+        op = "~"
+    val = m.group(3)
+    if op != "=" and not val.strip():      # เปรียบเทียบ/contains ต้องมีค่า
+        return None
+    return m.group(1), op, val
 
 
 def parse_if_time(txt):
@@ -431,6 +463,15 @@ def apply_set_var(variables, additional):
     name, op, raw = sv
     val = substitute_vars(raw, variables)
     if op == "=":
+        m = re.match(r"^rand\s+(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\s*$", val)
+        if m:                                    # v2.5: rand a-b → สุ่มเลขเก็บลงตัวแปร
+            a, b = float(m.group(1)), float(m.group(2))
+            if a > b:
+                a, b = b, a
+            variables[name] = fmt_num(random.randint(int(a), int(b))
+                                      if a.is_integer() and b.is_integer()
+                                      else random.uniform(a, b))
+            return True
         variables[name] = val
         return True
     try:
@@ -662,6 +703,19 @@ def validate_rows(rows, plugin_names=()):
             p = resolve_image_path(p) if p else ""
             if not p or not os.path.isfile(p):
                 issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
+        elif btn == IF_PIXEL:
+            raw, _w = parse_wait_timeout(add, 0)
+            if not parse_pixel_spec(raw):
+                issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)"))
+        elif btn == IF_VAR:
+            if not parse_if_var(add):
+                issues.append((i, "If Variable รูปแบบไม่ถูก (name = ค่า / name > ค่า / name ~ ข้อความ)"))
+        elif btn == READ_PIXEL:
+            parts = add.split()
+            ok = (len(parts) == 2 and re.fullmatch(_VAR_NAME, parts[0])
+                  and re.fullmatch(r"\d+\s*,\s*\d+", parts[1]))
+            if not ok:
+                issues.append((i, "Read Pixel Color ต้องเป็น 'ชื่อตัวแปร x,y' เช่น mytext 100,200"))
     return issues
 
 
@@ -703,8 +757,8 @@ def load_plugins(base_dir=None):
 
 load_plugins.last_failed = []
 MOD_KEYS = ["", "Ctrl", "Alt", "Shift", "Win"]
-EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat"]
-COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat"]
+EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat", "Note"]
+COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat", "note"]
 
 
 # ---------------------------------------------------------------- helpers ----
@@ -1112,8 +1166,8 @@ class ActionRunner:
         return okc
 
     @staticmethod
-    def evaluate_condition(btn, additional, repeat, n_loop, now=None):
-        """ประเมินแถวเงื่อนไข If Loop / If Time (v2.1 — ใช้ร่วม CLI ทุกตัว)
+    def evaluate_condition(btn, additional, repeat, n_loop, now=None, variables=None):
+        """ประเมินแถวเงื่อนไข If Loop / If Time / If Variable (v2.1, If Variable = v2.5)
         คืน (skip_n, message):
           ไม่ใช่เงื่อนไขที่รองรับ → (0, None)
           ยังไม่ถึงรอบ/เวลา → (0, ข้อความ "เล่นต่อ")
@@ -1138,6 +1192,38 @@ class ActionRunner:
             skip = parse_int(repeat, 1)
             return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
                 spec[0], spec[1], skip)
+        if btn == IF_VAR:
+            spec = parse_if_var(additional)
+            if spec is None:
+                return 0, ("If Variable %s → รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
+                           "name ~ ข้อความ) เล่นต่อ" % (additional or ""))
+            name, op, val = spec
+            variables = variables if variables is not None else {}
+            cur = str(variables.get(name, ""))
+            if name not in variables:
+                skip = parse_int(repeat, 1)
+                return skip, "If Variable: ไม่มีตัวแปร '%s' → ข้าม %d แถว" % (name, skip)
+            hit = False
+            try:
+                a_num, b_num = float(cur), float(val)
+            except (TypeError, ValueError):
+                a_num = b_num = None
+            if op in (">", ">=", "<", "<="):
+                if a_num is None or b_num is None:
+                    return 0, ("If Variable: %s %s %s → เปรียบเทียบตัวเลขไม่ได้ "
+                               "(ค่าปัจจุบัน %r) เล่นต่อ" % (name, op, val, cur))
+                hit = {"": False, ">": a_num > b_num, ">=": a_num >= b_num,
+                       "<": a_num < b_num, "<=": a_num <= b_num}[op]
+            elif op in ("=", "!="):
+                eq = (a_num == b_num) if (a_num is not None and b_num is not None
+                                          and val.strip() != "") else (cur == val)
+                hit = eq if op == "=" else not eq
+            else:                                  # "~" = มีข้อความย่อย
+                hit = val in cur
+            if hit:
+                return 0, "If Variable: %s %s %s → จริง เล่นต่อ" % (name, op, val)
+            skip = parse_int(repeat, 1)
+            return skip, "If Variable: %s %s %s → ไม่จริง ข้าม %d แถว" % (name, op, val, skip)
         return 0, None
 
     def execute(self, r):
@@ -1190,6 +1276,8 @@ class ActionRunner:
         elif btn == IMAGE_ACTION:                                    # คลิกตามภาพ
             pos = self._find_image_pos(r)
             if pos:
+                self.variables["img_x"] = pos[0]     # v2.5: พิกัดที่เจอ → {img_x}/{img_y}
+                self.variables["img_y"] = pos[1]
                 self.mouse_ctl.position = pos
                 time.sleep(0.03)
                 self.mouse_ctl.click(Button.left, 1)
@@ -1220,6 +1308,42 @@ class ActionRunner:
                 self.on_message("If เจอ → ข้ามกลุ่ม B %d แถว" % n, "#a60")
             else:
                 self.on_message("If ไม่เจอ → เล่นกลุ่ม B ต่อ")
+        elif btn == IF_PIXEL:                                        # เงื่อนไขสีจุด (v2.5)
+            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            rr = dict(r, additional=raw)
+            sp = parse_pixel_spec(raw)
+            if not sp:
+                self.on_message("If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)", "#c00")
+                return
+            x, y, rgb = sp
+            deadline = time.time() + wait
+            hit = color_close(pixel_color_at(x, y), rgb)
+            while not hit and time.time() < deadline and self.stop_check():
+                time.sleep(0.25)
+                hit = color_close(pixel_color_at(x, y), rgb)
+            if hit:
+                self.on_message("If Pixel Color: สีจุด (%d,%d) ตรง → เล่นต่อ" % (x, y))
+            else:
+                self.skip_n = parse_int(r.get("repeat"), 1)
+                self.on_message("If Pixel Color: สีจุด (%d,%d) ไม่ตรง → ข้าม %d แถว"
+                                % (x, y, self.skip_n), "#a60")
+        elif btn == READ_PIXEL:                                      # อ่านสีจุดเก็บตัวแปร (v2.5)
+            parts = str(r.get("additional") or "").split()
+            m = re.fullmatch(_VAR_NAME, parts[0]) if parts else None
+            xy = None
+            if m and len(parts) >= 2:
+                try:
+                    xy = tuple(int(p) for p in parts[1].split(","))
+                except ValueError:
+                    xy = None
+            if not m or not xy or len(xy) != 2:
+                self.on_message("Read Pixel Color: Additional ต้องเป็น 'ชื่อตัวแปร x,y' "
+                                "เช่น mytext 100,200", "#c00")
+                return
+            rgb = pixel_color_at(*xy)
+            self.variables[m.group(0)] = ("%02x%02x%02x" % tuple(rgb[:3])) if rgb else ""
+            self.on_message("Read Pixel Color: %s = %s" % (
+                m.group(0), self.variables[m.group(0)] or "(อ่านไม่ได้)"))
         elif btn == "Type Text":                                     # พิมพ์ข้อความ
             for ch in str(r.get("additional") or ""):
                 if not self.stop_check():
@@ -1292,6 +1416,7 @@ class ActionRunner:
                 ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
                        "log": lambda m: log_write("PLUGIN", m, self.log_src),
                        "cfg": {"lang": "th"},
+                       "vars": self.variables,                        # v2.5: ตัวแปรแชร์กับสคริปต์
                        "stop_check": self.stop_check,                  # v1.20
                        "ui": {"msg": lambda text, color="#080":
                                   self.on_message(str(text), color),      # v1.20
@@ -1588,6 +1713,8 @@ class MacroApp:
         self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None,
                           "beep": False}
         self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
+        self._redo_stack = []              # v2.5: สำเนาหลัง undo (Ctrl+Y ทำซ้ำ)
+        self._drag_iid = None              # v2.5: แถวที่กำลังลากสลับ
         self._ifimg_skip = 0               # v1.17: ตัวนับข้ามแถวของ If Image
         self._last_if_found = False        # v1.18: ผล If Image ล่าสุด (ให้ Else If Image ใช้)
         self._loop_no = 1                  # v1.21: เลขรอบปัจจุบัน (ให้ If Loop ใช้)
@@ -1748,7 +1875,8 @@ class MacroApp:
                                     ("additional", "Additional", 110, "w"),
                                     ("mins", "Mins", 50, "center"),
                                     ("secs", "Secs", 50, "center"),
-                                    ("repeat", "Repeat", 60, "center")]:
+                                    ("repeat", "Repeat", 60, "center"),
+                                    ("note", self._t("col_note"), 110, "w")]:
             self.tree.heading(key, text=txt)
             self.tree.column(key, width=wdt, anchor=anch)
 
@@ -1757,6 +1885,10 @@ class MacroApp:
         self.tree.pack(side="left", fill="both", expand=True)
         ysb.pack(side="right", fill="y")
 
+        self.tree.bind("<Alt-Up>", lambda e: self.move(-1))    # v2.5: ย้ายแถวด้วยคีย์
+        self.tree.bind("<Alt-Down>", lambda e: self.move(1))
+        self.tree.bind("<ButtonPress-1>", self._on_drag_start, add="+")   # v2.5: ลากสลับแถว
+        self.tree.bind("<B1-Motion>", self._on_drag_motion, add="+")
         self.tree.bind("<Button-1>", self._on_click)
         self.tree.bind("<Double-1>", self._on_dbl_click)
         self.tree.bind("<Button-3>", self._on_right_click)
@@ -1993,6 +2125,8 @@ class MacroApp:
         # v1.17: Ctrl+F ค้นหาแถว, Ctrl+Z กู้คืนแถวที่ลบ/ถูกแทนที่
         self.root.bind("<Control-f>", self._find_dialog)
         self.root.bind("<Control-z>", self._undo_delete)
+        self.root.bind("<Control-y>", self._redo_delete)          # v2.5: Redo
+        self.root.bind("<Control-Y>", self._redo_delete)
 
     # --------------------------------------------- global hotkeys (ทุกที่) ---
     def _gk_start(self):
@@ -2044,7 +2178,7 @@ class MacroApp:
         If Image/Else ผ่าน ActionRunner (แหล่งเดียวกับ CLI), ผลผลักเข้า _ui_state ตามรูปแบบเดิม"""
         btn = r["button"]
         det = ""
-        if btn in (IF_IMAGE, ELSE_IMAGE):
+        if btn in (IF_IMAGE, ELSE_IMAGE, IF_PIXEL):
             runner = self._action_runner
             runner.mouse_ctl = self.mouse_ctl       # controller สดเสมอ (เหมือน do_step)
             runner.kb_ctl = self.kb_ctl
@@ -2063,7 +2197,8 @@ class MacroApp:
                 self._ui_state["msg"] = (det, "#a60" if "ข้าม" in det else "#080")
         else:
             skip, msg = macro_engine.ActionRunner.evaluate_condition(
-                btn, r.get("additional", ""), r.get("repeat", 1), loop_no)
+                btn, r.get("additional", ""), r.get("repeat", 1), loop_no,
+                variables=self._vars)   # v2.5: If Variable
             if msg:
                 det = msg
                 self._ui_state["msg"] = (msg, "#a60" if skip else "#080")
@@ -2204,7 +2339,7 @@ class MacroApp:
                 kw.get("x", ""), kw.get("y", ""), kw.get("button", ""),
                 kw.get("additional", ""), fmt_num(kw.get("mins", 0)),
                 fmt_num(0 if kw.get("button") == SECTION_HEADER else kw.get("secs", 1)),
-                fmt_num(kw.get("repeat", 1))]
+                fmt_num(kw.get("repeat", 1)), kw.get("note", "")]
         n = len(self.tree.get_children())
         self.tree.insert("", "end", values=vals, tags=row_tags(str(vals[4]), n))   # v1.22: สีหมวด
         self.tree.see(self.tree.get_children()[-1])
@@ -2235,6 +2370,39 @@ class MacroApp:
             self.tree.item(row_id, values=vals)
             return "break"
 
+    def _on_drag_start(self, event):
+        """v2.5: เริ่มลากสลับแถว — เฉพาะเมื่อเลือกแถวเดียว, ไม่ใช่ช่อง checkbox,
+        และไม่ใช่หัวข้อกลุ่มที่ย่ออยู่ (กลุ่มย่อใช้ปุ่ม ▲▼ บนหัวข้อแทน)"""
+        self._drag_iid = None
+        if self.tree.identify_region(event.x, event.y) != "cell":
+            return
+        if len(self.tree.selection()) > 1:
+            return                                    # ลากเพื่อเลือกหลายแถว — ยกเลิก drag
+        row = self.tree.identify_row(event.y)
+        if not row or self.tree.identify_column(event.x) == "#1":
+            return
+        try:
+            if str(self.tree.item(row, "values")[4]) == SECTION_HEADER                     and self._group_collapsed(row):
+                return
+        except tk.TclError:
+            return
+        self._drag_iid = row
+
+    def _on_drag_motion(self, event):
+        if not self._drag_iid:
+            return
+        row = self.tree.identify_row(event.y)
+        if not row or row == self._drag_iid:
+            return
+        try:
+            if str(self.tree.item(row, "values")[5]).strip() and                     _COLLAPSED_RE.search(str(self.tree.item(row, "values")[5]).strip()):
+                return                                # ไม่ลากทับหัวข้อกลุ่มย่อ
+        except tk.TclError:
+            return
+        self.tree.move(self._drag_iid, "", self.tree.index(row))
+        self.refresh_nums()
+        self.tree.see(self._drag_iid)
+
     def _on_del(self, _evt=None):
         if self.tree.selection():
             self._push_undo()              # เก็บสำเนาก่อนลบ — Ctrl+Z กู้คืนได้
@@ -2258,23 +2426,39 @@ class MacroApp:
         return [list(self.tree.item(i, "values")) for i in self.tree.get_children()]
 
     def _push_undo(self):
+        self._redo_stack.clear()                       # v2.5: แก้ใหม่หลัง undo = ทิ้ง redo
         self._undo_stack.append(self._snapshot_rows())
         if len(self._undo_stack) > 50:
             self._undo_stack.pop(0)
+
+    def _restore_rows(self, rows):
+        """กู้ตารางจาก snapshot (ใช้ร่วม undo/redo — v2.5)"""
+        self.tree.delete(*self.tree.get_children())
+        for vals in rows:
+            self.tree.insert("", "end", values=vals)
+        self._undo_restore_collapsed()
+        self.refresh_nums()
+        self._hl_row = None
 
     def _undo_delete(self, _evt=None):
         """Ctrl+Z: กู้คืนตารางชุดล่าสุดก่อนถูกลบ/แทนที่"""
         if not self._undo_stack:
             self._ui_state["msg"] = (self._t("nothing_undo"), "#a60")
             return
+        self._redo_stack.append(self._snapshot_rows())   # v2.5: ไว้ทำ redo
         rows = self._undo_stack.pop()
-        self.tree.delete(*self.tree.get_children())
-        for vals in rows:
-            self.tree.insert("", "end", values=vals)
-        self._undo_restore_collapsed()                 # v1.22: คืนแถวที่ถูกย่อไว้ (iid เปลี่ยนหมด)
-        self.refresh_nums()
-        self._hl_row = None
+        self._restore_rows(rows)                       # v2.5: กลไกเดียวกับ redo
         self._ui_state["msg"] = (self._t("undone"), "#080")
+
+    def _redo_delete(self, _evt=None):
+        """Ctrl+Y: ทำซ้ำสิ่งที่เพิ่ง undo (v2.5) — กู้คืนได้ต่อด้วย Ctrl+Z เสมอ"""
+        if not self._redo_stack:
+            self._ui_state["msg"] = (self._t("nothing_redo"), "#a60")
+            return
+        self._undo_stack.append(self._snapshot_rows())
+        rows = self._redo_stack.pop()
+        self._restore_rows(rows)
+        self._ui_state["msg"] = (self._t("redone"), "#080")
 
     def _undo_restore_collapsed(self):
         """v1.22: หลัง restore จาก undo — หัวข้อที่ย่อค้างไว้ถูกขยายคืนจาก stash
@@ -2336,6 +2520,9 @@ class MacroApp:
         ent.focus_set()
         lbl = tk.Label(frm, text="", fg="#64748b")
         lbl.pack(anchor="w")
+        tk.Label(frm, text=self._t("replace_label")).pack(anchor="w", pady=(8, 0))
+        ent_rep = tk.Entry(frm, width=34)
+        ent_rep.pack(fill="x", pady=2)
         state = {"idx": 0, "hits": []}
 
         def do_find(_e=None):
@@ -2359,6 +2546,15 @@ class MacroApp:
             self._ui_state["msg"] = (self._t("found") % num, "#080")
             return "break"
 
+        def do_replace(_e=None):
+            q = ent.get()
+            if not q.strip():
+                return "break"
+            n = self._replace_all(q, ent_rep.get())
+            lbl.config(text=self._t("replaced") % n, fg="#080" if n else "#a60")
+            state["hits"] = []
+            return "break"
+
         def close(_e=None):
             top.destroy()
             return "break"
@@ -2369,8 +2565,49 @@ class MacroApp:
         bar = tk.Frame(frm)
         bar.pack(fill="x", pady=(6, 0))
         tk.Button(bar, text=self._t("find_btn"), command=do_find).pack(side="left")
+        tk.Button(bar, text=self._t("replace_btn"),
+                  command=lambda: do_replace()).pack(side="left", padx=6)
         tk.Button(bar, text=self._t("close"), command=top.destroy).pack(side="left", padx=6)
         return top
+
+    def _replace_all(self, query, replacement):
+        """v2.5: แทนที่ข้อความในคอลัมน์ X/Y/Action/Additional/หมายเหตุ ทุกแถวที่ตรง
+        (ค้นหาแบบไม่แยกพิมพ์เล็ก-ใหญ่, แทนที่ตรงตามตัวพิมพ์ที่กรอก) — คืนจำนวนจุดที่แทนที่"""
+        if not str(query or "").strip():
+            return 0
+        self._push_undo()
+        n = 0
+        ql = str(query).lower()
+        for iid in self.tree.get_children():
+            vals = list(self.tree.item(iid, "values"))
+            changed = False
+            for ci in (2, 3, 4, 5, 9):                     # X, Y, Action, Additional, Note
+                if ci >= len(vals):
+                    continue
+                src = str(vals[ci])
+                if ql not in src.lower():
+                    continue
+                out, idx = [], 0
+                low = src.lower()
+                while True:
+                    j = low.find(ql, idx)
+                    if j < 0:
+                        out.append(src[idx:])
+                        break
+                    out.append(src[idx:j])
+                    out.append(str(replacement))
+                    idx = j + len(query)
+                vals[ci] = "".join(out)
+                changed = True
+                n += 1
+            if changed:
+                self.tree.item(iid, values=vals)
+        if n:
+            self.refresh_nums()
+            self._ui_state["msg"] = (self._t("replaced") % n, "#080")
+        else:
+            self._undo_stack.pop()                         # ไม่แทนที่อะไร — ไม่ทิ้ง undo ว่าง
+        return n
 
     def _paste_rows_clipboard(self):
         """เมนู 📋 Paste: วางสคริปต์ JSON จากคลิปบอร์ดเป็นแถว (ผนวกต่อท้ายตาราง)
@@ -2397,7 +2634,8 @@ class MacroApp:
                 continue
             self._append_row(x=r.get("x", ""), y=r.get("y", ""), button=r.get("button", ""),
                              additional=r.get("additional", ""), mins=r.get("mins", 0),
-                             secs=r.get("secs", 1), repeat=r.get("repeat", 1))
+                             secs=r.get("secs", 1), repeat=r.get("repeat", 1),
+                             note=r.get("note", ""))
             iid = self.tree.get_children()[-1]
             vals = list(self.tree.item(iid, "values"))
             vals[0] = "☑" if r.get("enabled", True) else "☐"
@@ -2640,14 +2878,17 @@ class MacroApp:
                     "Set Variable": "name = ค่า หรือ name += จำนวน — เรียกใช้ด้วย {name} ในช่องอื่น",
                     "Set Clipboard": "ข้อความที่จะใส่คลิปบอร์ด (ใช้ {ตัวแปร} ได้)",
                     "Read Clipboard": "ชื่อตัวแปรที่จะเก็บข้อความจากคลิปบอร์ด เช่น mytext",
-                    "Wait for Image": "ชื่อไฟล์ .png เช่น button.png",
+                    "Wait for Image": "ชื่อไฟล์ .png เช่น button.png (ตามด้วย 60s = รอ 60 วิ)",
+                    "If Pixel Color": "x,y #RRGGBB เช่น 100,200 #ff0000 (Repeat = แถวที่ข้ามถ้าสีไม่ตรง)",
+                    "Read Pixel Color": "ชื่อตัวแปร x,y เช่น สีจอ 100,200 → {สีจอ}",
+                    "If Variable": "เทียบตัวแปร เช่น n > 5, code = A-1, msg ~ ล้มเหลว (Repeat = แถวที่ข้าม)",
                     "Scroll Up": "จำนวนจังหวะ เช่น 3",
                     "Scroll Down": "จำนวนจังหวะ เช่น 3"}.get(str(vals[4]), "")
             if hint:
                 self._ui_state["msg"] = ("ช่อง Additional: " + hint, "#06c")
         HotkeyEdit(self.root, label, vals[ci], choices,
                    lambda v, r=row_id, c=ci: self._apply_edit(r, c, v),
-                   editable=(key == "additional"))   # v1.20.3: Additional พิมพ์อิสระได้
+                   editable=(key in ("additional", "note")))   # v1.20.3/v2.5: Note พิมพ์อิสระ
 
     def _edit_xy(self, row_id, ci):
         """ดับเบิลคลิก X/Y → นับถอยหลัง 3 วิ แล้วจับพิกัดเมาส์ปัจจุบัน"""
@@ -2666,6 +2907,7 @@ class MacroApp:
         grab()
 
     def _apply_edit(self, row_id, ci, value):
+        self._push_undo()                  # v2.5: แก้เซลล์ย้อนได้ (Ctrl+Z)
         vals = list(self.tree.item(row_id, "values"))
         vals[ci] = value
         self.tree.item(row_id, values=vals)
@@ -2898,7 +3140,8 @@ class MacroApp:
                         step_t0 = time.time()
                         # v2.2: เงื่อนไขทั้ง 4 ชนิดอยู่ที่ _execute_condition_row (If Image/Else
                         # ผ่าน runner เดียวกับ CLI แล้ว — If Loop/If Time ผ่าน evaluate_condition)
-                        if r["button"] in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME):
+                        if r["button"] in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME,
+                                           IF_PIXEL, IF_VAR):
                             if self._execute_condition_row(r, loop_no, i, total, step_t0):
                                 break                   # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
                         do_step(r)
@@ -3253,16 +3496,19 @@ class MacroApp:
             v = self.tree.item(iid, "values")
             if str(v[4]) != SECTION_HEADER or not _COLLAPSED_RE.search(str(v[5]).strip()):
                 out.append(dict(enabled=str(v[0]) == "☑", x=str(v[2]), y=str(v[3]), button=str(v[4]),
-                                additional=str(v[5]), mins=v[6], secs=v[7], repeat=v[8]))
+                                additional=str(v[5]), mins=v[6], secs=v[7], repeat=v[8],
+                                note=str(v[9]) if len(v) > 9 else ""))
                 continue
             m = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", str(v[5]).strip())
             out.append(dict(enabled=str(v[0]) == "☑", x=str(v[2]), y=str(v[3]), button=str(v[4]),
-                            additional=(m.group(1) if m else str(v[5])), mins=v[6], secs=v[7], repeat=v[8]))
+                            additional=(m.group(1) if m else str(v[5])), mins=v[6], secs=v[7], repeat=v[8],
+                            note=str(v[9]) if len(v) > 9 else ""))
             for hv in self._section_stash:
                 if hv.get("after") == iid:
                     w = hv["vals"]
                     out.append(dict(enabled=str(w[0]) == "☑", x=str(w[2]), y=str(w[3]), button=str(w[4]),
-                                    additional=str(w[5]), mins=w[6], secs=w[7], repeat=w[8]))
+                                    additional=str(w[5]), mins=w[6], secs=w[7], repeat=w[8],
+                                    note=str(w[9]) if len(w) > 9 else ""))
         return out
 
     def _load_rows(self, rows):
@@ -4372,23 +4618,19 @@ def cli_main(argv):
                         return False
                     step_t0 = time.time()
                     btn = r.get("button", "")
-                    if btn == IF_LOOP:            # v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
-                        n = parse_if_loop(r.get("additional"))
-                        if n is None:
-                            print("  [%d/%d] If Loop %s → Additional ไม่ถูก (ต้องเป็นเลข >= 1) เล่นต่อ"
-                                  % (i, len(play_rows), r.get("additional", "")))
-                        elif n_loop < n:
-                            print("  [%d/%d] If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ"
-                                  % (i, len(play_rows), r.get("additional", ""), n_loop, n))
-                        else:
-                            skip_n = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
-                            print("  [%d/%d] If Loop %s → รอบที่ %d >= %d ข้าม %d แถว"
-                                  % (i, len(play_rows), r.get("additional", ""), n_loop, n, skip_n))
-                            if log_enabled:
-                                log_write("STEP", "รอบ %d แถว %d/%d If Loop %s → ข้าม %d แถว (%.1f วิ)"
-                                          % (n_loop, i, len(play_rows), r.get("additional", ""),
-                                             skip_n, time.time() - step_t0), args.script)
-                        continue                   # แถวเงื่อนไขไม่ถูกเล่นซ้ำเป็น action
+                    # v2.5: เงื่อนไข If Loop/If Time/If Variable — กลไกเดียวกับ GUI/engine_cli
+                    skip2, cond_msg = ActionRunner.evaluate_condition(
+                        btn, r.get("additional", ""), r.get("repeat", 1), n_loop,
+                        variables=cli_vars)
+                    if cond_msg is not None:   # เป็นแถวเงื่อนไขจริง — ไม่ถูกเล่นซ้ำเป็น action
+                        print("  [%d/%d] %s" % (i, len(play_rows), cond_msg))
+                        if log_enabled and skip2:
+                            log_write("STEP", "รอบ %d แถว %d/%d %s → ข้าม %d แถว (%.1f วิ)"
+                                      % (n_loop, i, len(play_rows), cond_msg.split("→")[0].strip(),
+                                         skip2, time.time() - step_t0), args.script)
+                        if skip2 > 0:
+                            skip_n = skip2
+                        continue
                     if btn == IF_TIME:            # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
                         spec = parse_if_time(r.get("additional"))
                         now = time.localtime()

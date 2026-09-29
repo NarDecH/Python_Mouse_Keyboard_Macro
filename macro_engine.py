@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.4.1"
+__version__ = "2.5.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -144,6 +144,9 @@ ELSE_IMAGE = "Else If Image"     # เงื่อนไข v1.18: สองท�
 WAIT_PIXEL = "Wait for Pixel Color"  # v1.18: รอจุดสี (x,y + #RRGGBB) ก่อนทำงานต่อ
 IF_LOOP = "If Loop"              # เงื่อนไข v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
 IF_TIME = "If Time"              # เงื่อนไข v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+IF_PIXEL = "If Pixel Color"      # เงื่อนไข v2.5: จุดสีตรง → เล่นต่อ, ไม่ตรง → ข้าม N แถว
+READ_PIXEL = "Read Pixel Color"  # v2.5: อ่านสีจุดเก็บเป็นตัวแปร (Additional: ชื่อ x,y)
+IF_VAR = "If Variable"           # เงื่อนไข v2.5: เทียบค่าตัวแปร → เล่นต่อ/ข้าม N แถว
 
 # v1.22: หมวดสีของแถวตารางตามชนิด Action — แยกกลุ่มเห็นภาพ แค่การจัดระเบียบ ไม่เปลี่ยนพฤติกรรม
 ROW_STYLE = {"run": {"background": "#c8e6c9"},
@@ -160,12 +163,12 @@ def row_tag(button):
     แถวเมาส์ทั่วไปใช้แถบสลับ even/odd เหมือนเดิม"""
     if button == SECTION_HEADER:
         return "section"
-    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME):
+    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR):
         return "cond"
     if button in ("Tap Key", "Press Key", "Release Key", "Type Text"):
         return "key"
     if button in ("Image Click", "Wait for Image", "Wait for Pixel Color", "Launch App",
-                  "Beep", "Set Clipboard", "Read Clipboard", "Set Variable"):
+                  "Beep", "Set Clipboard", "Read Clipboard", "Set Variable", READ_PIXEL):
         return "special"
     return None
 
@@ -197,11 +200,14 @@ VAR_ACTIONS = ["Set Variable"]   # v1.19: ตัวแปรในสคริ�
 CLIP_ACTIONS = ["Set Clipboard", "Read Clipboard"]  # v1.20: ตั้ง/อ่านคลิปบอร์ด
 LOOP_ACTIONS = ["If Loop"]       # v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
 TIME_ACTIONS = ["If Time"]       # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+PIXEL_COND = [IF_PIXEL]          # v2.5: เงื่อนไขสีจุด
+READ_PIXEL_ACTIONS = [READ_PIXEL]  # v2.5: อ่านสีเก็บตัวแปร
+VAR_COND = [IF_VAR]              # v2.5: เงื่อนไขตัวแปร
 SECTION_HEADER = "⬛ หัวข้อ"      # v1.21: แถวจัดระเบียบ — ไม่ทำอะไรตอนเล่น
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
                + VAR_ACTIONS + CLIP_ACTIONS + LOOP_ACTIONS + TIME_ACTIONS
-               + [SECTION_HEADER])
+               + PIXEL_COND + READ_PIXEL_ACTIONS + VAR_COND + [SECTION_HEADER])
 
 # ------------------------------------------- pixel color helpers (v1.18) ----
 def parse_color_hex(txt):
@@ -226,6 +232,24 @@ def parse_if_loop(txt):
     except (TypeError, ValueError):
         return None
     return n if n >= 1 else None
+
+
+def parse_if_var(txt):
+    """แยกเงื่อนไขตัวแปร (v2.5) — "name > 5" / "name = ค่า" / "name ~ ข้อความ"
+    ตัวดำเนินการ: = == != > >= < <= ~ (contains) — คืน (name, op, value) หรือ None"""
+    m = re.fullmatch(r"\s*(%s)\s*(==|!=|>=|<=|>|<|~=|=|~)\s*(.*?)\s*" % _VAR_NAME,
+                     str(txt or ""), re.UNICODE)
+    if not m:
+        return None
+    op = m.group(2)
+    if op == "==":
+        op = "="
+    if op == "~=":
+        op = "~"
+    val = m.group(3)
+    if op != "=" and not val.strip():      # เปรียบเทียบ/contains ต้องมีค่า
+        return None
+    return m.group(1), op, val
 
 
 def parse_if_time(txt):
@@ -339,6 +363,15 @@ def apply_set_var(variables, additional):
     name, op, raw = sv
     val = substitute_vars(raw, variables)
     if op == "=":
+        m = re.match(r"^rand\s+(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\s*$", val)
+        if m:                                    # v2.5: rand a-b → สุ่มเลขเก็บลงตัวแปร
+            a, b = float(m.group(1)), float(m.group(2))
+            if a > b:
+                a, b = b, a
+            variables[name] = fmt_num(random.randint(int(a), int(b))
+                                      if a.is_integer() and b.is_integer()
+                                      else random.uniform(a, b))
+            return True
         variables[name] = val
         return True
     try:
@@ -570,6 +603,19 @@ def validate_rows(rows, plugin_names=()):
             p = resolve_image_path(p) if p else ""
             if not p or not os.path.isfile(p):
                 issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
+        elif btn == IF_PIXEL:
+            raw, _w = parse_wait_timeout(add, 0)
+            if not parse_pixel_spec(raw):
+                issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)"))
+        elif btn == IF_VAR:
+            if not parse_if_var(add):
+                issues.append((i, "If Variable รูปแบบไม่ถูก (name = ค่า / name > ค่า / name ~ ข้อความ)"))
+        elif btn == READ_PIXEL:
+            parts = add.split()
+            ok = (len(parts) == 2 and re.fullmatch(_VAR_NAME, parts[0])
+                  and re.fullmatch(r"\d+\s*,\s*\d+", parts[1]))
+            if not ok:
+                issues.append((i, "Read Pixel Color ต้องเป็น 'ชื่อตัวแปร x,y' เช่น mytext 100,200"))
     return issues
 
 
@@ -611,8 +657,8 @@ def load_plugins(base_dir=None):
 
 load_plugins.last_failed = []
 MOD_KEYS = ["", "Ctrl", "Alt", "Shift", "Win"]
-EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat"]
-COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat"]
+EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat", "Note"]
+COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat", "note"]
 
 
 # ---------------------------------------------------------------- helpers ----
@@ -1020,8 +1066,8 @@ class ActionRunner:
         return okc
 
     @staticmethod
-    def evaluate_condition(btn, additional, repeat, n_loop, now=None):
-        """ประเมินแถวเงื่อนไข If Loop / If Time (v2.1 — ใช้ร่วม CLI ทุกตัว)
+    def evaluate_condition(btn, additional, repeat, n_loop, now=None, variables=None):
+        """ประเมินแถวเงื่อนไข If Loop / If Time / If Variable (v2.1, If Variable = v2.5)
         คืน (skip_n, message):
           ไม่ใช่เงื่อนไขที่รองรับ → (0, None)
           ยังไม่ถึงรอบ/เวลา → (0, ข้อความ "เล่นต่อ")
@@ -1046,6 +1092,38 @@ class ActionRunner:
             skip = parse_int(repeat, 1)
             return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
                 spec[0], spec[1], skip)
+        if btn == IF_VAR:
+            spec = parse_if_var(additional)
+            if spec is None:
+                return 0, ("If Variable %s → รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
+                           "name ~ ข้อความ) เล่นต่อ" % (additional or ""))
+            name, op, val = spec
+            variables = variables if variables is not None else {}
+            cur = str(variables.get(name, ""))
+            if name not in variables:
+                skip = parse_int(repeat, 1)
+                return skip, "If Variable: ไม่มีตัวแปร '%s' → ข้าม %d แถว" % (name, skip)
+            hit = False
+            try:
+                a_num, b_num = float(cur), float(val)
+            except (TypeError, ValueError):
+                a_num = b_num = None
+            if op in (">", ">=", "<", "<="):
+                if a_num is None or b_num is None:
+                    return 0, ("If Variable: %s %s %s → เปรียบเทียบตัวเลขไม่ได้ "
+                               "(ค่าปัจจุบัน %r) เล่นต่อ" % (name, op, val, cur))
+                hit = {"": False, ">": a_num > b_num, ">=": a_num >= b_num,
+                       "<": a_num < b_num, "<=": a_num <= b_num}[op]
+            elif op in ("=", "!="):
+                eq = (a_num == b_num) if (a_num is not None and b_num is not None
+                                          and val.strip() != "") else (cur == val)
+                hit = eq if op == "=" else not eq
+            else:                                  # "~" = มีข้อความย่อย
+                hit = val in cur
+            if hit:
+                return 0, "If Variable: %s %s %s → จริง เล่นต่อ" % (name, op, val)
+            skip = parse_int(repeat, 1)
+            return skip, "If Variable: %s %s %s → ไม่จริง ข้าม %d แถว" % (name, op, val, skip)
         return 0, None
 
     def execute(self, r):
@@ -1098,6 +1176,8 @@ class ActionRunner:
         elif btn == IMAGE_ACTION:                                    # คลิกตามภาพ
             pos = self._find_image_pos(r)
             if pos:
+                self.variables["img_x"] = pos[0]     # v2.5: พิกัดที่เจอ → {img_x}/{img_y}
+                self.variables["img_y"] = pos[1]
                 self.mouse_ctl.position = pos
                 time.sleep(0.03)
                 self.mouse_ctl.click(Button.left, 1)
@@ -1128,6 +1208,42 @@ class ActionRunner:
                 self.on_message("If เจอ → ข้ามกลุ่ม B %d แถว" % n, "#a60")
             else:
                 self.on_message("If ไม่เจอ → เล่นกลุ่ม B ต่อ")
+        elif btn == IF_PIXEL:                                        # เงื่อนไขสีจุด (v2.5)
+            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            rr = dict(r, additional=raw)
+            sp = parse_pixel_spec(raw)
+            if not sp:
+                self.on_message("If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)", "#c00")
+                return
+            x, y, rgb = sp
+            deadline = time.time() + wait
+            hit = color_close(pixel_color_at(x, y), rgb)
+            while not hit and time.time() < deadline and self.stop_check():
+                time.sleep(0.25)
+                hit = color_close(pixel_color_at(x, y), rgb)
+            if hit:
+                self.on_message("If Pixel Color: สีจุด (%d,%d) ตรง → เล่นต่อ" % (x, y))
+            else:
+                self.skip_n = parse_int(r.get("repeat"), 1)
+                self.on_message("If Pixel Color: สีจุด (%d,%d) ไม่ตรง → ข้าม %d แถว"
+                                % (x, y, self.skip_n), "#a60")
+        elif btn == READ_PIXEL:                                      # อ่านสีจุดเก็บตัวแปร (v2.5)
+            parts = str(r.get("additional") or "").split()
+            m = re.fullmatch(_VAR_NAME, parts[0]) if parts else None
+            xy = None
+            if m and len(parts) >= 2:
+                try:
+                    xy = tuple(int(p) for p in parts[1].split(","))
+                except ValueError:
+                    xy = None
+            if not m or not xy or len(xy) != 2:
+                self.on_message("Read Pixel Color: Additional ต้องเป็น 'ชื่อตัวแปร x,y' "
+                                "เช่น mytext 100,200", "#c00")
+                return
+            rgb = pixel_color_at(*xy)
+            self.variables[m.group(0)] = ("%02x%02x%02x" % tuple(rgb[:3])) if rgb else ""
+            self.on_message("Read Pixel Color: %s = %s" % (
+                m.group(0), self.variables[m.group(0)] or "(อ่านไม่ได้)"))
         elif btn == "Type Text":                                     # พิมพ์ข้อความ
             for ch in str(r.get("additional") or ""):
                 if not self.stop_check():
@@ -1200,6 +1316,7 @@ class ActionRunner:
                 ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
                        "log": lambda m: log_write("PLUGIN", m, self.log_src),
                        "cfg": {"lang": "th"},
+                       "vars": self.variables,                        # v2.5: ตัวแปรแชร์กับสคริปต์
                        "stop_check": self.stop_check,                  # v1.20
                        "ui": {"msg": lambda text, color="#080":
                                   self.on_message(str(text), color),      # v1.20

@@ -204,7 +204,7 @@ def main(argv=None):
                     break
                 t0 = time.time()
                 btn = r.get("button", "")
-                if btn in (me.IF_IMAGE, me.ELSE_IMAGE):
+                if btn in (me.IF_IMAGE, me.ELSE_IMAGE, me.IF_PIXEL):
                     # v2.2: เงื่อนไขค้นภาพอยู่ใน runner แล้ว — ตั้ง skip_n แล้วทำต่อ
                     # (ข้อความผลปริ้นผ่าน on_message ของ runner แล้ว)
                     runner.execute(r)
@@ -216,7 +216,8 @@ def main(argv=None):
                     continue
                 # เงื่อนไขนับรอบ/เวลา — กลไกเดียวกับ CLI หลัก (v2.1)
                 skip_n, cond_msg = ActionRunner.evaluate_condition(
-                    btn, r.get("additional", ""), r.get("repeat", 1), n_loop)
+                    btn, r.get("additional", ""), r.get("repeat", 1), n_loop,
+                    variables=vars_)   # v2.5: If Variable
                 if cond_msg:
                     print("  [%d/%d] %s" % (i, len(play_rows), cond_msg))
                     if log_enabled and skip_n:

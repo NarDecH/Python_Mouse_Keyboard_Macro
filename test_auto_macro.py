@@ -155,11 +155,11 @@ class TestConstants(unittest.TestCase):
     def test_cols_order(self):
         self.assertEqual(am.COLS,
                          ["chk", "num", "x", "y", "button", "additional",
-                          "mins", "secs", "repeat"])
+                          "mins", "secs", "repeat", "note"])
 
     def test_edit_cols_mapping(self):
         self.assertEqual(am.EDIT_COLS,
-                         ["Action", "Additional", "Mins", "Secs", "Repeat"])
+                         ["Action", "Additional", "Mins", "Secs", "Repeat", "Note"])
 
 
 class TestDelayRange(unittest.TestCase):
@@ -1129,6 +1129,8 @@ class TestUndoFindPaste(unittest.TestCase):
         app._t = lambda k: am.tr("th", k)
         app._ui_state = {}
         app._undo_stack = []
+        app._redo_stack = []
+        app._section_stash = []
         app._hl_row = None
 
         def _append_row(**kw):
@@ -1142,7 +1144,8 @@ class TestUndoFindPaste(unittest.TestCase):
             for i, iid in enumerate(list(store.keys()), 1):
                 store[iid][1] = i
         app.refresh_nums = refresh_nums
-        for m in ("_snapshot_rows", "_push_undo", "_undo_delete", "_find_rows",
+        for m in ("_snapshot_rows", "_push_undo", "_undo_delete", "_restore_rows",
+                  "_redo_delete", "_replace_all", "_find_rows",
                   "_goto_row", "_find_dialog", "_paste_rows_clipboard"):
             setattr(app, m, getattr(am.MacroApp, m).__get__(app))
         return app, store
@@ -1166,6 +1169,40 @@ class TestUndoFindPaste(unittest.TestCase):
                     if v[0] == "☑" and v[4] == "Beep" and v[5] == ""]
         self.assertEqual(len(restored), 1)
         self.assertEqual(restored[0][7], "1")               # secs เดิม
+
+    def test_redo_restores_after_undo(self):
+        """v2.5: Ctrl+Y ทำซ้ำการลบที่เพิ่ง undo — สลับ undo/redo ได้เรื่อย ๆ"""
+        app, store = self._app()
+        app.tree.selection.return_value = ["i1"]
+        app._on_del = getattr(am.MacroApp, "_on_del").__get__(app)
+        app._on_del()
+        app._undo_delete()
+        app._redo_delete()
+        restored = [v for v in store.values() if v[4] == "Beep" and v[5] == ""]
+        self.assertEqual(len(restored), 0)              # redo = ลบซ้ำอีกครั้ง
+        app._undo_delete()
+        restored = [v for v in store.values() if v[4] == "Beep" and v[5] == ""]
+        self.assertEqual(len(restored), 1)              # undo กู้คืนต่อได้
+
+    def test_edit_pushes_undo(self):
+        """v2.5: แก้เซลล์ผ่าน _apply_edit = เข้า undo stack ด้วย"""
+        app, store = self._app()
+        app._apply_edit = getattr(am.MacroApp, "_apply_edit").__get__(app)
+        before = len(app._undo_stack)
+        app._apply_edit("i1", 4, "Tap Key")
+        self.assertEqual(store["i1"][4], "Tap Key")
+        self.assertEqual(len(app._undo_stack), before + 1)
+
+    def test_replace_all_across_columns(self):
+        """v2.5: แทนที่ทั้งหมด — X/Y/Action/Additional/Note และผ่าน undo"""
+        app, store = self._app()
+        n = app._replace_all("beep", "BEEP")
+        self.assertEqual(n, 2)                          # i1 + i3 เป็น Beep
+        self.assertEqual(store["i1"][4], "BEEP")
+        self.assertGreaterEqual(len(app._undo_stack), 1)
+        app._undo_delete()
+        beeps = [v for v in store.values() if v[4] == "Beep" and "BEEP" not in str(v)]
+        self.assertEqual(len(beeps), 2)                 # undo คืนค่าเดิม (iid ใหม่)
 
     def test_undo_empty_shows_message(self):
         app, _s = self._app()
@@ -3783,6 +3820,164 @@ class TestCliVersion(unittest.TestCase):
                 am.cli_main(["--version"])
         self.assertEqual(cm.exception.code, 0)
         self.assertIn("v" + am.__version__, buf.getvalue())
+
+
+class TestV25Conditions(unittest.TestCase):
+    """v2.5: เงื่อนไข/ตัวแปรครบวงจร — If Pixel/Read Pixel/If Variable/rand/img vars"""
+
+    def _runner(self, find_cb=None, variables=None):
+        return me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                   find_image_cb=find_cb, variables=variables)
+
+    def test_parse_if_var(self):
+        self.assertEqual(me_mod.parse_if_var("n > 5"), ("n", ">", "5"))
+        self.assertEqual(me_mod.parse_if_var("code = A-1"), ("code", "=", "A-1"))
+        self.assertEqual(me_mod.parse_if_var("msg ~ ล้มเหลว"), ("msg", "~", "ล้มเหลว"))
+        self.assertIsNone(me_mod.parse_if_var("n >"))          # ไม่มีค่า
+        self.assertIsNone(me_mod.parse_if_var("พัง"))
+
+    def test_if_var_numeric(self):
+        skip, _m = me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_VAR, "n > 5", 2, 1, variables={"n": "10"})
+        self.assertEqual(skip, 0)                              # จริง → เล่นต่อ
+        skip, _m = me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_VAR, "n < 5", 3, 1, variables={"n": "10"})
+        self.assertEqual(skip, 3)                              # ไม่จริง → ข้าม 3
+
+    def test_if_var_string_and_contains(self):
+        V = {"code": "A-1", "msg": "ล้มเหลว 2 จุด"}
+        ev = me_mod.ActionRunner.evaluate_condition
+        for spec in ("code = A-1", "code != B-9", "msg ~ ล้มเหลว"):
+            skip, _m = ev(me_mod.IF_VAR, spec, 1, 1, variables=V)
+            self.assertEqual(skip, 0, spec)
+        skip, _m = ev(me_mod.IF_VAR, "code = B-9", 2, 1, variables=V)
+        self.assertEqual(skip, 2)
+
+    def test_if_var_missing_var(self):
+        skip, _m = me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_VAR, "nope = 1", 2, 1, variables={})
+        self.assertEqual(skip, 2)                              # ไม่มีตัวแปร = ไม่จริง
+
+    def test_if_var_bad_format(self):
+        r = self._runner(variables={"n": "1"})
+        r.execute({"button": me_mod.IF_VAR, "additional": "พัง", "repeat": 2})
+        self.assertEqual(r.skip_n, 0)                          # รูปแบบไม่ถูก → เล่นต่อ + เตือน
+
+    def test_if_pixel_match_and_mismatch(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        r = self._runner()
+        r.execute({"button": me_mod.IF_PIXEL,
+                   "additional": "5,5 #%02x%02x%02x" % tuple(rgb[:3]), "repeat": 2})
+        self.assertEqual(r.skip_n, 0)                          # ตรง → เล่นต่อ
+        inv = tuple(255 - c for c in rgb[:3])
+        r.execute({"button": me_mod.IF_PIXEL,
+                   "additional": "5,5 #%02x%02x%02x" % inv, "repeat": 3})
+        self.assertEqual(r.skip_n, 3)                          # ไม่ตรง → ข้าม 3
+
+    def test_read_pixel_stores_var(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        r = self._runner()
+        r.execute({"button": me_mod.READ_PIXEL, "additional": "สีจอ 5,5"})
+        self.assertEqual(r.variables["สีจอ"], "%02x%02x%02x" % tuple(rgb[:3]))
+        r.execute({"button": me_mod.READ_PIXEL, "additional": "bad name 5,5"})   # ชื่อผิด → ข้าม
+        r.execute({"button": me_mod.READ_PIXEL, "additional": "สี x"})           # พิกัดพัง → ข้าม
+        self.assertNotIn("bad", r.variables)
+
+    def test_image_click_sets_img_vars(self):
+        r = self._runner(find_cb=lambda row: (30, 40))
+        r.execute({"button": me_mod.IMAGE_ACTION, "additional": "x.png"})
+        self.assertEqual(r.variables["img_x"], 30)
+        self.assertEqual(r.variables["img_y"], 40)
+
+    def test_set_variable_rand(self):
+        r = self._runner(variables={})
+        r.execute({"button": "Set Variable", "additional": "สุ่ม = rand 1-100"})
+        val = int(r.variables["สุ่ม"])
+        self.assertTrue(1 <= val <= 100)
+        r.execute({"button": "Set Variable", "additional": "สุ่ม = rand 1-100"})
+        self.assertTrue(1 <= int(r.variables["สุ่ม"]) <= 100)
+
+    def test_row_tag_new_conditions(self):
+        for b in (me_mod.IF_PIXEL, me_mod.IF_VAR):
+            self.assertEqual(me_mod.row_tag(b), "cond")
+        self.assertEqual(me_mod.row_tag(me_mod.READ_PIXEL), "special")
+        for b in (me_mod.IF_PIXEL, me_mod.READ_PIXEL, me_mod.IF_VAR):
+            self.assertIn(b, me_mod.ACTIONS_ALL)
+
+    def test_validate_rows_v25(self):
+        issues = me_mod.validate_rows([
+            {"button": me_mod.IF_PIXEL, "additional": "5,5 #000000"},
+            {"button": me_mod.READ_PIXEL, "additional": "สีจอ 5,5"},
+            {"button": me_mod.IF_VAR, "additional": "n > 1"},
+            {"button": me_mod.IF_PIXEL, "additional": "ไม่มีสี"},
+            {"button": me_mod.READ_PIXEL, "additional": "มี ช่องว่าง"},
+            {"button": me_mod.IF_VAR, "additional": "พัง"}])
+        self.assertEqual([i for i, _ in issues], [4, 5, 6])
+
+
+class TestPluginsV25(unittest.TestCase):
+    """v2.5: plugin ใหม่ 4 ตัว — Screenshot/Toast/Write Log/Ask Input"""
+
+    def _plugin(self, name):
+        pl = dict(me_mod.load_plugins())
+        self.assertIn(name, pl)
+        return pl[name]
+
+    def test_all_four_loaded(self):
+        for n in ("Screenshot", "Toast", "Write Log", "Ask Input"):
+            self._plugin(n)
+
+    def test_screenshot_saves_file(self):
+        import tempfile
+        pl = self._plugin("Screenshot")
+        out = os.path.join(tempfile.mkdtemp(), "shot.png")
+        logs = []
+        pl.run({"log": logs.append, "ui": {"msg": lambda t, c="#080": None}},
+               {"additional": out})
+        self.assertTrue(os.path.isfile(out))
+        self.assertTrue(any("บันทึก" in m for m in logs))
+
+    def test_toast_never_raises(self):
+        pl = self._plugin("Toast")
+        shown = []
+        pl.run({"log": lambda m: None, "ui": {"msg": lambda t, c="#080": shown.append(t)}},
+               {"additional": "ทดสอบ toast"})
+        self.assertTrue(True)   # ส่งสำเร็จ/fallback อย่างไรก็ไม่ raise
+
+    def test_write_log(self):
+        pl = self._plugin("Write Log")
+        logs = []
+        pl.run({"log": logs.append, "ui": {"msg": lambda t, c="#080": None}},
+               {"additional": "บันทึกทดสอบ"})
+        self.assertTrue(any("บันทึกทดสอบ" in m for m in logs))
+
+    def test_ask_input_stores_to_vars(self):
+        pl = self._plugin("Ask Input")
+        vars_ = {}
+        with mock.patch("tkinter.simpledialog.askstring", return_value="C-123"):
+            pl.run({"log": lambda m: None, "vars": vars_,
+                    "ui": {"msg": lambda t, c="#080": None}},
+                   {"additional": "code | ใส่รหัส | C-000"})
+        self.assertEqual(vars_.get("code"), "C-123")
+
+    def test_ask_input_bad_name_reported(self):
+        pl = self._plugin("Ask Input")
+        reports = []
+        vars_ = {}
+        pl.run({"log": lambda m: None, "vars": vars_,
+                "ui": {"msg": lambda t, c="#080": reports.append(t)}},
+               {"additional": " | ไม่มีชื่อตัวแปร"})
+        self.assertTrue(any("ต้องระบุชื่อตัวแปร" in m for m in reports))
+        self.assertEqual(vars_, {})
+
+    def test_ask_input_no_display_uses_default(self):
+        pl = self._plugin("Ask Input")
+        vars_ = {}
+        with mock.patch("tkinter.Tk", side_effect=Exception("no display")):
+            pl.run({"log": lambda m: None, "vars": vars_,
+                    "ui": {"msg": lambda t, c="#080": None}},
+                   {"additional": "code | ใส่รหัส | C-000"})
+        self.assertEqual(vars_.get("code"), "C-000")
 
 
 if __name__ == "__main__":

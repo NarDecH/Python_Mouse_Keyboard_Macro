@@ -22,6 +22,8 @@ def run(ctx, row):
 - `ctx["mouse"]` / `ctx["kb"]` = controller ของ pynput (ขยับเมาส์/กดคีย์ได้เลย)
 - `ctx["log"](ข้อความ)` = เขียนลง `macro_log_วันที่.txt` (แสดงเป็น `[PLUGIN]`)
 - `ctx["cfg"]["lang"]` = `"th"` หรือ `"en"` (ถ้า plugin อยากแสดงข้อความสองภาษา)
+- `ctx["vars"]` = **v2.5** — dict ตัวแปรของสคริปต์ (plugin เขียนค่าลงนี้แล้ว
+  แถวถัดไปเรียกใช้ด้วย `{ชื่อ}` ได้เลย เช่น `ctx["vars"]["code"] = "A-1"`)
 - `ctx["stop_check"]()` = **v1.20** — เรียกเป็นระยะในลูปยาว คืน `False` เมื่อผู้ใช้กด STOP
   → plugin ต้องเลิกทำงานทันที (เช่น `while ctx["stop_check"](): ...`)
 - `ctx["ui"]["msg"](ข้อความ, color="#080")` = **v1.20** — แสดงข้อความใน statusbar
@@ -53,6 +55,10 @@ def run(ctx, row):
 |---|---|---|
 | `sleep_seconds.py` | Sleep (plugin) | หน่วงตามวินาทีใน Additional (รองรับทศนิยม) |
 | `message_box.py` | Message Box | เด้งกล่องข้อความจาก Additional (ถ้าแสดงไม่ได้ → เขียน log) |
+| `screenshot.py` | Screenshot | ถ่ายหน้าจอเก็บไฟล์ (Additional = ชื่อไฟล์, ว่าง = ตั้งชื่อตามเวลา) |
+| `toast.py` | Toast | แจ้งเตือน Windows 10/11 ไม่บล็อกการเล่น (fallback: statusbar) |
+| `write_log.py` | Write Log | เขียนข้อความของคุณลง log การเล่น (ใช้ {ตัวแปร} ได้) |
+| `ask_input.py` | Ask Input | ถามค่าผู้ใช้ตอนเล่น เก็บเป็นตัวแปร (`ชื่อ|หัวข้อ|ค่าเริ่มต้น`) |
 | `_template.py` | — | แม่แบบว่างให้ก๊อปไปแก้ (ขึ้นต้น `_` จึงไม่ถูกโหลด) |
 
 ## ทดสอบ plugin
