@@ -3164,5 +3164,181 @@ class TestStopReleasesStuckKeys(unittest.TestCase):
         self.assertGreaterEqual(src.count("cli_runner.release_all()"), 2)  # กลางลูป + finally
 
 
+class TestBackupPipeline(unittest.TestCase):
+    """สายพาน backup ตอนปิดโปรแกรม (จุดเคยบาง — เทสต์เดิมครอบแค่ backup_snapshot ล้วน)"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        app._backup_enabled = True
+        app._backup_days = 7
+        app._serialize.return_value = [{"button": "Beep", "secs": 0}]
+        app._profiles = {"ค่าเริ่มต้น": [{"button": "Beep"}]}
+        app._active_profile = "ค่าเริ่มต้น"
+        app._log_enabled = True
+        app._hp_dir = None
+        return app
+
+    def test_on_close_disabled_returns_none(self):
+        app = self._app()
+        app._backup_enabled = False
+        self.assertIsNone(am.MacroApp._on_close_backup(app, "."))
+
+    def test_on_close_snapshot_content_is_importable_shape(self):
+        """ไฟล์ backup ต้องมีรูปแบบเดียวกับไฟล์ Export — import_settings กลับมาใช้ได้"""
+        import tempfile
+        app = self._app()
+        with tempfile.TemporaryDirectory() as d:
+            path = am.MacroApp._on_close_backup(app, d)
+            self.assertTrue(path and os.path.isfile(path))
+            data = json.load(open(path, encoding="utf-8"))
+            self.assertEqual(data["kind"], "automousemacro-settings")
+            self.assertEqual(data["rows"], [{"button": "Beep", "secs": 0}])
+            self.assertEqual(data["profiles"], app._profiles)
+            self.assertEqual(data["active_profile"], "ค่าเริ่มต้น")
+            self.assertIn("log_enabled", data)
+
+    def test_on_close_keeps_days_setting(self):
+        """ตั้งกี่วัน backup ต้องตัดตามนั้น (ผ่าน keep_days จริง)"""
+        import tempfile
+        app = self._app()
+        app._backup_days = 1
+        with tempfile.TemporaryDirectory() as d:
+            import datetime
+            old = datetime.datetime.now() - datetime.timedelta(days=5)
+            am.backup_snapshot(d, {"kind": "x"}, now=old)         # ไฟล์เก่า 5 วัน
+            path = am.MacroApp._on_close_backup(app, d)            # snapshot ใหม่ + ตัดเก่า > 1 วิ
+            files = os.listdir(os.path.join(d, "backups"))
+            self.assertEqual(files, [os.path.basename(path)])
+
+
+class TestSchedPoll(unittest.TestCase):
+    """ฝั่ง UI ของ schedule (จุดเคยบาง — เทสต์เดิมครอบแค่ _sched_check)"""
+
+    def _app(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app._sched_stop = mock.MagicMock()
+        app._sched_stop.is_set.return_value = False
+        app.running = False
+        return app
+
+    def test_poll_starts_player_once_per_command(self):
+        app = self._app()
+        app._sched_q.put("play")
+        am.MacroApp._sched_poll(app)
+        app._start_player.assert_called_once_with(False, once=True)   # เล่น 1 รอบต่อสั่ง
+
+    def test_poll_skips_when_running(self):
+        app = self._app()
+        app.running = True                       # กำลังเล่นอยู่ = ไม่เริ่มซ้ำ
+        app._sched_q.put("play")
+        am.MacroApp._sched_poll(app)
+        app._start_player.assert_not_called()
+
+    def test_poll_empty_queue_still_reschedules(self):
+        app = self._app()
+        am.MacroApp._sched_poll(app)             # คิวว่าง = ผ่าน แล้วตั้ง after ต่อ
+        app._start_player.assert_not_called()
+        app.root.after.assert_called_once()
+
+    def test_poll_drains_all_commands(self):
+        app = self._app()
+        app._sched_q.put("play")
+        app._sched_q.put("play")
+        # (เลียนแบบโค้ดจริง: เริ่มเล่นแล้ว self.running = True — คำสั่งถัดไปต้องถูกข้าม)
+        app._start_player.side_effect = lambda *a, **k: setattr(app, "running", True)
+        am.MacroApp._sched_poll(app)
+        app._start_player.assert_called_once()
+        self.assertTrue(app._sched_q.empty())
+
+
+class TestCrossPlatform(unittest.TestCase):
+    """เตรียม cross-platform: clipboard (macOS/Linux path) + Unicode typing fallback
+    ทุกเทสต์ใช้ mock ล้วน — รันได้ทุก OS ไม่แตะคลิปบอร์ดจริง"""
+
+    def test_clip_set_posix_pbcopy(self):
+        """macOS: pbcopy สำเร็จ → True (ส่งข้อความเป็น utf-8 ผ่าน stdin)"""
+        import subprocess
+        import macro_engine as me
+        calls = []
+        def fake_run(cmd, input=None, timeout=None):
+            calls.append((cmd, input))
+            return mock.MagicMock(returncode=0)
+        with mock.patch.object(me.os, "name", "posix"), \
+             mock.patch.object(subprocess, "run", side_effect=fake_run):
+            self.assertTrue(me.clip_set("สวัสดี"))
+        self.assertEqual(calls[0][0], ["pbcopy"])
+        self.assertEqual(calls[0][1], "สวัสดี".encode("utf-8"))
+
+    def test_clip_set_posix_first_tool_missing_falls_back(self):
+        """pbcopy ไม่มี → ลอง wl-copy ต่อจนเจอตัวที่สำเร็จ"""
+        import subprocess
+        import macro_engine as me
+        cmds = []
+        def fake_run(cmd, **kw):
+            cmds.append(cmd[0])
+            if cmd[0] == "pbcopy":
+                raise FileNotFoundError("no pbcopy")
+            return mock.MagicMock(returncode=0)
+        with mock.patch.object(me.os, "name", "posix"), \
+             mock.patch.object(subprocess, "run", side_effect=fake_run):
+            self.assertTrue(me.clip_set("x"))
+        self.assertEqual(cmds[:2], ["pbcopy", "wl-copy"])
+
+    def test_clip_set_posix_no_tools(self):
+        """Linux ไม่มีทั้ง wl-copy/xclip/xsel → False (โปรแกรมต้องรายงานเอง)"""
+        import subprocess
+        import macro_engine as me
+        def fake_run(cmd, **kw):
+            raise FileNotFoundError("missing")
+        with mock.patch.object(me.os, "name", "posix"), \
+             mock.patch.object(subprocess, "run", side_effect=fake_run):
+            self.assertFalse(me.clip_set("x"))
+
+    def test_clip_get_posix_pbpaste_decodes_utf8(self):
+        import subprocess
+        import macro_engine as me
+        def fake_run(cmd, **kw):
+            r = mock.MagicMock()
+            r.returncode = 0
+            r.stdout = "ข้อความไทย".encode("utf-8")
+            return r
+        with mock.patch.object(me.os, "name", "posix"), \
+             mock.patch.object(subprocess, "run", side_effect=fake_run):
+            self.assertEqual(me.clip_get(), "ข้อความไทย")
+
+    def test_clip_get_posix_no_tools_returns_none(self):
+        import subprocess
+        import macro_engine as me
+        def fake_run(cmd, **kw):
+            raise FileNotFoundError("missing")
+        with mock.patch.object(me.os, "name", "posix"), \
+             mock.patch.object(subprocess, "run", side_effect=fake_run):
+            self.assertIsNone(me.clip_get())
+
+    def test_send_unicode_char_non_windows_returns_false(self):
+        """OS อื่น → False ให้ runner fallback ไป pynput (พฤติกรรม fallback ต้องไม่พัง)"""
+        import macro_engine as me
+        with mock.patch.object(me.os, "name", "posix"):
+            self.assertFalse(me.send_unicode_char("a"))
+
+    def test_send_unicode_char_windows_error_is_false(self):
+        """Windows แต่ SendInput โยน → False (fallback) — ไม่ทำ runner พัง"""
+        import macro_engine as me
+        with mock.patch.object(me.os, "name", "nt"), \
+             mock.patch.object(me, "_send_unicode_events", side_effect=OSError("no keybd")):
+            self.assertFalse(me.send_unicode_char("ก"))
+
+    def test_unicode_records_pure_any_platform(self):
+        """ตรรกะ surrogate pair เป็น pure function — ผลต้องตรงกันทุก OS"""
+        import macro_engine as me
+        rec = me._unicode_input_records("𝄞")                  # U+1D11E (เกิน BMP)
+        downs = [sc for sc, up in rec if not up]
+        ups = [sc for sc, up in rec if up]
+        self.assertEqual(len(downs), 2)                        # surrogate pair 2 หน่วย
+        self.assertEqual(ups, list(reversed(downs)))           # up ย้อนลำดับ
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

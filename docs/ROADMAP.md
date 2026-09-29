@@ -1,6 +1,26 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v2.1.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v2.2.1 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+
+## 🌏 v2.3 — ต่อยอดจากสถาปัตยกรรม v2.0 ที่จบสมบูรณ์
+
+> พื้นฐานพร้อมหมดแล้ว: engine ล้วนไม่มี Tk → ActionRunner แหล่งเดียว → GUI/CLI/engine_cli
+> สามหน้ากาก · ของชุดนี้เน้นชุมชน + การเข้าถึง ไม่ใช่การรื้อโครงอีก
+
+- [ ] **รวบรวม plugin จากชุมชน (ต่อยอดตลาด v2.1)** — เปิดรับ PR เพิ่ม `plugins/*.py` +
+      แนวทางรีวิวใน docs/PLUGINS.md (เกณฑ์: stdlib/pynput เท่านั้น, ทน error, มีตัวอย่างในเอกสาร)
+- [ ] **ไฟล์ plugin ในโปรเจกต์ทำเทสต์ครบ** — ทุก plugin ที่แจกมาต้องมี test ที่รัน `run(ctx, row)`
+      ด้วย ctx จำลอง (แบบเดียวกับ TestV22Plugins)
+- [ ] **Multi-language docs (จีน/ญี่ปุ่น)** — i18n ตัวโปรแกรมรองรับแล้ว · พื้นฐาน EN ครบแล้ว
+      (TUTORIAL.en.md) — รอผู้ร่วมแปล แปลจาก TUTORIAL.en.md ได้ทันที
+- [ ] **cross-platform จริง (Linux/macOS)** — engine ล้วนพาขึ้นได้: คลิปบอร์ดมีทาง pbcopy/
+      wl-copy/xclip แล้ว, Unicode typing fallback ทาง pynput, ลอง CI เพิ่ม job ubuntu/macos
+      (เทสต์ mock ล้วนรันได้ทุก OS ตั้งแต่ v2.2.1)
+- [ ] **Schedule ฉบับสมบูรณ์** — เลือกเล่นโปรไฟล์ที่ตอนตั้งเวลา (ตอนนี้เล่นงานที่เปิดค้าง),
+      แสดงรายการนัดหมายในหน้า Settings
+- [ ] **ส่งออกสคริปต์เป็นแบตช์ (.bat/.sh)** — ดับเบิลคลิกรันผ่าน CLI ได้เลย ไม่ต้องพิมพ์คำสั่ง
+
+## 🚀 v1.17 — ถัดไปอันใกล้ (ประวัติ)
 
 ## 🚀 v1.17 — ถัดไปอันใกล้
 
@@ -41,8 +61,7 @@
 - [x] ~~**ตลาด plugin** — หน้ารวม plugin + API เอกสาร + ปุ่มเปิดโฟลเดอร์~~ ✅ v2.1 (docs/PLUGINS.md + ปุ่ม 🔌)
 - [x] ~~**Multi-language docs** — เอกสารอังกฤษฉบับเต็ม~~ ✅ v2.1 (TUTORIAL.en.md 12 บท — จีน/ญี่ปุ่นค่อยว่างกันชุมชน)
 - [x] ~~**Plugin API v2** — ctx เพิ่ม `stop_check()` (plugin หยุดตาม STOP ได้), `ui` (toast/statusbar)~~ ✅ v1.20
-- [ ] **รวบรวม plugin จากชุมชน** — PR เข้า docs/PLUGINS.md + ตัวอย่างเพิ่มใน plugins/ ได้เลย
-- [ ] **Multi-language docs (จีน/ญี่ปุ่น)** — i18n ตัวโปรแกรมรองรับแล้ว · พื้นฐาน EN ครบแล้ว (TUTORIAL.en.md)
+- [x] ~~**รวบรวม plugin จากชุมชน / Multi-language (จีน-ญี่ปุ่น)**~~ ⬆️ ย้ายไปแผน v2.3 (หัวข้อบน)
 
 ## 🎯 หลักการที่ห้ามฝ่าฝืน
 
@@ -52,4 +71,4 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v2.1 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*
+*อัพเดตล่าสุด: v2.2.1 — ถอดจาก CHANGELOG · สถาปัตยกรรม v2.0 จบ 3 phases แล้ว — ชุดถัดไปเน้นชุมชน/cross-platform*
