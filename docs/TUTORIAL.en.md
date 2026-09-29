@@ -143,11 +143,14 @@ py auto_macro.py script.json --loops 5 --speed 2
 py auto_macro.py script.json --loop          # infinite
 py auto_macro.py script.json --watchdog 3    # restart when finished (v1.10)
 py engine_cli.py script.json                 # v2.1: engine-only CLI (no GUI code at all)
+py engine_cli.py script.jsonl --json-lines   # v2.2: one JSON row per line (skips #comments)
 ```
 
 Stops: F8/Esc anywhere, Esc/q in the console, Ctrl+C, or `--stop-file PATH`
-(create the file to stop). Unsupported actions (image search) print a clear warning
-instead of being silently skipped.
+(create the file to stop).
+**Image actions work in the CLI since v2.2** — Image Click, If Image, Else If Image and
+Wait for Image use the same OpenCV search as the GUI (a missing image file is reported
+and the run continues).
 
 ---
 
