@@ -31,6 +31,14 @@ jobs:
           python -m unittest test_auto_macro -v 2>&1 | Tee-Object -FilePath unit_output.txt
           exit $LASTEXITCODE
 
+      - name: ระบุจุดที่พังเป็น annotation (เหมือน cross-platform job)
+        if: failure()
+        shell: pwsh
+        run: |
+          Select-String -Path unit_output.txt -Pattern "^(FAIL|ERROR): " | Select-Object -First 6 | ForEach-Object {
+            Write-Output ("::error::" + $_.Line)
+          }
+
       # เก็บ output ไว้ใน Step Summary — ดู log ตอนพังได้จากหน้า run โดยไม่ต้องล็อกอิน
       - name: แนบผล unit tests ลง Step Summary
         if: always()
