@@ -3865,6 +3865,8 @@ class TestV25Conditions(unittest.TestCase):
 
     def test_if_pixel_match_and_mismatch(self):
         rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี (runner ไม่มีสิทธิ์จับภาพ)")
         r = self._runner()
         r.execute({"button": me_mod.IF_PIXEL,
                    "additional": "5,5 #%02x%02x%02x" % tuple(rgb[:3]), "repeat": 2})
@@ -3876,12 +3878,21 @@ class TestV25Conditions(unittest.TestCase):
 
     def test_read_pixel_stores_var(self):
         rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี (runner ไม่มีสิทธิ์จับภาพ)")
         r = self._runner()
         r.execute({"button": me_mod.READ_PIXEL, "additional": "สีจอ 5,5"})
         self.assertEqual(r.variables["สีจอ"], "%02x%02x%02x" % tuple(rgb[:3]))
         r.execute({"button": me_mod.READ_PIXEL, "additional": "bad name 5,5"})   # ชื่อผิด → ข้าม
         r.execute({"button": me_mod.READ_PIXEL, "additional": "สี x"})           # พิกัดพัง → ข้าม
         self.assertNotIn("bad", r.variables)
+
+    def test_read_pixel_bad_input_tolerant(self):
+        r = self._runner()
+        r.execute({"button": me_mod.READ_PIXEL, "additional": "bad name 5,5"})
+        r.execute({"button": me_mod.READ_PIXEL, "additional": "สี x"})
+        r.execute({"button": me_mod.READ_PIXEL, "additional": ""})
+        self.assertEqual(r.variables.get("สี"), None)   # ไม่ raise แม้จออ่านไม่ได้
 
     def test_image_click_sets_img_vars(self):
         r = self._runner(find_cb=lambda row: (30, 40))
