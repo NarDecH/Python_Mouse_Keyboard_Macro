@@ -51,7 +51,9 @@ class TestParseKey(unittest.TestCase):
         self.assertEqual(am.parse_key("space"), Key.space)
         self.assertEqual(am.parse_key("enter"), Key.enter)
         self.assertEqual(am.parse_key("pgup"), Key.page_up)
-        self.assertEqual(am.parse_key("prtsc"), Key.print_screen)
+        # macOS ไม่มีปุ่ม PrtSc → pynput darwin ไม่มี Key.print_screen (parse_key คืน None)
+        self.assertEqual(am.parse_key("prtsc"),
+                         getattr(Key, "print_screen", None))
         self.assertEqual(am.parse_key("del"), Key.delete)
         self.assertEqual(am.parse_key("caps"), Key.caps_lock)
         self.assertEqual(am.parse_key("f5"), Key.f5)
