@@ -87,11 +87,12 @@ jobs:
           $PY -m pip install --upgrade pip
           $PY -m pip install pynput
 
-      - name: ตรวจ tkinter + pynput ในอินเทอร์พรีเตอร์เดียวกัน (รายงานแยกตัว)
+      - name: ตรวจ tkinter + pynput (traceback ลง annotation)
         run: |
-          $PY -c "import tkinter; print('tkinter OK')" || echo "::error::$PY tkinter import ล้มเหลว"
-          $PY -c "import pynput; print('pynput OK')" || echo "::error::$PY pynput import ล้มเหลว"
-          $PY -c "import tkinter, pynput; print('tkinter + pynput OK')"
+          printf 'import traceback, sys\nok = True\nfor mod in ("tkinter", "pynput"):\n    try:\n        __import__(mod)\n        print(mod, "OK")\n    except Exception:\n        ok = False\n        traceback.print_exc()\nsys.exit(0 if ok else 1)\n' > probe.py
+          $PY probe.py > probe_out.txt 2>&1 || true
+          cat probe_out.txt
+          echo "::error::probe|$(head -c 3000 probe_out.txt | tr '\n' '~')"
 
       - name: รัน unit tests
         run: |
