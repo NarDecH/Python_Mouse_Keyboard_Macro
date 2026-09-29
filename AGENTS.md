@@ -199,8 +199,9 @@ build.bat                               # build .exe (หรือ: py -m PyInst
   ทำเหตุการณ์ (เมาส์: ย้ายพิกัด + press/release/click, คีย์: press/release/tap) วนตาม `Repeat`
   - `STOP` ตั้ง `self.running = False` — ลูปเช็คทุกจุดและออกเอง
   - หยุดแม่นยำ (v1.7.1+): `_sleep_check` แบ่ง sleep ชิ้นละ 50 ms, `_play_gen`
-    (generation counter) กันเล่นซ้อนเธรด, `_pressed_keys`/`_pressed_btns` ปล่อยคีย์/ปุ่ม
-    ค้างตอน STOP (GUI และ CLI ทำเหมือนกัน)
+    (generation counter) กันเล่นซ้อนเธรด, คีย์/ปุ่มค้างอยู่ใน `ActionRunner.pressed_keys/
+    pressed_btns` แหล่งเดียว — STOP เรียก `_release_stuck` → `runner.release_all()`
+    (v2.2.1: ลบ `_pressed_keys` กลไกเก่าออกแล้ว · GUI และ CLI ทำเหมือนกัน)
   - CLI หยุดได้ 4 ช่องทาง: F8/Esc ผ่าน Listener, Esc/q จากคอนโซล (msvcrt),
     Ctrl+C, และ `--stop-file`
   - CLI `--watchdog N`: จบแล้วหน่วง N วิแล้วเริ่มใหม่ (ปล่อยคีย์ค้าง+log ทุกรอบ) —

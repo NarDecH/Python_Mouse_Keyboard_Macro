@@ -3124,8 +3124,6 @@ class TestStopReleasesStuckKeys(unittest.TestCase):
         app.recording = False
         app.running = True
         app._play_gen = 0
-        app._pressed_keys = set()                     # กลไกเก่า — ปกติว่างแล้ว
-        app._pressed_btns = set()
         kb = mock.MagicMock()
         app.kb_ctl = kb
         keys = self._pressed_state()
@@ -3146,11 +3144,16 @@ class TestStopReleasesStuckKeys(unittest.TestCase):
         runner = mock.MagicMock()
         runner.release_all.side_effect = RuntimeError("boom")
         app._action_runner = runner
-        kb = mock.MagicMock()
-        app.kb_ctl = kb
-        app._pressed_keys = set()
-        app._pressed_btns = set()
         am.MacroApp._release_stuck(app)               # ไม่ raise = ผ่าน
+
+    def test_gui_no_legacy_pressed_state(self):
+        """v2.2.1: กลไก _pressed_keys/_pressed_btns เก่าถูกลบ — แหล่งเดียวคือ ActionRunner"""
+        app = mock.MagicMock(spec=am.MacroApp)        # spec = ไม่ยอม attribute ที่ไม่มีจริง
+        app._action_runner = mock.MagicMock()
+        am.MacroApp._release_stuck(app)               # อ่านจาก runner เท่านั้น
+        app._action_runner.release_all.assert_called_once()
+        self.assertFalse(hasattr(app, "_pressed_keys"))   # spec ยืนยันว่าไม่มีกลไกเก่าแล้ว
+        self.assertFalse(hasattr(app, "_pressed_btns"))
 
     def test_cli_stop_releases_runner_keys(self):
         """CLI: กลไกหยุด (stop-file/หยุดกลางดีเลย์) ต้อง release_all ผ่าน cli_runner เสมอ

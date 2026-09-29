@@ -1553,8 +1553,8 @@ class MacroApp:
 
         # การหยุดที่แม่นยำ (v1.7.1)
         self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
-        self._pressed_keys = set()         # คีย์ที่กดค้าง (Press Key) เพื่อปล่อยตอน STOP
-        self._pressed_btns = set()         # ปุ่มเมาส์ที่กดค้าง (* Down) เพื่อปล่อยตอน STOP
+        # (v2.2.1: คีย์/ปุ่มค้างอยู่ใน ActionRunner.pressed_keys/pressed_btns แหล่งเดียว —
+        #  _pressed_keys/_pressed_btns กลไกเก่าถูกลบแล้ว _release_stuck อ่านจาก runner)
 
         self._build_style()
         self._t = lambda key: tr(self._lang, key)   # ตัวย่อดึงข้อความตามภาษา (v1.14)
@@ -2684,19 +2684,10 @@ class MacroApp:
 
     def _release_stuck(self):
         """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ เมื่อ STOP กลางคัน (กัน Ctrl ติด กดค้าง)
-        v2.2.1: คีย์/ปุ่มค้างอยู่ใน ActionRunner.pressed_keys/pressed_btns ตั้งแต่ v2.1 —
-        อ่านจาก runner (ที่มาก่อนอย่าง _pressed_keys เก่าหมดสมัยแล้ว) ทน error ทุกจุด"""
+        v2.2.1: แหล่งเดียวคือ ActionRunner.pressed_keys/pressed_btns — เรียก
+        runner.release_all() (ทน error ทุกจุด — การปล่อยห้ามทำโปรแกรมพัง)"""
         try:
             self._action_runner.release_all()
-        except Exception:
-            pass
-        try:
-            for k in list(self._pressed_keys):     # (คงไว้กันเคสอื่นยังใช้ — ปกติว่างแล้ว)
-                self.kb_ctl.release(k)
-            self._pressed_keys.clear()
-            for b in list(self._pressed_btns):
-                self.mouse_ctl.release(b)
-            self._pressed_btns.clear()
         except Exception:
             pass
 

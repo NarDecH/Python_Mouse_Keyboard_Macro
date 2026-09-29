@@ -85,6 +85,56 @@ class TestE2EStop(unittest.TestCase):
             json.dump(rows, fh, ensure_ascii=False)
         return p
 
+    def test_watchdog_press_key_stop_file_no_stuck(self):
+        """v2.2.1: watchdog + Press Key ค้าง + ดีเลย์ยาว → หยุดด้วย stop-file กลางทาง →
+        ต้องจบ exit 130 และ**ไม่มีคีย์ค้าง** (ตรวจ GetAsyncKeyState ของ Ctrl ทั้งซ้ายขวา
+        ในโปรเซสนี้หลัง child จบ) — คีย์/ปุ่มค้าง = บั๊กร้ายแรงของโปรแกรมควบคุมคีย์บอร์ด"""
+        import ctypes
+        script = self._script([
+            {"enabled": True, "button": "Press Key", "additional": "ctrl", "mins": 0,
+             "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 1, "secs": 0, "repeat": 1},  # ค้างระหว่างนี้
+            {"enabled": True, "button": "Release Key", "additional": "ctrl", "mins": 0,
+             "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        stopf = os.path.join(tempfile.mkdtemp(prefix="macro_e2e_stk_"), "stop.flg")
+        ch = _Child([script, "--watchdog", "1", "--stop-file", stopf, "--no-log"])
+        try:
+            triggered = []
+
+            def on_line(line):
+                if "รอบที่ 1" in line and not triggered:
+                    with open(stopf, "w", encoding="utf-8") as fh:
+                        fh.write("stop")
+                    triggered.append(True)
+                return False
+
+            el = ch.collect(deadline_s=30, on_line=on_line)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertTrue(triggered, "ต้อง trigger stop-file กลางดีเลย์ (ตอน ctrl ยังกดค้าง)")
+            self.assertEqual(rc, 130)
+            self.assertLess(el, 15, "ต้องหยุดทันทีกลางดีเลย์ — ใช้จริง %.1f วิ" % el)
+            self.assertIn("ถูกหยุดโดยผู้ใช้", out)
+            self.assertNotIn("จบแล้ว ✔", out)          # (หัวโปรแกรมพิมพ์ "จบแล้วเริ่มใหม่..." — ไม่นับ)
+            time.sleep(0.2)                            # ให้ OS หายจาก event ค้าง
+            VK_LCONTROL, VK_RCONTROL = 0xA2, 0xA3
+            GetAsyncKeyState = ctypes.windll.user32.GetAsyncKeyState
+            for vk, name in ((VK_LCONTROL, "Ctrl ซ้าย"), (VK_RCONTROL, "Ctrl ขวา")):
+                state = GetAsyncKeyState(vk)
+                self.assertFalse(state & 0x8000,
+                                 "หยุดแล้ว %s ยังติดค้าง! (release_all ไม่ครบ)" % name)
+        finally:
+            ch.close()
+            # เผื่อเคสเทสต์ล้มเหลว — ปล่อย ctrl ทิ้งกันค้างรบกวนเทสต์ต่อไป
+            try:
+                from pynput.keyboard import Controller as _C, Key as _K
+                _c = _C()
+                _c.release(_K.ctrl)
+            except Exception:
+                pass
+
     def test_stop_file_mid_long_delay(self):
         # Beep → ดีเลย์ 60 วิ → Beep: สร้าง stop-file หลังเห็น "รอบที่ 1" = กลางดีเลย์พอดี
         script = self._script([
