@@ -3025,5 +3025,89 @@ class TestV22ConditionRunner(unittest.TestCase):
         self.assertTrue(hasattr(am.MacroApp, "_execute_condition_row"))
 
 
+class TestRecorderRoundTrip(unittest.TestCase):
+    """v2.2: อัดจริงผ่าน Recorder (จำลองเหตุการณ์ listener ตามเวลา) → บันทึกไฟล์สคริปต์
+    → โหลดกลับ → เล่นด้วย ActionRunner + controller จำลอง — ครบวงจรโดยไม่แตะเมาส์/คีย์จริง"""
+
+    def _fake_controllers(self):
+        """controller จำลองที่บันทึกทุกการเคลื่อนไหวลง plays (เรียงตามลำดับเวลา)"""
+        plays = []
+        m = mock.MagicMock()
+        m.position = (0, 0)
+
+        def _click(btn, n=1):
+            plays.append(("click", str(btn), tuple(m.position)))
+
+        def _scroll(dx, dy):
+            plays.append(("scroll", dy))
+
+        m.click.side_effect = _click
+        m.scroll.side_effect = _scroll
+        kb = mock.MagicMock()
+        kb.tap.side_effect = lambda k: plays.append(("tap", k))   # เก็บออบเจ็กต์คีย์ (เทียบค่าได้)
+        return plays, m, kb
+
+    def test_record_save_playback_round_trip(self):
+        import macro_engine as me
+
+        # ---- 1) อัด: ผลักเหตุการณ์ผ่าน callback ของ Recorder ตรง ๆ (เหมือน listener จริง) ----
+        rec = me.Recorder()
+        rec.start()
+        self.assertTrue(rec.recording)
+        rec._on_click(111, 222, am.mouse.Button.left, True)      # คลิกซ้ายที่ (111,222)
+        rec._on_scroll(111, 222, 0, 2)                            # เลื่อนขึ้น 2
+        rec._on_kb(am.KeyCode.from_char("a"))                     # กดคีย์ a
+        rec._on_click(333, 444, am.mouse.Button.right, True)      # คลิกขวาที่ (333,444)
+        rec._on_click(555, 666, am.mouse.Button.left, False)      # ปล่อยปุ่ม = ไม่ถูกอัด
+        rec.stop()
+        rows = rec.drain_pending()
+        self.assertEqual([r["button"] for r in rows],
+                         ["Left Click", "Scroll Up", "Tap Key", "Right Click"])
+        self.assertEqual((rows[0]["x"], rows[0]["y"]), (111, 222))
+        self.assertEqual(rows[1]["additional"], "2")              # จำนวนจังหวะ scroll
+        self.assertEqual(rows[2]["additional"], "a")
+        self.assertEqual((rows[3]["x"], rows[3]["y"]), (333, 444))
+        for r in rows:
+            self.assertIn("secs", r)                              # จับเวลาหน่วงอัตโนมัติ
+
+        # ---- 2) บันทึกไฟล์ (ฟอร์แมตเดียวกับปุ่ม Save ของโปรแกรม) ----
+        tmp = tempfile.mkdtemp(prefix="rec_rt_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "recorded.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False, indent=2)
+
+        # ---- 3) เล่นกลับ: โหลดไฟล์ → subst_row → ActionRunner (controller จำลอง) ----
+        with open(path, encoding="utf-8") as fh:
+            loaded = json.load(fh)
+        self.assertEqual(len(loaded), 4)                          # ไฟล์กลับมาครบทุกแถว
+        plays, m, kb = self._fake_controllers()
+        runner = me.ActionRunner(m, kb, on_message=lambda t, c="#080": None)
+        # Tap Key 'a' → parse_key ผ่าน layout — รู้ค่าที่คาดจาก parse จริงก่อนเทียบ
+        key_obj = me_mod.parse_key("a")
+        for raw in loaded:
+            r = me_mod.subst_row(raw, {})                         # เส้นทางเดียวกับ player จริง
+            if r.get("button") == me_mod.SECTION_HEADER:
+                continue
+            runner.execute(r)
+        self.assertEqual(plays[0], ("click", "Button.left", (111, 222)))
+        self.assertEqual(plays[1], ("scroll", 2))                 # เลื่อนขึ้นตามที่อัด
+        self.assertEqual(plays[2], ("tap", key_obj))              # คีย์เดิมที่อัด (ออบเจ็กต์ตรง parse_key)
+        self.assertEqual(plays[3], ("click", "Button.right", (333, 444)))
+        self.assertEqual(len(plays), 4)                           # ไม่มีเหตุการณ์เกินมา
+
+    def test_recorder_ignores_events_when_stopped_and_drain_twice(self):
+        """หยุดอัดแล้วเหตุการณ์ต้องไม่ถูกบันทึก · drain ซ้ำ = คิวว่าง"""
+        import macro_engine as me
+        rec = me.Recorder()
+        rec.start()
+        rec._on_click(1, 2, am.mouse.Button.left, True)
+        rec.stop()
+        self.assertEqual(len(rec.drain_pending()), 1)
+        rec._on_click(3, 4, am.mouse.Button.left, True)           # หลัง stop = ไม่อัด
+        rec._on_kb(am.KeyCode.from_char("z"))
+        self.assertEqual(rec.drain_pending(), [])                 # drain ซ้ำ = ว่าง
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
