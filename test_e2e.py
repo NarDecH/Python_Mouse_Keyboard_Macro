@@ -317,6 +317,9 @@ class TestE2EUtility(unittest.TestCase):
             app2._save_profiles.assert_called_once()
             app2._save_conf.assert_called_once()
 
+    @unittest.skipUnless(os.name == "nt",
+                         "ต้องควบคุมเมาส์จริง (อ่าน/ย้ายตำแหน่ง) — macOS runner "
+                         "ไม่มีสิทธิ์ accessibility จึงตั้งตำแหน่งเมาส์ไม่ได้")
     def test_self_test_real_mouse(self):
         """ปุ่ม 🧪 ทดสอบระบบจริง: เรียก _self_test_actions() โค้ดจริง —
         เมาส์ขยับแล้วคืนจุดเดิมพอดี + บี๊บ 2 ครั้ง (ไม่คลิก ไม่กดคีย์)"""
