@@ -226,11 +226,14 @@ py auto_macro.py script.json              # เล่นรอบเดียว
 py auto_macro.py script.json --loop       # วนไม่จำกัด
 py auto_macro.py script.json --loops 10   # 10 รอบ
 py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า
+py engine_cli.py script.json              # CLI ย่อย engine ล้วน (ไม่แตะ tkinter)
+py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 แถว JSON ต่อบรรทัด (v2.2)
 ```
 
 - หยุด: กด **F8/Esc** (ได้แม้คอนโซลไม่โฟกัส) หรือ Ctrl+C
 - แสดงความคืบหน้าทีละแถว — เหมาะกับ **Windows Task Scheduler** (ตั้งรัน script.json ตอนเปิดเครื่อง)
-- ข้อจำกัด: Image Click/Wait for Image ใช้ใน GUI เท่านั้น
+- **v2.2: ทำงานครบทุก action** — Image Click/If Image/Else/Wait for Image ใช้ค้นภาพจริงใน CLI ได้แล้ว
+  (ไฟล์ภาพหาย = รายงานเหตุผลแล้วเล่นแถวถัดไปต่อ)
 
 ---
 
@@ -246,6 +249,8 @@ py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า
 | `examples/05_watchdog_monitor.json` | งานเฝ้าระบบ | ใช้กับ `--watchdog` (บทที่ 8) |
 | `examples/06_plugin_demo.json` | Custom Action plugins | Message Box + Sleep (plugin) |
 | `examples/07_conditions.json` | **เงื่อนไข (v1.18)** | If Image → กลุ่ม A/B, Wait for Pixel Color — ไม่คลิก ปลอดภัย |
+| `examples/08_variables.json` | ตัวแปร (v1.19) | Set Variable + `{ชื่อ}` แทนค่า |
+| `examples/09_clipboard.json` | คลิปบอร์ด (v1.20) | Set/Read Clipboard กับตัวแปร |
 
 ---
 

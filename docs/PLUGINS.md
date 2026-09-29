@@ -12,6 +12,9 @@
 |---|---|---|
 | `sleep_seconds.py` | Sleep (plugin) | หน่วง N วินาที (จาก Additional) — ตัวอย่างพื้นฐาน |
 | `message_box.py` | Message Box | แสดงกล่องข้อความ (Additional = ข้อความ) |
+| `play_sound.py` | Play Sound | บี๊บเสียงจริง (winsound) ตามจำนวนครั้งใน Additional — fallback bell บน OS อื่น |
+| `webhook.py` | Webhook | ยิง POST JSON ไป URL ใน Additional (timeout 5 วิ) — แจ้งทีม/ระบบอื่นเมื่อสคริปต์ถึงจุดสำคัญ |
+| `multi_image_click.py` | Multi Image Click | คลิกภาพหลายไฟล์ตามลำดับ คั่น `|` รองรับ @กรอบ#threshold — ไฟล์ไหนไม่เจอข้ามให้ |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที

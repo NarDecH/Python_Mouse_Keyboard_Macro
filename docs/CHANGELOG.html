@@ -65,8 +65,42 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.1.0</h2>
+      <h2>เวอร์ชัน 2.2.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">29 กันยายน 2026</span>
+    </div>
+
+    <h3>🏗️ phase 3 จบ — engine ครบทุกส่วน</h3>
+    <ul>
+      <li><b>Recorder ใน macro_engine.py</b> — กลไกบันทึกทั้งหมด (คลิก/scroll/คีย์) ย้ายออกจาก
+        MacroApp เป็นคลาสล้วน — <b>engine ไม่พึ่ง Tk แม้แต่ส่วนเดียว</b> · self-check เพิ่มบรรทัด
+        "Listener บันทึก (REC)"</li>
+      <li><b>ค้นภาพย้ายลง engine</b> — parse_search_area / grab_area_bgr / find_image_pos เป็นของ
+        engine (มี last_error รายงานเหตุผล) — GUI/CLI ใช้ร่วมกัน</li>
+    </ul>
+
+    <h3>✨ CLI ทำครบทุก action</h3>
+    <ul>
+      <li><b>CLI ค้นภาพได้จริง</b> — Image Click / If Image / Else If Image / Wait for Image
+        ทำงานใน CLI ทั้งตัวหลักและ engine_cli (ผูก find_image_cb/wait_image_cb เข้า runner เหมือน GUI)</li>
+      <li><b>If Image/Else ย้ายเข้า runner</b> — เงื่อนไขค้นภาพอยู่ใน ActionRunner.execute
+        แหล่งเดียว · ลูปเล่น GUI เหลือ helper _execute_condition_row ตัวเดียวสำหรับเงื่อนไขทั้ง 4</li>
+      <li><b>engine_cli.py --json-lines</b> — อ่านสคริปต์แบบ 1 แถว JSON ต่อ 1 บรรทัด
+        (ข้ามบรรทัดว่าง/#comment)</li>
+      <li><b>plugin ใหม่ 3 ตัว</b> — Play Sound (winsound), Webhook (ยิง POST JSON),
+        Multi Image Click (คลิกภาพหลายไฟล์ตามลำดับ)</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม 18 unit tests ใหม่ (Recorder/ค้นภาพ/--json-lines/plugins) · E2E อัพเดต
+        Image Click ไฟล์หายรายงานชัดแล้วจบปกติ → รวม <b>258 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.1.0</h2>
       <span class="date">29 กันยายน 2026</span>
     </div>
 

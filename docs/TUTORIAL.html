@@ -277,11 +277,13 @@ py auto_macro.py                        # หรือดับเบิลค�
 <pre><code>py auto_macro.py script.json              # เล่นรอบเดียว
 py auto_macro.py script.json --loop       # วนไม่จำกัด
 py auto_macro.py script.json --loops 10   # 10 รอบ
-py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า</code></pre>
+py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า
+py engine_cli.py script.json              # CLI ย่อย engine ล้วน (ไม่แตะ tkinter)
+py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 แถว JSON ต่อบรรทัด (v2.2)</code></pre>
     <ul>
       <li>หยุด: กด <kbd>F8</kbd>/<kbd>Esc</kbd> (ได้แม้คอนโซลไม่โฟกัส) หรือ Ctrl+C</li>
       <li>แสดงความคืบหน้าทีละแถว — เหมาะกับ <b>Windows Task Scheduler</b></li>
-      <li>ข้อจำกัด: Image Click/Wait for Image ใช้ใน GUI เท่านั้น</li>
+      <li><b>v2.2: ทำงานครบทุก action</b> — Image Click/If Image/Else/Wait for Image ค้นภาพจริงใน CLI ได้แล้ว (ไฟล์หาย = รายงานเหตุผลแล้วเล่นต่อ)</li>
     </ul>
   </div>
 

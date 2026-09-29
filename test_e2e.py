@@ -289,9 +289,9 @@ class TestE2ECliWarnings(unittest.TestCase):
             json.dump(rows, fh, ensure_ascii=False)
         return p
 
-    def test_warns_on_unsupported_action(self):
-        # v2.1: ActionRunner ทำให้ CLI ทำ Move Mouse ได้จริงแล้ว — คงคำเตือนเดิมเฉพาะ
-        # action ค้นภาพ (Image Click / Wait for Image) ที่ logic opencv ยังอยู่ฝั่ง GUI
+    def test_image_click_reports_missing_file(self):
+        # v2.2: CLI ค้นภาพได้จริงแล้ว (find_image_cb ผูกเข้า runner เดียวกับ GUI) —
+        # ไฟล์ภาพหายต้องรายงานเหตุผลชัด ๆ แล้วเล่นแถวถัดไปจนจบ ไม่พัง
         script = self._script([
             {"enabled": True, "button": "Image Click", "additional": "no_such_target.png",
              "mins": 0, "secs": 0, "repeat": 1},
@@ -303,8 +303,8 @@ class TestE2ECliWarnings(unittest.TestCase):
             rc = ch.wait(timeout=15)
             out = "\n".join(ch.lines)
             self.assertEqual(rc, 0)
-            self.assertIn("ยังไม่รองรับใน CLI", out)
             self.assertIn("Image Click", out)
+            self.assertIn("ไม่พบไฟล์ภาพ", out)
             self.assertIn("จบแล้ว", out)
         finally:
             ch.close()

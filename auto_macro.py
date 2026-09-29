@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -982,7 +982,8 @@ class ActionRunner:
                  on_beep=lambda: None, on_message=lambda t, c="#080": None,
                  on_clipboard_set=lambda t: None, on_clipboard_read=lambda: None,
                  variables=None, plugin_lookup=lambda name: None,
-                 log_src=None, unsupported_cb=lambda btn: None):
+                 log_src=None, unsupported_cb=lambda btn: None,
+                 find_image_cb=None, wait_image_cb=None):
         self.mouse_ctl = mouse_ctl
         self.kb_ctl = kb_ctl
         self.stop_check = stop_check
@@ -994,10 +995,13 @@ class ActionRunner:
         self.plugin_lookup = plugin_lookup
         self.log_src = log_src
         self.unsupported_cb = unsupported_cb
+        self.find_image_cb = find_image_cb        # v2.2: ค้นภาพ (GUI/CLI ผูกเข้ามา)
+        self.wait_image_cb = wait_image_cb        # v2.2: รอภาพ (GUI/CLI ผูกเข้ามา)
         self.pressed_keys = set()
         self.pressed_btns = set()
         self.saved_pos = None
         self.last_if_found = None
+        self.skip_n = 0                           # v2.2: แถวที่ If Image/Else สั่งข้าม
 
     def release_all(self):
         """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้าง (เรียกตอนหยุด — กัน Ctrl ติด)"""
@@ -1138,8 +1142,23 @@ class ActionRunner:
                 self.mouse_ctl.click(Button.left, 1)
         elif btn == WAIT_PIXEL:                                      # รอจุดสี (v1.18)
             self._do_wait_for_pixel(r)
-        elif btn == "Wait for Image":                                # รอภาพปรากฏ
+        elif btn == "Wait for Image":                                # รอภาพปรากฏ (v2.2: cb ผูกจาก GUI/CLI)
             self._do_wait_for_image(r)
+        elif btn == IF_IMAGE:                                        # เงื่อนไขค้นภาพ (v2.2 — runner จัดการเอง)
+            pos = self._find_image_pos(r)
+            self.last_if_found = pos is not None
+            if pos is not None:
+                self.on_message("If Image เจอ → เล่นต่อ")
+            else:
+                self.skip_n = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat (กฎเดียว v1.21)
+                self.on_message("If Image ไม่เจอ → ข้าม %d แถว" % self.skip_n, "#a60")
+        elif btn == ELSE_IMAGE:                                      # ตัวแบ่งกลุ่ม A/B (v2.2)
+            n = parse_int(r.get("repeat"), 1)
+            if self.last_if_found:
+                self.skip_n = n
+                self.on_message("If เจอ → ข้ามกลุ่ม B %d แถว" % n, "#a60")
+            else:
+                self.on_message("If ไม่เจอ → เล่นกลุ่ม B ต่อ")
         elif btn == "Type Text":                                     # พิมพ์ข้อความ
             for ch in str(r.get("additional") or ""):
                 if not self.stop_check():
@@ -1225,6 +1244,201 @@ class ActionRunner:
         return True
 
 
+# ============================ ค้นภาพบนหน้าจอ (v2.2 — phase 3) ================
+# ย้าย logic opencv จากฝั่ง GUI ลง engine — CLI ใช้ Image Click/If Image/Wait ได้จริง
+# ไม่มี Tk — ผลลัพธ์สื่อสารผ่านค่าคืนเท่านั้น
+
+def parse_search_area(raw):
+    """อ่านกรอบค้นหา (search area) + threshold จากข้อความ Additional (v1.7)
+        ไฟล์.png                     = ทั้งจอ, threshold 80%
+        ไฟล์.png@x,y,กว้าง,สูง        = กรอบ, threshold 80%
+        ไฟล์.png@x,y,กว้าง,สูง#90     = กรอบ, threshold 90%
+        ไฟล์.png#65                  = ทั้งจอ, threshold 65%
+    คืน (path, area, threshold) — area None = ทั้งจอ"""
+    raw = (raw or "").strip()
+    path, area, thr = raw, None, DEFAULT_THRESHOLD
+    if "@" in raw:
+        path, _, coords = raw.partition("@")
+        coords, _, thr_s = coords.partition("#")
+        try:
+            x, y, w, h = [int(float(p.strip())) for p in coords.split(",")]
+        except ValueError:
+            return path, None, thr          # พิมพ์พลาด → ค้นทั้งจอ
+        if w > 0 and h > 0:
+            area = (x, y, x + w, y + h)
+    else:
+        path, _, thr_s = raw.partition("#")
+    if thr_s.strip():
+        try:
+            t = float(thr_s)
+            if 1 < t <= 100:      # ใส่เป็นเปอร์เซ็นต์ เช่น #90 = 90%
+                t /= 100.0
+            thr = min(1.0, max(0.30, t))
+        except ValueError:
+            pass
+    return path, area, thr
+
+
+def grab_area_bgr(area=None):
+    """จับภาพหน้าจอเฉพาะกรอบ (area=None = ทั้งจอ) — คืน (numpy BGR, (off_x, off_y))"""
+    if area and len(area) == 4:
+        shot = ImageGrab.grab(bbox=area, all_screens=True)
+        off = (area[0], area[1])
+    else:
+        shot = ImageGrab.grab(all_screens=True)
+        off = (0, 0)
+    return cv2.cvtColor(np.array(shot), cv2.COLOR_RGB2BGR), off
+
+
+def resolve_image_path(path):
+    """พาธสัมพัทธ์ → เทียบกับโฟลเดอร์ของโปรแกรม (เหมือนเดิมทุกเวอร์ชัน)"""
+    if not os.path.isabs(path):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    return path
+
+
+def find_image_pos(path, area=None, thr=None):
+    """ค้นหาภาพย่อยบนหน้าจอ (cv2.matchTemplate) — คืน (x, y) จุดศูนย์กลาง หรือ None
+    คืน None เมื่อ: ไม่มี opencv / ไฟล์หาย / อ่านไม่ได้ / ภาพใหญ่กว่ากรอบ / ไม่เจอ
+    (ข้อความเหตุผลเขียนลง find_image_pos.last_error เพื่อให้ caller โชว์ได้)"""
+    find_image_pos.last_error = None
+    if not HAS_CV:
+        find_image_pos.last_error = "ค้นภาพต้องติดตั้ง: pip install opencv-python Pillow"
+        return None
+    path = resolve_image_path(path)
+    if not os.path.isfile(path):
+        find_image_pos.last_error = "ไม่พบไฟล์ภาพ: %s" % path
+        return None
+    tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
+    if tmpl is None:
+        find_image_pos.last_error = "อ่านไฟล์ภาพไม่ได้: %s" % path
+        return None
+    try:
+        screen, (off_x, off_y) = grab_area_bgr(area)
+    except Exception as exc:
+        find_image_pos.last_error = "จับภาพหน้าจอไม่ได้: %s" % exc
+        return None
+    if tmpl.shape[0] > screen.shape[0] or tmpl.shape[1] > screen.shape[1]:
+        find_image_pos.last_error = "ภาพใหญ่กว่าพื้นที่ค้นหา: %s" % os.path.basename(path)
+        return None
+    res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
+    _, maxv, _, maxloc = cv2.minMaxLoc(res)
+    if maxv < thr:
+        find_image_pos.last_error = ("หาภาพไม่เจอ (ความมั่นใจ %.0f%% < %.0f%%): %s"
+                                     % (maxv * 100, thr * 100, os.path.basename(path)))
+        return None
+    return (off_x + maxloc[0] + tmpl.shape[1] // 2,
+            off_y + maxloc[1] + tmpl.shape[0] // 2)
+
+
+# ============================= Recorder (v2.2 — phase 3) =====================
+# กลไก RECORD ล้วน ไม่มี Tk — listener threads ผลักเหตุการณ์เข้า pending_rows
+# ฝั่ง UI ดึงผ่าน drain_pending() แล้ววาดตารางเอง (รูปแบบ thread-safe เดิมของโปรเจกต์)
+class Recorder:
+    """บันทึกเมาส์/คีย์เป็นแถวสคริปต์ (v2.2 — ย้ายจาก MacroApp._start_listeners)
+
+    - ใช้ pynput Listener 2 ตัว (mouse + keyboard) ในเธรดแยก — ไม่แตะ Tk เด็ดขาด
+    - recording = สถานะปัจจุบัน · start()/stop() สลับ
+    - pending_rows คือรายการแถวรอ — ผู้ใช้ UI ดึงด้วย drain_pending() ทุก tick
+    - on_event(row_dict) เรียกทุกครั้งที่อัดได้ (ถ้าให้มา — ใช้ทำ live callback)
+    """
+
+    def __init__(self, on_event=None):
+        self.recording = False
+        self._t0 = 0.0
+        self.pending_rows = []
+        self.on_event = on_event
+        self._ms_listener = None
+        self._kb_listener = None
+        self._last_key = ""          # คีย์ล่าสุด (สำหรับหน้าจอสด)
+
+    # ---- กลไก listener (เริ่มตอนสร้าง — สถานะอัดคุมด้วย self.recording) -----
+    def _on_move(self, x, y):
+        self.last_pos = (x, y)
+
+    def _on_click(self, x, y, button, pressed):
+        if self.recording and pressed:
+            name = {"Button.left": "Left", "Button.right": "Right",
+                    "Button.middle": "Middle"}.get(str(button))
+            if name:
+                self._push(dict(x=int(x), y=int(y), button=name + " Click",
+                                additional="", mins=0,
+                                secs=round(time.time() - self._t0, 2), repeat=1))
+
+    def _on_scroll(self, x, y, dx, dy):
+        if self.recording and dy:
+            self._push(dict(x=int(x), y=int(y),
+                            button="Scroll Up" if dy > 0 else "Scroll Down",
+                            additional=str(abs(dy)), mins=0,
+                            secs=round(time.time() - self._t0, 2), repeat=1))
+
+    def _on_kb(self, key):
+        try:
+            txt = key.char or ""
+        except AttributeError:
+            txt = str(key).replace("Key.", "")
+        if txt:
+            self._last_key = txt
+        if self.recording and txt and len(txt) <= 12 and not txt.startswith(" "):
+            self._push(dict(x="", y="", button="Tap Key", additional=txt, mins=0,
+                            secs=round(time.time() - self._t0, 2), repeat=1))
+
+    def _push(self, row):
+        self.pending_rows.append(row)
+        if self.on_event:
+            try:
+                self.on_event(dict(row))
+            except Exception:
+                pass
+
+    def start_listeners(self):
+        """เปิด listener 2 ตัว (เรียกครั้งเดียวตอนสร้างโปรแกรม — ทน error ทุกจุด)"""
+        self.pending_rows = []
+        try:
+            self._ms_listener = mouse.Listener(on_move=self._on_move,
+                                               on_click=self._on_click,
+                                               on_scroll=self._on_scroll)
+            self._ms_listener.daemon = True
+            self._ms_listener.start()
+        except Exception:
+            self._ms_listener = None
+        try:
+            self._kb_listener = keyboard.Listener(on_press=self._on_kb)
+            self._kb_listener.daemon = True
+            self._kb_listener.start()
+        except Exception:
+            self._kb_listener = None
+
+    def stop_listeners(self):
+        for attr in ("_ms_listener", "_kb_listener"):
+            lis = getattr(self, attr, None)
+            if lis is not None:
+                try:
+                    lis.stop()
+                except Exception:
+                    pass
+                setattr(self, attr, None)
+
+    # ---- ควบคุมสถานะอัด ---------------------------------------------------
+    def start(self):
+        """เริ่มอัด — คืน True ถ้า listener พร้อม"""
+        self._t0 = time.time()
+        self.pending_rows = []
+        self.recording = True
+        return (self._ms_listener is not None or self._kb_listener is not None)
+
+    def stop(self):
+        """หยุดอัด — คืนจำนวนเหตุการณ์ที่อัดได้ทั้งหมด (รวมที่ยังไม่ถูก drain)"""
+        self.recording = False
+        return len(self.pending_rows)
+
+    def drain_pending(self):
+        """ดึงแถวรอทั้งหมดออก (เรียกจาก UI poller — เธรดเดียวเท่านั้น)"""
+        rows = self.pending_rows
+        self.pending_rows = []
+        return rows
+
+
 # === ENGINE-END
 
 
@@ -1287,6 +1501,9 @@ class MacroApp:
         self._section_stash = []        # v1.22: แถวที่ถูกย่อด้วยหัวข้อ Section [{after: iid, vals: [...]}]
         self._live_pos = (0, 0)         # พิกัดเมาส์สด (จาก listener thread)
         self._live_key = ""             # คีย์ล่าสุด (จาก listener thread)
+        # v2.2 (phase 3): กลไก RECORD อยู่ใน engine.Recorder — listener threads ของมันเอง
+        self._recorder = Recorder(on_event=self._on_record_event)
+        self._pending_rows = []         # (คงไว้เพื่อ Record wizard — poller ดึงจาก recorder)
         self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None,
                           "beep": False}
         self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
@@ -1702,57 +1919,64 @@ class MacroApp:
     def _toggle_forever(self):
         self.chk_forever.set(not self.chk_forever.get())
 
-    # ----------------------------------------------- live mouse/key watchers --
-    def _start_listeners(self):
-        def on_move(x, y):
-            self._live_pos = (x, y)
-
-        def on_click(x, y, button, pressed):
-            if self.recording and pressed:
-                name = {"Button.left": "Left", "Button.right": "Right",
-                        "Button.middle": "Middle"}.get(str(button))
-                if name:
-                    dt = round(time.time() - self._rec_t0, 2)
-                    self._pending_rows.append(dict(x=int(x), y=int(y), button=name + " Click",
-                                                   additional="", mins=0, secs=dt, repeat=1))
-
-        def on_scroll(x, y, dx, dy):
-            if self.recording and dy:
-                dt = round(time.time() - self._rec_t0, 2)
-                self._pending_rows.append(dict(x=int(x), y=int(y),
-                                               button="Scroll Up" if dy > 0 else "Scroll Down",
-                                               additional=str(abs(dy)), mins=0, secs=dt, repeat=1))
-
-        def on_kb(key):
+    # ------------------------------------------- เงื่อนไขทั้ง 4 (v2.2) --------
+    def _execute_condition_row(self, r, loop_no, i, total, step_t0):
+        """ทำแถวเงื่อนไข (If Image/Else If Image/If Loop/If Time) — คืน True เมื่อแถวนี้
+        ทำหน้าที่เสร็จ (ลูปต้อง break ออกจาก for-repeat — เงื่อนไขทำงานรอบเดียว)
+        If Image/Else ผ่าน ActionRunner (แหล่งเดียวกับ CLI), ผลผลักเข้า _ui_state ตามรูปแบบเดิม"""
+        btn = r["button"]
+        det = ""
+        if btn in (IF_IMAGE, ELSE_IMAGE):
+            runner = self._action_runner
+            runner.mouse_ctl = self.mouse_ctl       # controller สดเสมอ (เหมือน do_step)
+            runner.kb_ctl = self.kb_ctl
+            before = runner.skip_n
+            captured = []                           # จับข้อความจาก runner ก่อน poller กิน
+            orig_msg = runner.on_message
+            runner.on_message = lambda t, c="#080": (captured.append(str(t)), orig_msg(t, c))
             try:
-                txt = key.char or ""
-            except AttributeError:
-                txt = str(key).replace("Key.", "")
-            if txt:
-                self._live_key = txt
-            if self.recording and txt and len(txt) <= 12 and not txt.startswith(" "):
-                dt = round(time.time() - self._rec_t0, 2)
-                self._pending_rows.append(dict(x="", y="", button="Tap Key",
-                                               additional=txt, mins=0, secs=dt, repeat=1))
+                runner.execute(r)                   # runner ตั้ง last_if_found/skip_n เอง
+            finally:
+                runner.on_message = orig_msg
+            if runner.skip_n > before:
+                self._ifimg_skip = runner.skip_n    # เช็คข้ามของลูปเล่นใช้ตัวเดิม (v1.21+)
+            if captured:
+                det = captured[-1]
+                self._ui_state["msg"] = (det, "#a60" if "ข้าม" in det else "#080")
+        else:
+            skip, msg = macro_engine.ActionRunner.evaluate_condition(
+                btn, r.get("additional", ""), r.get("repeat", 1), loop_no)
+            if msg:
+                det = msg
+                self._ui_state["msg"] = (msg, "#a60" if skip else "#080")
+            if skip > 0:
+                self._ifimg_skip = skip
+        if self._log_enabled and det:
+            log_write("STEP", "รอบ %d แถว %d/%d %s → %s (%.1f วิ)" %
+                      (loop_no, i + 1, total, btn, det,
+                       time.time() - step_t0), self._log_src)
+        return True
 
-        self._pending_rows = []
-        self._ms_listener = mouse.Listener(on_move=on_move, on_click=on_click, on_scroll=on_scroll)
-        self._ms_listener.daemon = True
-        self._ms_listener.start()
+    # ----------------------------------------------- live mouse/key watchers --
+    def _on_record_event(self, row):
+        """callback จาก listener thread (Recorder) — ห้ามแตะ Tk ที่นี่ (v2.2)"""
+        self._live_pos = (row.get("x", 0) or 0, row.get("y", 0) or 0)
+        if row.get("button") == "Tap Key":
+            self._live_key = str(row.get("additional") or "")
 
-        self._kb_listener = keyboard.Listener(on_press=on_kb)
-        self._kb_listener.daemon = True
-        self._kb_listener.start()
+    def _start_listeners(self):
+        """v2.2 (phase 3): กลไก RECORD ย้ายไป macro_engine.Recorder (engine ล้วน ไม่มี Tk) —
+        listener threads ผลักเหตุการณ์เข้า recorder.pending_rows แล้ว poller ดึงมาวาดตารางเอง"""
+        self._recorder.start_listeners()
 
     def _start_poller(self):
         """ลูปฝั่ง UI: ดึงสถานะจาก listener/player threads มาแสดง (thread-safe)"""
         st = self._ui_state
 
-        # เพิ่มแถวใหม่จากโหมดบันทึก (ผลักจาก listener ผ่าน _pending_rows)
-        if self.recording and self._pending_rows:
-            for r in self._pending_rows:
+        # เพิ่มแถวใหม่จากโหมดบันทึก (recorder ผลักจาก listener thread — v2.2)
+        if self.recording:
+            for r in self._recorder.drain_pending():
                 self._append_row(**r)
-            self._pending_rows = []
 
         # ไฮไลต์แถวที่กำลังเล่น
         row = st["row"]
@@ -1766,10 +1990,12 @@ class MacroApp:
 
         # ข้อความสถานะ (อ่านด้วย get — อย่า pop คีย์ทิ้ง ไม่งั้น tick ถัดไปชน KeyError)
         msg = st.get("msg")
-        if msg:
+        if msg and len(msg) == 2:
             text, color = msg
             st["msg"] = None
             self.lbl_state.config(text=text, fg=color)
+        elif msg:
+            st["msg"] = None                       # รูปแบบไม่ครบ (ป้องกันการพัง)
 
         # รีเซ็ตปุ่มเมื่อเล่นจบ
         if st.pop("reset", False):
@@ -1797,11 +2023,11 @@ class MacroApp:
             except tk.TclError:
                 self._vars[clip_var] = ""
 
-        # ตำแหน่งเมาส์ / คีย์ล่าสุด
-        x, y = self._live_pos
+        # ตำแหน่งเมาส์ / คีย์ล่าสุด (จาก Recorder listeners — v2.2)
+        x, y = getattr(self._recorder, "last_pos", (0, 0))
         self.lbl_pos.config(text="%d    %d" % (x, y))
-        if self._live_key:
-            self.lbl_key.config(text="KEY: " + self._live_key)
+        if self._recorder._last_key:
+            self.lbl_key.config(text="KEY: " + self._recorder._last_key)
 
         # แถบความคืบหน้า (progress + ตัวนับรอบ)
         prog = st.get("prog")
@@ -1830,14 +2056,13 @@ class MacroApp:
             self._start_record()
 
     def _start_record(self):
-        self.recording = True
-        self._rec_t0 = time.time()
-        self._pending_rows = []
+        self.recording = self._recorder.start()      # v2.2: recorder เป็นแหล่งสถานะ
         self.btn_rec.config(bg="#c00", fg="white", text="● REC")
         self.root.title(APP_TITLE + "   [ RECORDING ]")
         self._ui_state["msg"] = ("กำลังบันทึก…  (F9 หยุด)", "#c00")
 
     def _stop_record(self):
+        n_pending = self._recorder.stop()             # v2.2
         self.recording = False
         self.btn_rec.config(bg="#e8e8e8", fg="#b00", text="RECORD")
         self.root.title(APP_TITLE)
@@ -2534,82 +2759,11 @@ class MacroApp:
                         if not self._sleep_check(base / self._speed_mult, gen):
                             return
                         step_t0 = time.time()
-                        if r["button"] == IF_IMAGE:
-                            found = False
-                            if HAS_CV:
-                                try:
-                                    found = self._find_image_pos(r) is not None
-                                except Exception:
-                                    found = False
-                            self._last_if_found = found        # จำผลให้ Else If Image (v1.18)
-                            if found:
-                                det = "เจอ"
-                                self._ui_state["msg"] = (self._t("ifimg_hit"), "#080")
-                            else:
-                                n = parse_int(r.get("repeat"), 1)   # Repeat = จำนวนแถวที่ข้าม
-                                self._ifimg_skip = n
-                                det = "ข้าม %d แถว" % n
-                                self._ui_state["msg"] = (self._t("ifimg_skip") % n, "#a60")
-                            if self._log_enabled:
-                                log_write("STEP", "รอบ %d แถว %d/%d If Image %s → %s (%.1f วิ)" %
-                                          (loop_no, i + 1, total, r["additional"] or "",
-                                           det, time.time() - step_t0), self._log_src)
-                            break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
-                        if r["button"] == ELSE_IMAGE:
-                            # v1.18 เงื่อนไขสองทาง: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว)
-                            #                    If Image ไม่เจอ → เล่นกลุ่ม B ต่อ (ไม่ข้าม)
-                            n = parse_int(r.get("repeat"), 1)
-                            if self._last_if_found:
-                                self._ifimg_skip = n
-                                det = "If เจอ → ข้ามกลุ่ม B %d แถว" % n
-                                self._ui_state["msg"] = (self._t("ifimg_skip") % n, "#a60")
-                            else:
-                                det = "If ไม่เจอ → เล่นกลุ่ม B ต่อ"
-                                self._ui_state["msg"] = (self._t("ifimg_hit"), "#080")
-                            if self._log_enabled:
-                                log_write("STEP", "รอบ %d แถว %d/%d Else If Image %s → %s (%.1f วิ)" %
-                                          (loop_no, i + 1, total, r["additional"] or "",
-                                           det, time.time() - step_t0), self._log_src)
-                            break                       # ตัวแบ่งกลุ่มทำงานรอบเดียว
-                        if r["button"] == IF_LOOP:      # v1.21: รอบที่ >= N → ข้าม N แถว
-                            n = parse_if_loop(r.get("additional"))
-                            if n is None:
-                                det = "Additional ไม่ถูก (ต้องเป็นเลข >= 1) — เล่นต่อ"
-                            elif self._loop_no < n:
-                                det = "รอบ %d < %d → เล่นต่อ" % (self._loop_no, n)
-                                self._ui_state["msg"] = (self._t("ifloop_hit"), "#080")
-                            else:
-                                n_skip = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
-                                self._ifimg_skip = n_skip
-                                det = "รอบที่ %d >= %d → ข้าม %d แถว" % (self._loop_no, n, n_skip)
-                                self._ui_state["msg"] = (self._t("ifimg_skip") % n_skip, "#a60")
-                            if self._log_enabled:
-                                log_write("STEP", "รอบ %d แถว %d/%d If Loop %s → %s (%.1f วิ)" %
-                                          (loop_no, i + 1, total, r["additional"] or "",
-                                           det, time.time() - step_t0), self._log_src)
-                            break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
-                        if r["button"] == IF_TIME:      # v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถว
-                            spec = parse_if_time(r.get("additional"))
-                            if spec is None:
-                                det = "Additional ไม่ถูก (ต้องเป็น HH:MM) — เล่นต่อ"
-                            else:
-                                hh, mm = spec
-                                now = time.localtime()
-                                passed = (now.tm_hour, now.tm_min) >= (hh, mm)
-                                if not passed:
-                                    det = "%02d:%02d ยังไม่ถึง %02d:%02d → เล่นต่อ" % (
-                                        now.tm_hour, now.tm_min, hh, mm)
-                                    self._ui_state["msg"] = (self._t("iftime_hit"), "#080")
-                                else:
-                                    n_skip = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat
-                                    self._ifimg_skip = n_skip
-                                    det = "ผ่าน %02d:%02d แล้ว → ข้าม %d แถว" % (hh, mm, n_skip)
-                                    self._ui_state["msg"] = (self._t("ifimg_skip") % n_skip, "#a60")
-                            if self._log_enabled:
-                                log_write("STEP", "รอบ %d แถว %d/%d If Time %s → %s (%.1f วิ)" %
-                                          (loop_no, i + 1, total, r["additional"] or "",
-                                           det, time.time() - step_t0), self._log_src)
-                            break                       # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
+                        # v2.2: เงื่อนไขทั้ง 4 ชนิดอยู่ที่ _execute_condition_row (If Image/Else
+                        # ผ่าน runner เดียวกับ CLI แล้ว — If Loop/If Time ผ่าน evaluate_condition)
+                        if r["button"] in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME):
+                            if self._execute_condition_row(r, loop_no, i, total, step_t0):
+                                break                   # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
                         do_step(r)
                         if self._log_enabled:
                             log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
@@ -2855,45 +3009,8 @@ class MacroApp:
                 self.kb_ctl.release(k)
 
     def _parse_search_area(self, r):
-        """อ่านกรอบค้นหา (search area) และ threshold จากช่อง Additional
-            ไฟล์.png                     = ทั้งจอ, threshold 80%
-            ไฟล์.png@x,y,กว้าง,สูง        = กรอบ, threshold 80%
-            ไฟล์.png@x,y,กว้าง,สูง#90     = กรอบ, threshold 90%
-            ไฟล์.png#65                  = ทั้งจอ, threshold 65%
-        คืน (path, area, threshold) — area None = ทั้งจอ"""
-        raw = (r.get("additional") or "").strip()
-        path, area, thr = raw, None, DEFAULT_THRESHOLD
-        if "@" in raw:
-            path, _, coords = raw.partition("@")
-            coords, _, thr_s = coords.partition("#")
-            try:
-                x, y, w, h = [int(float(p.strip())) for p in coords.split(",")]
-            except ValueError:
-                return path, None, thr          # พิมพ์พลาด → ค้นทั้งจอ
-            if w > 0 and h > 0:
-                area = (x, y, x + w, y + h)
-            raw_tail = thr_s
-        else:
-            _p, _s, thr_s = raw.partition("#")
-            path = _p
-            raw_tail = thr_s
-        if thr_s.strip():
-            try:
-                t = float(thr_s)
-                if 1 < t <= 100:      # ใส่เป็นเปอร์เซ็นต์ เช่น #90 = 90%
-                    t /= 100.0
-                thr = min(1.0, max(0.30, t))
-            except ValueError:
-                pass
-        return path, area, thr
-
-    def _grab_area_bgr(self, area):
-        """จับภาพหน้าจอเฉพาะกรอบ (ถ้า area=None = ทั้งจอ) คืน numpy BGR"""
-        if area and len(area) == 4:
-            shot = ImageGrab.grab(bbox=area, all_screens=True)
-        else:
-            shot = ImageGrab.grab(all_screens=True)
-        return cv2.cvtColor(np.array(shot), cv2.COLOR_RGB2BGR), (area[0], area[1]) if area else (0, 0)
+        """v2.2: ย้ายไป macro_engine.parse_search_area (GUI/CLI ใช้ร่วมกัน)"""
+        return parse_search_area(r.get("additional"))
 
     def _do_wait_for_image(self, r):
         """รอจนกว่าจะเจอภาพบนหน้าจอ — timeout ตั้งได้จาก Additional เช่น "logo.png 60s"
@@ -2903,8 +3020,7 @@ class MacroApp:
         if not HAS_CV:
             self._ui_state["msg"] = ("Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
             return
-        if not os.path.isabs(path):
-            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+        path = resolve_image_path(path)
         if not os.path.isfile(path):
             self._ui_state["msg"] = ("ไม่พบไฟล์ภาพ: %s" % path, "#c00")
             return
@@ -2915,7 +3031,7 @@ class MacroApp:
         deadline = time.time() + timeout
         gen = self._play_gen
         while time.time() < deadline and self._gen_ok(gen):
-            screen, _off = self._grab_area_bgr(area)
+            screen, _off = grab_area_bgr(area)
             if tmpl.shape[0] <= screen.shape[0] and tmpl.shape[1] <= screen.shape[1]:
                 res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
                 _, maxv, _, _ = cv2.minMaxLoc(res)
@@ -2927,34 +3043,14 @@ class MacroApp:
 
     # ------------------------------------------------------ image click ------
     def _find_image_pos(self, r):
-        """ค้นหาภาพบนหน้าจอ (ใช้ร่วมกันโดย Image Click และ If Image ใน v1.17)
-        คืน (x, y) จุดศูนย์กลางที่เจอ หรือ None ถ้าไม่เจอ/ติดตั้ง/ไฟล์มีปัญหา
-        (ข้อความ error ผลักเข้า _ui_state ให้ statusbar แสดง)"""
+        """ค้นหาภาพบนหน้าจอ (v2.2: logic อยู่ที่ macro_engine.find_image_pos — GUI/CLI ใช้ร่วมกัน)
+        คืน (x, y) จุดศูนย์กลางที่เจอ หรือ None (ข้อความ error ผลักเข้า _ui_state)"""
         path, area, thr = self._parse_search_area(r)
-        if not HAS_CV:
-            self._ui_state["msg"] = ("Image Click ต้องติดตั้ง: pip install opencv-python Pillow", "#c00")
-            return None
-        if not os.path.isabs(path):
-            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
-        if not os.path.isfile(path):
-            self._ui_state["msg"] = ("ไม่พบไฟล์ภาพ: %s" % path, "#c00")
-            return None
-        screen, (off_x, off_y) = self._grab_area_bgr(area)
-        tmpl = cv2.imread(path, cv2.IMREAD_COLOR)
-        if tmpl is None:
-            self._ui_state["msg"] = ("อ่านไฟล์ภาพไม่ได้: %s" % path, "#c00")
-            return None
-        if tmpl.shape[0] > screen.shape[0] or tmpl.shape[1] > screen.shape[1]:
-            self._ui_state["msg"] = ("ภาพใหญ่กว่าพื้นที่ค้นหา: %s" % os.path.basename(path), "#c00")
-            return None
-        res = cv2.matchTemplate(screen, tmpl, cv2.TM_CCOEFF_NORMED)
-        _, maxv, _, maxloc = cv2.minMaxLoc(res)
-        if maxv < thr:
-            self._ui_state["msg"] = ("หาภาพไม่เจอ (ความมั่นใจ %.0f%% < %.0f%%): %s"
-                                     % (maxv * 100, thr * 100, os.path.basename(path)), "#a60")
-            return None
-        return (off_x + maxloc[0] + tmpl.shape[1] // 2,
-                off_y + maxloc[1] + tmpl.shape[0] // 2)
+        pos = find_image_pos(path, area, thr)
+        if pos is None and find_image_pos.last_error:
+            color = "#a60" if "ไม่เจอ" in find_image_pos.last_error else "#c00"
+            self._ui_state["msg"] = (find_image_pos.last_error, color)
+        return pos
 
     def _do_wait_for_pixel(self, r):
         """รอจนสีจุด (x, y) ตรงตามที่กำหนด (v1.18)
@@ -3469,6 +3565,10 @@ class MacroApp:
             chk["hotkey"] = False
         chk["opencv"] = HAS_CV
         try:
+            chk["recorder"] = bool(self._recorder._ms_listener or self._recorder._kb_listener)
+        except Exception:
+            chk["recorder"] = False
+        try:
             import ctypes
             chk["admin"] = bool(ctypes.windll.shell32.IsUserAnAdmin())
         except Exception:
@@ -3491,6 +3591,8 @@ class MacroApp:
              "ทำงาน" if c.get("hotkey") else "ไม่ทำงาน — ใช้คีย์เมื่อโฟกัสหน้าต่าง"),
             ("Image Click (OpenCV)", c.get("opencv"),
              "พร้อม" if c.get("opencv") else "ไม่มี — pip install opencv-python Pillow"),
+            ("Listener บันทึก (REC)", c.get("recorder"),
+             "พร้อม" if c.get("recorder") else "ไม่ทำงาน — โหมดบันทึกจะอัดไม่ได้"),
             ("สิทธิ์ Admin", c.get("admin"),
              "มี (คลิกโปรแกรมที่ต้องสิทธิ์ได้)" if c.get("admin")
              else "ไม่มี — ถ้าคลิกโปรแกรมอื่นไม่เข้า ลอง Run as Administrator"),
@@ -3793,14 +3895,43 @@ py auto_macro.py script.json [--loop] [--loops N] [--speed 2] [--shuffle] [--row
         self._save_conf()
         self._save_profiles()
         try:
-            self._ms_listener.stop()
-            self._kb_listener.stop()
+            self._recorder.stop_listeners()       # v2.2: recorder เป็นเจ้าของ listener
         except Exception:
             pass
         self.root.destroy()
 
 
 # ---------------------------------------------------------------- CLI mode --
+def find_image_pos_from_row(r):
+    """v2.2: ค้นภาพสำหรับ CLI (ผูกเป็น find_image_cb ของ runner) — คืน (x,y) กลางภาพ
+    หรือ None (พิมพ์เหตุผลความล้มเหลวทันที เพราะ CLI ไม่มี statusbar)"""
+    find_image_pos_from_row.last_error = None
+    path, area, thr = parse_search_area(r.get("additional"))
+    pos = find_image_pos(path, area, thr)
+    if pos is None and find_image_pos.last_error:
+        print("  ⚠ %s" % find_image_pos.last_error)
+    return pos
+
+
+def wait_image_until(r, timeout_hint, is_running=lambda: True):
+    """v2.2: รอภาพปรากฏสำหรับ CLI — ตรวจทุก 0.5 วิ จนเจอ/หมดเวลา/ผู้ใช้สั่งหยุด
+    Additional รองรับ timeout เช่น "logo.png 60s" (ค่าเริ่มต้น 30 วิ) + search area + threshold"""
+    raw, timeout = parse_wait_timeout(r.get("additional"), 30)
+    path, area, thr = parse_search_area(raw)
+    if not HAS_CV:
+        print("  ⚠ Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow")
+        return
+    deadline = time.time() + timeout
+    while time.time() < deadline and is_running():
+        pos = find_image_pos(path, area, thr)
+        if pos is not None:
+            print("  Wait for Image: เจอภาพที่ (%d,%d)" % pos)
+            return
+        time.sleep(0.5)
+    if is_running():
+        timeout_hint(timeout)
+
+
 def cli_main(argv):
     """เล่นสคริปต์จาก command line โดยไม่เปิด GUI
     ตัวอย่าง:
@@ -3876,15 +4007,15 @@ def cli_main(argv):
         plugin_lookup=lambda name: cli_plugins.get(name),
         log_src=args.script,
         unsupported_cb=lambda btn: print(
-            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn))
+            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn),
+        find_image_cb=find_image_pos_from_row,       # v2.2: CLI ค้นภาพได้จริง (Image Click/If Image)
+        wait_image_cb=lambda row: wait_image_until(  # v2.2: รอภาพจริง + หยุดได้กลางทาง
+            row, timeout_hint=lambda t: print(
+                "  Wait for Image: ไม่เจอภาพภายใน %d วิ" % t),
+            is_running=lambda: running[0]))
 
     def do_step(r):
-        btn = r.get("button", "")
-        if btn in (IMAGE_ACTION, "Wait for Image"):
-            # v2.1: กลไก execute รวมเป็น ActionRunner แล้ว — เหลือเฉพาะค้นภาพ (opencv)
-            # ที่ยังผูกอยู่ฝั่ง GUI จึงคงคำเตือนเดิม (ผ่าน runner callback ภายหลังได้)
-            print("  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn)
-            return
+        # v2.2: runner เดียวกับ GUI — ค้นภาพ/รอภาพ/If Image/Else รวมอยู่ใน execute แล้ว
         cli_runner.execute(r)
 
     # หยุดด้วย F8/Esc ได้ทุกที่ — ใช้ Listener จับคู่เอง (เหตุผลเดียวกับ GUI v1.8)

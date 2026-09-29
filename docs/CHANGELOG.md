@@ -4,6 +4,37 @@
 
 ---
 
+## [2.2.0] — 2026-09-29
+
+### 🏗️ phase 3 จบ — engine ครบทุกส่วน
+- **Recorder ใน macro_engine.py** — กลไกบันทึกทั้งหมด (คลิก/ดับเบิลคลิก/scroll/คีย์) ย้ายออกจาก
+  MacroApp เป็นคลาสล้วน `Recorder` (listener threads ของมันเอง, ผลักเหตุการณ์เข้า `pending_rows`,
+  UI ดึงด้วย `drain_pending()` ตามรูปแบบ thread-safe เดิม) — **ตอนนี้ engine ไม่ต้องพึ่ง Tk
+  แม้แต่ส่วนเดียว** · self-check เพิ่มบรรทัด "Listener บันทึก (REC)"
+- **ค้นภาพย้ายลง engine** — `parse_search_area` / `grab_area_bgr` / `find_image_pos`
+  เป็นฟังก์ชันของ engine (มี `find_image_pos.last_error` รายงานเหตุผล) — GUI/CLI ใช้ร่วมกัน
+
+### ✨ CLI ทำครบทุก action
+- **CLI ค้นภาพได้จริง** — Image Click, If Image, Else If Image และ Wait for Image ทำงานใน
+  CLI ทั้งตัวหลักและ engine_cli (ผูก `find_image_cb`/`wait_image_cb` เข้า ActionRunner เหมือน GUI)
+  — ไฟล์ภาพหายรายงานเหตุผลชัดเจนแล้วเล่นต่อ ไม่พัง
+- **If Image/Else ย้ายเข้า runner** — เงื่อนไขค้นภาพอยู่ใน `ActionRunner.execute` แหล่งเดียว
+  (runner ตั้ง `last_if_found`/`skip_n` เอง) — ลูปเล่น GUI สั้นลงเหลือ helper
+  `_execute_condition_row` เดียวสำหรับเงื่อนไขทั้ง 4 ชนิด
+- **`engine_cli.py --json-lines`** — อ่านสคริปต์แบบ 1 แถว JSON ต่อ 1 บรรทัด (ข้ามบรรทัดว่าง/
+  `#comment`) เหมาะกับสร้างสคริปต์จากโปรแกรมอื่น/สตรีม
+- plugin ใหม่ 3 ตัว: **Play Sound** (winsound ความถี่/จำนวนครั้ง), **Webhook** (ยิง POST
+  JSON ไป URL — stdlib ล้วน), **Multi Image Click** (คลิกภาพหลายไฟล์ตามลำดับ ไฟล์ไหนไม่เจอข้าม)
+
+### 🧪 ทดสอบ
+- เพิ่ม TestV22Recorder 5 ตัว (engine ล้วน/lifecycle/drain/กดคีย์/GUI ใช้ Recorder จริง) +
+  TestV22ImageEngine 3 ตัว + TestV22EngineCli 3 ตัว (--json-lines/ค้นภาพ) + TestV22Plugins 5 ตัว
+  (Webhook POST จริงผ่าน mock) + TestV22ConditionRunner 2 ตัว · E2E อัพเดต:
+  Image Click ไฟล์หายรายงาน "ไม่พบไฟล์ภาพ" แล้วจบปกติ
+  → รวม **258 unit + 11 E2E tests ผ่านหมด** · GUI เล่นจริงทุกชุด (ไม่มี skip)
+
+---
+
 ## [2.1.0] — 2026-09-29
 
 ### 🧩 phase 2 ของ v2.0 — แยกกลไก player ต่อ
@@ -700,6 +731,5 @@
 ## [Unreleased]
 
 ### 🎯 วางแผนไว้
-- CLI รองรับ Image Click / Wait for Image ด้วย
 - เชื่อมต่อ Windows Task Scheduler ผ่าน CLI (คู่มือทีละขั้นใน TUTORIAL บทที่ 8)
-- ตั้งค่าเสียง Beep ได้ (ความถี่/ระยะ)
+- ตั้งค่าเสียง Beep ได้ (ความถี่/ระยะ) — มี plugin Play Sound แล้วระดับหนึ่ง

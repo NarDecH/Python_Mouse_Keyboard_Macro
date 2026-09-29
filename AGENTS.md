@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.1.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.2.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -128,6 +128,15 @@
   เงื่อนไข If Loop/If Time ประเมินผ่าน `ActionRunner.evaluate_condition()` (skip_n + msg),
   CLI ย่อย `engine_cli.py` import engine ตรง ๆ ไม่แตะ Tk · ปุ่ม 🔌 = `open_plugins_folder`
   (ตลาด plugin: docs/PLUGINS.md) · เอกสารอังกฤษเต็ม docs/TUTORIAL.en.md
+- **v2.2 (phase 3 จบ):** engine ครบทุกส่วน — ① **Recorder** ใน macro_engine.py = กลไก
+  RECORD ล้วน (listener threads ผลักเข้า `recorder.pending_rows`, UI ดึง `drain_pending()` ทุก tick,
+  `on_event` callback ห้ามแตะ Tk) — MacroApp ไม่มี listener ของตัวเองแล้ว ② **ค้นภาพลง engine**
+  (`parse_search_area`/`grab_area_bgr`/`find_image_pos` + `find_image_pos.last_error`) ③
+  **If Image/Else อยู่ใน `ActionRunner.execute`** (ตั้ง last_if_found/skip_n เอง, ผูก
+  `find_image_cb`/`wait_image_cb` ตอนสร้าง runner) — GUI จัดการผ่าน `_execute_condition_row`
+  ตัวเดียวสำหรับเงื่อนไขทั้ง 4 ④ **CLI ค้นภาพได้จริง** (ทั้งตัวหลักและ engine_cli —
+  `--json-lines` อ่าน 1 แถว/บรรทัด ข้าม #comment) ⑤ plugin ใหม่ play_sound/webhook/
+  multi_image_click · ⚠️ poller ทน msg tuple ไม่ครบ (`len(msg) == 2` เช็คใน _start_poller)
 
 ## เทคโนโลยี
 

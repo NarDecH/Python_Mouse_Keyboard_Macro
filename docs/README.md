@@ -115,7 +115,9 @@
 - **Beep** — เสียงเตือน
 - **🔌 Custom Action (v1.16)** — เพิ่ม Action ของคุณเองด้วยไฟล์ Python สั้น ๆ ใน `plugins/` (ดู [plugins/README.md](../plugins/README.md))
 - **🏪 ตลาด plugin (v2.1)** — [docs/PLUGINS.md](PLUGINS.md) รวม API/กฎ/แนวคิด + ปุ่ม **🔌 plugins** บนแถบเครื่องมือเปิดโฟลเดอร์ให้ทันที
-- **🧩 engine แยกจาก GUI (v2.0–2.1)** — [macro_engine.py](../macro_engine.py) ไม่มี Tk นำไปฝังที่อื่นได้ · CLI ย่อย `py engine_cli.py script.json` สำหรับใช้ engine ล้วน
+- **🧩 engine แยกจาก GUI (v2.0–2.2)** — [macro_engine.py](../macro_engine.py) ไม่มี Tk นำไปฝังที่อื่นได้ · CLI ย่อย `py engine_cli.py script.json` สำหรับใช้ engine ล้วน (+ `--json-lines` อ่านสคริปต์ 1 แถว/บรรทัด)
+- **🖱️ CLI ทำครบทุก action (v2.2)** — Image Click / If Image / Else / Wait for Image ทำงานใน CLI จริงแล้ว (เดิมเตือน "ยังไม่รองรับ") · กลไกบันทึก (Recorder) และค้นภาพอยู่ใน engine ล้วนทั้งหมด
+- **🎵 plugin ใหม่ (v2.2)** — Play Sound (เสียงเตือนตามจำนวนครั้ง), Webhook (ยิง POST แจ้งเหตุการณ์), Multi Image Click (คลิกภาพหลายไฟล์ตามลำดับ)
 - **🔀 If Image (v1.17)** — เงื่อนไข: ภาพ**ไม่เจอ** → ข้ามแถวถัดไป N แถว (N = ค่าในคอลัมน์ Repeat ของแถว If Image) ใช้ Search Area/threshold ร่วมกับ Image Click ได้
 - **🔀 Else If Image (v1.18)** — เงื่อนไขสองทาง: If เจอ → เล่นกลุ่ม A แล้วข้ามกลุ่ม B, ไม่เจอ → เล่นกลุ่ม B
 - **🎨 Wait for Pixel Color (v1.18)** — รอจนจุด (x,y) มีสีที่กำหนด (`300,300 #ffffff`) ก่อนทำงานต่อ

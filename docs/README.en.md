@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.2
 
 <div align="center">
 
@@ -141,6 +141,9 @@ py auto_macro.py script.json --stop-file D:\stop.flg   # create this file = stop
 Stop from anywhere with **F8**/**Esc** (even unfocused), **Esc**/**q** in the CLI window, or **Ctrl+C**.
 `--stop-file` lets other programs (or Task Scheduler chains) stop the macro by simply creating a file.
 Custom Action **plugins** work in the CLI too — the header lists the loaded plugins.
+**Image actions (v2.2)** — Image Click / If Image / Else If Image / Wait for Image all run in the
+CLI now (previously skipped with a warning). `py engine_cli.py script.json --json-lines` reads a
+script one JSON row per line (blank lines and `# comments` skipped).
 
 **Watchdog mode** — `--watchdog` restarts the script automatically after it finishes (pause N seconds,
 default 3), forever, until stopped: perfect for unattended monitoring jobs. Every restart is logged

@@ -7,9 +7,10 @@
 
     py engine_cli.py script.json
     py engine_cli.py script.json --loops 3 --speed 2 --no-log
+    py engine_cli.py script.jsonl --json-lines      # อ่าน 1 แถวต่อบรรทัด (v2.2)
 
-รองรับ action เดียวกับ CLI หลัก (v2.1 ใช้ ActionRunner ร่วมกัน) เว้นเฉพาะ
-Image Click / Wait for Image ที่ต้องหน้าต่าง GUI จัดการภาพ
+รองรับ action ครบเหมือน CLI หลัก (v2.2: ค้นภาพ Image Click / If Image /
+Wait for Image ก็ทำได้ — find_image_cb ผูกเข้า ActionRunner เหมือน GUI)
 หยุดได้: F8/Esc (global hotkey), Ctrl+C
 """
 import argparse
@@ -33,14 +34,29 @@ def build_parser():
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
     ap.add_argument("--no-log", action="store_true", help="ไม่บันทึก log การเล่น")
+    ap.add_argument("--json-lines", action="store_true",
+                    help="อ่านสคริปต์แบบ JSON Lines (1 แถวต่อบรรทัด — v2.2)")
     return ap
 
 
-def load_script(path):
-    """โหลดไฟล์สคริปต์ — คืน (rows, error_message)"""
+def load_script(path, json_lines=False):
+    """โหลดไฟล์สคริปต์ — คืน (rows, error_message)
+    json_lines=True: อ่าน 1 แถว JSON ต่อ 1 บรรทัด (ข้ามบรรทัดว่าง/#comment — v2.2)"""
     try:
         with open(path, encoding="utf-8") as fh:
-            rows = json.load(fh)
+            if json_lines:
+                rows = []
+                for ln, line in enumerate(fh, 1):
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    try:
+                        item = json.loads(line)
+                    except ValueError as exc:
+                        return None, "บรรทัด %d JSON พัง: %s" % (ln, exc)
+                    rows.append(item)
+            else:
+                rows = json.load(fh)
     except OSError as exc:
         return None, "ไม่พบไฟล์สคริปต์: %s" % path
     except ValueError as exc:
@@ -52,7 +68,7 @@ def load_script(path):
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    rows, err = load_script(args.script)
+    rows, err = load_script(args.script, json_lines=args.json_lines)
     if err:
         print(err)
         return 1
@@ -66,6 +82,31 @@ def main(argv=None):
     plugins = dict(load_plugins())
     if plugins:
         print("  •  plugins: %s" % ", ".join(sorted(plugins)))
+
+    def _find_image(r):
+        """v2.2: ค้นภาพให้ runner (เหมือน find_image_cb ของ CLI หลัก)"""
+        path, area, thr = me.parse_search_area(r.get("additional"))
+        pos = me.find_image_pos(path, area, thr)
+        if pos is None and me.find_image_pos.last_error:
+            print("  ⚠ %s" % me.find_image_pos.last_error)
+        return pos
+
+    def _wait_image(r):
+        """v2.2: รอภาพปรากฏ — ตรวจทุก 0.5 วิ จนเจอ/หมด timeout/ผู้ใช้หยุด"""
+        raw, timeout = me.parse_wait_timeout(r.get("additional"), 30)
+        path, area, thr = me.parse_search_area(raw)
+        if not me.HAS_CV:
+            print("  ⚠ Wait for Image ต้องติดตั้ง: pip install opencv-python Pillow")
+            return
+        deadline = time.time() + timeout
+        while time.time() < deadline and running[0]:
+            pos = me.find_image_pos(path, area, thr)
+            if pos is not None:
+                print("  Wait for Image: เจอภาพที่ (%d,%d)" % pos)
+                return
+            time.sleep(0.5)
+        if running[0]:
+            print("  Wait for Image: ไม่เจอภาพภายใน %d วิ" % timeout)
 
     mouse_ctl = MouseController()
     kb_ctl = KbController()
@@ -81,7 +122,9 @@ def main(argv=None):
         plugin_lookup=lambda name: plugins.get(name),
         log_src=args.script,
         unsupported_cb=lambda btn: print(
-            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน engine_cli — เปิดใน GUI เพื่อเล่น action นี้" % btn))
+            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน engine_cli — เปิดใน GUI เพื่อเล่น action นี้" % btn),
+        find_image_cb=_find_image,        # v2.2: Image Click/If Image ค้นภาพได้จริง
+        wait_image_cb=_wait_image)        # v2.2: Wait for Image รอจริง
 
     # หยุดด้วย F8/Esc — จับคู่คีย์เองด้วย keyboard.Listener (เหตุผลเดียวกับ CLI หลัก v1.8)
     from pynput import keyboard as _kb
@@ -136,9 +179,15 @@ def main(argv=None):
                     break
                 t0 = time.time()
                 btn = r.get("button", "")
-                if btn in (me.IF_IMAGE, me.ELSE_IMAGE, "Image Click", "Wait for Image"):
-                    print("  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน engine_cli — "
-                          "เปิดใน GUI เพื่อเล่น action นี้" % btn)
+                if btn in (me.IF_IMAGE, me.ELSE_IMAGE):
+                    # v2.2: เงื่อนไขค้นภาพอยู่ใน runner แล้ว — ตั้ง skip_n แล้วทำต่อ
+                    # (ข้อความผลปริ้นผ่าน on_message ของ runner แล้ว)
+                    runner.execute(r)
+                    skipping = runner.skip_n
+                    if log_enabled and skipping:
+                        log_write("STEP", "รอบ %d แถว %d/%d %s → ข้าม %d แถว (%.1f วิ)" %
+                                  (n_loop, i, len(play_rows), btn, skipping,
+                                   time.time() - t0), args.script)
                     continue
                 # เงื่อนไขนับรอบ/เวลา — กลไกเดียวกับ CLI หลัก (v2.1)
                 skip_n, cond_msg = ActionRunner.evaluate_condition(

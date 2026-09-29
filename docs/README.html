@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v1.10</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.2</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -134,6 +134,8 @@
       <tr><td>🔌 <b>Custom Action plugins v1.16</b></td><td>เขียนไฟล์ Python สั้น ๆ ใน <code>plugins/</code> เป็น Action ใหม่ได้ทันที (ทั้ง GUI และ CLI) — ดู <code>plugins/README.md</code></td></tr>
       <tr><td>🔀 <b>If Image v1.17</b></td><td>เงื่อนไข: ภาพไม่เจอ → ข้าม N แถวถัดไป (N = ค่า Repeat) — ใช้ Search Area/threshold ร่วมกับ Image Click ได้</td></tr>
       <tr><td>🔀 <b>Else If Image v1.18</b></td><td>เงื่อนไขสองทาง: If เจอ → เล่นกลุ่ม A แล้วข้ามกลุ่ม B, ไม่เจอ → เล่นกลุ่ม B (ดู TUTORIAL บทที่ 5A)</td></tr>
+      <tr><td>🖱️ <b>CLI ครบทุก action v2.2</b></td><td>Image Click / If Image / Else / Wait for Image ทำงานใน CLI จริงแล้ว · engine_cli เพิ่ม <code>--json-lines</code> (1 แถว/บรรทัด)</td></tr>
+      <tr><td>🎵 <b>plugin ใหม่ v2.2</b></td><td>Play Sound (เสียงเตือนตามจำนวนครั้ง) · Webhook (ยิง POST แจ้งเหตุการณ์) · Multi Image Click (คลิกภาพหลายไฟล์ตามลำดับ)</td></tr>
       <tr><td>🎨 <b>Wait for Pixel Color v1.18</b></td><td>รอจนจุด (x,y) มีสีที่กำหนด (<code>300,300 #ffffff</code>) ก่อนทำงานต่อ</td></tr>
       <tr><td>🔁 <b>If Loop v1.21</b></td><td>เงื่อนไขนับรอบ: Additional = เลขรอบ N เช่น <code>3</code> → รอบที่ 3 ขึ้นไปข้าม N แถวถัดไป (Repeat) — "รอบแรก setup รอบถัดไปข้าม" (ดู TUTORIAL บทที่ 5B)</td></tr>
       <tr><td>🕐 <b>If Time v1.21</b></td><td>เงื่อนไขเวลา: Additional = <code>HH:MM</code> เช่น <code>22:30</code> → ผ่านเวลากำหนดแล้วข้าม N แถวถัดไป (Repeat)</td></tr>
@@ -180,7 +182,7 @@ run.bat                                  # หรือ: py auto_macro.py</code>
       <tr><td><code>examples/demo_move_click.json</code></td><td>เลื่อนเมาส์เป็นสี่เหลี่ยม → Scroll ขึ้น/ลง → บี๊บ → คืนเมาส์
         (ไม่คลิกอะไรเลย ปลอดภัย)</td></tr>
     </table>
-    <p>โหลดใน GUI: เมนู <b>Load</b> → เลือกไฟล์เดโม่ → กด <kbd>START</b>
+    <p>โหลดใน GUI: เมนู <b>Load</b> → เลือกไฟล์เดโม่ → กด <kbd>START</kbd>
     หรือรันทันที: <code>py auto_macro.py examples/demo_script.json</code></p>
     <div class="note">ทั้งสองไฟล์ <b>ไม่คลิกที่ใด</b> ทั้งสิ้น จึงไม่มีผลข้างเคียงกับเครื่อง</div>
 

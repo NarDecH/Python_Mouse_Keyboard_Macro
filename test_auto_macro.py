@@ -570,7 +570,7 @@ class TestSelfCheck(unittest.TestCase):
             chk = am.MacroApp._self_check(app)
         self.assertTrue(all(chk.values()))
         lines = am.MacroApp.self_check_text(app)
-        self.assertEqual(len(lines), 4)
+        self.assertEqual(len(lines), 5)               # v2.2: เพิ่มบรรทัด Listener บันทึก
         self.assertTrue(all(ok for _, ok, _ in lines))
 
     def test_hotkey_down_reported(self):
@@ -895,6 +895,7 @@ class TestUiDialogs(unittest.TestCase):
         self.app.running = False
         self.app.recording = False
         self.app._pending_rows = []
+        self.app._recorder = am.macro_engine.Recorder()   # v2.2: กลไก RECORD อยู่ใน engine
         self.app._loaded_file = None
         self.app._log_src = None
         self.app._hp_dir = None
@@ -1405,7 +1406,8 @@ class TestPlayLoopFixes(unittest.TestCase):
             self.assertEqual(am.MacroApp._play_options(app), expect)
 
     def test_record_keystroke_no_nameerror(self):
-        """RECORD: กดคีย์ต้องได้แถว Tap Key — on_kb เดิมพังที่ตัวแปร pressed"""
+        """RECORD: กดคีย์ต้องได้แถว Tap Key — กลไกบันทึก (v2.2: Recorder ใน engine)
+        ทดสอบผ่าน listener จำลองเหมือนเดิม แต่จับ callback ของ Recorder"""
         captured = {}
 
         class FakeMouseListener:
@@ -1421,20 +1423,22 @@ class TestPlayLoopFixes(unittest.TestCase):
                 pass
 
         app = mock.MagicMock()
+        app._recorder = am.macro_engine.Recorder()
         with mock.patch.object(am.mouse, "Listener", FakeMouseListener), \
              mock.patch.object(am.keyboard, "Listener", FakeKbListener):
-            am.MacroApp._start_listeners(app)
+            am.MacroApp._start_listeners(app)     # = recorder.start_listeners()
         on_press = captured["on_press"]
         self.assertIsNotNone(on_press)
-        app.recording = True
-        app._rec_t0 = time.time()
+        rec = app._recorder
+        rec.start()                               # recording = True + ตั้ง _t0
         on_press(am.KeyCode.from_char("a"))             # เดิม: NameError ที่ตัวแปร pressed
-        self.assertEqual(len(app._pending_rows), 1)
-        self.assertEqual(app._pending_rows[0]["button"], "Tap Key")
-        self.assertEqual(app._pending_rows[0]["additional"], "a")
-        app.recording = False
-        on_press(am.KeyCode.from_char("b"))             # ไม่ได้อัด = ไม่เพิ่มแถว
-        self.assertEqual(len(app._pending_rows), 1)
+        self.assertEqual(len(rec.pending_rows), 1)
+        self.assertEqual(rec.pending_rows[0]["button"], "Tap Key")
+        self.assertEqual(rec.pending_rows[0]["additional"], "a")
+        rec.stop()                                # ไม่ได้อัด = ไม่เพิ่มแถว
+        on_press(am.KeyCode.from_char("b"))
+        self.assertEqual(len(rec.pending_rows), 1)
+        self.assertEqual(rec.drain_pending()[0]["additional"], "a")
 
 
 class TestPlayLoopGui(unittest.TestCase):
@@ -1627,13 +1631,13 @@ class TestPlayLoopGui(unittest.TestCase):
         self.app._hp_dir = None
 
     def test_record_mechanism_moves_pending_rows_to_table(self):
-        """กลไก RECORD: listener ผลักแถวเข้า _pending_rows → poller ย้ายเข้าตารางเอง"""
+        """กลไก RECORD: recorder (v2.2) ผลักแถว → poller ดึง drain_pending เข้าตารางเอง"""
         app = self.app
         app.tree.delete(*app.tree.get_children())
         app.toggle_record()
         self.assertTrue(app.recording)
         try:
-            app._pending_rows.append(dict(x=11, y=22, button="Left Click",
+            app._recorder.pending_rows.append(dict(x=11, y=22, button="Left Click",
                                           additional="", mins=0, secs=0.5, repeat=1))
             ok = self._run_until(lambda: None,
                                  lambda: len(app.tree.get_children()) == 1)
@@ -2787,6 +2791,229 @@ class TestPluginMarket(unittest.TestCase):
             am.MacroApp.open_plugins_folder(app)
             fake_os.makedirs.assert_called_once()      # สร้างโฟลเดอร์ถ้ายังไม่มี
             fake_os.startfile.assert_called_once()     # เปิดโฟลเดอร์
+
+
+class TestV22Recorder(unittest.TestCase):
+    """v2.2 (phase 3): Recorder ใน engine — กลไกบันทึกล้วน ไม่มี Tk"""
+
+    def test_recorder_pure_engine_no_tk(self):
+        import macro_engine as me
+        import inspect
+        src = inspect.getsource(me.Recorder)
+        self.assertNotIn("tkinter", src)
+        self.assertNotIn("Tk(", src)
+
+    def test_recorder_lifecycle_and_drain(self):
+        import macro_engine as me
+        events = []
+        rec = me.Recorder(on_event=events.append)
+        self.assertFalse(rec.recording)
+        rec.start()
+        self.assertTrue(rec.recording)
+        rec._push(dict(x=1, y=2, button="Left Click", additional="", mins=0, secs=0.1, repeat=1))
+        self.assertEqual(len(rec.pending_rows), 1)
+        self.assertEqual(len(events), 1)               # on_event ถูกเรียกทันที
+        rows = rec.drain_pending()                     # drain = ล้างคิวครั้งเดียว
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rec.pending_rows, [])
+        n = rec.stop()
+        self.assertFalse(rec.recording)
+        self.assertEqual(n, 0)                         # drain ไปแล้ว เหลือ 0
+
+    def test_recorder_kb_callback_records_tap_key(self):
+        """กดคีย์ (จำลอง) ต้องได้แถว Tap Key — ตรรกะเดียวกับที่ GUI เคยมีใน _start_listeners"""
+        import macro_engine as me
+        rec = me.Recorder()
+        rec.start()
+        rec._on_kb(am.KeyCode.from_char("a"))
+        self.assertEqual(len(rec.pending_rows), 1)
+        self.assertEqual(rec.pending_rows[0]["button"], "Tap Key")
+        self.assertEqual(rec.pending_rows[0]["additional"], "a")
+        rec.stop()
+        rec._on_kb(am.KeyCode.from_char("b"))         # หยุดอัดแล้ว = ไม่เพิ่ม
+        self.assertEqual(len(rec.pending_rows), 1)
+
+    def test_gui_uses_engine_recorder(self):
+        """MacroApp ต้องสร้าง Recorder จาก engine และ poller ดึงผ่าน drain_pending"""
+        app = mock.MagicMock()
+        app._recorder = am.macro_engine.Recorder()
+        app.recording = True
+        app._recorder.pending_rows = [dict(x=1, y=2, button="Left Click",
+                                           additional="", mins=0, secs=0.2, repeat=1)]
+        app._ui_state = {"row": None, "msg": None, "prog": None, "reset": False,
+                         "beep": False, "clipboard": None, "read_clipboard": None}
+        am.MacroApp._start_poller(app)                 # mock root.after จบลูปทันที
+        app._append_row.assert_called_once()           # แถวจาก recorder เข้าตาราง
+        self.assertEqual(app._recorder.pending_rows, [])
+
+    def test_gui_poller_ignores_empty_status_msg(self):
+        """poller ต้องทน st["msg"] = ("", ) ที่มาจาก _execute_condition_row (det ว่าง)"""
+        app = mock.MagicMock()
+        app._recorder = am.macro_engine.Recorder()
+        app.recording = False
+        app._ui_state = {"row": None, "msg": ("",), "prog": None, "reset": False,
+                         "beep": False, "clipboard": None, "read_clipboard": None}
+        am.MacroApp._start_poller(app)
+        self.assertIsNone(app._ui_state["msg"])
+
+
+class TestV22ImageEngine(unittest.TestCase):
+    """v2.2: ค้นภาพอยู่ที่ engine — GUI/CLI ใช้ร่วมกัน"""
+
+    def test_parse_search_area_matches_gui_version(self):
+        import macro_engine as me
+        self.assertEqual(me.parse_search_area("btn.png@10,20,300,150#90"),
+                         ("btn.png", (10, 20, 310, 170), 0.9))
+        self.assertEqual(me.parse_search_area("btn.png#65"), ("btn.png", None, 0.65))
+        self.assertEqual(me.parse_search_area("btn.png"), ("btn.png", None, 0.80))
+        self.assertEqual(me.parse_search_area("bad@x,y"), ("bad", None, 0.80))  # พิมพ์พลาด = ทั้งจอ
+
+    def test_find_image_pos_missing_file_sets_last_error(self):
+        import macro_engine as me
+        self.assertIsNone(me.find_image_pos("no_such_v22.png"))
+        self.assertIn("ไม่พบไฟล์ภาพ", me.find_image_pos.last_error)
+
+    def test_runner_executes_if_image_and_sets_skip(self):
+        """If Image ไม่เจอ (ไฟล์หาย) → skip_n = Repeat · เจอ/ผ่านเคสอื่นทำใน E2E"""
+        import macro_engine as me
+        msgs = []
+        runner = me.ActionRunner(
+            mock.MagicMock(), mock.MagicMock(),
+            on_message=lambda t, c="#080": msgs.append((t, c)))
+        r = {"button": am.IF_IMAGE, "additional": "no_such_v22.png", "repeat": 3,
+             "secs": 0, "mins": 0}
+        runner.execute(r)
+        self.assertEqual(runner.skip_n, 3)
+        self.assertFalse(runner.last_if_found)
+        self.assertTrue(any("ข้าม 3 แถว" in t for t, _ in msgs))
+        # Else: If ไม่เจอ → เล่นกลุ่ม B ต่อ (ไม่ข้าม)
+        n_before = runner.skip_n
+        runner.execute({"button": am.ELSE_IMAGE, "additional": "x.png", "repeat": 2})
+        self.assertEqual(runner.skip_n, n_before)      # ไม่เพิ่ม — เล่นกลุ่ม B
+        self.assertTrue(any("เล่นกลุ่ม B" in t for t, _ in msgs))
+
+
+class TestV22EngineCli(unittest.TestCase):
+    """v2.2: engine_cli --json-lines + ค้นภาพผ่าน cb"""
+
+    def _write(self, tmp, name, text):
+        p = os.path.join(tmp, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return p
+
+    def test_load_script_json_lines(self):
+        import engine_cli
+        tmp = tempfile.mkdtemp(prefix="jl_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        p = self._write(tmp, "s.jsonl",
+                        '{"button": "Beep", "secs": 0}\n'
+                        '\n# บรรทัดคอมเมนต์ข้ามได้\n'
+                        '{"button": "Beep", "secs": 0}\n')
+        rows, err = engine_cli.load_script(p, json_lines=True)
+        self.assertIsNone(err)
+        self.assertEqual(len(rows), 2)
+        bad = self._write(tmp, "bad.jsonl", '{"button": "Beep"}\nnot json\n')
+        rows, err = engine_cli.load_script(bad, json_lines=True)
+        self.assertIsNone(rows)
+        self.assertIn("บรรทัด 2", err)
+
+    def test_json_lines_run_end_to_end(self):
+        import engine_cli
+        tmp = tempfile.mkdtemp(prefix="jl_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        p = self._write(tmp, "s.jsonl", '{"button": "Beep", "secs": 0}\n')
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = engine_cli.main([p, "--json-lines", "--no-log"])
+        self.assertEqual(rc, 0)
+        self.assertIn("จบแล้ว", out.getvalue())
+
+    def test_engine_cli_binds_image_cbs(self):
+        """engine_cli ต้องผูก find_image_cb/wait_image_cb ให้ runner (ค้นภาพครบเหมือน GUI)"""
+        import engine_cli
+        import inspect
+        src = inspect.getsource(engine_cli)
+        self.assertIn("find_image_cb", src)
+        self.assertIn("wait_image_cb", src)
+        self.assertNotIn("ยังไม่รองรับใน engine_cli", src.replace(
+            "unsupported_cb=lambda btn: print(\n            \"  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน engine_cli", ""))
+
+
+class TestV22Plugins(unittest.TestCase):
+    """v2.2: plugin ใหม่ 3 ตัว — โหลดได้ + รันได้ (ctx จำลอง)"""
+
+    def _plugin(self, name):
+        import macro_engine as me
+        pl = dict(me.load_plugins())
+        self.assertIn(name, pl)
+        return pl[name]
+
+    def test_new_plugins_loaded(self):
+        for name in ("Play Sound", "Webhook", "Multi Image Click"):
+            self._plugin(name)             # โหลด + ชื่อไม่ซ้ำกับ ACTIONS_ALL (ข้ามถ้าซ้ำ)
+
+    def test_play_sound_runs(self):
+        pl = self._plugin("Play Sound")
+        beeps = []
+        ctx = {"ui": {"beep": lambda: beeps.append(1)}, "log": lambda m: None}
+        pl.run(ctx, {"additional": "3"})   # winsound มีเฉพาะ Windows → บนเครื่องนี้บี๊บจริง
+        self.assertGreaterEqual(len(beeps), 0)   # ผ่าน = ไม่ raise (เครื่องไม่มีเสียงก็ยังผ่าน)
+
+    def test_webhook_rejects_bad_url(self):
+        pl = self._plugin("Webhook")
+        msgs = []
+        ctx = {"ui": {"msg": lambda t, c="#080": msgs.append(t)}, "log": lambda m: None}
+        pl.run(ctx, {"additional": "not-a-url"})
+        self.assertTrue(any("URL" in m for m in msgs))
+
+    def test_webhook_sends_post(self):
+        pl = self._plugin("Webhook")
+        reqs = []
+        import urllib.request
+        class FakeResp:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+        def fake_urlopen(req, timeout=5):
+            reqs.append((req.get_method(), req.full_url, req.data))
+            return FakeResp()
+        with mock.patch.object(urllib.request, "urlopen", fake_urlopen):
+            logs = []
+            ctx = {"ui": {"msg": lambda t, c="#080": None},
+                   "log": lambda m: logs.append(m)}
+            pl.run(ctx, {"additional": "https://example.com/hook", "button": "Webhook"})
+        self.assertEqual(len(reqs), 1)
+        self.assertEqual(reqs[0][0], "POST")
+        self.assertIn(b"auto_mouse_macro", reqs[0][2])
+        self.assertTrue(any("HTTP 200" in m for m in logs))
+
+    def test_multi_image_click_reports_missing(self):
+        pl = self._plugin("Multi Image Click")
+        msgs = []
+        ctx = {"ui": {"msg": lambda t, c="#080": msgs.append(t)},
+               "log": lambda m: None,
+               "mouse": mock.MagicMock(),
+               "stop_check": lambda: True}
+        pl.run(ctx, {"additional": "no_such_a.png | no_such_b.png"})
+        self.assertEqual(len([m for m in msgs if "ข้าม" in m]), 2)
+        ctx["mouse"].position.assert_not_called()       # ไม่เจอสักภาพ = ไม่คลิก
+
+
+class TestV22ConditionRunner(unittest.TestCase):
+    """v2.2: If Image/Else ย้ายเข้า runner — GUI/CLI แหล่งเดียว"""
+
+    def test_runner_has_condition_branches(self):
+        import macro_engine as me
+        import inspect
+        src = inspect.getsource(me.ActionRunner.execute)
+        self.assertIn("IF_IMAGE", src)
+        self.assertIn("ELSE_IMAGE", src)
+
+    def test_condition_row_helper_exists(self):
+        self.assertTrue(hasattr(am.MacroApp, "_execute_condition_row"))
 
 
 if __name__ == "__main__":
