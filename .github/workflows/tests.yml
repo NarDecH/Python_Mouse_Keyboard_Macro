@@ -87,8 +87,11 @@ jobs:
           $PY -m pip install --upgrade pip
           $PY -m pip install pynput
 
-      - name: ตรวจ tkinter + pynput ในอินเทอร์พรีเตอร์เดียวกัน
-        run: $PY -c "import tkinter, pynput; print('tkinter + pynput OK')"
+      - name: ตรวจ tkinter + pynput ในอินเทอร์พรีเตอร์เดียวกัน (รายงานแยกตัว)
+        run: |
+          $PY -c "import tkinter; print('tkinter OK')" || echo "::error::$PY tkinter import ล้มเหลว"
+          $PY -c "import pynput; print('pynput OK')" || echo "::error::$PY pynput import ล้มเหลว"
+          $PY -c "import tkinter, pynput; print('tkinter + pynput OK')"
 
       - name: รัน unit tests
         run: |

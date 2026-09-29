@@ -85,6 +85,8 @@ class TestE2EStop(unittest.TestCase):
             json.dump(rows, fh, ensure_ascii=False)
         return p
 
+    @unittest.skipUnless(os.name == "nt",
+                         "ตรวจคีย์ค้างด้วย GetAsyncKeyState = Windows เท่านั้น")
     def test_watchdog_press_key_stop_file_no_stuck(self):
         """v2.2.1: watchdog + Press Key ค้าง + ดีเลย์ยาว → หยุดด้วย stop-file กลางทาง →
         ต้องจบ exit 130 และ**ไม่มีคีย์ค้าง** (ตรวจ GetAsyncKeyState ของ Ctrl ทั้งซ้ายขวา
