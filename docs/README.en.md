@@ -77,6 +77,8 @@
 | 🔁 **If Loop** (v1.21) | Round condition: Additional = round number N (e.g. `3`) → from round N on, skip the next N rows (Repeat) — great for "first round setup, skip afterwards" |
 | 🕐 **If Time** (v1.21) | Time condition: Additional = `HH:MM` (e.g. `22:30`) → past that time today, skip the next N rows (Repeat) |
 | 🗂️ **Section header** (v1.21) | Right-click → "Convert to Section header": a group label row that never plays or counts — long scripts stay readable |
+| 📁📂 **Collapse/expand groups** (v1.22) | Right-click a header → collapse: members disappear from the table but **still play normally**; press again to expand in the exact original order |
+| 🎨 **Row colors by category** (v1.22) | Conditions = light yellow · keyboard = light purple · special actions = light blue · mouse rows keep the zebra stripes — spot groups at a glance |
 | ⏱ **Per-action stats** (v1.18) | Stats shows the top 5 time-consuming Actions — spot your script's bottleneck instantly |
 | 🔍 **Find / Undo / Paste** (v1.17) | `Ctrl+F` search rows · `Ctrl+Z` undo delete (50 levels) · 📋 Paste menu inserts JSON rows from clipboard |
 

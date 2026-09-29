@@ -2418,5 +2418,184 @@ class TestV21CliLoop(unittest.TestCase):
         self.assertEqual(outp.count("Beep"), 1)
 
 
+# ============================ v1.22: สีแถวตามหมวด + ปุ่มจับเวลา + ย่อ/ขยายกลุ่ม ====
+class TestRowStyles(unittest.TestCase):
+    """v1.22: สีแถวตารางตามหมวด Action — row_tag/row_tags คืน tag ตามชนิด"""
+
+    def test_row_tag_categories(self):
+        self.assertEqual(am.row_tag(am.SECTION_HEADER), "section")
+        self.assertEqual(am.row_tag(am.IF_IMAGE), "cond")
+        self.assertEqual(am.row_tag(am.ELSE_IMAGE), "cond")
+        self.assertEqual(am.row_tag(am.IF_LOOP), "cond")
+        self.assertEqual(am.row_tag(am.IF_TIME), "cond")
+        self.assertEqual(am.row_tag("Tap Key"), "key")
+        self.assertEqual(am.row_tag("Type Text"), "key")
+        self.assertEqual(am.row_tag("Image Click"), "special")
+        self.assertEqual(am.row_tag("Wait for Pixel Color"), "special")
+        self.assertEqual(am.row_tag("Beep"), "special")
+        self.assertEqual(am.row_tag("Set Variable"), "special")
+
+    def test_mouse_rows_keep_zebra(self):
+        self.assertEqual(am.row_tags("Left Click", 1), ("even",))
+        self.assertEqual(am.row_tags("Left Click", 2), ("odd",))
+        self.assertEqual(am.row_tags("Right Click", 3), ("even",))
+        self.assertEqual(am.row_tags("Scroll Up", 4), ("odd",))
+        self.assertEqual(am.row_tags("Move Mouse", 5), ("even",))
+
+    def test_categorized_rows_get_color_tag(self):
+        self.assertEqual(am.row_tags(am.IF_LOOP, 3), ("cond",))
+        self.assertEqual(am.row_tags("Beep", 4), ("special",))
+        self.assertEqual(am.row_tags("Press Key", 5), ("key",))
+        self.assertEqual(am.row_tags(am.SECTION_HEADER, 1), ("section",))
+
+    def test_unknown_action_keeps_zebra(self):
+        self.assertEqual(am.row_tags("Plugin แปลกปลอม", 2), ("odd",))
+
+
+class TestTimePicker(unittest.TestCase):
+    """v1.22: ปุ่ม 🕐 เวลานี้ (+15 นาที) — เติมแถว If Time ที่เลือก หรือสร้างแถวใหม่"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        stored = {"values": ["☑", 1, "", "", am.IF_TIME, "", 0, 1, 1]}
+
+        def fake_item(*args, **kw):
+            if "values" in kw:
+                stored["values"] = list(kw["values"])
+                return None
+            return stored["values"]
+
+        app.tree.selection.return_value = ["i1"]
+        app.tree.item.side_effect = fake_item
+        return app, stored
+
+    def test_fills_selected_if_time_row(self):
+        app, stored = self._app()
+        ok = am.MacroApp._apply_current_time(app)
+        self.assertTrue(ok)
+        self.assertRegex(stored["values"][5], r"^\d{2}:\d{2}$")
+        am.parse_if_time(stored["values"][5])          # ไม่ throw = รูปแบบถูก
+        app._append_row.assert_not_called()
+
+    def test_appends_when_other_action_selected(self):
+        app = mock.MagicMock()
+        app.tree.selection.return_value = ["i1"]
+        app.tree.item.return_value = ["☑", 1, "", "", "Beep", "", 0, 1, 1]
+        ok = am.MacroApp._apply_current_time(app)
+        self.assertFalse(ok)
+        app._append_row.assert_called_once()
+        self.assertEqual(app._append_row.call_args.kwargs.get("button"), am.IF_TIME)
+        spec = app._append_row.call_args.kwargs.get("additional")
+        self.assertIsNotNone(am.parse_if_time(spec))
+
+    def test_appends_when_nothing_selected(self):
+        app = mock.MagicMock()
+        app.tree.selection.return_value = []
+        am.MacroApp._apply_current_time(app)
+        app._append_row.assert_called_once()
+
+
+class TestSectionCollapse(unittest.TestCase):
+    """v1.22: ย่อ/ขยายกลุ่มใต้หัวข้อ — แถวซ่อนยังถูก serialize เล่นตามลำดับเดิม"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        kids = iter("k%d" % i for i in range(1, 999))
+        order = []
+        store = {}
+
+        def insert(parent, index, **kw):
+            iid = next(kids)
+            store[iid] = list(kw["values"])
+            order.append(iid)
+            return iid
+
+        def delete(*iids):
+            for i in iids:
+                if i in store:
+                    del store[i]
+                    order.remove(i)
+
+        def item(iid, *args, **kw):
+            if "values" in kw:
+                store[iid] = list(kw["values"])
+                return None
+            return store[iid]
+
+        app.tree.get_children.side_effect = lambda: list(order)
+        app.tree.insert = insert
+        app.tree.delete = delete
+        app.tree.item = item
+        app.tree.index = lambda iid: order.index(iid)
+        app.tree.detach = lambda iid: order.remove(iid)
+        app._section_stash = []
+        app._hl_row = None
+        app.refresh_nums = lambda: am.MacroApp.refresh_nums(app)
+        for m in ("_group_members", "_group_collapsed", "_group_toggle", "_serialize"):
+            setattr(app, m, getattr(am.MacroApp, m).__get__(app))
+        return app, store
+
+    def _rows(self, app, store, rows):
+        for r in rows:
+            app.tree.insert("", "end", values=["☑", "#", "", "", r[0], r[1], 0, r[2], 1])
+
+    def test_collapse_hides_and_serialize_keeps_rows(self):
+        app, store = self._app()
+        self._rows(app, store, [(am.SECTION_HEADER, "หัวข้อ A", 0), ("Beep", "b1", 1),
+                                ("Beep", "b2", 1), ("Left Click", "", 1)])
+        head = app.tree.get_children()[0]
+        app._group_toggle(head)                        # ย่อ
+        self.assertEqual(len(app.tree.get_children()), 1)   # มีหัวข้อเดียว → ทั้งตารางคือกลุ่ม A
+        self.assertIn("(ย่อ 3 แถว)", str(app.tree.item(head, "values")[5]))   # b1+b2+Left Click ท้ายตาราง
+        self.assertTrue(app._group_collapsed(head))
+        rows = app._serialize()
+        self.assertEqual([r["additional"] for r in rows], ["หัวข้อ A", "b1", "b2", ""])  # แถวซ่อนยังอยู่ครบ
+
+    def test_expand_restores_original_order(self):
+        app, store = self._app()
+        self._rows(app, store, [(am.SECTION_HEADER, "หัวข้อ B", 0), ("Beep", "x1", 1),
+                                ("Beep", "x2", 1), ("Beep", "x3", 1), ("Left Click", "", 1)])
+        head = app.tree.get_children()[0]
+        app._group_toggle(head)                        # ย่อ (x1–x3 + Left Click ท้ายตาราง เป็นกลุ่มเดียวกัน)
+        app._group_toggle(head)                        # ขยาย
+        adds = [app.tree.item(i, "values")[5] for i in app.tree.get_children()]
+        self.assertEqual(adds, ["หัวข้อ B", "x1", "x2", "x3", ""])    # ลำดับเดิมเป๊ะ
+        self.assertEqual(app._section_stash, [])
+
+    def test_delete_collapsed_head_restores_rows(self):
+        app, store = self._app()
+        self._rows(app, store, [(am.SECTION_HEADER, "กลุ่ม C", 0), ("Beep", "c1", 1),
+                                ("Beep", "c2", 1), ("Left Click", "", 1)])
+        app.refresh_nums = lambda: None
+        app._group_toggle(app.tree.get_children()[0])  # ย่อ
+        app._on_del_cleanup = getattr(am.MacroApp, "_on_del_cleanup").__get__(app)
+        head = app.tree.get_children()[0]
+        app._on_del_cleanup(head)                      # ลบหัวข้อที่ย่ออยู่ → ขยายคืนก่อน
+        app.tree.delete(head)
+        adds = [app.tree.item(i, "values")[5] for i in app.tree.get_children()]
+        self.assertEqual(adds, ["c1", "c2", ""])       # แถวกลุ่มกลับมาครบ ไม่หาย
+        self.assertEqual(app._section_stash, [])
+
+    def test_two_groups_collapse_independently(self):
+        app, store = self._app()
+        self._rows(app, store, [(am.SECTION_HEADER, "A", 0), ("Beep", "a1", 1),
+                                (am.SECTION_HEADER, "B", 0), ("Beep", "b1", 1),
+                                ("Beep", "b2", 1)])
+        kids = app.tree.get_children()
+        app._group_toggle(kids[0])                     # ย่อกลุ่ม A
+        self.assertTrue(app._group_collapsed(kids[0]))
+        self.assertFalse(app._group_collapsed(kids[2]))   # กลุ่ม B ไม่โดนกระทบ
+        rows = app._serialize()
+        self.assertEqual([r["additional"] for r in rows], ["A", "a1", "B", "b1", "b2"])
+        app._group_toggle(kids[2])                     # ย่อกลุ่ม B ด้วย
+        rows = app._serialize()
+        self.assertEqual([r["additional"] for r in rows], ["A", "a1", "B", "b1", "b2"])
+
+    def test_save_head_add_roundtrip(self):
+        self.assertEqual(am._save_head_add("หัวข้อ", 3), "หัวข้อ (ย่อ 3 แถว)")
+        self.assertEqual(am._save_head_add("หัวข้อ (ย่อ 3 แถว)", 5), "หัวข้อ (ย่อ 5 แถว)")
+        self.assertEqual(am._save_head_add("", 1), "(ย่อ 1 แถว)")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

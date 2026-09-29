@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.21.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v1.22.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -106,6 +106,14 @@
   หัวข้อ Section (`SECTION_HEADER` = "⬛ หัวข้อ" — แถวจัดระเบียบ: ไม่เล่น/ไม่นับเลขใน
   `refresh_nums`/ไม่หน่วง, สลับกลับเป็น Left Click ได้ผ่าน `_row_toggle_section`,
   เพิ่มด้วยเมนูขวา `_add_section`), เดโม่ `examples/10_conditions_v21.json`
+- **ฟีเจอร์เสริม v1.22:** สีแถวตามหมวด Action (`ROW_STYLE` + `row_tag()`/`row_tags()` — เงื่อนไข=cond
+  คีย์=key พิเศษ=special แถวเมาส์=แถบ even/odd เดิม, ทุกจุด insert/item ต้องใช้ `row_tags()`),
+  ปุ่ม 🕐 จับเวลา (`_apply_current_time` — เวลาปัจจุบัน +15 นาที ข้ามเที่ยงคืน, ทำงานแบบ
+  `_apply_pixel_spec`), ย่อ/ขยายกลุ่ม Section (`_group_toggle` + `_section_stash` — แถวซ่อน
+  **เล่นปกติ** เพราะไม่อยู่ใน tree, ⚠️ ตัวตรวจป้ายย่อคือ regex `_COLLAPSED_RE` = suffix
+  `\(ย่อ N แถว\)\s*$` — **ใช้ .search เท่านั้น** เพราะหัวข้อมีชื่อนำหน้า, ลบหัวข้อที่ย่อ =
+  `_on_del_cleanup` ขยายคืนก่อน, `_serialize` รวมแถวใน stash, undo ผ่าน `_undo_restore_collapsed`,
+  ย้ายกลุ่ม = `_move_collapsed_group`)
 
 ## เทคโนโลยี
 

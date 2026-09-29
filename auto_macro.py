@@ -90,7 +90,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "1.21.0"
+__version__ = "1.22.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -120,6 +120,9 @@ TR = {
            "ifimg_skip": "If Image ไม่เจอ → ข้าม %d แถวถัดไป", "ifimg_hit": "If Image เจอ → เล่นต่อ",
            "ifloop_hit": "ยังไม่เกินรอบที่กำหนด → เล่นต่อ", "iftime_hit": "ยังไม่ผ่านเวลาที่กำหนด → เล่นต่อ",
            "ctx_section": "🗂️ เปลี่ยนเป็นหัวข้อ Section", "section_new": "🗂️ เพิ่มหัวข้อ Section",
+           "group_collapse": "📁 ย่อกลุ่มนี้", "group_expand": "📂 ขยายกลุ่มนี้",
+           "group_show_hint": "📦 กลุ่มนี้ย่ออยู่ — แถวซ่อนถูกเล่นตามปกติ",
+           "group_expand_first": "📂 ขยายกลุ่มก่อนแก้แถว",
            "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
            "pixel_title": "🎨 Wait for Pixel Color", "pixel_label": "x,y = จุดที่ต้องการ · #RRGGBB = สีที่รอ · วินาที = หน่วงก่อนตรวจ (พิมพ์ใน Additional)",
            "save": "บันทึก", "close": "ปิด", "language": "ภาษา (Language):",
@@ -158,6 +161,9 @@ TR = {
            "ifimg_skip": "If Image miss → skip next %d rows", "ifimg_hit": "If Image found → continue",
            "ifloop_hit": "Round below threshold → continue", "iftime_hit": "Before the set time → continue",
            "ctx_section": "🗂️ Convert to Section header", "section_new": "🗂️ Add Section header",
+           "group_collapse": "📁 Collapse this group", "group_expand": "📂 Expand this group",
+           "group_show_hint": "📦 Group collapsed — hidden rows still play",
+           "group_expand_first": "📂 Expand group before editing",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",
            "backup_label": "Auto backup on close (keep last",
            "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
@@ -200,6 +206,49 @@ ELSE_IMAGE = "Else If Image"     # เงื่อนไข v1.18: สองท�
 WAIT_PIXEL = "Wait for Pixel Color"  # v1.18: รอจุดสี (x,y + #RRGGBB) ก่อนทำงานต่อ
 IF_LOOP = "If Loop"              # เงื่อนไข v1.21: รอบที่ >= N → ข้าม N แถวถัดไป
 IF_TIME = "If Time"              # เงื่อนไข v1.21: ผ่าน HH:MM แล้ว → ข้าม N แถวถัดไป
+
+# v1.22: หมวดสีของแถวตารางตามชนิด Action — แยกกลุ่มเห็นภาพ แค่การจัดระเบียบ ไม่เปลี่ยนพฤติกรรม
+ROW_STYLE = {"run": {"background": "#c8e6c9"},
+             "section": {"background": "#cfe3f7", "foreground": "#1a3d6d"},
+             "cond": {"background": "#fdf1d6"},            # เงื่อนไข (If Image/Else/Loop/Time)
+             "key": {"background": "#e6e0f8"},             # คีย์บอร์ด (Tap/Press/Release/Type Text)
+             "special": {"background": "#dff0f5"},         # พิเศษ (Image/Pixel/Launch/Beep/Clipboard/ตัวแปร)
+             "odd": {"background": "#ffffff"},
+             "even": {"background": "#f2f6fb"}}
+
+
+def row_tag(button):
+    """คืนชื่อ tag ตามชนิด Action (v1.22) — แถวเงื่อนไข/คีย์/พิเศษได้สีของหมวด
+    แถวเมาส์ทั่วไปใช้แถบสลับ even/odd เหมือนเดิม"""
+    if button == SECTION_HEADER:
+        return "section"
+    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME):
+        return "cond"
+    if button in ("Tap Key", "Press Key", "Release Key", "Type Text"):
+        return "key"
+    if button in ("Image Click", "Wait for Image", "Wait for Pixel Color", "Launch App",
+                  "Beep", "Set Clipboard", "Read Clipboard", "Set Variable"):
+        return "special"
+    return None
+
+
+def row_tags(button, n):
+    """คืน tuple tags เต็ม (เรียกตอน insert/item) — แถวเมาส์ = แถบสลับเดิม, หมวดพิเศษ = สีหมวด"""
+    t = row_tag(button)
+    if t:
+        return (t,)
+    return ("even" if n % 2 else "odd",)
+
+
+_COLLAPSED_RE = re.compile(r"\(ย่อ (\d+) แถว\)\s*$")   # ป้ายกลุ่มที่ถูกย่อ (v1.22) — match ท้ายข้อความ
+
+
+def _save_head_add(add, n):
+    """ต่อท้ายชื่อหัวข้อด้วย '(ย่อ N แถว)' — เก็บชื่อเดิมไว้ข้างหน้า"""
+    s = str(add or "").strip()
+    m = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", s)
+    base = m.group(1) if m else s
+    return ((base + " ") if base else "") + "(ย่อ %d แถว)" % n
 # ฟีเจอร์เพิ่มเติมแรงบันดาลใจจาก automouseclick.com (v1.5)
 SCROLL_ACTIONS = ["Scroll Up", "Scroll Down"]
 DBL_ACTIONS = ["Double Left Click", "Double Right Click"]
@@ -941,6 +990,7 @@ class MacroApp:
         self.recording = False          # กำลังบันทึก
         self._rec_t0 = 0.0
         self._hl_row = None             # แถวที่กำลังเล่น (ไฮไลต์)
+        self._section_stash = []        # v1.22: แถวที่ถูกย่อด้วยหัวข้อ Section [{after: iid, vals: [...]}]
         self._live_pos = (0, 0)         # พิกัดเมาส์สด (จาก listener thread)
         self._live_key = ""             # คีย์ล่าสุด (จาก listener thread)
         self._ui_state = {"row": None, "msg": None, "reset": False, "prog": None,
@@ -1076,6 +1126,8 @@ class MacroApp:
         self.tree.tag_configure("even", background="#f2f6fb")
         self.tree.tag_configure("run", background="#c8e6c9")
         self.tree.tag_configure("section", background="#cfe3f7", foreground="#1a3d6d")  # v1.21
+        for _tname, _tstyle in ROW_STYLE.items():      # v1.22: สีแถวตามหมวด Action
+            self.tree.tag_configure(_tname, **_tstyle)
 
         tools = tk.Frame(self.root)
         tools.pack(fill="x", padx=6)
@@ -1087,6 +1139,7 @@ class MacroApp:
         if HAS_CV:
             tk.Button(tools, text="📸 จับภาพ (ลากกรอบบนจอ)", command=self._capture_snip).pack(side="right", padx=2)
             tk.Button(tools, text="🎨 จับสี (คลิกบนจอ)", command=self._pick_pixel_color).pack(side="right", padx=2)
+        tk.Button(tools, text="🕐 เวลานี้ (+15 นาที)", command=self._apply_current_time).pack(side="right", padx=2)  # v1.22
 
     # -------------------------------------------------- จับภาพหน้าจอ (snip) ---
     def _capture_snip(self):
@@ -1185,6 +1238,24 @@ class MacroApp:
                 return True
         self._append_row(button=WAIT_PIXEL, additional=spec, secs=1)
         self._ui_state["msg"] = ("เพิ่มแถวรอสี: " + spec + " — แก้จุด/สีได้ที่ช่อง Additional", "#080")
+        return False
+
+    def _apply_current_time(self):
+        """🕐 ปุ่มจับเวลา (v1.22): เติม HH:MM (เวลาปัจจุบัน +15 นาที) ให้แถว If Time ที่เลือก
+        ถ้าแถวที่เลือกไม่ใช่ If Time สร้างแถวใหม่ต่อท้าย — คืน True ถ้าแก้แถวเดิม"""
+        lt = time.localtime()
+        total = lt.tm_hour * 60 + lt.tm_min + 15      # เวลาปัจจุบัน +15 นาที (คำนวณจาก localtime ตรง ๆ)
+        spec = "%02d:%02d" % ((total // 60) % 24, total % 60)
+        sel = self.tree.selection()
+        if sel:
+            vals = list(self.tree.item(sel[0], "values"))
+            if str(vals[4]) == IF_TIME:
+                vals[5] = spec
+                self.tree.item(sel[0], values=vals)
+                self._ui_state["msg"] = ("ใส่เวลาแล้ว: " + spec + " (จากเวลานี้ +15 นาที)", "#080")
+                return True
+        self._append_row(button=IF_TIME, additional=spec)
+        self._ui_state["msg"] = ("เพิ่มแถว If Time: " + spec + " — แก้เวลาได้ที่ช่อง Additional", "#080")
         return False
 
     def _build_bottom(self):
@@ -1449,7 +1520,7 @@ class MacroApp:
                 fmt_num(0 if kw.get("button") == SECTION_HEADER else kw.get("secs", 1)),
                 fmt_num(kw.get("repeat", 1))]
         n = len(self.tree.get_children())
-        self.tree.insert("", "end", values=vals, tags=("even" if n % 2 else "odd",))
+        self.tree.insert("", "end", values=vals, tags=row_tags(str(vals[4]), n))   # v1.22: สีหมวด
         self.tree.see(self.tree.get_children()[-1])
 
     def add_row(self):
@@ -1465,7 +1536,7 @@ class MacroApp:
                 continue
             n += 1
             vals[1] = n
-            self.tree.item(iid, values=vals, tags=("even" if n % 2 else "odd",))
+            self.tree.item(iid, values=vals, tags=row_tags(str(vals[4]), n))   # v1.22: สีหมวด
 
     def _on_click(self, event):
         if self.tree.identify("region", event.x, event.y) != "cell":
@@ -1482,8 +1553,18 @@ class MacroApp:
         if self.tree.selection():
             self._push_undo()              # เก็บสำเนาก่อนลบ — Ctrl+Z กู้คืนได้
         for iid in self.tree.selection():
+            self._on_del_cleanup(iid)
             self.tree.delete(iid)
         self.refresh_nums()
+
+    def _on_del_cleanup(self, iid):
+        """v1.22: ก่อนลบแถว — หัวข้อที่ย่ออยู่ให้ขยายคืนก่อน (ไม่งั้นแถวกลุ่มหาย)"""
+        try:
+            vals = self.tree.item(iid, "values")
+        except tk.TclError:
+            return
+        if str(vals[4]) == SECTION_HEADER and self._group_collapsed(iid):
+            self._group_toggle(iid)        # ขยายคืนก่อน แล้วลบเฉพาะหัวข้อต่อไป
 
     # ------------------------------------- v1.17: undo / find / clipboard ----
     def _snapshot_rows(self):
@@ -1504,9 +1585,33 @@ class MacroApp:
         self.tree.delete(*self.tree.get_children())
         for vals in rows:
             self.tree.insert("", "end", values=vals)
+        self._undo_restore_collapsed()                 # v1.22: คืนแถวที่ถูกย่อไว้ (iid เปลี่ยนหมด)
         self.refresh_nums()
         self._hl_row = None
         self._ui_state["msg"] = (self._t("undone"), "#080")
+
+    def _undo_restore_collapsed(self):
+        """v1.22: หลัง restore จาก undo — หัวข้อที่ย่อค้างไว้ถูกขยายคืนจาก stash
+        (iid เดิมหายหลัง restore ผูก stash ไม่ได้ ขยายคืนคือทางไม่มีข้อมูลหาย)"""
+        if not self._section_stash:
+            return
+        queue = list(self._section_stash)
+        self._section_stash = []
+        for iid in self.tree.get_children():
+            vals = self.tree.item(iid, "values")
+            m = _COLLAPSED_RE.search(str(vals[5]).strip())
+            if not (m and str(vals[4]) == SECTION_HEADER):
+                continue
+            pos = self.tree.index(iid) + 1
+            for _ in range(int(m.group(1))):
+                if not queue:
+                    break
+                self.tree.insert("", pos, values=list(queue.pop(0)["vals"]))
+                pos += 1
+            m2 = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", str(vals[5]).strip())
+            nv = list(vals)
+            nv[5] = m2.group(1) if m2 else vals[5]
+            self.tree.item(iid, values=nv)
 
     def _find_rows(self, query):
         """คืนเลขแถว (1-based) ที่มีข้อความ query อยู่ในคอลัมน์ใดก็ได้ (ไม่แยกพิมพ์เล็ก-ใหญ่)"""
@@ -1628,7 +1733,16 @@ class MacroApp:
         menu.add_command(label=self._t("ctx_below"), command=lambda: self._row_insert_below(iid))
         menu.add_command(label=self._t("section_new"), command=lambda: self._add_section(iid))
         menu.add_separator()
-        menu.add_command(label=self._t("ctx_section"), command=lambda: self._row_toggle_section(iid))
+        if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:      # v1.22: ย่อ/ขยายกลุ่ม
+            collapsed = self._group_collapsed(iid)
+            menu.add_command(label=self._t("group_expand" if collapsed else "group_collapse"),
+                             command=lambda: self._group_toggle(iid))
+        elif self._near_collapsed_marker(iid):
+            menu.add_command(label=self._t("group_show_hint"), state="disabled")
+            menu.add_command(label=self._t("group_expand_first"),
+                             command=lambda: self._group_toggle(self._marker_head(iid)))
+        else:
+            menu.add_command(label=self._t("ctx_section"), command=lambda: self._row_toggle_section(iid))
         menu.add_command(label=self._t("ctx_del"), command=self._on_del)
         try:
             menu.tk_popup(event.x_root, event.y_root)
@@ -1680,25 +1794,132 @@ class MacroApp:
         self.tree.selection_set(new_iid)
         self.refresh_nums()
 
+    # --------------------------------------------- ย่อ/ขยายกลุ่ม Section (v1.22) --
+    def _group_members(self, head_iid):
+        """คืนรายชื่อแถวในกลุ่มของหัวข้อ head_iid (ทุกแถวถัดไปจนถึงหัวข้อถัดไปหรือจบตาราง)
+        ถ้ากลุ่มนี้ย่ออยู่ คืนลิสต์ว่าง (แถวสมาชิกถูก detach ไว้)"""
+        kids = self.tree.get_children()
+        idx = kids.index(head_iid)
+        if self._group_collapsed(head_iid):
+            return []
+        end = len(kids)
+        for j in range(idx + 1, len(kids)):
+            if str(self.tree.item(kids[j], "values")[4]) == SECTION_HEADER:
+                end = j
+                break
+        return kids[idx + 1:end]
+
+    def _group_collapsed(self, head_iid):
+        """คืน True ถ้าหัวข้อนี้กำลังย่ออยู่ (Additional ลงท้าย '(ย่อ N แถว)')"""
+        try:
+            add = str(self.tree.item(head_iid, "values")[5])
+        except tk.TclError:
+            return False
+        return bool(_COLLAPSED_RE.search(add.strip()))
+
+    def _near_collapsed_marker(self, iid):
+        """v1.22: แถวนี้คือหัวข้อที่ย่ออยู่ หรือเป็นแถวแรกถัดจากหัวข้อที่ย่ออยู่"""
+        try:
+            kids = self.tree.get_children()
+            idx = self.tree.index(iid)
+            if _COLLAPSED_RE.search(str(self.tree.item(iid, "values")[5]).strip()):
+                return True
+            if idx > 0 and str(self.tree.item(kids[idx - 1], "values")[4]) == SECTION_HEADER \
+                    and _COLLAPSED_RE.search(str(self.tree.item(kids[idx - 1], "values")[5]).strip()):
+                return True
+        except tk.TclError:
+            pass
+        return False
+
+    def _marker_head(self, iid):
+        """v1.22: คืน iid หัวข้อของ marker/แถวในตำแหน่งกลุ่มย่อที่ iid อยู่ (สำหรับปุ่มขยายจากเมนูขวา)"""
+        kids = self.tree.get_children()
+        idx = self.tree.index(iid)
+        for j in range(idx, -1, -1):
+            if str(self.tree.item(kids[j], "values")[4]) == SECTION_HEADER:
+                return kids[j]
+        return iid
+
+    def _group_toggle(self, head_iid):
+        """ย่อ/ขยายกลุ่มของหัวข้อ: ย่อ = ซ่อนแถวสมาชิก (สคริปต์เล่นแบบเดิมทุกอย่าง)
+        ขยาย = คืนแถวกลับตำแหน่งเดิมใต้หัวข้อ (หัวข้ออื่นที่ย่ออยู่คงสถานะ)"""
+        if self._group_collapsed(head_iid):
+            vals = list(self.tree.item(head_iid, "values"))
+            m = _COLLAPSED_RE.search(str(vals[5]).strip())
+            n = int(m.group(1)) if m else 0
+            pos = self.tree.index(head_iid) + 1          # แทรกคืนต่อจากหัวข้อเสมอ
+            hidden = [v for v in self._section_stash if v.get("after") == head_iid]
+            for v in hidden:                             # stash คงลำดับเดิมไว้แล้ว
+                self.tree.insert("", pos, values=list(v["vals"]))
+                pos += 1
+            self._section_stash = [v for v in self._section_stash if v.get("after") != head_iid]
+            m2 = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", str(vals[5]).strip())
+            vals[5] = m2.group(1) if m2 else vals[5]
+            self.tree.item(head_iid, values=vals)
+            self.refresh_nums()
+            self._ui_state["msg"] = ("ขยายกลุ่มแล้ว (%d แถว) — ลำดับการเล่นเหมือนเดิม" % n, "#080")
+        else:
+            members = self._group_members(head_iid)
+            n = len(members)
+            if n == 0:
+                self._ui_state["msg"] = ("กลุ่มนี้ไม่มีแถวให้ย่อ", "#a60")
+                return
+            for m_iid in members:
+                self._section_stash.append({"after": head_iid, "vals": list(self.tree.item(m_iid, "values"))})
+                self.tree.detach(m_iid)
+            vals = list(self.tree.item(head_iid, "values"))
+            vals[5] = _save_head_add(vals[5], n)
+            self.tree.item(head_iid, values=vals)
+            self.refresh_nums()
+            self._ui_state["msg"] = ("ย่อกลุ่มแล้ว (%d แถว) — การเล่นไม่เปลี่ยน กดซ้ำเพื่อขยาย" % n, "#080")
+
     def del_selected(self):
         self._on_del()
 
     def clear_all(self):
         if self.tree.get_children() and messagebox.askyesno(APP_TITLE, "ลบทุกบรรทัดใช่หรือไม่?"):
             self.tree.delete(*self.tree.get_children())
+            self._section_stash = []                  # v1.22: ลบหมด = ไม่มีแถวซ่อนค้าง
             self._hl_row = None
 
     def move(self, d):
+        """ผลักแถวขึ้น/ลง — v1.22: กลุ่มที่ย่ออยู่เลื่อนทั้งก้อน, แถวธรรมดาไม่ทะลุเข้ากลุ่มย่อ"""
         sel = self.tree.selection()
         if not sel:
             return
         iid = sel[0]
+        vals = self.tree.item(iid, "values")
+        if str(vals[4]) == SECTION_HEADER and self._group_collapsed(iid):
+            self._move_collapsed_group(iid, d)
+            return
         idx = self.tree.index(iid)
         tgt = idx + d
-        n = len(self.tree.get_children())
-        if 0 <= tgt < n:
+        kids = self.tree.get_children()
+        if 0 <= tgt < len(kids):
+            if _COLLAPSED_RE.search(str(self.tree.item(kids[tgt], "values")[5]).strip()):
+                return                        # ขอย้ายกลุ่มย่อใช้ปุ่มบนหัวข้อแทน — กันแถวหลุดเข้ากลุ่ม
             self.tree.move(iid, "", tgt)
             self.refresh_nums()
+
+    def _move_collapsed_group(self, head_iid, d):
+        """เลื่อนกลุ่มย่อทั้งก้อน (หัวข้อ + แถวใน stash) ขึ้น/ลง 1 ตำแหน่ง"""
+        idx = self.tree.index(head_iid)
+        tgt = idx + d
+        kids = self.tree.get_children()
+        if not (0 <= tgt < len(kids)):
+            return
+        if d > 0:
+            if _COLLAPSED_RE.search(str(self.tree.item(kids[tgt], "values")[5]).strip()):
+                return                        # กลุ่มย่อชิดกัน — ขยายก่อนจึงสลับได้
+            after = kids[tgt]                 # แถวที่กลุ่มกระโดดข้าม = จุดผูกแถวกลุ่มใหม่
+            moved = [v for v in self._section_stash if v.get("after") == head_iid]
+            self._section_stash = [v for v in self._section_stash if v.get("after") != head_iid]
+            self.tree.move(head_iid, "", tgt + 1)
+            for v in moved:
+                self._section_stash.append({"after": after, "vals": v["vals"]})
+        else:
+            self.tree.move(head_iid, "", tgt)
+        self.refresh_nums()
 
     # -------------------------------------------------------- cell editing ---
     def _on_dbl_click(self, event):
@@ -2387,10 +2608,13 @@ class MacroApp:
 
     def _untag(self, iid):
         try:
-            if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:
+            vals = self.tree.item(iid, "values")
+            if str(vals[4]) == SECTION_HEADER:
                 return                             # คงสไตล์หัวข้อเดิมไว้ (v1.21)
+            if _COLLAPSED_RE.search(str(vals[5]).strip()):
+                return                             # คงสไตล์ marker กลุ่มย่อไว้ (v1.22)
             i = self.tree.index(iid)
-            self.tree.item(iid, tags=("even" if i % 2 else "odd",))
+            self.tree.item(iid, tags=row_tags(str(vals[4]), i))   # v1.22: สีตามหมวด Action
         except tk.TclError:
             pass
 
@@ -2553,11 +2777,22 @@ class MacroApp:
 
     # ------------------------------------------------------ save / load ------
     def _serialize(self):
+        """แถวที่เห็นในตาราง + แถวที่ถูกย่อไว้ (v1.22) — แถวซ่อนแทรกกลับหลังหัวข้อตามลำดับเดิม"""
         out = []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
+            if str(v[4]) != SECTION_HEADER or not _COLLAPSED_RE.search(str(v[5]).strip()):
+                out.append(dict(enabled=str(v[0]) == "☑", x=str(v[2]), y=str(v[3]), button=str(v[4]),
+                                additional=str(v[5]), mins=v[6], secs=v[7], repeat=v[8]))
+                continue
+            m = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", str(v[5]).strip())
             out.append(dict(enabled=str(v[0]) == "☑", x=str(v[2]), y=str(v[3]), button=str(v[4]),
-                            additional=str(v[5]), mins=v[6], secs=v[7], repeat=v[8]))
+                            additional=(m.group(1) if m else str(v[5])), mins=v[6], secs=v[7], repeat=v[8]))
+            for hv in self._section_stash:
+                if hv.get("after") == iid:
+                    w = hv["vals"]
+                    out.append(dict(enabled=str(w[0]) == "☑", x=str(w[2]), y=str(w[3]), button=str(w[4]),
+                                    additional=str(w[5]), mins=w[6], secs=w[7], repeat=w[8]))
         return out
 
     def _load_rows(self, rows):
@@ -2575,6 +2810,7 @@ class MacroApp:
             if str(vals[4]) == SECTION_HEADER:
                 vals[7] = "0"                      # Section ไม่หน่วง — ไม่ผ่านเส้นทางเล่น (v1.21)
             self.tree.item(iid, values=vals)
+        self._section_stash = []                     # v1.22: โหลดชุดใหม่ = ไม่มีกลุ่มย่อค้าง
         self.refresh_nums()
 
     def save_script(self):
