@@ -90,6 +90,34 @@ try:
 except ImportError:
     HAS_CV = False
 
+
+# === ENGINE-BEGIN (v2.0: แยกไป macro_engine.py — อย่าแก้ในไฟล์นี้ แก้ที่ macro_engine.py)
+import os
+import random
+import re
+import sys
+import time
+import datetime
+import glob
+
+try:
+    from pynput import keyboard, mouse
+    from pynput.keyboard import (Controller as KbController, GlobalHotKeys,
+                                 KeyCode, Key)
+    from pynput.mouse import Button, Controller as MouseController
+except ImportError:
+    print("ไม่พบไลบรารี pynput  ติดตั้งก่อนด้วยคำสั่ง:  pip install pynput")
+    sys.exit(1)
+
+# ตัวเลือกสำหรับฟีเจอร์ Image Click (ถ้าไม่ติดตั้ง ส่วนอื่นยังใช้ได้ปกติ)
+try:
+    import cv2
+    import numpy as np
+    from PIL import ImageGrab
+    HAS_CV = True
+except ImportError:
+    HAS_CV = False
+
 __version__ = "1.22.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
@@ -933,6 +961,10 @@ def prune_log(keep=MAX_LOG_LINES):
                 fh.writelines(lines[-keep:])
     except Exception:
         pass
+
+
+# === ENGINE-END
+
 
 
 # ---------------------------------------------------------------- HotkeyEdit --

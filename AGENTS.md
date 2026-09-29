@@ -1,13 +1,15 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v1.22.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.0.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
 ## ภาพรวมโปรเจกต์
 
 - **ชื่อ:** Auto Mouse & Keyboard Macro v1.6
-- **ไฟล์หลัก:** `auto_macro.py` (ไฟล์เดียวจบ — GUI + engine ในไฟล์เดียว)
+- **ไฟล์หลัก:** `auto_macro.py` (ไฟล์เดียวจบตอนแจกจ่าย) + `macro_engine.py` (engine ล้วน ไม่มี Tk —
+  แหล่งจริงของบล็อก ENGINE-BEGIN/END ใน auto_macro.py · **แก้ engine ที่ macro_engine.py เสมอ**
+  แล้วรัน `py build_singlefile.py` ซิงก์กลับก่อน build .exe — กฎ "ไฟล์เดียวจบ" ยังคงอยู่ผ่าน build script)
 - **แรงบันดาลใจ:** โปรแกรม "Auto Mouse v1.3" (ดูรูปตัวอย่าง `pic.png` / `docs/images/pic.png`)
 - **หน้าที่:** บันทึกและเล่นซ้ำการคลิกเมาส์ + การกดคีย์ตามสคริปต์ที่ผู้ใช้ตั้งไว้
 - **ฟีเจอร์เสริม v1.4:** Global Hotkey, คลิกตามภาพ (OpenCV), โปรไฟล์หลายสคริปต์,
@@ -114,6 +116,11 @@
   `\(ย่อ N แถว\)\s*$` — **ใช้ .search เท่านั้น** เพราะหัวข้อมีชื่อนำหน้า, ลบหัวข้อที่ย่อ =
   `_on_del_cleanup` ขยายคืนก่อน, `_serialize` รวมแถวใน stash, undo ผ่าน `_undo_restore_collapsed`,
   ย้ายกลุ่ม = `_move_collapsed_group`)
+- **v2.0 (phase 1):** แยก engine — `macro_engine.py` = ค่าคงที่/parser/คลิปบอร์ด/unicode/
+  log/stats/plugins **ไม่มี Tk** (นำไปฝัง/เทสต์แยกได้) ใน `auto_macro.py` บล็อกเดียวกันถูกเก็บ
+  ระหว่างป้าย `# === ENGINE-BEGIN` … `# === ENGINE-END` — **ห้ามแก้บล็อกใน auto_macro.py ตรง ๆ**
+  แก้ที่ macro_engine.py แล้วรัน `py build_singlefile.py` (เทสต์ TestEngineSplit ตรวจว่า sync ตรงกัน
+  ด้วย inspect.getsource ทุกฟังก์ชันสำคัญ) — build .exe ยังใช้ auto_macro.py ไฟล์เดียวเสมอ
 
 ## เทคโนโลยี
 
@@ -130,7 +137,9 @@
 ## โครงสร้างไฟล์
 
 ```
-├── auto_macro.py        # โปรแกรมหลักทั้งหมด (GUI, recorder, player)
+├── auto_macro.py        # โปรแกรมหลัก (GUI, recorder, player) — บล็อก ENGINE sync จาก macro_engine.py
+├── macro_engine.py      # engine ล้วน (ค่าคงที่/parser/คลิปบอร์ด/unicode/log/stats/plugins) ไม่มี Tk (v2.0)
+├── build_singlefile.py  # รวม macro_engine.py กลับเป็น auto_macro.py — รันก่อน build .exe เสมอ
 ├── test_auto_macro.py   # unit tests (unittest)
 ├── auto_macro.spec      # PyInstaller spec → build dist/AutoMouseMacro.exe
 ├── build.bat            # สคริปต์ build .exe อัตโนมัติ

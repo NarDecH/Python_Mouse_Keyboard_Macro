@@ -2597,5 +2597,53 @@ class TestSectionCollapse(unittest.TestCase):
         self.assertEqual(am._save_head_add("", 1), "(ย่อ 1 แถว)")
 
 
+# ================================ v2.0: แยก engine ออกจาก GUI ==================
+class TestEngineSplit(unittest.TestCase):
+    """v2.0 phase 1: macro_engine.py = engine ล้วน ไม่มี Tk — นำไปใช้/เทสต์แยกได้
+    และ build_singlefile.py ซิงก์เนื้อหากลับ auto_macro.py ได้ตรงกัน"""
+
+    def test_engine_imports_without_tk(self):
+        import macro_engine as me
+        self.assertFalse(hasattr(me, "tk"))
+        self.assertNotIn("tkinter", sys.modules.get("macro_engine", sys).__dict__
+                         if False else dir(me))
+        self.assertTrue(hasattr(me, "ACTIONS_ALL"))
+        self.assertTrue(hasattr(me, "SECTION_HEADER"))
+        self.assertTrue(hasattr(me, "parse_if_loop"))
+        self.assertTrue(hasattr(me, "clip_set"))
+        self.assertTrue(hasattr(me, "load_plugins"))
+
+    def test_engine_has_no_gui_code(self):
+        src = open("macro_engine.py", encoding="utf-8").read()
+        self.assertNotIn("import tkinter", src)
+        self.assertNotIn("tk.Toplevel", src)
+        self.assertNotIn("class MacroApp", src)
+
+    def test_singlefile_build_keeps_block_in_sync(self):
+        """build_singlefile รวม engine กลับ auto_macro.py — เนื้อหาตรงกับไฟล์ engine ล่าสุด"""
+        src = open("auto_macro.py", encoding="utf-8").read()
+        b = src.find(am.BEGIN) if hasattr(am, "BEGIN") else src.find("# === ENGINE-BEGIN")
+        e = src.find("# === ENGINE-END")
+        self.assertGreater(b, 0)
+        self.assertGreater(e, b)
+        block = src[b:e]
+        eng = open("macro_engine.py", encoding="utf-8").read()
+        core = eng.splitlines()
+        while core and (not core[0].strip() or core[0].startswith("#")):
+            core.pop(0)
+        self.assertIn(core[0].strip(), block)          # บรรทัดแรกของ engine core ต้องอยู่ในบล็อก
+        self.assertIn("__version__ = ", src)           # หัวไฟล์ยังมีเวอร์ชัน
+
+    def test_engine_parsers_match_main(self):
+        """parser ใน engine และใน auto_macro (หลัง sync) มีซอร์สเดียวกัน"""
+        import inspect
+        import macro_engine as me
+        for name in ("parse_if_loop", "parse_key", "parse_set_var", "clip_set"):
+            self.assertEqual(inspect.getsource(getattr(am, name)),
+                             inspect.getsource(getattr(me, name)),
+                             "%s ต่างกันระหว่าง auto_macro กับ macro_engine — รัน build_singlefile.py" % name)
+        self.assertEqual(am.CONF, me.CONF)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

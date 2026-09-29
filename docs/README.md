@@ -245,7 +245,8 @@ py -m PyInstaller auto_macro.spec --noconfirm --clean
 ## 📁 โครงสร้างโปรเจกต์
 
 ```
-├── auto_macro.py        # โปรแกรมหลักทั้งหมด (ไฟล์เดียวจบ)
+├── auto_macro.py        # โปรแกรมหลัก (GUI + engine ฝังในบล็อกเดียว)
+├── macro_engine.py      # engine ล้วน ไม่มี Tk (แหล่งจริงของบล็อก engine — แก้ที่นี่แล้วซิงก์)
 ├── test_auto_macro.py   # unit tests (unittest)
 ├── auto_macro.spec      # ไฟล์ spec ของ PyInstaller
 ├── build.bat            # สคริปต์ build .exe

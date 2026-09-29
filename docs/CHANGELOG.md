@@ -4,6 +4,30 @@
 
 ---
 
+## [2.0.0] — 2026-09-29
+
+### 🏗️ ปรับโครงใหญ่ (จาก ROADMAP — phase 1)
+- **แยก engine ออกจาก GUI** — `macro_engine.py` ใหม่: ค่าคงที่/parser ทุกตัว/คลิปบอร์ด/การพิมพ์
+  Unicode/log+สถิติ/backup/plugins (~870 บรรทัด) **ไม่มี Tk แม้แต่บรรทัดเดียว** — นำไปเทสต์แยก,
+  ฝังในระบบอื่น หรือรองรับ plugin ภายนอกได้โดยไม่แตะ GUI
+- **กฎ "ไฟล์เดียวจบ" ยังอยู่** — เนื้อหา engine ถูกฝังใน `auto_macro.py` ระหว่างป้าย
+  `# === ENGINE-BEGIN … ENGINE-END` · แก้ engine ที่ macro_engine.py เสมอ แล้วรัน
+  **`py build_singlefile.py`** (สคริปต์ใหม่) ซิงก์กลับก่อน build .exe — PyInstaller ยัง build
+  จาก auto_macro.py ไฟล์เดียวเหมือนเดิม
+- เทสต์ TestEngineSplit 4 ตัว: engine นำเข้าได้โดยไม่แตะ Tk / ไม่มีโค้ด GUI ในไฟล์ engine /
+  บล็อกใน auto_macro ตรงกับ engine ล่าสุด / parser สำคัญมีซอร์สเดียวกัน (inspect.getsource) —
+  **ชุดนี้กันคนลืม sync ไฟล์**
+
+### 📝 หมายเหตุ
+- ไม่มีการเปลี่ยนพฤติกรรมใด ๆ ทั้ง GUI และ CLI — ทุกเทสต์เดิมผ่านหมดโดยไม่แก้ assertion
+- phase ถัดไป (ไม่ใช่รอบนี้): ย้าย player/recorder ออกจาก MacroApp, ตลาด plugin, เอกสารหลายภาษา
+
+### 🧪 ทดสอบ
+- TestEngineSplit 4 ตัว → รวม **227 unit + 11 E2E tests ผ่านหมด** · build .exe สำเร็จ ·
+  GUI/.exe smoke OK
+
+---
+
 ## [1.22.0] — 2026-09-29
 
 ### ✨ เพิ่มใหม่

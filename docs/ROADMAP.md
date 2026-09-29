@@ -1,6 +1,6 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v1.22.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v2.0.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
 ## 🚀 v1.17 — ถัดไปอันใกล้
 
@@ -30,9 +30,9 @@
 
 ## 🏗️ v2.0 — ปรับโครงใหญ่ (เมื่อชุมชนโต)
 
-- [ ] **แยก engine ออกจาก GUI** — `macro_engine.py` (player/recorder ล้วน) + GUI import เข้ามา
-      ทำให้เทสต์ engine ไม่ต้องแตะ Tk และคนอื่นเอา engine ไปฝังได้
-      ⚠️ ต้องรักษาสัญญา "ไฟล์เดียวจบ" ด้วย build script รวมกลับเป็น `auto_macro.py` อัตโนมัติ
+- [x] ~~**แยก engine ออกจาก GUI (phase 1)** — `macro_engine.py` ค่าคงที่/parser/คลิปบอร์ด/unicode/
+      log/stats/plugins ล้วน ไม่มี Tk~~ ✅ v2.0 (รักษาสัญญา "ไฟล์เดียวจบ" ด้วย `build_singlefile.py`
+      รวมกลับเป็น `auto_macro.py` ก่อน build .exe · phase 2: ย้าย player/recorder ออกจาก MacroApp)
 - [x] ~~**Plugin API v2** — ctx เพิ่ม `stop_check()` (plugin หยุดตาม STOP ได้), `ui` (toast/statusbar)~~ ✅ v1.20
 - [ ] **ตลาด plugin** — หน้าเว็บรวม plugin ของชุมชน + คำสั่งติดตั้ง (ดาวน์โหลดลง plugins/)
 - [ ] **Multi-language docs** — เพิ่มภาษาจีน/ญี่ปุ่น (i18n ตัวโปรแกรมรองรับแล้ว)
@@ -45,4 +45,4 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v1.22 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*
+*อัพเดตล่าสุด: v2.0 — ถอดจาก CHANGELOG + ไอเดียจาก automouseclick.com ที่ยังไม่ทำ*

@@ -65,8 +65,33 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 1.22.0</h2>
+      <h2>เวอร์ชัน 2.0.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">29 กันยายน 2026</span>
+    </div>
+
+    <h3>🏗️ ปรับโครงใหญ่ (phase 1 จาก ROADMAP)</h3>
+    <ul>
+      <li><b>แยก engine ออกจาก GUI</b> — <code>macro_engine.py</code> ใหม่: ค่าคงที่ / parser ทุกตัว /
+        คลิปบอร์ด / การพิมพ์ Unicode / log+สถิติ / backup / plugins (~870 บรรทัด)
+        <b>ไม่มี Tk แม้แต่บรรทัดเดียว</b> — เทสต์แยก นำไปฝังในระบบอื่น หรือรองรับ plugin ภายนอกได้</li>
+      <li><b>กฎ "ไฟล์เดียวจบ" ยังอยู่</b> — engine ถูกฝังใน <code>auto_macro.py</code> ระหว่างป้าย
+        <code>ENGINE-BEGIN … ENGINE-END</code> · แก้ engine ที่ macro_engine.py เสมอ แล้วรัน
+        <code>py build_singlefile.py</code> ซิงก์กลับก่อน build .exe</li>
+      <li><b>TestEngineSplit</b> — กันลืม sync: ตรวจว่าบล็อกใน auto_macro ตรงกับ engine ล่าสุด
+        (เทียบซอร์สทุกฟังก์ชันสำคัญด้วย inspect.getsource)</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>ไม่มีการเปลี่ยนพฤติกรรมใด ๆ — เทสต์เดิมผ่านหมดโดยไม่แก้ assertion →
+        <b>227 unit + 11 E2E tests ผ่านหมด</b> · build .exe สำเร็จ</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 1.22.0</h2>
       <span class="date">29 กันยายน 2026</span>
     </div>
 
