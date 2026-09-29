@@ -4,6 +4,25 @@
 
 ---
 
+## [2.2.1] — 2026-09-29
+
+### 🐛 แก้ (จับได้จากการเขียนเทสต์เล่นจริง)
+- **⌨️ กด STOP กลาง Press Key แล้วคีย์/Ctrl ติดค้าง (ตั้งแต่ v2.1)** — `stop_all` (GUI) เรียก
+  `_release_stuck` ที่ยังอ่าน `_pressed_keys` กลไกเก่า ขณะที่คีย์ค้างจริงถูกย้ายไปอยู่ใน
+  `ActionRunner.pressed_keys/pressed_btns` ตั้งแต่ phase 2 — กด STOP กลางคัน = Ctrl หรือคีย์
+  ที่ Press ไว้ยังติดค้างในระบบ → แก้ให้ `_release_stuck` เรียก `runner.release_all()` ก่อน
+  (คงกลไกเก่าไว้เป็นชั้นสำรอง ทน error ทุกจุด) · CLI ไม่กระทบ (release_all ครบอยู่แล้ว)
+
+### 🧪 ทดสอบ
+- **เทสต์ครบวงจร Recorder (อัด→เซฟ→เล่นกลับ)** — อัดผ่าน callback จำลอง (คลิกซ้าย/ขวา/scroll/
+  คีย์/ปล่อยปุ่มไม่ถูกอัด) → ไฟล์ JSON ฟอร์แมตเดียวกับปุ่ม Save → โหลดกลับเล่นด้วย ActionRunner +
+  controller จำลอง → เหตุการณ์ตรงทุกลำดับ/พิกัด/คีย์ ไม่มีเกินมา · หยุดอัดแล้วไม่บันทึก · drain ซ้ำว่าง
+- TestStopReleasesStuckKeys 3 ตัว (STOP ปล่อย ctrl+w ครบจาก runner / ทน runner พัง /
+  CLI เรียก release_all ทั้งกลางลูปและ finally)
+- รวม **274 unit + 11 E2E tests ผ่านหมด** · CI เขียว (Python 3.12–3.14)
+
+---
+
 ## [2.2.0] — 2026-09-29
 
 ### 🏗️ phase 3 จบ — engine ครบทุกส่วน

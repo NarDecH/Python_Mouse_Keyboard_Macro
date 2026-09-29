@@ -3109,5 +3109,57 @@ class TestRecorderRoundTrip(unittest.TestCase):
         self.assertEqual(rec.drain_pending(), [])                 # drain ซ้ำ = ว่าง
 
 
+class TestStopReleasesStuckKeys(unittest.TestCase):
+    """v2.2.1: STOP กลางคันต้องปล่อยคีย์/modifier ค้างจาก runner ทั้ง GUI และ CLI
+    (บั๊กที่เจอจากเทสต์: stop_all เรียก _release_stuck ซึ่งอ่าน _pressed_keys เก่า
+    ขณะคีย์ค้างจริงอยู่ใน ActionRunner.pressed_keys ตั้งแต่ v2.1)"""
+
+    def _pressed_state(self):
+        from pynput.keyboard import Key, KeyCode
+        return {"ctrl": Key.ctrl, "w": KeyCode.from_char("w")}
+
+    def test_gui_stop_all_releases_runner_keys(self):
+        """GUI: Press ctrl+w (ค้าง) → STOP → runner.release_all ถูกเรียก คีย์หลุดทุกตัว"""
+        app = mock.MagicMock()
+        app.recording = False
+        app.running = True
+        app._play_gen = 0
+        app._pressed_keys = set()                     # กลไกเก่า — ปกติว่างแล้ว
+        app._pressed_btns = set()
+        kb = mock.MagicMock()
+        app.kb_ctl = kb
+        keys = self._pressed_state()
+        runner = am.macro_engine.ActionRunner(mock.MagicMock(), kb)
+        runner.pressed_keys.update(keys.values())     # จำลอง Press Key ctrl+w ค้างกลางทาง
+        app._action_runner = runner
+        app._release_stuck = lambda: am.MacroApp._release_stuck(app)   # ผูกเมธอดจริง (mock ไม่มี)
+        am.MacroApp.stop_all(app, silent=True)
+        released = [c.args[0] for c in kb.release.call_args_list]
+        self.assertIn(keys["ctrl"], released)
+        self.assertIn(keys["w"], released)
+        self.assertEqual(runner.pressed_keys, set())  # สถานะ runner เคลียร์
+
+    def test_gui_release_stuck_tolerates_runner_errors(self):
+        """runner พังกลางทาง (release โยน) → _release_stuck ต้องไม่พังโปรแกรม"""
+        app = mock.MagicMock()
+        app.recording = False
+        runner = mock.MagicMock()
+        runner.release_all.side_effect = RuntimeError("boom")
+        app._action_runner = runner
+        kb = mock.MagicMock()
+        app.kb_ctl = kb
+        app._pressed_keys = set()
+        app._pressed_btns = set()
+        am.MacroApp._release_stuck(app)               # ไม่ raise = ผ่าน
+
+    def test_cli_stop_releases_runner_keys(self):
+        """CLI: กลไกหยุด (stop-file/หยุดกลางดีเลย์) ต้อง release_all ผ่าน cli_runner เสมอ
+        ตรวจโค้ดจริงว่ามีจุดเรียกหลังลูป/ใน finally (v2.1)"""
+        import inspect
+        src = inspect.getsource(am.cli_main)
+        self.assertIn("cli_runner.release_all()", src)
+        self.assertGreaterEqual(src.count("cli_runner.release_all()"), 2)  # กลางลูป + finally
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

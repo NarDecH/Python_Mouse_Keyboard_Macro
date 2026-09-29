@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -2683,9 +2683,15 @@ class MacroApp:
         return self._gen_ok(gen)
 
     def _release_stuck(self):
-        """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ เมื่อ STOP กลางคัน (กัน Ctrl ติด กดค้าง)"""
+        """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ เมื่อ STOP กลางคัน (กัน Ctrl ติด กดค้าง)
+        v2.2.1: คีย์/ปุ่มค้างอยู่ใน ActionRunner.pressed_keys/pressed_btns ตั้งแต่ v2.1 —
+        อ่านจาก runner (ที่มาก่อนอย่าง _pressed_keys เก่าหมดสมัยแล้ว) ทน error ทุกจุด"""
         try:
-            for k in list(self._pressed_keys):
+            self._action_runner.release_all()
+        except Exception:
+            pass
+        try:
+            for k in list(self._pressed_keys):     # (คงไว้กันเคสอื่นยังใช้ — ปกติว่างแล้ว)
                 self.kb_ctl.release(k)
             self._pressed_keys.clear()
             for b in list(self._pressed_btns):

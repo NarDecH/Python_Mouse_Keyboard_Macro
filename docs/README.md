@@ -361,7 +361,7 @@ def run(ctx, row):
 ## 🧪 ทดสอบ
 
 ```bash
-py -m unittest test_auto_macro -v    # 109 unit tests (รวมเปิด dialog จริง)
+py -m unittest test_auto_macro -v    # 274 unit tests (รวมเปิด dialog จริง + เล่นจริง)
 py -m unittest test_e2e -v           # 7 E2E tests (รัน CLI จริง + โค้ดจริงทุกสาย)
 ```
 

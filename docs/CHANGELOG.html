@@ -65,8 +65,31 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.2.0</h2>
+      <h2>เวอร์ชัน 2.2.1</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">29 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้ (จับได้จากการเขียนเทสต์เล่นจริง)</h3>
+    <ul>
+      <li><b>⌨️ กด STOP กลาง Press Key แล้วคีย์/Ctrl ติดค้าง (ตั้งแต่ v2.1)</b> — stop_all (GUI)
+        ยังอ่าน _pressed_keys กลไกเก่า ขณะที่คีย์ค้างจริงอยู่ใน ActionRunner ตั้งแต่ phase 2 →
+        _release_stuck เรียก runner.release_all() ก่อน (ทน error ทุกจุด) · CLI ไม่กระทบ</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li><b>เทสต์ครบวงจร Recorder (อัด→เซฟ→เล่นกลับ)</b> — อัดจำลอง (คลิก/scroll/คีย์/
+        ปล่อยปุ่มไม่ถูกอัด) → ไฟล์ JSON ฟอร์แมตเดียวกับปุ่ม Save → เล่นกลับด้วย ActionRunner +
+        controller จำลอง → เหตุการณ์ตรงทุกลำดับ/พิกัด/คีย์ ไม่มีเกินมา</li>
+      <li>TestStopReleasesStuckKeys 3 ตัว (STOP ปล่อย ctrl+w ครบ / ทน runner พัง /
+        CLI release_all ทั้งกลางลูปและ finally) → รวม <b>274 unit + 11 E2E tests ผ่านหมด</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.2.0</h2>
       <span class="date">29 กันยายน 2026</span>
     </div>
 
