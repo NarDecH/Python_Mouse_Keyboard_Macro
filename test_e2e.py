@@ -304,7 +304,8 @@ class TestE2ECliWarnings(unittest.TestCase):
             out = "\n".join(ch.lines)
             self.assertEqual(rc, 0)
             self.assertIn("Image Click", out)
-            self.assertIn("ไม่พบไฟล์ภาพ", out)
+            # เครื่องมี opencv = "ไม่พบไฟล์ภาพ" · ไม่มี = "ค้นภาพต้องติดตั้ง" (CI)
+            self.assertTrue(("ไม่พบไฟล์ภาพ" in out) or ("ต้องติดตั้ง" in out))
             self.assertIn("จบแล้ว", out)
         finally:
             ch.close()
