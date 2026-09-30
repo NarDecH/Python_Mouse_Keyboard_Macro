@@ -4095,5 +4095,203 @@ class TestPluginsV25(unittest.TestCase):
         self.assertEqual(vars_.get("code"), "C-000")
 
 
+class TestN1AndConditions(unittest.TestCase):
+    """v2.5.4 (ชุด N1): เงื่อนไขรวม AND (&&) — If Image/If Pixel/If Variable
+    กติกา: ทุกเงื่อนไขย่อยต้องจริง → เล่นต่อ, มีตัวไหนไม่จริง = ข้าม N แถว (Repeat)
+    ⚠️ สคริปต์เดิม (ไม่มี &&) ต้องเล่นผลเหมือนเดิม 100% — เทสต์เดิมครอบอยู่แล้ว"""
+
+    def _runner(self, find_cb=None, variables=None):
+        return me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                   find_image_cb=find_cb, variables=variables)
+
+    # ---------- parser ----------
+
+    def test_split_condition_and(self):
+        f = me_mod.split_condition_and
+        self.assertEqual(f("img.png && 300,300 #ffffff"),
+                         ["img.png", "300,300 #ffffff"])
+        self.assertEqual(f("n > 5 && code = A-1"), ["n > 5", "code = A-1"])
+        self.assertEqual(f("a && b && c"), ["a", "b", "c"])          # หลายชิ้น
+        self.assertEqual(f("เดี่ยว ๆ"), [])                            # ไม่มี && → []
+        self.assertEqual(f("  x  &&  y "), ["x", "y"])               # เว้นวรรคยืดหยุ่น
+
+    def test_split_strips_timeout_token(self):
+        f = me_mod.split_condition_and
+        self.assertEqual(f("img.png 5s && 300,300 #ffffff"),
+                         ["img.png", "300,300 #ffffff"])
+        self.assertEqual(f("img.png && 300,300 #ffffff 5s"),
+                         ["img.png", "300,300 #ffffff"])
+        # ค่าข้อความของ If Variable ที่ลงท้าย "5s" ต้องไม่ถูกตัด
+        self.assertEqual(f("code = 5s && n > 5"), ["code = 5s", "n > 5"])
+
+    def test_evaluate_if_var_truth(self):
+        ev = me_mod.ActionRunner.evaluate_if_var
+        self.assertEqual(ev("n > 5", {"n": "10"}), (True, mock.ANY))
+        self.assertEqual(ev("n > 5", {"n": "3"})[0], False)
+        self.assertEqual(ev("nope = 1", {})[0], False)      # ไม่มีตัวแปร = ไม่จริง
+        self.assertIsNone(ev("พัง", {})[0])                 # รูปแบบไม่ถูก = None
+
+    def test_evaluate_if_pixel_and(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี")
+        ev = me_mod.ActionRunner.evaluate_if_pixel
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3])
+        bad = "5,5 #%02x%02x%02x" % tuple(255 - c for c in rgb[:3])
+        hit, _d = ev([good, good], {})                       # 2 จุดตรงหมด = จริง
+        self.assertIs(hit, True)
+        hit, _d = ev([good, bad], {})                        # จุดไหนไม่ตรง = ไม่จริง
+        self.assertIs(hit, False)
+        hit, _d = ev(["พัง"], {})                            # รูปแบบไม่ถูก = None
+        self.assertIsNone(hit)
+
+    # ---------- เงื่อนไขเดี่ยว (ไม่มี &&) = เหมือนเดิมเป๊ะ ----------
+
+    def test_single_condition_backward_compatible(self):
+        ev = me_mod.ActionRunner.evaluate_condition
+        self.assertEqual(ev(me_mod.IF_VAR, "n > 5", 2, 1, variables={"n": "10"})[0], 0)
+        self.assertEqual(ev(me_mod.IF_VAR, "n > 5", 2, 1, variables={"n": "3"})[0], 2)
+        self.assertEqual(ev(me_mod.IF_VAR, "nope = 1", 2, 1, variables={})[0], 2)
+
+    def test_single_if_pixel_skips_when_screen_dead(self):
+        """จออ่านไม่ได้ (pixel None) + สเปคถูก = ไม่ตรง → ข้ามตาม Repeat (พฤติกรรมเดิม)"""
+        real_fn = me_mod.pixel_color_at
+        me_mod.pixel_color_at = mock.MagicMock(return_value=None)
+        try:
+            r = self._runner()
+            r.execute({"button": me_mod.IF_PIXEL, "additional": "5,5 #ffffff",
+                       "repeat": 3})
+            self.assertEqual(r.skip_n, 3)
+        finally:
+            me_mod.pixel_color_at = real_fn
+
+    # ---------- AND ผ่าน runner (execute) ----------
+
+    def test_if_image_and_pixel_and_var(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี")
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3])
+        calls = []
+
+        def cb(r):
+            calls.append(1)
+            return (10, 10)                                  # ภาพเจอเสมอ
+
+        r = self._runner(cb, variables={"n": "10"})
+        r.execute({"button": me_mod.IF_IMAGE,
+                   "additional": "img.png && %s && n > 5" % good, "repeat": 3})
+        self.assertTrue(r.last_if_found)                     # ครบทุกเงื่อนไข → เล่นต่อ
+        self.assertEqual(r.skip_n, 0)
+        self.assertEqual(r.variables.get("img_x"), 10)      # {img_x}/{img_y} ยังตั้ง
+
+        r = self._runner(cb, variables={"n": "1"})          # n > 5 ไม่จริง
+        r.execute({"button": me_mod.IF_IMAGE,
+                   "additional": "img.png && %s && n > 5" % good, "repeat": 4})
+        self.assertFalse(r.last_if_found)
+        self.assertEqual(r.skip_n, 4)                        # ไม่ครบ AND → ข้ามตาม Repeat
+
+    def test_if_pixel_and_two_points(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี")
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3])
+        bad = "5,5 #%02x%02x%02x" % tuple(255 - c for c in rgb[:3])
+        r = self._runner()
+        r.execute({"button": me_mod.IF_PIXEL,
+                   "additional": "%s && %s" % (good, good), "repeat": 2})
+        self.assertEqual(r.skip_n, 0)
+        r.execute({"button": me_mod.IF_PIXEL,
+                   "additional": "%s && %s" % (good, bad), "repeat": 5})
+        self.assertEqual(r.skip_n, 5)
+
+    def test_if_var_and_via_evaluate_condition(self):
+        ev = me_mod.ActionRunner.evaluate_condition
+        V = {"n": "10", "code": "A-1"}
+        self.assertEqual(ev(me_mod.IF_VAR, "n > 5 && code = A-1", 3, 1, variables=V)[0], 0)
+        self.assertEqual(ev(me_mod.IF_VAR, "n > 5 && code = X", 3, 1, variables=V)[0], 3)
+        # รูปแบบไม่ถูกชิ้นใดชิ้นหนึ่ง → เตือนเล่นต่อ (ไม่ข้าม) เหมือนแถวเดี่ยว
+        self.assertEqual(ev(me_mod.IF_VAR, "พัง && n > 5", 3, 1, variables=V)[0], 0)
+
+    # ---------- --validate เข้าใจ && ----------
+
+    def test_validate_understands_and(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3]) if rgb else "5,5 #ffffff"
+        rows = [
+            {"button": me_mod.IF_PIXEL, "additional": "%s && %s" % (good, good)},
+            {"button": me_mod.IF_VAR, "additional": "n > 5 && code = A-1"},
+        ]
+        self.assertEqual(me_mod.validate_rows(rows), [])     # AND ถูกต้อง = ไม่มีปัญหา
+        rows_bad = [
+            {"button": me_mod.IF_PIXEL, "additional": "พัง && %s" % good},
+            {"button": me_mod.IF_VAR, "additional": "n > && code = A-1"},
+        ]
+        issues = me_mod.validate_rows(rows_bad)
+        self.assertEqual(len(issues), 2)                     # พัง 2 แถวตรงตามลำดับ
+        self.assertEqual([i for i, _m in issues], [1, 2])
+
+
+class TestDocsCheck(unittest.TestCase):
+    """v2.5.4: ยกระดับ tools/check_docs.py เป็นเทสต์ในชุดหลัก — กันเอกสารค้างเก่า/
+    ลิงก์พัง/CHANGELOG หัวข้อซ้ำ ตรวจทุกครั้งที่รัน unittest (ไม่ต้องรอ CI)"""
+
+    def _root(self):
+        return os.path.dirname(os.path.abspath(am.__file__))
+
+    def test_check_docs_main_passes(self):
+        import subprocess
+        script = os.path.join(self._root(), "tools", "check_docs.py")
+        self.assertTrue(os.path.isfile(script))
+        env = dict(os.environ, PYTHONIOENCODING="utf-8")
+        proc = subprocess.run([sys.executable, script], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace",
+                              cwd=self._root(), env=env)
+        self.assertEqual(proc.returncode, 0,
+                         "tools/check_docs.py พบปัญหา:\n" + proc.stdout + proc.stderr)
+
+    def test_check_docs_catches_broken_link_and_old_version(self):
+        """ทดสอบกลไกภายในตรง ๆ: ลิงก์พัง/เวอร์ชันเก่า/หัวข้อซ้ำ ต้องถูกจับได้"""
+        script = os.path.join(self._root(), "tools", "check_docs.py")
+        spec = __import__("importlib.util", fromlist=["util"])
+        spec2 = spec.spec_from_file_location("check_docs", script)
+        mod = spec.module_from_spec(spec2)
+        spec2.loader.exec_module(mod)
+
+        # 1) ลิงก์พัง: สร้างไฟล์ชั่วคราวใน docs/ ที่อ้างไฟล์ที่ไม่มีจริง
+        tmp = os.path.join(self._root(), "docs", "_tmp_check_docs_test.md")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write("[ทดสอบ](not-exist-XYZ.md)\n")
+        try:
+            _n, bad = mod.check_links(mod.list_doc_files())
+            hits = [b for b in bad if b[0].endswith("_tmp_check_docs_test.md")]
+            self.assertTrue(hits, "ลิงก์พังต้องถูกจับได้")
+            self.assertEqual(hits[0][1], "not-exist-XYZ.md")
+        finally:
+            os.remove(tmp)
+
+        # 2) เวอร์ชันเก่า: ตัวเลขปลอมต้องไม่ผ่าน / เวอร์ชันจริงต้องผ่าน
+        real = mod.read_version()
+        self.assertTrue(mod.check_versions(real, mod.list_doc_files()) == [],
+                        "เวอร์ชันจริงต้องพบในเอกสารหลักครบ")
+        problems = mod.check_versions("0.0.1", mod.list_doc_files())
+        self.assertTrue(any("0.0.1" in p for p in problems))
+
+        # 3) หัวข้อซ้ำ: mock เนื้อหา CHANGELOG ที่มีเวอร์ชันซ้ำผ่าน check_changelog_duplicates จริง
+        real_changelog = os.path.join(self._root(), "docs", "CHANGELOG.md")
+        with open(real_changelog, encoding="utf-8") as fh:
+            backup = fh.read()
+        try:
+            with open(real_changelog, "w", encoding="utf-8") as fh:
+                fh.write(backup + "\n## [9.9.9] — ทดสอบ\n\n## [9.9.9] — ทดสอบซ้ำ\n")
+            dups = mod.check_changelog_duplicates()
+        finally:
+            with open(real_changelog, "w", encoding="utf-8") as fh:
+                fh.write(backup)
+        self.assertTrue(any("9.9.9" in p for p in dups), "หัวข้อซ้ำต้องถูกจับได้")
+        self.assertEqual(mod.check_changelog_duplicates(), [],
+                         "ไฟล์จริงต้องไม่มีหัวข้อซ้ำ")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

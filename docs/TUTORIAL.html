@@ -144,6 +144,7 @@ py auto_macro.py                        # หรือดับเบิลค�
       <tr><td>If Pixel Color (v2.5)</td><td><code>x,y #RRGGBB</code> ต่อท้าย <code>Ns</code> ได้ — ตรงเล่นต่อ ไม่ตรงข้าม N แถว</td><td><code>300,300 #ffffff</code></td></tr>
       <tr><td>Read Pixel Color (v2.5)</td><td><code>ชื่อ x,y</code> — อ่านสีจุดเก็บเป็น <code>{ชื่อ}</code></td><td><code>สีจอ 300,300</code></td></tr>
       <tr><td>If Variable (v2.5)</td><td><code>ชื่อ ตัวดำเนินการ ค่า</code> (<code>&gt; &gt;= &lt; &lt;= = ~</code>)</td><td><code>รอบ &gt; 5</code></td></tr>
+      <tr><td>เงื่อนไขรวม &amp;&amp; (v2.5.4)</td><td>ต่อเงื่อนไขด้วย <code>&amp;&amp;</code> — ทุกเงื่อนไขต้องจริงจึงเล่นต่อ</td><td><code>img.png &amp;&amp; 300,300 #ffffff</code></td></tr>
       <tr><td>Move Mouse by Offset</td><td>ระยะเปลี่ยนแปลง (ใส่ใน X,Y)</td><td>X=50 Y=-20</td></tr>
       <tr><td>อื่น ๆ (Click/Down/Up/Move/Save/Restore/Beep)</td><td>ไม่ต้องใส่</td><td>—</td></tr>
     </table>
@@ -424,7 +425,7 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.5.3</footer>
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.5.4</footer>
 
 </body>
 </html>

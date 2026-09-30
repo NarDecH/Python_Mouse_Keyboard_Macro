@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.5.3"
+__version__ = "2.5.4"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -350,6 +350,30 @@ def parse_if_var(txt):
     if op != "=" and not val.strip():      # เปรียบเทียบ/contains ต้องมีค่า
         return None
     return m.group(1), op, val
+
+
+# ------------------------------------------------ เงื่อนไขรวม AND (v2.5.4) ----
+_COND_SPLIT = re.compile(r"\s*&&\s*")
+
+
+def split_condition_and(txt):
+    """แตก Additional เงื่อนไขที่ใช้ && เป็นหลายเงื่อนไขย่อย (v2.5.4 — ชุด N1)
+    คืน list ของชิ้นย่อย (list ว่างเมื่อไม่มี && — แถวเงื่อนไขเดี่ยวใช้ parser เดิม)
+    เช่น "img.png && 300,300 #ffffff" → ["img.png", "300,300 #ffffff"]
+    timeout token ท้ายแถว (เช่น "5s") ถูกตัดออกก่อนแตกเสมอ"""
+    s = str(txt or "")
+    if "&&" not in s:
+        return []
+    parts = [p.strip() for p in _COND_SPLIT.split(s.strip())]
+    out = []
+    for p in parts:
+        if p and parse_if_var(p) is None:
+            # timeout token ("Ns") ที่ติดมากับชิ้นย่อย (เช่น "img.png 5s") ตัดทิ้ง —
+            # ไม่แตะชิ้นที่เป็นเงื่อนไขตัวแปร (ค่าข้อความลงท้าย "5s" ได้)
+            p = re.sub(r"(?:^|\s)-?\d+(?:\.\d+)?s$", "", p, flags=re.I).strip()
+        if p:
+            out.append(p)
+    return out
 
 
 def parse_if_time(txt):
@@ -704,12 +728,14 @@ def validate_rows(rows, plugin_names=()):
             if not p or not os.path.isfile(p):
                 issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
         elif btn == IF_PIXEL:
-            raw, _w = parse_wait_timeout(add, 0)
-            if not parse_pixel_spec(raw):
-                issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)"))
+            parts = split_condition_and(add) or [add]
+            bad = any(not parse_pixel_spec(p) for p in parts)
+            if bad:
+                issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb คั่น && ได้)"))
         elif btn == IF_VAR:
-            if not parse_if_var(add):
-                issues.append((i, "If Variable รูปแบบไม่ถูก (name = ค่า / name > ค่า / name ~ ข้อความ)"))
+            if not all(parse_if_var(p) for p in (split_condition_and(add) or [add])):
+                issues.append((i, "If Variable รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
+                                  "name ~ ข้อความ คั่น && ได้)"))
         elif btn == READ_PIXEL:
             parts = add.split()
             ok = (len(parts) == 2 and re.fullmatch(_VAR_NAME, parts[0])
@@ -1166,6 +1192,58 @@ class ActionRunner:
         return okc
 
     @staticmethod
+    def evaluate_if_var(txt, variables=None):
+        """ตัดสินเงื่อนไข If Variable เป็นค่าความจริง (v2.5.4 — ชุด N1 ใช้ร่วมกับ AND)
+        คืน (hit, detail) หรือ (None, detail) เมื่อรูปแบบไม่ถูก
+        กติกาเดิมทุกอย่าง: ไม่มีตัวแปร = ไม่จริง · เทียบเลขได้เมื่อสองฝั่งเป็นตัวเลข"""
+        spec = parse_if_var(txt)
+        if spec is None:
+            return None, ("If Variable %s → รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
+                          "name ~ ข้อความ)" % (txt or ""))
+        name, op, val = spec
+        variables = variables if variables is not None else {}
+        cur = str(variables.get(name, ""))
+        if name not in variables:
+            return False, "If Variable: ไม่มีตัวแปร '%s' → ไม่จริง" % name
+        hit = False
+        try:
+            a_num, b_num = float(cur), float(val)
+        except (TypeError, ValueError):
+            a_num = b_num = None
+        if op in (">", ">=", "<", "<="):
+            if a_num is None or b_num is None:
+                return False, ("If Variable: %s %s %s → เปรียบเทียบตัวเลขไม่ได้ "
+                               "(ค่าปัจจุบัน %r) → ไม่จริง" % (name, op, val, cur))
+            hit = {">": a_num > b_num, ">=": a_num >= b_num,
+                   "<": a_num < b_num, "<=": a_num <= b_num}[op]
+        elif op in ("=", "!="):
+            eq = (a_num == b_num) if (a_num is not None and b_num is not None
+                                      and val.strip() != "") else (cur == val)
+            hit = eq if op == "=" else not eq
+        else:                                      # "~" = มีข้อความย่อย
+            hit = val in cur
+        return hit, "If Variable: %s %s %s → %s" % (name, op, val, "จริง" if hit else "ไม่จริง")
+
+    @staticmethod
+    def evaluate_if_pixel(parts, variables=None):
+        """ตัดสินเงื่อนไขสีจุดเป็นค่าความจริง (v2.5.4 — ชุด N1 ใช้ร่วมกับ AND)
+        parts = list ชิ้นย่อย (เช่น ["300,300 #ffffff"]) ทั้งหมดต้องตรง = จริง (AND)
+        คืน (hit, detail) — รูปแบบไม่ถูก = (None, detail) เพื่อให้ฝั่งเรียกเตือน/เล่นต่อ"""
+        variables = variables if variables is not None else {}
+        parts = parts or []
+        if not parts:
+            return None, "If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)"
+        for part in parts:
+            sp = parse_pixel_spec(part)
+            if not sp:
+                return None, "If Pixel Color: รูปแบบไม่ถูก (%s)" % part
+            x, y, rgb = sp
+            hit = color_close(pixel_color_at(x, y), rgb)
+            if not hit:
+                return False, "If Pixel Color: สีจุด (%d,%d) ไม่ตรง" % (x, y)
+        return True, "If Pixel Color: สีจุดตรงทุกจุด → จริง"
+
+    @staticmethod
     def evaluate_condition(btn, additional, repeat, n_loop, now=None, variables=None):
         """ประเมินแถวเงื่อนไข If Loop / If Time / If Variable (v2.1, If Variable = v2.5)
         คืน (skip_n, message):
@@ -1193,37 +1271,18 @@ class ActionRunner:
             return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
                 spec[0], spec[1], skip)
         if btn == IF_VAR:
-            spec = parse_if_var(additional)
-            if spec is None:
-                return 0, ("If Variable %s → รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
-                           "name ~ ข้อความ) เล่นต่อ" % (additional or ""))
-            name, op, val = spec
-            variables = variables if variables is not None else {}
-            cur = str(variables.get(name, ""))
-            if name not in variables:
-                skip = parse_int(repeat, 1)
-                return skip, "If Variable: ไม่มีตัวแปร '%s' → ข้าม %d แถว" % (name, skip)
-            hit = False
-            try:
-                a_num, b_num = float(cur), float(val)
-            except (TypeError, ValueError):
-                a_num = b_num = None
-            if op in (">", ">=", "<", "<="):
-                if a_num is None or b_num is None:
-                    return 0, ("If Variable: %s %s %s → เปรียบเทียบตัวเลขไม่ได้ "
-                               "(ค่าปัจจุบัน %r) เล่นต่อ" % (name, op, val, cur))
-                hit = {"": False, ">": a_num > b_num, ">=": a_num >= b_num,
-                       "<": a_num < b_num, "<=": a_num <= b_num}[op]
-            elif op in ("=", "!="):
-                eq = (a_num == b_num) if (a_num is not None and b_num is not None
-                                          and val.strip() != "") else (cur == val)
-                hit = eq if op == "=" else not eq
-            else:                                  # "~" = มีข้อความย่อย
-                hit = val in cur
-            if hit:
-                return 0, "If Variable: %s %s %s → จริง เล่นต่อ" % (name, op, val)
-            skip = parse_int(repeat, 1)
-            return skip, "If Variable: %s %s %s → ไม่จริง ข้าม %d แถว" % (name, op, val, skip)
+            # v2.5.4 (ชุด N1): รองรับ && เช่น "n > 5 && code = A-1" — ทุกเงื่อนไขต้องจริง
+            parts = split_condition_and(additional) or [additional]
+            details = []
+            for p in parts:
+                hit, detail = ActionRunner.evaluate_if_var(p, variables)
+                if hit is None:                    # ชิ้นใดรูปแบบไม่ถูก → เตือนเล่นต่อ (เดิม)
+                    return 0, detail + " เล่นต่อ"
+                details.append(detail)
+                if not hit:
+                    skip = parse_int(repeat, 1)
+                    return skip, " ".join(details) + " ข้าม %d แถว" % skip
+            return 0, " ".join(details) + " เล่นต่อ"
         return 0, None
 
     def execute(self, r):
@@ -1287,20 +1346,41 @@ class ActionRunner:
             self._do_wait_for_image(r)
         elif btn == IF_IMAGE:                                        # เงื่อนไขค้นภาพ (v2.2 — runner จัดการเอง)
             # v2.4: Additional ต่อท้ายด้วย "Ns" (เช่น "img.png 5s") = ตรวจซ้ำจนครบ 5 วิ
-            # ก่อนตัดสิน — แก้ปัญหาหน้าจอยังโหลดไม่เสร็จแล้ว If Image ตัดสินผิดทันที
+            # v2.5.4 (ชุด N1): รองรับเงื่อนไขรวม && เช่น "img.png && 300,300 #ffffff"
             raw, wait = parse_wait_timeout(r.get("additional"), 0)
-            rr = dict(r, additional=raw)
+            parts = split_condition_and(raw)
+            rr = dict(r, additional=(parts[0] if parts else raw))
+            extra_parts = parts[1:] if parts else []
             deadline = time.time() + wait
             pos = self._find_image_pos(rr)
             while pos is None and time.time() < deadline and self.stop_check():
                 time.sleep(0.25)
                 pos = self._find_image_pos(rr)
-            self.last_if_found = pos is not None
-            if pos is not None:
+            hit = pos is not None
+            if hit and extra_parts:               # ส่วนย่อยอื่น ๆ ต้องจริงทุกชิ้น (AND)
+                _pix = []                          # ชิ้นสีรวมกันตรวจครั้งเดียว
+                for _p in extra_parts:
+                    if parse_pixel_spec(_p):
+                        _pix.append(_p)
+                        continue
+                    _h, _d2 = self.evaluate_if_var(_p, self.variables)
+                    if _h is not True:            # ตัวแปรชิ้นไหนไม่จริง/พัง = ทั้งแถวไม่จริง
+                        hit = False
+                        break
+                if hit and _pix:
+                    _h, _d2 = self.evaluate_if_pixel(_pix, self.variables)
+                    hit = (_h is True)
+            self.last_if_found = hit
+            if hit:
                 self.on_message("If Image เจอ → เล่นต่อ")
+                if pos is not None:               # ภาพที่เจอ (เฉพาะสายหลัก) ตั้ง {img_x}/{img_y}
+                    self.variables["img_x"] = pos[0]
+                    self.variables["img_y"] = pos[1]
             else:
                 self.skip_n = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat (กฎเดียว v1.21)
-                self.on_message("If Image ไม่เจอ → ข้าม %d แถว" % self.skip_n, "#a60")
+                self.on_message(("If Image ไม่เจอ" if not parts else
+                                 "If Image ไม่เจอ/เงื่อนไขรวมไม่ครบ") + " → ข้าม %d แถว"
+                                % self.skip_n, "#a60")
         elif btn == ELSE_IMAGE:                                      # ตัวแบ่งกลุ่ม A/B (v2.2)
             n = parse_int(r.get("repeat"), 1)
             if self.last_if_found:
@@ -1309,24 +1389,25 @@ class ActionRunner:
             else:
                 self.on_message("If ไม่เจอ → เล่นกลุ่ม B ต่อ")
         elif btn == IF_PIXEL:                                        # เงื่อนไขสีจุด (v2.5)
+            # v2.5.4 (ชุด N1): รองรับ && เช่น "300,300 #ffffff && 400,400 #000000"
             raw, wait = parse_wait_timeout(r.get("additional"), 0)
-            rr = dict(r, additional=raw)
-            sp = parse_pixel_spec(raw)
-            if not sp:
+            parts = split_condition_and(raw) or [raw]
+            if not parse_pixel_spec(parts[0]):
                 self.on_message("If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)", "#c00")
                 return
-            x, y, rgb = sp
             deadline = time.time() + wait
-            hit = color_close(pixel_color_at(x, y), rgb)
-            while not hit and time.time() < deadline and self.stop_check():
+            hit, det = self.evaluate_if_pixel(parts, self.variables)
+            while hit is False and time.time() < deadline and self.stop_check():
                 time.sleep(0.25)
-                hit = color_close(pixel_color_at(x, y), rgb)
+                hit, det = self.evaluate_if_pixel(parts, self.variables)
+            if hit is None:                       # รูปแบบไม่ถูก → เตือนแล้วเล่นต่อ (เดิม)
+                self.on_message(det, "#c00")
+                return
             if hit:
-                self.on_message("If Pixel Color: สีจุด (%d,%d) ตรง → เล่นต่อ" % (x, y))
+                self.on_message(det + " → เล่นต่อ")
             else:
                 self.skip_n = parse_int(r.get("repeat"), 1)
-                self.on_message("If Pixel Color: สีจุด (%d,%d) ไม่ตรง → ข้าม %d แถว"
-                                % (x, y, self.skip_n), "#a60")
+                self.on_message("%s → ข้าม %d แถว" % (det, self.skip_n), "#a60")
         elif btn == READ_PIXEL:                                      # อ่านสีจุดเก็บตัวแปร (v2.5)
             parts = str(r.get("additional") or "").split()
             m = re.fullmatch(_VAR_NAME, parts[0]) if parts else None

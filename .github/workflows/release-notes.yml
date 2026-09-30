@@ -1,0 +1,46 @@
+name: Release Notes
+
+# อัตโนมัติ release notes จาก docs/CHANGELOG.md — ตอน push tag vX.Y.Z
+# ดึงเนื้อหาหัวข้อ [X.Y.Z] ล่าสุดใน CHANGELOG เป็น body ของ Release
+# (รันหลัง workflow Build & Release — ถ้า body มีอยู่แล้วจะต่อท้าย ไม่ทับ)
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: ดึงเนื้อหา CHANGELOG ของเวอร์ชันนี้
+        id: extract
+        run: |
+          py_ver="${GITHUB_REF_NAME#v}"
+          python - "$py_ver" <<'EOF'
+          import io, json, os, re, sys
+          ver = sys.argv[1]
+          text = io.open("docs/CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## \[%s\][^\n]*\n(.*?)(?=^## \[|\Z)" % re.escape(ver),
+                        text, re.M | re.S)
+          notes = m.group(1).strip() if m else ""
+          if not notes:
+              notes = "ดูรายละเอียดที่ [CHANGELOG](docs/CHANGELOG.md)"
+          header = ("## 📥 ดาวน์โหลด\n\n**AutoMouseMacro.exe** ไฟล์เดียวจบ — "
+                    "ไม่ต้องติดตั้ง Python (build อัตโนมัติจาก tag นี้)\n\n---\n")
+          io.open("release_notes.md", "w", encoding="utf-8").write(header + notes + "\n")
+          EOF
+
+      - name: อัพเดต Release body
+        uses: softprops/action-gh-release@v2
+        with:
+          append_body: true
+          body_path: release_notes.md

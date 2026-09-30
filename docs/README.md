@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.5.3
+# 🖱️ Auto Mouse & Keyboard Macro v2.5.4
 
 <div align="center">
 
@@ -102,6 +102,7 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 🖱️ **ลากสลับแถว (v2.5)** | คลิกค้างแล้วลาก วางก่อน/หลังตามครึ่งแถว + autoscroll + ลากทั้งก้อนที่เลือก · เลือกหลายแถว Delete ทีเดียว (v2.4) · Alt+↑↓ |
 | 🔁 **Undo/Redo (v2.5)** | Ctrl+Z / Ctrl+Y รวมการแก้เซลล์ด้วย + คอลัมน์ หมายเหตุ (Note) + ค้นหาแทนที่ทั้งหมด (Ctrl+F) |
 | 🎨 **เงื่อนไขสี/ตัวแปร (v2.5)** | If Pixel Color · Read Pixel Color เก็บสีเป็น `{ตัวแปร}` · If Variable เทียบตัวเลข/ข้อความ · Image Click ตั้ง `{img_x}/{img_y}` · `rand 1-100` |
+| 🔗 **เงื่อนไขรวม && (v2.5.4)** | ต่อเงื่อนไขด้วย `&&` — ทุกเงื่อนไขต้องจริงจึงเล่นต่อ เช่น `img.png && 300,300 #ffffff && n > 5` (ใช้กับ If Image/Pixel/Variable + `--validate` เข้าใจ) |
 | 📤 **Export .bat/.sh (v2.3)** | สร้างไฟล์ดับเบิลคลิกรันข้างสคริปต์ (Windows/Linux/macOS) |
 | 🔎 **--validate (v2.4)** | ตรวจสคริปต์ทุกแถวรายงานปัญหา ก่อนปล่อยงานค้างคืนจริง |
 

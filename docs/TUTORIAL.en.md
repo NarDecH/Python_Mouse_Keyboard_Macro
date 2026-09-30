@@ -222,6 +222,21 @@ folder for you.
 | Ctrl+Y | redo — cell edits are undoable too (v2.5) |
 | Alt+↑/↓ | move the selected rows up/down (v2.5) |
 
+### AND conditions (v2.5.4)
+
+Append `&&` to any main condition's Additional — **every part must be true** to continue,
+otherwise the next N rows (Repeat) are skipped, same single rule as before:
+
+```text
+If Image        img.png && 300,300 #ffffff && n > 5
+                ← image found AND pixel color matches AND variable n > 5
+If Pixel Color  300,300 #ffffff && 400,400 #000000   ← both points must match
+If Variable     n > 5 && code = A-1                  ← several variables at once
+```
+
+Timeout tokens still work with `&&` (`img.png 5s && ...` re-checks for 5 s before deciding),
+and `--validate` understands `&&` and reports every broken part per row.
+
 ---
 
 ## Chapter 13 — What's new in v2.x (quick summary)
@@ -257,5 +272,5 @@ folder for you.
 
 ---
 
-*Guide for code v2.5.3 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.5.4 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

@@ -1,6 +1,7 @@
 # 🧠 DESIGN — เงื่อนไขเชิงซ้อน (Nested If) และลูปย่อย
 
-> สถานะ: **ข้อเสนอ (draft)** — ยังไม่ลงโค้ด · เสนอความเห็น/โหวตที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: **ชุด N1 เสร็จแล้ว (v2.5.4)** — เงื่อนไขรวม `&&` ใช้งานได้จริงแล้ว ·
+> ชุด N2 (Block Start/End + ลูปย่อย) รอ feedback ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
 > หัวข้อนี้คือของใหม่ใหญ่ถัดไปตาม [ROADMAP](ROADMAP.md)
 
 ---
@@ -81,12 +82,15 @@
 
 ## 4. แผนที่เสนอ (แบ่งเป็น 2 ชุดย่อย)
 
-### ชุด N1 — เงื่อนไขรวม AND/OR (ขั้นแรก ริสก์ต่ำ)
+### ชุด N1 — เงื่อนไขรวม AND/OR (ขั้นแรก ริสก์ต่ำ) — ✅ เสร็จ v2.5.4
 
-- parser ขยายใน macro_engine.py: `parse_if_image`/`parse_pixel_spec`/`parse_if_var`
-  รองรับ `&&` ได้ (OR ค่อยดูจากความต้องการจริง — ส่วนใหญ่ถามถึง AND)
-- ActionRunner.evaluate_condition ประเมินทีละเงื่อนไข (short-circuit)
-- เทสต์: parser (แตก/เว้นวรรค/พัง) + เล่นจริง GUI/CLI
+- ✅ `split_condition_and()` ใน macro_engine.py — แตก `&&` รองรับ timeout `Ns` ต่อชิ้น
+  (ไม่ตัดค่าข้อความของ If Variable ที่ลงท้าย "5s")
+- ✅ `ActionRunner.evaluate_if_var`/`evaluate_if_pixel` — ตัดสินเป็นค่าความจริง (ใช้ร่วมกันได้)
+- ✅ IF_IMAGE/IF_PIXEL ใน `execute` + `evaluate_condition` (IF_VAR) รองรับ `&&` —
+  mixed parts (ภาพ+สี+ตัวแปรในแถวเดียว) dispatch ต่อชิ้นถูกชนิด
+- ✅ `validate_rows` ตรวจทุกชิ้นย่อย · เทสต์ TestN1AndConditions 10 ตัว (รวม 351 unit)
+- OR (`||`) ยังไม่ทำ — รอความต้องการจริงจาก Issue #1
 
 ### ชุด N2 — Block Start/Block End (ลูปย่อย + ซ้อน)
 
