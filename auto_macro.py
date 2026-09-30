@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.5.0"
+__version__ = "2.5.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -1715,6 +1715,7 @@ class MacroApp:
         self._undo_stack = []              # v1.17: สำเนาตารางก่อนลบ/แทนที่ (Ctrl+Z)
         self._redo_stack = []              # v2.5: สำเนาหลัง undo (Ctrl+Y ทำซ้ำ)
         self._drag_iid = None              # v2.5: แถวที่กำลังลากสลับ
+        self._drag_block = []              # v2.5: ก้อนแถวที่ลาก (รองรับเลือกหลายแถว)
         self._ifimg_skip = 0               # v1.17: ตัวนับข้ามแถวของ If Image
         self._last_if_found = False        # v1.18: ผล If Image ล่าสุด (ให้ Else If Image ใช้)
         self._loop_no = 1                  # v1.21: เลขรอบปัจจุบัน (ให้ If Loop ใช้)
@@ -1889,6 +1890,7 @@ class MacroApp:
         self.tree.bind("<Alt-Down>", lambda e: self.move(1))
         self.tree.bind("<ButtonPress-1>", self._on_drag_start, add="+")   # v2.5: ลากสลับแถว
         self.tree.bind("<B1-Motion>", self._on_drag_motion, add="+")
+        self.tree.bind("<ButtonRelease-1>", self._on_drag_release, add="+")
         self.tree.bind("<Button-1>", self._on_click)
         self.tree.bind("<Double-1>", self._on_dbl_click)
         self.tree.bind("<Button-3>", self._on_right_click)
@@ -1899,6 +1901,7 @@ class MacroApp:
         self.tree.tag_configure("section", background="#cfe3f7", foreground="#1a3d6d")  # v1.21
         for _tname, _tstyle in ROW_STYLE.items():      # v1.22: สีแถวตามหมวด Action
             self.tree.tag_configure(_tname, **_tstyle)
+        self.tree.tag_configure("drag", background="#cfe0ff")   # v2.5: แถวที่กำลังลาก
 
         tools = tk.Frame(self.root)
         tools.pack(fill="x", padx=6)
@@ -2370,38 +2373,94 @@ class MacroApp:
             self.tree.item(row_id, values=vals)
             return "break"
 
+    def _is_collapsed_header(self, iid):
+        """แถวนี้เป็นหัวข้อกลุ่มที่ย่ออยู่ไหม (v2.5 — กลุ่มย่อใช้ปุ่ม ▲▼ ย้ายแทน)"""
+        try:
+            vals = self.tree.item(iid, "values")
+            return str(vals[4]) == SECTION_HEADER and self._group_collapsed(iid)
+        except tk.TclError:
+            return True
+
     def _on_drag_start(self, event):
-        """v2.5: เริ่มลากสลับแถว — เฉพาะเมื่อเลือกแถวเดียว, ไม่ใช่ช่อง checkbox,
-        และไม่ใช่หัวข้อกลุ่มที่ย่ออยู่ (กลุ่มย่อใช้ปุ่ม ▲▼ บนหัวข้อแทน)"""
+        """v2.5: คลิกค้างบนแถวแล้วลากเพื่อสลับตำแหน่ง
+        - ลากได้ทั้งแถวเดียวและหลายแถว (เลือกด้วย Ctrl/Shift+คลิกก่อน แล้วลากแถวใดก็ได้)
+        - แถวที่ลากจะไฮไลต์สีน้ำเงิน และวางก่อน/หลังแถวเป้าหมายตามครึ่งบน-ล่าง
+        - ไม่ลาก: ช่อง checkbox, หัวข้อกลุ่มที่ย่ออยู่ (ใช้ปุ่ม ▲▼ บนหัวข้อแทน)"""
         self._drag_iid = None
+        self._drag_block = []
         if self.tree.identify_region(event.x, event.y) != "cell":
             return
-        if len(self.tree.selection()) > 1:
-            return                                    # ลากเพื่อเลือกหลายแถว — ยกเลิก drag
         row = self.tree.identify_row(event.y)
         if not row or self.tree.identify_column(event.x) == "#1":
             return
-        try:
-            if str(self.tree.item(row, "values")[4]) == SECTION_HEADER                     and self._group_collapsed(row):
-                return
-        except tk.TclError:
+        if self._is_collapsed_header(row):
+            return
+        sel = set(self.tree.selection())
+        if row in sel:
+            self._drag_block = [i for i in self.tree.selection()
+                                if not self._is_collapsed_header(i)]
+        else:
+            self._drag_block = [row]
+        if not self._drag_block:
             return
         self._drag_iid = row
+        for iid in self._drag_block:               # ไฮไลต์ก้อนที่ลาก
+            try:
+                self.tree.item(iid, tags=("drag",))
+            except tk.TclError:
+                pass
 
     def _on_drag_motion(self, event):
-        if not self._drag_iid:
+        if not self._drag_iid or not self._drag_block:
             return
+        # เลื่อนจออัตโนมัติเมื่อลากชิดขอบบน/ล่างของตาราง
+        top = self.tree.winfo_rooty()
+        bottom = top + self.tree.winfo_height()
+        if event.y_root < top + 30:
+            self.tree.yview_scroll(-1, "units")
+        elif event.y_root > bottom - 30:
+            self.tree.yview_scroll(1, "units")
         row = self.tree.identify_row(event.y)
-        if not row or row == self._drag_iid:
-            return
+        if not row or row in self._drag_block:
+            return "break"
         try:
-            if str(self.tree.item(row, "values")[5]).strip() and                     _COLLAPSED_RE.search(str(self.tree.item(row, "values")[5]).strip()):
-                return                                # ไม่ลากทับหัวข้อกลุ่มย่อ
+            if _COLLAPSED_RE.search(str(self.tree.item(row, "values")[5]).strip()):
+                return "break"                     # ไม่ลากวางบนหัวข้อกลุ่มย่อ
         except tk.TclError:
+            return "break"
+        bb = self.tree.bbox(row)
+        below = bool(bb) and (event.y - bb[1]) > (bb[3] // 2)   # ครึ่งล่างของแถว = วางหลัง
+        self._drag_reorder(row, below)
+        return "break"                             # กัน selection ถูกลากเปลี่ยนระหว่างลาก
+
+    def _drag_reorder(self, target_iid, below):
+        """ย้ายก้อนแถวที่ลากไปวางก่อน/หลัง target_iid — คงลำดับสัมพัทธ์ของก้อน (v2.5)"""
+        if self._is_collapsed_header(target_iid):
+            return                                 # ห้ามวางบนหัวข้อกลุ่มย่อ
+        kids = list(self.tree.get_children())
+        block = [i for i in self._drag_block if i in set(kids)]
+        if not block or target_iid in block:
             return
-        self.tree.move(self._drag_iid, "", self.tree.index(row))
+        rest = [i for i in kids if i not in set(block)]
+        try:
+            ti = rest.index(target_iid)
+        except ValueError:
+            return
+        at = ti + (1 if below else 0)
+        order = rest[:at] + block + rest[at:]
+        for pos, iid in enumerate(order):
+            self.tree.move(iid, "", pos)
         self.refresh_nums()
-        self.tree.see(self._drag_iid)
+        self.tree.selection_set(block)             # คงการเลือกทั้งก้อนระหว่างลาก
+        self.tree.see(block[0])
+
+    def _on_drag_release(self, event):
+        """ปล่อยเมาส์ — คืนสีแถวตามหมวดเดิม + เคลียร์สถานะลาก"""
+        for iid in self._drag_block:
+            if self.tree.exists(iid):
+                self._untag(iid)
+        self._drag_block = []
+        self._drag_iid = None
 
     def _on_del(self, _evt=None):
         if self.tree.selection():

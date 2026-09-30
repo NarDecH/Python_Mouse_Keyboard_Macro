@@ -1757,6 +1757,62 @@ class TestPlayLoopGui(unittest.TestCase):
         self.app._undo_delete()
         self.assertEqual(len(self.app.tree.get_children()), 4)
 
+    def test_drag_reorder_above_and_below(self):
+        """v2.5: ลากแถววางก่อน/หลังแถวเป้าหมาย (ครึ่งบน = ก่อน, ครึ่งล่าง = หลัง)"""
+        self._clean_table(0)
+        for n in range(4):
+            self.app._append_row(button="Beep", secs=0, note="R%d" % (n + 1))
+        app = self.app
+        kids = list(app.tree.get_children())
+
+        def order():
+            return [str(app.tree.item(i, "values")[9]) for i in app.tree.get_children()]
+
+        app._drag_block = [kids[1]]                     # ลากแถว 2
+        app._drag_reorder(kids[0], below=False)         # วางก่อนแถว 1
+        self.assertEqual(order(), ["R2", "R1", "R3", "R4"])
+        app._drag_block = [kids[1]]                     # ลากแถว 2 (ตำแหน่งใหม่) อีกครั้ง
+        kids = list(app.tree.get_children())
+        app._drag_reorder(kids[3], below=True)          # วางหลังแถวสุดท้าย
+        self.assertEqual(order(), ["R1", "R3", "R4", "R2"])
+
+    def test_drag_reorder_moves_block_multi_select(self):
+        """v2.5: เลือกหลายแถวแล้วลาก = ย้ายทั้งก้อน คงลำดับสัมพัทธ์"""
+        self._clean_table(0)
+        for n in range(4):
+            self.app._append_row(button="Beep", secs=0, note="R%d" % (n + 1))
+        app = self.app
+        kids = list(app.tree.get_children())
+        app._drag_block = [kids[0], kids[1]]            # ลากแถว 1-2 พร้อมกัน
+        app._drag_reorder(kids[3], below=True)          # วางหลังแถวสุดท้าย
+        order2 = [str(app.tree.item(i, "values")[9]) for i in app.tree.get_children()]
+        self.assertEqual(order2, ["R3", "R4", "R1", "R2"])
+
+    def test_drag_reorder_blocked_on_collapsed_header(self):
+        """v2.5: ห้ามลากวางบนหัวข้อกลุ่มย่อ (กันแถวหลุดเข้ากลุ่ม)"""
+        self._clean_table(0)
+        app = self.app
+        app._append_row(button=am.SECTION_HEADER, additional="กลุ่ม", secs=0)
+        app._append_row(button="Beep", secs=0, note="ในกลุ่ม")
+        app._append_row(button="Beep", secs=0, note="นอกกลุ่ม")
+        kids = list(app.tree.get_children())
+        app._group_toggle(kids[0])                      # ย่อกลุ่ม
+        before = [str(app.tree.item(i, "values")[5]) for i in app.tree.get_children()]
+        app._drag_block = [kids[2]]                     # ลากแถว "นอกกลุ่ม"
+        app._drag_reorder(kids[0], below=True)          # พยายามวางหลังหัวข้อย่อ
+        after = [str(app.tree.item(i, "values")[5]) for i in app.tree.get_children()]
+        self.assertEqual(before, after)                 # ไม่มีอะไรขยับ
+        app._group_toggle(kids[0])                      # ขยายคืน
+
+    def test_drag_release_restores_row_colors(self):
+        """v2.5: ปล่อยเมาส์แล้วสีแถวกลับตามหมวดเดิม (ไม่ติดสีน้ำเงินค้าง)"""
+        self._clean_table(1)
+        iid = self.app.tree.get_children()[0]
+        self.app._drag_block = [iid]
+        self.app._on_drag_release(mock.MagicMock())
+        tags = self.app.tree.item(iid, "tags")
+        self.assertNotIn("drag", tags)
+
     def test_clipboard_actions_roundtrip(self):
         """Set Clipboard → Read Clipboard: ข้อความวนกลับเข้าตัวแปรได้ (v1.20)
         (แตะคลิปบอร์ดจริง — คืนค่าเดิมให้ผู้ใช้เมื่อจบเทสต์)"""

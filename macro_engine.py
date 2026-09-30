@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.5.0"
+__version__ = "2.5.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -50,8 +50,12 @@ TR = {
            "ctx_above": "⬆️ แทรกแถวใหม่ด้านบน", "ctx_below": "⬇️ แทรกแถวใหม่ด้านล่าง",
            "ctx_del": "🗑️ ลบแถวนี้", "ctx_undo": "↩️ กู้คืนแถวที่ลบ (Ctrl+Z)",
            "nothing_undo": "ไม่มีอะไรให้กู้คืน", "undone": "กู้คืนแถวแล้ว",
-           "find_title": "🔍 ค้นหาแถว", "find_label": "ข้อความ (match ทุกคอลัมน์):",
+           "find_title": "🔍 ค้นหา/แทนที่แถว", "find_label": "ข้อความ (match ทุกคอลัมน์):",
            "find_btn": "ค้นหา", "found": "เจอที่แถว %d", "notfound": "ไม่เจอ: %s",
+           "replace_label": "ข้อความแทนที่ (ว่าง = ลบข้อความเดิม):",
+           "replace_btn": "🔁 แทนที่ทั้งหมด", "replaced": "แทนที่แล้ว %d จุด",
+           "col_note": "หมายเหตุ",
+           "nothing_redo": "ไม่มีอะไรให้ทำซ้ำ", "redone": "ทำซ้ำแล้ว",
            "clip_empty": "คลิปบอร์ดว่าง",
            "clip_bad": "คลิปบอร์ดไม่ใช่สคริปต์ JSON (ต้องเป็นรายการแถว)",
            "clip_added": "วางจากคลิปบอร์ดแล้ว %d แถว",
@@ -91,8 +95,12 @@ TR = {
            "ctx_above": "⬆️ Insert row above", "ctx_below": "⬇️ Insert row below",
            "ctx_del": "🗑️ Delete row", "ctx_undo": "↩️ Undo last delete (Ctrl+Z)",
            "nothing_undo": "Nothing to undo", "undone": "Rows restored",
-           "find_title": "🔍 Find row", "find_label": "Text to search (any column):",
+           "find_title": "🔍 Find / Replace rows", "find_label": "Text to search (any column):",
            "find_btn": "Find", "found": "Found at row %d", "notfound": "Not found: %s",
+           "replace_label": "Replacement (empty = remove matched text):",
+           "replace_btn": "🔁 Replace all", "replaced": "Replaced %d spot(s)",
+           "col_note": "Note",
+           "nothing_redo": "Nothing to redo", "redone": "Redone",
            "clip_empty": "Clipboard is empty",
            "clip_bad": "Clipboard is not a JSON row list",
            "clip_added": "Pasted %d rows from clipboard",

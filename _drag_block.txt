@@ -1,0 +1,33 @@
+    def _on_drag_start(self, event):
+        """v2.5: เริ่มลากสลับแถว — เฉพาะเมื่อเลือกแถวเดียว, ไม่ใช่ช่อง checkbox,
+        และไม่ใช่หัวข้อกลุ่มที่ย่ออยู่ (กลุ่มย่อใช้ปุ่ม ▲▼ บนหัวข้อแทน)"""
+        self._drag_iid = None
+        if self.tree.identify_region(event.x, event.y) != "cell":
+            return
+        if len(self.tree.selection()) > 1:
+            return                                    # ลากเพื่อเลือกหลายแถว — ยกเลิก drag
+        row = self.tree.identify_row(event.y)
+        if not row or self.tree.identify_column(event.x) == "#1":
+            return
+        try:
+            if str(self.tree.item(row, "values")[4]) == SECTION_HEADER                     and self._group_collapsed(row):
+                return
+        except tk.TclError:
+            return
+        self._drag_iid = row
+
+    def _on_drag_motion(self, event):
+        if not self._drag_iid:
+            return
+        row = self.tree.identify_row(event.y)
+        if not row or row == self._drag_iid:
+            return
+        try:
+            if str(self.tree.item(row, "values")[5]).strip() and                     _COLLAPSED_RE.search(str(self.tree.item(row, "values")[5]).strip()):
+                return                                # ไม่ลากทับหัวข้อกลุ่มย่อ
+        except tk.TclError:
+            return
+        self.tree.move(self._drag_iid, "", self.tree.index(row))
+        self.refresh_nums()
+        self.tree.see(self._drag_iid)
+

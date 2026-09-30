@@ -159,8 +159,9 @@
   เทียบตัวเลข/ข้อความ/~contains; evaluate_condition รับ `variables=` kw แล้ว —
   ⚠️ ไม่มีตัวแปร = เงื่อนไขไม่จริง → ข้าม N), Image Click ตั้ง `{img_x}/{img_y}`,
   Set Variable รับ `rand a-b`, plugin ctx เพิ่ม `"vars"` (ชี้ dict เดียวกับ
-  runner.variables — plugin เขียนค่าแถวถัดไปใช้ได้), ชุด C: ลากสลับแถว
-  (`_on_drag_start/_on_drag_motion` — เฉพาะเลือกเดี่ยว/ไม่ลากกลุ่มย่อ) +
+  runner.variables — plugin เขียนค่าแถวถัดไปใช้ได้), ชุด C: ลากสลับแถวเต็มรูปแบบ
+  (v2.5.1: `_drag_reorder` คำนวณลำดับปลายทาง — วางก่อน/หลังตามครึ่งแถว, autoscroll,
+  ลากทั้งก้อนที่เลือก, แถวไฮไลต์ tag "drag", ห้ามวางบนกลุ่มย่อ) +
   Alt+↑↓ + Redo (Ctrl+Y — `_redo_stack`, `_restore_rows` ร่วมกับ undo,
   _apply_edit push undo) + คอลัมน์ Note (COLS/EDIT_COLS/serialize/paste —
   ไม่ส่งเข้า runner) + ค้นหาแทนที่ (`_replace_all` ใน Ctrl+F dialog) ·
