@@ -2,6 +2,19 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### 📚 เอกสาร + เครื่องมือ + ชุมชน
+- **ใส่ release notes ให้ Release v2.5.3** บน GitHub (สรุปฟีเจอร์ v2.5.x อ่านง่าย)
+- **docs/LANDING.html** — หน้าแนะนำโปรแกรมโชว์ฟีเจอร์ v2.5 (เงื่อนไขครบวงจร, ลากสลับแถว,
+  ปลั๊กอิน, safety timeout/`--validate`) + แก้ป้ายเทสต์เป็น 339+12 และเพิ่ม Linux/macOS
+- **CI ตรวจเอกสารอัตโนมัติ** (`tools/check_docs.py` + workflow docs-check.yml) — เช็คลิงก์ไฟล์ภายใน
+  พัง, เอกสารหลักแสดงเวอร์ชันเก่า, CHANGELOG ขาด/ซ้ำหัวข้อ (เคยพบตอน v2.5.x) — รันทุก push/PR ที่แตะ docs
+- **เอกสารออกแบบ nested if** (`docs/DESIGN-nested-if.md` + `.html`) — ข้อเสนอเงื่อนไขเชิงซ้อน/
+  ลูปย่อย: เปรียบเทียบ 3 ทางเลือก + แผน 2 ชุด (N1 AND/OR → N2 Block Start/End) + คำถามเปิด
+  ชวน feedback ที่ Issues · ลิงก์จาก ROADMAP
+- แก้ป้ายเวอร์ชันเป็น 2.5.3 ให้เอกสารหลักครบทุกไฟล์ (README/TUTORIAL ทั้ง th/en md+html)
+
 ---
 
 ## [2.5.3] — 2026-09-30

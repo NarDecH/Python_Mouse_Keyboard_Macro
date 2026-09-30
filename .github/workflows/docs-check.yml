@@ -1,0 +1,38 @@
+name: Docs Check
+
+# ตรวจสุขภาพเอกสารทุกครั้งที่แตะไฟล์ .md/.html หรือแหล่งเวอร์ชัน
+# - ลิงก์ไฟล์ภายในพัง (หลังแก้เอกสาร/ย้ายไฟล์)
+# - เอกสารหลักยังแสดงเวอร์ชันเก่า / CHANGELOG ขาดหัวข้อเวอร์ชันปัจจุบัน
+# - หัวข้อ CHANGELOG เวอร์ชันเดียวกันซ้ำ (เคยพบตอน v2.5.x)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "tools/check_docs.py"
+      - "macro_engine.py"
+      - ".github/workflows/docs-check.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "tools/check_docs.py"
+      - "macro_engine.py"
+      - ".github/workflows/docs-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: ตรวจเอกสาร (ลิงก์ + เวอร์ชัน + หัวข้อซ้ำ)
+        run: python tools/check_docs.py

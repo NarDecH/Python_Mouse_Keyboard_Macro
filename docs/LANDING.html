@@ -77,7 +77,7 @@
   <a class="btn" href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest">📦 ดาวน์โหลดสำหรับ Windows — ฟรี</a>
   <a class="btn ghost" href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro">⭐ ซอร์สโค้ดบน GitHub</a>
   <div class="badges">
-    <span>ไม่ต้องติดตั้ง Python</span><span>ภาษาไทยเต็มรูปแบบ</span><span>76+ tests</span><span>Windows 10/11</span>
+    <span>ไม่ต้องติดตั้ง Python</span><span>ภาษาไทยเต็มรูปแบบ</span><span>339 + 12 tests</span><span>Windows · Linux · macOS</span>
   </div>
 </div>
 
@@ -103,11 +103,14 @@
     <h2>✨ ทำอะไรได้บ้าง</h2>
     <ul class="feats">
       <li><b>อัด + เล่นซ้ำ</b> คลิกเมาส์ ลาก พิมพ์ไทย/อังกฤษ กดคีย์ สกรอลล์ — พร้อมดีเลย์สุ่มกันจับ pattern</li>
-      <li><b>คลิกตามภาพ</b> (Image Click) — ระบุรูป .png โปรแกรมหาบนจอแล้วคลิกให้เอง มีกรอบค้นหา + ปรับความมั่นใจรายแถว</li>
+      <li><b>คลิกตามภาพ</b> (Image Click) — ระบุรูป .png โปรแกรมหาบนจอแล้วคลิกให้เอง มีกรอบค้นหา + ปรับความมั่นใจรายแถว + รอซ้ำได้ (`5s`)</li>
+      <li><b>สคริปต์ตัดสินใจเองได้</b> — เงื่อนไขครบวงจร: If Image · If Pixel Color · If Variable · If Loop · If Time + ตัวแปร <code>{ชื่อ}</code> และคลิปบอร์ด</li>
+      <li><b>ตารางจัดการง่าย</b> — ลากสลับแถวด้วยเมาส์ · Undo/Redo (Ctrl+Z/Y) · หัวข้อกลุ่มย่อ/ขยาย · คอลัมน์หมายเหตุ · ค้นหาแทนที่ทั้งหมด</li>
+      <li><b>ขยายด้วยปลั๊กอิน</b> — เขียนไฟล์ Python สั้น ๆ วางใน <code>plugins/</code> เป็น Action ใหม่ทันที (มี 10 ตัวให้: Screenshot, Toast, Webhook ฯลฯ)</li>
       <li><b>ปุ่มลัดทำงานทุกที่</b> — F1–F4 สลับสคริปต์ทันที, F6 เล่น, F8 หยุด, F9 อัด, F10 วนไม่จำกัด</li>
       <li><b>เล่นอัตโนมัติตามเวลา</b> — ทุก N นาที หรือรายวันตอน HH:MM</li>
       <li><b>สุ่มลำดับ/สัดส่วนแถว</b> — งานที่ไม่อยากให้จังหวะซ้ำเดิมทุกรอบ</li>
-      <li><b>โหมด watchdog</b> — สคริปต์จบแล้วเริ่มใหม่เองวนไม่จำกัด เหมาะกับงานเฝ้าระบบ</li>
+      <li><b>โหมด watchdog</b> — สคริปต์จบแล้วเริ่มใหม่เองวนไม่จำกัด + safety timeout หยุดเองหลังเล่น N นาที + <code>--validate</code> ตรวจสคริปต์ก่อนปล่อยงานจริง</li>
       <li><b>Log + สถิติ</b> — บันทึกทุกการเล่นรายวัน ดูย้อนหลังและสรุปสถิติได้ในโปรแกรม</li>
       <li><b>Self-check ตอนเปิด</b> — ตรวจเมาส์/hotkey/OpenCV/สิทธิ์ admin ให้รู้ปัญหาตั้งแต่แรก</li>
     </ul>
@@ -121,6 +124,8 @@
       <tr><td>แก้รายการทีละแถว</td><td>✅ ตารางแก้ได้เลย</td><td>❌ แก้โค้ด</td><td>❌</td></tr>
       <tr><td>คลิกตามภาพ</td><td>✅ + กรอบ + threshold</td><td>⚠️ ImageSearch</td><td>❌</td></tr>
       <tr><td>schedule / watchdog / สุ่มแถว</td><td>✅ ครบในตัว</td><td>⚠️ เขียนเอง</td><td>❌</td></tr>
+      <tr><td>เงื่อนไขในสคริปต์ + ตัวแปร</td><td>✅ If Image/Pixel/Variable/Loop/Time</td><td>✅ ต้องเขียนสคริปต์</td><td>❌</td></tr>
+      <tr><td>ปลั๊กอินขยาย Action</td><td>✅ ไฟล์ Python เดียว</td><td>✅</td><td>❌</td></tr>
       <tr><td>ภาษาไทย</td><td>✅ ทั้งโปรแกรมและเอกสาร</td><td>❌</td><td>❌</td></tr>
     </table>
   </div>
@@ -130,6 +135,8 @@
 <pre>py auto_macro.py script.json --loop            # วนไม่จำกัด
 py auto_macro.py script.json --shuffle         # สุ่มลำดับแถวทุกรอบ
 py auto_macro.py script.json --watchdog 10     # จบแล้วเริ่มใหม่เอง (พัก 10 วิ)
+py auto_macro.py script.json --max-minutes 60  # safety timeout: หยุดเองหลังเล่น 60 นาที
+py auto_macro.py script.json --validate        # ตรวจสคริปต์อย่างเดียวไม่เล่น (exit 1 เมื่อพบแถวมีปัญหา)
 py auto_macro.py script.json --stop-file C:\stop.flg   # สร้างไฟล์ = หยุดทันที</pre>
     <p style="margin-top:10px">เหมาะกับ <b>Windows Task Scheduler</b> — ตั้งเวลาเปิดเครื่องแล้วให้โปรแกรมทำงานแทนคุณทั้งวัน</p>
   </div>
@@ -137,8 +144,8 @@ py auto_macro.py script.json --stop-file C:\stop.flg   # สร้างไฟ�
   <div class="card">
     <h2>📚 เอกสารเพิ่มเติม</h2>
     <ul class="feats" style="list-style:none">
-      <li>📘 <a href="TUTORIAL.html"><b>คู่มือฉบับสมบูรณ์ 10 บท</b></a> — ตั้งแต่ติดตั้งถึงเทคนิคขั้นสูง</li>
-      <li>📂 <a href="README.html">README</a> และ 📋 <a href="CHANGELOG.html">CHANGELOG</a></li>
+      <li>📘 <a href="TUTORIAL.html"><b>คู่มือฉบับสมบูรณ์ 13 บท</b></a> — ตั้งแต่ติดตั้งถึงเงื่อนไขขั้นสูง</li>
+      <li>📂 <a href="README.html">README</a> · 🔌 <a href="PLUGINS.md">ตลาดปลั๊กอิน</a> · 📋 <a href="CHANGELOG.html">CHANGELOG</a> · 🗺️ <a href="ROADMAP.md">แผนพัฒนา</a></li>
       <li>🧪 ตัวอย่างสคริปต์สำเร็จรูปในโฟลเดอร์ <code>examples/</code> — รวมงานเฝ้าระบบพร้อม watchdog</li>
     </ul>
   </div>

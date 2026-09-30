@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DESIGN — เงื่อนไขเชิงซ้อน (Nested If) — Auto Mouse &amp; Keyboard Macro</title>
+<style>
+  :root {
+    --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
+    --blue: #2563eb; --ink: #1e293b; --muted: #64748b;
+    --bg: #f4f7f6; --card: #fff; --line: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Noto Sans Thai", Tahoma, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.75; font-size: 16px;
+  }
+  .hero {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
+    color: #fff; padding: 44px 20px 40px; text-align: center;
+  }
+  .hero h1 { font-size: 2rem; margin-bottom: 6px; }
+  .hero p { opacity: .92; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px 32px; margin: 22px 0; box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  }
+  h2 { color: var(--green-dark); font-size: 1.3rem; margin-bottom: 12px; }
+  h3 { font-size: 1.05rem; margin: 18px 0 8px; color: #334155; }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 26px; margin: 8px 0; }
+  li { margin: 6px 0; }
+  code {
+    background: #eef2ee; border: 1px solid #dbe7dc; border-radius: 6px;
+    padding: 1px 7px; font-family: Consolas, "Courier New", monospace; font-size: .9em; color: #17491f;
+  }
+  pre {
+    background: #10241a; color: #d7f5de; border-radius: 10px; padding: 16px 18px;
+    overflow-x: auto; font-family: Consolas, "Courier New", monospace; font-size: .9rem; line-height: 1.6;
+  }
+  .note {
+    background: var(--green-bg); border-left: 4px solid var(--green);
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .warn {
+    background: #fff7ed; border-left: 4px solid #f59e0b;
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .95rem; }
+  th { background: var(--green-bg); color: var(--green-dark); text-align: left; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafcfa; }
+  .pill {
+    display: inline-block; background: #dbeafe; color: #1e40af; border-radius: 999px;
+    font-size: .8rem; padding: 2px 12px; font-weight: 600;
+  }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 20px; }
+  a { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🧠 DESIGN — เงื่อนไขเชิงซ้อน (Nested If) และลูปย่อย</h1>
+  <p>ข้อเสนอแบบเปิด — ยังไม่ลงโค้ด · ร่วมคุยได้ที่ <a style="color:#fff" href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues">Issues</a></p>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>1. โจทย์</h2>
+    <p>ปัจจุบัน (v2.5.3) ทุกเงื่อนไขทำงานแบบ <b>"ข้ามแถวตรง ๆ"</b>:</p>
+<pre>แถว 1  If Image (btn.png)  Repeat = 5   ← ถ้าไม่เจอ ข้ามแถว 2–6
+แถว 2  ...งานเมื่อเจอภาพ
+...
+แถว 6  Else If Image       Repeat = 3   ← ถ้ากลุ่ม A เล่นแล้ว ข้ามกลุ่ม B</pre>
+    <p><b>จุดแข็ง:</b> อ่านง่าย ตรวจสอบง่าย ไม่มี state ซ้อน — <b>ข้อจำกัด</b>ที่ผู้ใช้ถามบ่อย:</p>
+    <ol>
+      <li><b>เงื่อนไขซ้อนเงื่อนไข</b> — "ถ้าภาพเจอ <b>และ</b> สีจุดถูก → ทำ A, ถ้าภาพเจอแต่สีผิด → ทำ B"
+        (ตอนนี้ต้องแตกเป็น If หลายลำดับ สคริปต์ยาวและเดายาก)</li>
+      <li><b>ลูปย่อย</b> — "วนแถว 5–9 จนกว่าภาพจะเจอ (สูงสุด 10 รอบ)" — ปัจจุบันต้องวนทั้งสคริปต์
+        หรือ Repeat ของแถว (ทำซ้ำแถวเดียว ไม่ใช่ช่วงแถว)</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>2. เป้าหมาย / เงื่อนไขยอมรับ</h2>
+    <ul>
+      <li>✅ <b>กฎเดียวคงอยู่:</b> แถวเงื่อนไขที่ "ไม่จริง" แล้วข้าม = ค่า <b>Repeat</b> เสมอ —
+        สคริปต์เดิมต้องเล่นผลเหมือนเดิม (backward compatible 100%)</li>
+      <li>✅ เขียนในตารางเดิม ไม่แนะนำรูปแบบไฟล์สคริปต์ใหม่ (ยังเป็น JSON รายแถวเท่าเดิม)</li>
+      <li>✅ STOP ต้องหยุดได้ทุกชั้นของลูปย่อย (หลักการข้อ 1 ของโปรเจกต์)</li>
+      <li>✅ ผ่านเทสต์ทั้ง GUI/CLI ด้วย ActionRunner แหล่งเดียว (ห้าม do_step สองชุด)</li>
+      <li>✅ <code>--validate</code> ตรวจโครงสร้างซ้อนได้ (บล็อกที่ไม่ปิด = รายงานแถวที่ผิด)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>3. แนวทางที่พิจารณา</h2>
+
+    <h3><span class="pill">แนะนำ</span> ทางเลือก A — บล็อกที่มีเครื่องหมายเปิด/ปิด</h3>
+    <p>เพิ่ม Action คู่เปิด-ปิด คล้ายหัวข้อ Section ที่มีอยู่แล้ว:</p>
+<pre>แถว 1  🔷 Block Start (If Image btn.png)   ← เปิดบล็อก เงื่อนไขไม่จริง = กระโดดไป Block End
+แถว 2  ...ทำ A
+แถว 3  ...ทำ A
+แถว 4  🔷 Block End                         ← ปิดบล็อก (ป้ายเท่านั้น ไม่เล่น)</pre>
+    <ul>
+      <li><b>ซ้อนได้ตามธรรมชาติ</b> — Block Start ข้างในอีก Block Start ได้ (runner เก็บ stack)</li>
+      <li>เงื่อนไขไม่จริง = กระโดดข้ามไป <b>Block End ที่จับคู่กัน</b> (นับวงเล็บ) — ไม่ต้องนับแถวเอง
+        แก้/แทรก/ลบแถวข้างในไม่มีผล</li>
+      <li><b>ลูปย่อย:</b> Additional เพิ่มได้ เช่น <code>until img.png</code> หรือ <code>max 10</code> =
+        ถึง Block End แล้วกระโดดกลับแถวเปิดบล็อก วนจนเงื่อนไขจริง/ครบ max</li>
+      <li>GUI: สีแถวหมวดใหม่ + ย่อ/ขยายบล็อกต่อยอดกลไก Section (<code>_section_stash</code>)</li>
+      <li>CLI/<code>--validate</code>: นับเครื่องหมายเปิด/ปิดให้ครบก่อนเล่น (ไม่ครบ = error รายแถว)</li>
+    </ul>
+    <div class="warn">⚠️ ระวังผู้ใช้ลบ Block End ทิ้ง — ทางแก้: ลบไม่ครบคู่ → <code>--validate</code>
+    เตือนก่อนเล่น (คล้าย <code>_on_del_cleanup</code> ของกลุ่มย่อ)</div>
+
+    <h3>ทางเลือก B — เงื่อนไขรวม (AND/OR) ในแถวเดิม</h3>
+    <p>ขยาย If Image/If Pixel ฯลฯ ให้ Additional ต่อท้าย <code>&amp;&amp;</code> / <code>||</code> ได้ เช่น
+      <code>btn.png &amp;&amp; 300,300 #ffffff</code></p>
+    <ul>
+      <li>ข้อดี: ไม่เพิ่ม Action ใหม่ กฎ Repeat เดิมใช้ต่อได้ทันที</li>
+      <li>ข้อเสีย: แก้ปัญหาข้อ 1 เท่านั้น — <b>ไม่ได้ลูปย่อย</b> · Additional ยาวจนอ่านยาก</li>
+      <li>สรุป: เหมาะเป็น<b>ขั้นแรก</b> (ริสก์ต่ำ) ก่อนลงทางเลือก A</li>
+    </ul>
+
+    <h3>ทางเลือก C — โหมดสคริปต์ล้วน (if/while จริง)</h3>
+    <p>เพิ่ม Action "Python Block" รันโค้ดผู้ใช้ — ❌ ขัดหลักการ "ไม่มีโค้ด" + ความปลอดภัย
+      (สคริปต์แชร์กันอันตรายขึ้น) — <b>ตัดทิ้ง</b></p>
+  </div>
+
+  <div class="card">
+    <h2>4. แผนที่เสนอ (2 ชุดย่อย)</h2>
+    <table>
+      <tr><th>ชุด</th><th>ขอบเขต</th><th>จุดเสี่ยง/เทสต์สำคัญ</th></tr>
+      <tr>
+        <td><b>N1</b> — AND/OR</td>
+        <td>parser ใน engine (<code>parse_if_image</code>/<code>parse_pixel_spec</code>/
+          <code>parse_if_var</code>) รองรับ <code>&amp;&amp;</code> · evaluate_condition ประเมินแบบ
+          short-circuit</td>
+        <td>เทสต์ parser (แตก/เว้นวรรค/พัง) + เล่นจริง GUI/CLI</td>
+      </tr>
+      <tr>
+        <td><b>N2</b> — Block Start/End</td>
+        <td>Action ใหม่ 2 ตัว + ROW_STYLE หมวดใหม่ · runner เก็บ stack (แถวเปิด, จำนวนรอบ) ·
+          ย่อ/ขยายบล็อกต่อยอด <code>_section_stash</code> · <code>--validate</code> ตรวจคู่เปิด/ปิด
+          + จำกัด depth</td>
+        <td>ซ้อน 2 ชั้น · ลูปย่อย + If ข้างใน · <b>STOP กลางลูปย่อย</b> · ลบ End แล้ว validate เตือน</td>
+      </tr>
+    </table>
+    <div class="note"><b>สิ่งที่ห้ามลืม (บทเรียนเดิมของโปรเจกต์):</b>
+      แถวเงื่อนไขใหม่ต้อง <code>break</code>/<code>continue</code> <b>ก่อน</b> do_step/ดีเลย์เสมอ ·
+      ข้อความใหม่ใส่ <code>TR</code> ทั้ง th/en + เอกสาร .md/.html พร้อมกัน ·
+      dialog ใหม่ต้องมีเทสต์ "เปิด + ใช้งานจริง" อย่างน้อย 1 ตัว</div>
+  </div>
+
+  <div class="card">
+    <h2>5. คำถามที่อยากได้ feedback</h2>
+    <ol>
+      <li>AND พอ หรือต้องมี OR ด้วยไหม (ความซับซ้อน parser เพิ่มพอสมควร)?</li>
+      <li>Block Start ควรตั้งชื่อบล็อกได้ไหม (แสดงเป็นป้ายเหมือน Section)?</li>
+      <li>ลูปย่อยควรมี max รอบบังคับไหม (เสนอ default 1000 + ตั้งทับได้)?</li>
+      <li>ใครมี use case จริง ช่วยแชร์สคริปต์ตัวอย่างใน Issues — เอาไปออกแบบเทสต์ให้ตรงงานจริง</li>
+    </ol>
+  </div>
+
+</div>
+
+<footer>DESIGN (ข้อเสนอ) · Auto Mouse &amp; Keyboard Macro · <a href="ROADMAP.md">ROADMAP</a> · <a href="CHANGELOG.html">CHANGELOG</a></footer>
+
+</body>
+</html>
