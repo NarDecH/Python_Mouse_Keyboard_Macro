@@ -37,3 +37,4 @@ stop_now.flg
 # Codebuff workspace
 .freebuff/
 _rid.txt
+_drag_block.txt
