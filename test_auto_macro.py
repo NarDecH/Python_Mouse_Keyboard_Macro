@@ -4379,5 +4379,203 @@ class TestN1AndLoopTime(unittest.TestCase):
         self.assertEqual([i for i, _m in issues], [1, 2, 3])
 
 
+class TestN2Blocks(unittest.TestCase):
+    """v2.6 (ชุด N2): Block Start/End + ลูปย่อย (until/max) ตาม docs/DESIGN-nested-if.md
+    กติกาเหล็ก: สคริปต์เดิม (ไม่มีแถวบล็อก) เล่นผลเดิม 100% · --validate ตรวจคู่เปิด/ปิด"""
+
+    def _runner(self, cond_cb=None):
+        return me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                   variables={"n": "4", "m": "on"}) if cond_cb is None \
+            else me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                     variables={"n": "4", "m": "on"})
+
+    # ---------- parse_block_spec ----------
+
+    def test_parse_block_spec(self):
+        f = me_mod.parse_block_spec
+        self.assertEqual(f(""), {"kind": "once", "if": "", "until": "", "max": 0})
+        self.assertEqual(f("if img.png"), {"kind": "once", "if": "img.png", "until": "", "max": 0})
+        self.assertEqual(f("if n > 5"), {"kind": "once", "if": "n > 5", "until": "", "max": 0})
+        self.assertEqual(f("until img.png max 20"),
+                         {"kind": "loop", "if": "", "until": "img.png", "max": 20})
+        self.assertEqual(f("until n >= 5"), {"kind": "loop", "if": "", "until": "n >= 5", "max": 0})
+        self.assertEqual(f("max 10"), {"kind": "loop", "if": "", "until": "", "max": 10})
+        self.assertIsNone(f("what"))            # ข้อความแปลกปลอม = พัง
+        self.assertIsNone(f("if"))               # if ไม่มีเงื่อนไข = พัง
+
+    def test_find_block_end_nesting(self):
+        rows = [{"button": me_mod.BLOCK_START}, {"button": me_mod.BLOCK_START},
+                {"button": me_mod.BLOCK_END}, {"button": me_mod.BLOCK_END}]
+        self.assertEqual(me_mod.find_block_end_index(rows, 0), 3)   # นับวงเล็บถูกคู่
+        self.assertEqual(me_mod.find_block_end_index(rows, 1), 2)
+        self.assertIsNone(me_mod.find_block_end_index(rows[:3], 0)) # ไม่ปิด = None
+
+    # ---------- BlockRunner.decide / decide_end ----------
+
+    def _br(self, idx, cb):
+        return me_mod.BlockRunner(idx, condition_cb=cb)
+
+    def test_decide_false_jumps_past_end(self):
+        rows = [{"button": me_mod.BLOCK_START, "additional": "if n > 99"},
+                {"button": "Beep"},
+                {"button": me_mod.BLOCK_END}]
+        goto, msg = self._br(0, lambda t: False).decide(rows, {})
+        self.assertEqual(goto, 3)                # กระโดดหลัง End คู่
+        self.assertIn("ข้ามบล็อก", msg)
+
+    def test_decide_true_plays_block(self):
+        rows = [{"button": me_mod.BLOCK_START, "additional": "if n > 1"},
+                {"button": "Beep"},
+                {"button": me_mod.BLOCK_END}]
+        goto, msg = self._br(0, lambda t: True).decide(rows, {})
+        self.assertIsNone(goto)
+        self.assertIsNone(msg)
+
+    def test_decide_bad_spec_and_missing_end(self):
+        rows = [{"button": me_mod.BLOCK_START, "additional": "พังๆ"},
+                {"button": me_mod.BLOCK_END}]
+        goto, msg = self._br(0, lambda t: True).decide(rows, {})
+        self.assertIsNone(goto)
+        self.assertIn("ไม่ถูก", msg)              # เตือนแต่เล่นต่อ (validate เตือนแรกอยู่แล้ว)
+        rows2 = [{"button": me_mod.BLOCK_START, "additional": "if n > 1"}]
+        goto, msg = self._br(0, lambda t: False).decide(rows2, {})
+        self.assertIsNone(goto)                  # ไม่มี End คู่ → เล่นต่อตามลำดับ
+        self.assertIn("ไม่พบ Block End", msg)
+
+    def test_decide_end_until_loop(self):
+        rows = [{"button": me_mod.BLOCK_START, "additional": "until n > 3 max 10"},
+                {"button": "Beep"},
+                {"button": me_mod.BLOCK_END}]
+        counters = {0: 2}
+        # ใช้ runner จริงผ่าน ActionRunner.evaluate_block_condition — n = 1 ยังไม่เกิน 3 → วนกลับ
+        runner = me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(), variables={"n": "1"})
+        goto, msg = me_mod.BlockRunner(
+            2, condition_cb=runner.evaluate_block_condition).decide_end(rows, counters)
+        self.assertEqual(goto, 1)                # วนกลับแถวหลัง Start
+        self.assertIn("วนกลับ", msg)
+        self.assertEqual(counters[0], 3)
+        # ครบ max → ออกจากลูป
+        counters = {0: 10}
+        goto, msg = me_mod.BlockRunner(
+            2, condition_cb=runner.evaluate_block_condition).decide_end(rows, counters)
+        self.assertIsNone(goto)
+        self.assertIn("ครบ 10 รอบ", msg)
+        # เงื่อนไขจริง → ออกจากลูปเงียบ ๆ (n = 4 > 3)
+        runner2 = self._runner()
+        goto, msg = me_mod.BlockRunner(
+            2, condition_cb=runner2.evaluate_block_condition).decide_end(rows, {0: 2})
+        self.assertIsNone(goto)
+        self.assertIsNone(msg)
+
+    def test_decide_end_plain_block_and_orphan(self):
+        rows = [{"button": me_mod.BLOCK_START, "additional": "if n > 1"},
+                {"button": "Beep"},
+                {"button": me_mod.BLOCK_END}]
+        runner = self._runner()
+        goto, msg = me_mod.BlockRunner(
+            2, condition_cb=runner.evaluate_block_condition).decide_end(rows, {})
+        self.assertIsNone(goto)                  # บล็อกธรรมดา: จบแล้วเล่นต่อ
+        self.assertIsNone(msg)
+        goto, msg = me_mod.BlockRunner(
+            0, condition_cb=runner.evaluate_block_condition).decide_end(
+            [{"button": me_mod.BLOCK_END}], {})
+        self.assertIn("ไม่มี Block Start", msg)   # End กำพร้า — เตือนแล้วเล่นต่อ
+
+    # ---------- ActionRunner.evaluate_block_condition ----------
+
+    def test_block_condition_variables(self):
+        r = self._runner()
+        self.assertIs(r.evaluate_block_condition("n > 3"), True)
+        self.assertIs(r.evaluate_block_condition("n > 99"), False)
+        self.assertIs(r.evaluate_block_condition("n > 3 && m = on"), True)   # && ผสมได้ (N1)
+        self.assertIs(r.evaluate_block_condition("n > 3 && m = off"), False)
+        # รูปแบบพัง = ไม่จริง (False — กติกาเดียวกับ If Variable ไม่มีตัวแปร → ข้าม)
+        self.assertIs(r.evaluate_block_condition("พัง"), False)
+
+    def test_block_condition_missing_image_is_false(self):
+        # ไฟล์ภาพไม่มีจริง → False (เหมือน If Image ไม่เจอ) ไม่ใช่ None
+        r = self._runner()
+        self.assertIs(r.evaluate_block_condition("no_such_img_abc.png"), False)
+
+    # ---------- validate ----------
+
+    def test_validate_blocks_structure(self):
+        rows_ok = [
+            {"button": me_mod.BLOCK_START, "additional": "if n > 1"},
+            {"button": me_mod.BLOCK_START, "additional": "until img.png max 5"},
+            {"button": "Beep"},
+            {"button": me_mod.BLOCK_END},
+            {"button": me_mod.BLOCK_END},
+        ]
+        self.assertEqual(me_mod.validate_rows(rows_ok), [])
+        # Start ไม่มี End ปิดเลย (สคริปต์จบค้างเปิด) → รายงานแถว Start
+        rows_unclosed = [
+            {"button": me_mod.BLOCK_START, "additional": "if n > 1"},
+            {"button": "Beep"},
+        ]
+        self.assertEqual([i for i, _m in me_mod.validate_rows(rows_unclosed)], [1])
+        rows_bad = [
+            {"button": me_mod.BLOCK_START, "additional": "if n > 1"},  # ปิดโดย End แถว 3
+            {"button": "Beep"},
+            {"button": me_mod.BLOCK_END, "additional": "ห้ามมี"},  # End มี Additional
+            {"button": me_mod.BLOCK_END},                          # เกิน (ไม่มี Start ค้าง)
+            {"button": me_mod.BLOCK_START, "additional": "อะไรนะ"},  # Additional พัง + ไม่ปิด
+        ]
+        issues = me_mod.validate_rows(rows_bad)
+        rows_flag = [i for i, _m in issues]
+        self.assertIn(3, rows_flag)              # End มี Additional
+        self.assertIn(4, rows_flag)              # End ล้น
+        self.assertIn(5, rows_flag)              # Start Additional พัง + ไม่ปิด
+        # depth เกิน 8
+        deep = ([{"button": me_mod.BLOCK_START}] * 9
+                + [{"button": me_mod.BLOCK_END}] * 9)
+        self.assertTrue(any("ลึกเกิน" in m for _i, m in me_mod.validate_rows(deep)))
+
+    def test_row_tag_block(self):
+        self.assertEqual(me_mod.row_tag(me_mod.BLOCK_START), "block")
+        self.assertEqual(me_mod.row_tag(me_mod.BLOCK_END), "blockend")
+        self.assertIn("block", me_mod.ROW_STYLE)
+        self.assertIn("blockend", me_mod.ROW_STYLE)
+
+    def test_gui_block_until_loop(self):
+        """เล่นจริงใน GUI: ลูปย่อย until นับ 1→3 แล้วออก (n = 4)"""
+        try:
+            root = am.tk.Tk()
+            root.withdraw()
+        except am.tk.TclError:
+            self.skipTest("ไม่มี display")
+        app = None
+        try:
+            app = am.MacroApp(root)
+            app._log_enabled = False
+            rows = [
+                {"enabled": True, "x": "", "y": "", "button": "Set Variable",
+                 "additional": "n = 1", "mins": 0, "secs": 0, "repeat": 1},
+                {"enabled": True, "x": "", "y": "", "button": me_mod.BLOCK_START,
+                 "additional": "until n > 3 max 10", "mins": 0, "secs": 0, "repeat": 1},
+                {"enabled": True, "x": "", "y": "", "button": "Beep",
+                 "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+                {"enabled": True, "x": "", "y": "", "button": "Set Variable",
+                 "additional": "n += 1", "mins": 0, "secs": 0, "repeat": 1},
+                {"enabled": True, "x": "", "y": "", "button": me_mod.BLOCK_END,
+                 "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+            ]
+            app._load_rows(rows)
+            app._start_player(False)
+            t0 = time.time()
+            while app.running and time.time() - t0 < 10:
+                root.update()
+                time.sleep(0.02)
+            self.assertFalse(app.running, "ลูปย่อยต้องจบเองภายใน 10 วิ")
+            self.assertEqual(str(app._vars.get("n")), "4")   # วน 3 รอบครบ
+        finally:
+            if app is not None:
+                try:
+                    app.stop_all(silent=True)
+                except Exception:
+                    pass
+            root.destroy()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

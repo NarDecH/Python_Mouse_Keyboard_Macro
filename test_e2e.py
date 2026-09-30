@@ -411,5 +411,88 @@ class TestE2ECliWarnings(unittest.TestCase):
                 am.clip_set(saved)
 
 
+class TestE2EBlocks(unittest.TestCase):
+    """v2.6 (ชุด N2): Block Start/End + ลูปย่อยเล่นจริงผ่าน CLI
+    (สคริปต์ Beep/Set Variable ล้วน — ปลอดภัยไม่แตะเมาส์/คีย์)"""
+
+    def _script(self, rows):
+        d = tempfile.mkdtemp(prefix="macro_e2e_block_")
+        p = os.path.join(d, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        return p
+
+    def test_block_if_false_skips_block(self):
+        # เงื่อนไขไม่จริง → เนื้อในถูกข้ามทั้งบล็อก เห็นเฉพาะ Beep นอกบล็อก
+        script = self._script([
+            {"enabled": True, "button": "Set Variable", "additional": "m = off",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "🔷 Block Start", "additional": "if m = on",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "ในบล็อก",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "🔷 Block End", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "นอกบล็อก",
+             "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            self.assertNotIn("ในบล็อก", out)
+            self.assertIn("นอกบล็อก", out)
+        finally:
+            ch.close()
+
+    def test_block_until_loop_counts(self):
+        # ลูปย่อย: วน 5 รอบจน n > 5 แล้วเล่นต่อ — ต้องเห็น Beep ครบ 5 ครั้ง
+        script = self._script([
+            {"enabled": True, "button": "Set Variable", "additional": "n = 1",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "🔷 Block Start", "additional": "until n > 5 max 20",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "รอบ {n}",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Set Variable", "additional": "n += 1",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "🔷 Block End", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "จบลูปแล้ว",
+             "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            for k in range(1, 6):
+                self.assertIn("รอบ %d" % k, out)
+            self.assertNotIn("รอบ 6", out)
+            self.assertIn("จบลูปแล้ว", out)
+        finally:
+            ch.close()
+
+    def test_nested_blocks_validate_error(self):
+        # บล็อกไม่ปิด → --validate ต้อง exit 1 พร้อมข้อความตำแหน่งแถวชัดเจน
+        script = self._script([
+            {"enabled": True, "button": "🔷 Block Start", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--validate", "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 1)
+            self.assertIn("ไม่มี Block End", out)
+        finally:
+            ch.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

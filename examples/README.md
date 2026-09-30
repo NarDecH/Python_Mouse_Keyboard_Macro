@@ -63,6 +63,16 @@ py auto_macro.py examples/11_and_conditions.json
 `If Image + If Variable`, `If Pixel Color + If Variable`, `If Loop` หลายเลข,
 `If Time` หลายเวลา (ภาพทดสอบ `examples/target.png` — แก้พาธให้ตรงเครื่องคุณได้)
 
+### ตัวอย่าง Block Start/End + ลูปย่อย (v2.6+)
+
+```bash
+py auto_macro.py examples/12_blocks.json
+```
+
+สาธิตบล็อกเงื่อนไข **`🔷 Block Start` → `🔷 Block End`** — `if ...` ข้ามทั้งบล็อกเมื่อไม่จริง,
+`until ... max N` วนเนื้อในซ้ำจนเงื่อนไขจริง (ตัวนับ 1-5 ด้วย Set Variable) และบล็อกซ้อน 2 ชั้น
+ตรวจโครงสร้างก่อนเล่นด้วย `--validate`
+
 ### ตัวอย่างงานเฝ้าระบบ (v1.10+)
 
 ```bash
@@ -89,6 +99,7 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `09_clipboard.json` | **คลิปบอร์ด (v1.20)**: Set Clipboard + Read Clipboard (เขียนทับคลิปเดิม) | ✅ ไม่คลิก |
 | `10_conditions_v21.json` | **เงื่อนไข (v1.21)**: If Loop / If Time + หัวข้อ Section | ✅ ไม่คลิก |
 | `11_and_conditions.json` | **เงื่อนไขรวม AND (v2.5.4)**: `&&` ผสมภาพ+สีจุด+ตัวแปร+รอบ+เวลา | ✅ ไม่คลิก |
+| `12_blocks.json` | **Block Start/End (v2.6.0)**: บล็อกเงื่อนไข + ลูปย่อย until/max + ซ้อน 2 ชั้น | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 
 ทุกสคริปต์แถวแรกคือ `Save Cursor` และแถวสุดท้าย `Restore Cursor` เสมอ

@@ -222,7 +222,7 @@ folder for you.
 | Ctrl+Y | redo — cell edits are undoable too (v2.5) |
 | Alt+↑/↓ | move the selected rows up/down (v2.5) |
 
-### AND conditions (v2.5.4)
+### AND conditions (v2.6.0)
 
 Append `&&` to any main condition's Additional — **every part must be true** to continue,
 otherwise the next N rows (Repeat) are skipped, same single rule as before:
@@ -236,6 +236,25 @@ If Variable     n > 5 && code = A-1                  ← several variables at on
 
 Timeout tokens still work with `&&` (`img.png 5s && ...` re-checks for 5 s before deciding),
 and `--validate` understands `&&` and reports every broken part per row.
+
+### Block Start / Block End — condition blocks & sub-loops (v2.6.0)
+
+The `🔷 Block Start` → `🔷 Block End` action pair wraps a group of rows (nesting up to 8) —
+put the command in Block Start's Additional:
+
+```text
+(empty)            always open — just for structure
+if img.png         condition false → skip the whole block (matching End found by bracket counting)
+if n > 5           variable / pixel / image conditions, && mixing works
+until img.png      sub-loop: after End, jump back and repeat until the image is found (max 1000)
+until n >= 5 max 20  loop until n >= 5, at most 20 rounds — then leave the loop
+max 10             no condition — repeat the block body 10 times
+```
+
+Unlike If Image you **never count rows** — skip/back-jumps follow the Start/End pair, so editing
+rows inside the block is safe. `--validate` checks pair matching, nesting depth and Additional
+formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
+(skip-block / count-to-5 sub-loop / 2-level nesting — beeps only, safe).
 
 ---
 
@@ -272,5 +291,5 @@ and `--validate` understands `&&` and reports every broken part per row.
 
 ---
 
-*Guide for code v2.5.4 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.6.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

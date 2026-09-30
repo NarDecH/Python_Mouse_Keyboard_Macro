@@ -181,7 +181,12 @@ def main(argv=None):
             if loops and n_loop > loops:
                 break
             print("— รอบที่ %d —" % n_loop)
-            for i, r in enumerate(pick_play_order(play_rows), 1):
+            play_items = pick_play_order(play_rows)
+            block_rounds = {}             # v2.6 (ชุด N2): ตัวนับรอบลูปย่อยรีเซ็ตทุกรอบสคริปต์
+            block_head_add = {}           # v2.6: Additional ของ Block Start ที่แทนค่าแล้ว
+            pi = 0
+            while pi < len(play_items):   # ใช้ index เดินเอง — Block Start/End กระโดดข้าม/วนกลับได้
+                i, r = pi + 1, play_items[pi]
                 if not running[0]:
                     break
                 if mx and time.time() - run_t0 > mx * 60:
@@ -190,6 +195,30 @@ def main(argv=None):
                     break
                 r = subst_row(r, vars_)            # แทน {ตัวแปร} ทุกคอลัมน์
                 if r.get("button") == SECTION_HEADER:   # แถวจัดระเบียบ — ไม่ทำอะไร
+                    pi += 1
+                    continue
+                if r.get("button") == me.BLOCK_START:   # v2.6 (ชุด N2): กลไกเดียวกับ GUI
+                    block_head_add[pi] = r.get("additional", "")
+                    goto, bmsg = me.BlockRunner(
+                        pi, condition_cb=runner.evaluate_block_condition
+                    ).decide(play_items, block_rounds, row=r)
+                    if bmsg:
+                        print("  [%d/%d] %s" % (i, len(play_items), bmsg))
+                    if goto is not None and goto > pi:
+                        pi = goto
+                        continue
+                    pi += 1
+                    continue
+                if r.get("button") == me.BLOCK_END:
+                    goto, bmsg = me.BlockRunner(
+                        pi, condition_cb=runner.evaluate_block_condition
+                    ).decide_end(play_items, block_rounds, head_additions=block_head_add)
+                    if bmsg:
+                        print("  [%d/%d] %s" % (i, len(play_items), bmsg))
+                    if goto is not None and 0 < goto < pi:
+                        pi = goto
+                        continue
+                    pi += 1
                     continue
                 lo, hi = delay_range(r.get("secs", 1))
                 base = delay_seconds(r.get("mins", 0), 0) + (lo if lo == hi else me.random.uniform(lo, hi))
@@ -213,6 +242,7 @@ def main(argv=None):
                         log_write("STEP", "รอบ %d แถว %d/%d %s → ข้าม %d แถว (%.1f วิ)" %
                                   (n_loop, i, len(play_rows), btn, skipping,
                                    time.time() - t0), args.script)
+                    pi += 1
                     continue
                 # เงื่อนไขนับรอบ/เวลา — กลไกเดียวกับ CLI หลัก (v2.1)
                 skip_n, cond_msg = ActionRunner.evaluate_condition(
@@ -226,6 +256,7 @@ def main(argv=None):
                                    skip_n, time.time() - t0), args.script)
                     if skip_n > 0:
                         skipping = skip_n
+                    pi += 1
                     continue
                 if skipping > 0:               # แถวถูกสั่งข้ามจากเงื่อนไขก่อนหน้า
                     skipping -= 1
@@ -234,8 +265,9 @@ def main(argv=None):
                 if not ok:
                     running[0] = False
                     break
-                print("  [%d/%d] %s %s" % (i, len(play_rows), btn,
+                print("  [%d/%d] %s %s" % (i, len(play_items), btn,
                                            r.get("additional", "") or ""))
+                pi += 1
                 if log_enabled:
                     log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
                               (n_loop, i, len(play_rows), btn,

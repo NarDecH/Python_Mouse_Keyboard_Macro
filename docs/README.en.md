@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.5.4
+# 🖱️ Auto Mouse & Keyboard Macro v2.6.0
 
 <div align="center">
 
@@ -94,7 +94,8 @@
 | 📤 **Export .bat/.sh** (v2.3) | Generate double-click launchers next to your saved script (Windows/Linux/macOS) |
 | 🔎 **`--validate`** (v2.4) | Validate every row and report problems without playing — before the overnight run |
 | 🔌 **Plugins v2.5** | New built-ins: Screenshot · Toast (Windows 10/11) · Write Log · Ask Input — plus `ctx["vars"]` to share script variables |
-| 🔗 **AND conditions** (v2.5.4) | Append `&&` to any main condition — every part must be true: `img.png && 300,300 #ffffff && n > 5` (If Image/Pixel/Variable; understood by `--validate`) |
+| 🔗 **AND conditions** (v2.6.0) | Append `&&` to any main condition — every part must be true: `img.png && 300,300 #ffffff && n > 5` (If Image/Pixel/Variable; understood by `--validate`) |
+| 🧱 **Block Start/End** (v2.6.0) | Condition blocks + sub-loops: `if ...` skips the whole block when false, `until ... max N` repeats until true (8-level nesting, `--validate` checks pairs) |
 
 ---
 

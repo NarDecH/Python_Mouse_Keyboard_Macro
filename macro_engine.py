@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.5.4"
+__version__ = "2.6.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -155,10 +155,14 @@ IF_TIME = "If Time"              # เงื่อนไข v1.21: ผ่าน 
 IF_PIXEL = "If Pixel Color"      # เงื่อนไข v2.5: จุดสีตรง → เล่นต่อ, ไม่ตรง → ข้าม N แถว
 READ_PIXEL = "Read Pixel Color"  # v2.5: อ่านสีจุดเก็บเป็นตัวแปร (Additional: ชื่อ x,y)
 IF_VAR = "If Variable"           # เงื่อนไข v2.5: เทียบค่าตัวแปร → เล่นต่อ/ข้าม N แถว
+BLOCK_START = "🔷 Block Start"    # v2.6 (ชุด N2): เปิดบล็อก — เงื่อนไขไม่จริง = กระโดด Block End
+BLOCK_END = "🔷 Block End"        # v2.6 (ชุด N2): ปิดบล็อก — วนกลับตาม until/max (ลูปย่อย)
 
 # v1.22: หมวดสีของแถวตารางตามชนิด Action — แยกกลุ่มเห็นภาพ แค่การจัดระเบียบ ไม่เปลี่ยนพฤติกรรม
 ROW_STYLE = {"run": {"background": "#c8e6c9"},
              "section": {"background": "#cfe3f7", "foreground": "#1a3d6d"},
+             "block": {"background": "#d6d9f7", "foreground": "#2b2f77"},   # v2.6: เปิดบล็อก
+             "blockend": {"background": "#e3e4f2", "foreground": "#3d4085"},  # v2.6: ปิดบล็อก
              "cond": {"background": "#fdf1d6"},            # เงื่อนไข (If Image/Else/Loop/Time)
              "key": {"background": "#e6e0f8"},             # คีย์บอร์ด (Tap/Press/Release/Type Text)
              "special": {"background": "#dff0f5"},         # พิเศษ (Image/Pixel/Launch/Beep/Clipboard/ตัวแปร)
@@ -171,6 +175,10 @@ def row_tag(button):
     แถวเมาส์ทั่วไปใช้แถบสลับ even/odd เหมือนเดิม"""
     if button == SECTION_HEADER:
         return "section"
+    if button == BLOCK_START:
+        return "block"
+    if button == BLOCK_END:
+        return "blockend"
     if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR):
         return "cond"
     if button in ("Tap Key", "Press Key", "Release Key", "Type Text"):
@@ -211,11 +219,14 @@ TIME_ACTIONS = ["If Time"]       # v1.21: ผ่าน HH:MM แล้ว → �
 PIXEL_COND = [IF_PIXEL]          # v2.5: เงื่อนไขสีจุด
 READ_PIXEL_ACTIONS = [READ_PIXEL]  # v2.5: อ่านสีเก็บตัวแปร
 VAR_COND = [IF_VAR]              # v2.5: เงื่อนไขตัวแปร
+BLOCK_ACTIONS = [BLOCK_START, BLOCK_END]   # v2.6 (ชุด N2): บล็อกเงื่อนไข/ลูปย่อย
 SECTION_HEADER = "⬛ หัวข้อ"      # v1.21: แถวจัดระเบียบ — ไม่ทำอะไรตอนเล่น
 ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, WAIT_PIXEL]
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
                + VAR_ACTIONS + CLIP_ACTIONS + LOOP_ACTIONS + TIME_ACTIONS
-               + PIXEL_COND + READ_PIXEL_ACTIONS + VAR_COND + [SECTION_HEADER])
+               + PIXEL_COND + READ_PIXEL_ACTIONS + VAR_COND + BLOCK_ACTIONS + [SECTION_HEADER])
+BLOCK_MAX_DEPTH = 8          # v2.6: จำกัดความลึกบล็อกซ้อน (กันสคริปต์ผิดโครงสร้าง)
+BLOCK_MAX_ROUNDS = 1000      # v2.6: ลูปย่อยไม่ใส่ max = วนได้สูงสุดเท่านี้ (กันอนันต์)
 
 # ------------------------------------------- pixel color helpers (v1.18) ----
 def parse_color_hex(txt):
@@ -295,6 +306,157 @@ def parse_if_time(txt):
     if hh > 23 or mm > 59:
         return None
     return (hh, mm)
+
+
+# -------------------------------- บล็อกเงื่อนไข/ลูปย่อย (v2.6 — ชุด N2) ----
+def parse_block_spec(txt):
+    """แปลง Additional ของ Block Start เป็นคำสั่งเปิดบล็อก (v2.6 — ชุด N2)
+    รองรับ:
+      ""                    → เปิดบล็อกเปล่า (แถวข้างในเล่นเสมอ)
+      "if ภาพ.png"          → เปิดเมื่อเจอภาพ (ไม่เจอ = กระโดดข้ามบล็อก)
+      "if img.png && n > 5"  → เงื่อนไขรวม && ได้ (ภาพ + สีจุด + ตัวแปร — N1)
+      "until ภาพ.png"        → ลูปย่อย: กลับมาเล่นซ้ำจนเจอภาพ (สูงสุด BLOCK_MAX_ROUNDS)
+      "until n >= 5"         → วนจนเงื่อนไขตัวแปรจริง
+      "until ภาพ.png max 20"  → วนจนเจอภาพ แต่ไม่เกิน 20 รอบ
+      "max 10"               → วนซ้ำบล็อก 10 รอบ (ไม่มีเงื่อนไข)
+    คืน dict {"kind": "once"/"loop", "if": str, "until": str, "max": int} หรือ None เมื่อพัง"""
+    s = str(txt or "").strip()
+    out = {"kind": "once", "if": "", "until": "", "max": 0}
+    # token "max N" อยู่ท้ายเสมอ (ตัดก่อนแตก until/if) — ต้นสตริงก็ได้ ("max 10")
+    m = re.search(r"(?:^|\s)max\s+(-?\d+(?:\.\d+)?)\s*$", s)
+    if m:
+        try:
+            out["max"] = max(0, int(float(m.group(1))))
+        except ValueError:
+            return None
+        s = s[:m.start()].strip()
+    m = re.match(r"^(if|until)\b\s*(.*)$", s, re.I)
+    if m:
+        key = m.group(1).lower()
+        rest = m.group(2).strip()
+        if not rest:
+            return None
+        out[key] = rest
+        out["kind"] = "loop" if key == "until" else "once"
+    elif s:                                  # ข้อความอื่นที่ไม่ใช่ if/until/max = พัง
+        return None
+    if out["max"] > 0:
+        out["kind"] = "loop"                 # "max N" เดี่ยว ๆ = วนซ้ำไม่มีเงื่อนไข N รอบ
+    return out
+
+
+def find_block_end_index(rows, start_idx):
+    """หา index ของ Block End ที่จับคู่กับ Block Start ที่ rows[start_idx]
+    (นับวงเล็บ — Block Start ข้างในเพิ่ม depth) — ไม่เจอคืน None (v2.6)"""
+    depth = 0
+    for j in range(start_idx + 1, len(rows)):
+        b = str(rows[j].get("button", ""))
+        if b == BLOCK_START:
+            depth += 1
+        elif b == BLOCK_END:
+            if depth == 0:
+                return j
+            depth -= 1
+    return None
+
+
+class BlockRunner:
+    """ตัวตัดสินคำสั่งบล็อก (v2.6 — ชุด N2) — หัวใจเดียวให้ GUI/CLI ใช้ร่วมกัน
+    ลูปเล่นหลักเรียก: BlockRunner(head_idx).decide(rows, round_counters) ตอนเจอ Block Start
+    และ BlockRunner(end_idx).decide_end(rows, round_counters) ตอนเจอ Block End
+    คืน (goto, message) — goto = index แถวถัดไปที่ต้องเล่น (None = เล่นต่อตามลำดับ)"""
+
+    def __init__(self, head_idx, condition_cb=None):
+        self.head_idx = head_idx
+        self.condition_cb = condition_cb      # def cb(spec_text) -> True/False/None (None = รูปแบบพัง)
+
+    def _cond_true(self, spec_text):
+        if not spec_text:
+            return True
+        return self.condition_cb(spec_text) if self.condition_cb else True
+
+    def decide(self, rows, counters, row=None):
+        """ตัดสินที่ Block Start — คืน (goto, message)
+        เงื่อนไขไม่จริง → กระโดดหลัง Block End คู่ · จริง → เล่นบล็อก (ลูปย่อยเริ่มนับรอบ 1)
+        row = แถวที่ผ่านการแทนค่า {ตัวแปร} แล้ว (ไม่ส่ง = อ่านจาก rows[head_idx])"""
+        r = row or rows[self.head_idx]
+        spec = parse_block_spec(r.get("additional"))
+        if spec is None:
+            return None, "Block Start: รูปแบบ Additional ไม่ถูก (ใช้ if .../until ... [max N])"
+        hit = self._cond_true(spec["if"])
+        if hit is None:
+            return None, "Block Start: เงื่อนไข %r รูปแบบไม่ถูก — เล่นบล็อกตามปกติ" % spec["if"]
+        if not hit:
+            end_i = find_block_end_index(rows, self.head_idx)
+            if end_i is None:
+                return None, "Block Start: ไม่พบ Block End คู่ — เล่นต่อตามลำดับ (ตรวจด้วย --validate)"
+            return end_i + 1, "Block Start: เงื่อนไขไม่จริง → ข้ามบล็อก (ถึงแถว %d)" % (end_i + 2)
+        if spec["kind"] == "loop":
+            counters[self.head_idx] = 1       # ลูปย่อยเริ่มรอบที่ 1
+        return None, None
+
+    def decide_end(self, rows, counters, head_additions=None):
+        """ตัดสินที่ Block End — หา Block Start เปิดที่ใกล้ที่สุดด้านบน (นับวงเล็บ)
+        เป็นลูปย่อย: ยังไม่จริง/ยังไม่ครบ max → กระโดดกลับแถวหลัง Start (เล่นเนื้อในซ้ำ)
+        head_additions = dict {index Start → Additional ที่แทนค่า {ตัวแปร} แล้ว} (ถ้ามี)"""
+        head_i = None
+        depth = 0
+        for j in range(self.head_idx - 1, -1, -1):
+            b = str(rows[j].get("button", ""))
+            if b == BLOCK_END:
+                depth += 1
+            elif b == BLOCK_START:
+                if depth == 0:
+                    head_i = j
+                    break
+                depth -= 1
+        if head_i is None:
+            return None, "Block End: ไม่มี Block Start เปิด — เล่นต่อตามลำดับ (ตรวจด้วย --validate)"
+        head_add = (head_additions or {}).get(head_i) if head_additions else None
+        spec = parse_block_spec(rows[head_i].get("additional")
+                                if head_add is None else head_add)
+        if spec is None:
+            return None, None                 # Start พัง — เล่นต่อ (validate เตือนอยู่แล้ว)
+        if spec["kind"] != "loop":
+            return None, None                 # บล็อกธรรมดา: จบแล้วเล่นต่อ
+        rnd = counters.get(head_i, 1)
+        maxr = spec["max"] or BLOCK_MAX_ROUNDS
+        cond_text = spec["until"]
+        hit = True if not cond_text else self._cond_true(cond_text)
+        if hit is None:
+            return None, ("Block End: เงื่อนไข until %r รูปแบบไม่ถูก — ออกจากลูปย่อย" % cond_text)
+        if hit:
+            counters.pop(head_i, None)
+            return None, None                 # จบลูปย่อย — เล่นต่อหลัง End
+        if rnd >= maxr:
+            counters.pop(head_i, None)
+            return None, "Block End: ลูปย่อยครบ %d รอบ — ออกจากลูป" % maxr
+        counters[head_i] = rnd + 1
+        return head_i + 1, ("Block End: รอบที่ %d/%d ยังไม่จริง → วนกลับ" % (rnd, maxr))
+
+
+def validate_blocks(rows):
+    """ตรวจโครงสร้างบล็อกทั้งสคริปต์ (v2.6 — ใช้โดย validate_rows และ GUI)
+    คืน list ของ (ลำดับแถว 1-based, เหตุผล) — บล็อกไม่ปิด/ปิดเกิน/depth เกิน/Additional พัง"""
+    issues = []
+    stack = []                                # (index 0-based ของ Block Start, depth)
+    for i, r in enumerate(rows, 1):
+        btn = str(r.get("button", ""))
+        if btn == BLOCK_START:
+            if len(stack) >= BLOCK_MAX_DEPTH:
+                issues.append((i, "บล็อกซ้อนลึกเกิน %d ชั้น" % BLOCK_MAX_DEPTH))
+            spec = parse_block_spec(r.get("additional"))
+            if spec is None:
+                issues.append((i, "Block Start รูปแบบไม่ถูก (ใช้ if .../until ... [max N] หรือเว้นว่าง)"))
+            stack.append(i - 1)
+        elif btn == BLOCK_END:
+            if not stack:
+                issues.append((i, "Block End ไม่มี Block Start เปิดคู่"))
+            else:
+                stack.pop()
+    for idx in stack:
+        issues.append((idx + 1, "Block Start นี้ไม่มี Block End ปิดคู่"))
+    return issues
 
 
 def parse_pixel_spec(additional):
@@ -622,6 +784,8 @@ def validate_rows(rows, plugin_names=()):
         if btn not in ACTIONS_ALL and btn not in plugin_names:
             issues.append((i, "ไม่รู้จัก action: %s" % (btn or "-")))
             continue
+        if btn == BLOCK_END and add.strip():
+            issues.append((i, "Block End ไม่รับ Additional (เว้นว่าง)"))
         if btn in KEY_ACTIONS and not (parse_key(add) or parse_key_combo(add)):
             issues.append((i, "คีย์ไม่ถูกต้อง: %s" % (add or "-")))
         elif btn == "Launch App" and not add.strip():
@@ -672,6 +836,8 @@ def validate_rows(rows, plugin_names=()):
                   and re.fullmatch(r"\d+\s*,\s*\d+", parts[1]))
             if not ok:
                 issues.append((i, "Read Pixel Color ต้องเป็น 'ชื่อตัวแปร x,y' เช่น mytext 100,200"))
+    # v2.6 (ชุด N2): โครงสร้างบล็อก — คู่เปิด/ปิด, depth, Additional ของ Block Start
+    issues.extend(validate_blocks(rows))
     return issues
 
 
@@ -1172,6 +1338,49 @@ class ActionRunner:
             if not hit:
                 return False, "If Pixel Color: สีจุด (%d,%d) ไม่ตรง" % (x, y)
         return True, "If Pixel Color: สีจุดตรงทุกจุด → จริง"
+
+    def evaluate_block_condition(self, spec_text):
+        """ตัดสินเงื่อนไขของ Block Start/End ให้ BlockRunner (v2.6 — ชุด N2)
+        รองรับชุดเดียวกับเงื่อนไขทั้งหมด: สีจุด / ตัวแปร / ภาพ (&& ผสมได้ตาม N1)
+        จำแนกจากชิ้นแรก: parse_pixel_spec → สายสี, parse_if_var → สายตัวแปร,
+        อื่น ๆ = สายภาพ (ไม่เจอไฟล์/ไม่เจอบนจอ = False — เหมือน If Image)
+        ชิ้นใด "รูปแบบไม่ถูก" (None) = แถวนี้ไม่จริง (False) — เหมือน If Variable ไม่มีตัวแปร
+        คืน True/False"""
+        s = str(spec_text or "").strip()
+        if not s:
+            return True
+        parts = split_condition_and(s) or [s]
+        head = parts[0]
+        if parse_pixel_spec(head):                     # สายสีจุด (ผสมตัวแปรได้)
+            for p in parts:
+                if parse_pixel_spec(p):
+                    _h, _d = self.evaluate_if_pixel([p], self.variables)
+                else:
+                    _h, _d = self.evaluate_if_var(p, self.variables)
+                if _h is not True:
+                    return _h if _h is None else False
+            return True
+        if parse_if_var(head):                         # สายตัวแปรล้วน
+            for p in parts:
+                _h, _d = self.evaluate_if_var(p, self.variables)
+                if _h is not True:
+                    return _h if _h is None else False
+            return True
+        # สายภาพ (default): ชิ้นแรกคือไฟล์ภาพ — เจอก่อนแล้วค่อยตรวจชิ้นถัดไป
+        rr = {"button": IF_IMAGE, "additional": head}
+        pos = self._find_image_pos(rr)
+        if pos is None:
+            return False
+        self.variables["img_x"] = pos[0]
+        self.variables["img_y"] = pos[1]
+        for p in parts[1:]:
+            if parse_pixel_spec(p):
+                _h, _d = self.evaluate_if_pixel([p], self.variables)
+            else:
+                _h, _d = self.evaluate_if_var(p, self.variables)
+            if _h is not True:
+                return _h if _h is None else False
+        return True
 
     @staticmethod
     def evaluate_condition(btn, additional, repeat, n_loop, now=None, variables=None):

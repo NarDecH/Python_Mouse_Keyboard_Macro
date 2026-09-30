@@ -1,0 +1,32 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Message Box", "additional": "เดโม่ Block Start/End + ลูปย่อย (v2.6 — ชุด N2)\n🔷 Block Start — เปิดบล็อก: ใส่ \"if ...\" เพื่อข้ามบล็อกเมื่อไม่จริง\nหรือ \"until ... max N\" เพื่อวนเนื้อในซ้ำจนเงื่อนไขจริง\n🔷 Block End — ปิดบล็อก (วนกลับอัตโนมัติถ้า Start เป็นลูปย่อย)\nซ้อนกันได้ 8 ชั้น — ตรวจโครงสร้างด้วย py auto_macro.py ไฟล์.json --validate", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม A — บล็อกเงื่อนไข (if): จริง = เล่นข้างใน, ไม่จริง = ข้ามทั้งบล็อก",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "mode = on", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block Start", "additional": "if mode = on", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "บล็อก A: mode = on จริง → กลุ่มนี้เล่น", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block End", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block Start", "additional": "if mode = off", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "บล็อก A2: mode = off ไม่จริง → แถวนี้ถูกข้ามทั้งบล็อก", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block End", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม B — ลูปย่อย (until + max): นับ 1-5 ด้วย Set Variable",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "n = 1", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block Start", "additional": "until n > 5 max 20", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "ลูปย่อย: รอบที่ {n} — วนจน n > 5 (สูงสุด 20 รอบ)", "mins": 0, "secs": 1, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "n += 1", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block End", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "ออกจากลูปย่อยแล้ว (n = {n}) — เล่นต่อ", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม C — บล็อกซ้อนบล็อก: if ข้างใน if",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block Start", "additional": "if mode = on", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block Start", "additional": "if n > 3", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "บล็อกซ้อน: mode = on และ n > 3 ทั้งคู่จริง → เล่น", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block End", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "🔷 Block End", "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "เล่นทุกรอบ — จบเดโม่บล็อก", "mins": 0, "secs": 0, "repeat": 1}
+]

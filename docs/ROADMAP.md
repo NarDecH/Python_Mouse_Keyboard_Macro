@@ -1,6 +1,6 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v2.5.4 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v2.6.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
 ## 🎯 สถานะปัจจุบัน (v2.5.2)
 
@@ -10,8 +10,9 @@
 
 ## 🚀 แผนถัดไป
 
-- [ ] **เงื่อนไขเชิงซ้อน (nested if / ลูปย่อย)** — ชุด N1 (เงื่อนไขรวม `&&`) ✅ v2.5.4 ·
-      ชุด N2 (Block Start/End + ลูปย่อย) รอ feedback ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
+- [x] **เงื่อนไขเชิงซ้อน (nested if / ลูปย่อย)** — ชุด N1 (เงื่อนไขรวม `&&`) ✅ v2.5.4 ·
+      ชุด N2 (Block Start/End + ลูปย่อย until/max) ✅ v2.6.0 ·
+      feedback/ใช้งานจริงแชร์ได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
       · อ่านข้อเสนอฉบับเต็มที่ [DESIGN-nested-if.md](DESIGN-nested-if.md) (เปิดดู [HTML](DESIGN-nested-if.html) ได้)
 - [ ] **รวบรวม plugin จากชุมชน (ต่อยอดตลาด v2.1)** — เปิดรับ PR เพิ่ม `plugins/*.py` +
       แนวทางรีวิวใน docs/PLUGINS.md (เกณฑ์: stdlib/pynput เท่านั้น, ทน error, มีตัวอย่างในเอกสาร)

@@ -65,8 +65,34 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.5.4</h2>
+      <h2>เวอร์ชัน 2.6.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">30 กันยายน 2026</span>
+    </div>
+
+    <h3>🧱 ชุด N2 — Block Start/End + ลูปย่อย</h3>
+    <ul>
+      <li><b>Action ใหม่ 2 ตัว</b> — <code>🔷 Block Start</code> / <code>🔷 Block End</code>:
+        *(เว้นว่าง)* = เปิดเสมอ · <code>if ภาพ.png</code> / <code>if n &gt; 5</code> = ไม่จริง →
+        <b>กระโดดข้ามทั้งบล็อก</b> (นับวงเล็บหา End คู่ — ไม่ต้องนับแถว) ·
+        <code>until ...</code> = <b>ลูปย่อย</b> วนกลับจนเงื่อนไขจริง · <code>max N</code> จำกัดรอบ
+        (ไม่ใส่ = 1000) · ซ้อนได้ 8 ชั้น · เงื่อนไขชุดเดียวกับ N1 (ภาพ/สีจุด/ตัวแปร + &amp;&amp;)</li>
+      <li><b>BlockRunner ใน engine</b> — แหล่งเดียว GUI/CLI · STOP หยุดได้ทุกชั้น ·
+        <code>--validate</code> ตรวจคู่เปิด/ปิด + depth + Additional รายแถว</li>
+      <li><b>GUI</b> — สีแถว block/blockend + เมนูขวาเพิ่มบล็อก + hint ·
+        เดโม่ <code>examples/12_blocks.json</code></li>
+      <li><b>เข้ากันได้ 100%</b> — สคริปต์เก่าเล่นผลเดิมทุกอย่าง</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม <b>TestN2Blocks 12 ตัว + TestE2EBlocks 3 ตัว</b> → รวม <b>373 unit + 15 E2E</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.5.4</h2>
       <span class="date">30 กันยายน 2026</span>
     </div>
 
