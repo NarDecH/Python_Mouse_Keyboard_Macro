@@ -1765,6 +1765,10 @@ class TestPlayLoopGui(unittest.TestCase):
         self.assertIn("_on_click", combined)
         self.assertIn("_on_drag_start", combined)
 
+    @unittest.skipUnless(os.name == "nt",
+                         "event_generate ปุ่มเมาส์บน aqua Tk (macOS) ไม่เสถียร — "
+                         "อาจ crash ทั้งโปรเซส (SIGTRAP) — logic ครอบด้วย "
+                         "test_drag_reorder_* ทุก OS แล้ว")
     def test_drag_with_real_events(self):
         """v2.5.2: ลากจริงผ่าน event_generate — ลาก R2 ไปครึ่งล่างของ R4
         (bbox มีค่าเมื่อหน้าต่างถูก map — บน Linux/macOS ต้อง deiconify ก่อน)"""
