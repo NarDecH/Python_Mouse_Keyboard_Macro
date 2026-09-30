@@ -202,8 +202,8 @@ Ready-to-load JSON scripts live in [`examples/`](../examples/) — from a safe a
 ## 🧪 Tests & build
 
 ```bash
-py -m unittest test_auto_macro -v    # 339 unit tests (+ test_e2e: 12 end-to-end)
-py -m unittest test_e2e -v           # 12 end-to-end tests (real CLI runs)
+py -m unittest test_auto_macro -v    # 370+ unit tests (+ test_e2e: 15 end-to-end)
+py -m unittest test_e2e -v           # 15 end-to-end tests (real CLI runs)
 build.bat                            # build dist/AutoMouseMacro.exe (PyInstaller)
 ```
 

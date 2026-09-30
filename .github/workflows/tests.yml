@@ -149,11 +149,3 @@ jobs:
           awk '/^(FAIL|ERROR): /{n=14} n&&n-->0{print}' e2e_output.txt > ectx.txt || true
           [ -s ectx.txt ] || tail -n 30 e2e_output.txt > ectx.txt || true
           echo "::error::e2e|$(head -c 3500 ectx.txt | tr '\n' '~')"
-
-      - name: รัน E2E tests (Linux ใต้ xvfb)
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            xvfb-run -a python -m unittest test_e2e -v
-          else
-            python -m unittest test_e2e -v
-          fi

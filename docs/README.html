@@ -314,8 +314,8 @@ py engine_cli.py script.json                  # CLI ย่อย engine ล้�
 
   <div class="card">
     <h2>🧪 ทดสอบ</h2>
-<pre><code>py -m unittest test_auto_macro -v    # 339 unit tests (รวมเล่นจริง + ครบวงจร Recorder)
-py -m unittest test_e2e -v           # 12 E2E tests (รัน CLI จริง)</code></pre>
+<pre><code>py -m unittest test_auto_macro -v    # 370+ unit tests (รวมเล่นจริง + ครบวงจร Recorder)
+py -m unittest test_e2e -v           # 15 E2E tests (รัน CLI จริง)</code></pre>
   </div>
 
   <div class="card">
@@ -355,7 +355,7 @@ py -m unittest test_e2e -v           # 12 E2E tests (รัน CLI จริง)
       <li><b>ไม่มีโฆษณา ไม่มีล็อกอิน ไม่มีการเก็บข้อมูลผู้ใช้</b> — สคริปต์ทุกอย่างอยู่ในเครื่องคุณ (ไฟล์ .json อ่าน/แก้ได้)</li>
       <li><b>ใช้งานง่ายระดับกดปุ่ม</b> — อัดแล้วเล่นซ้ำโดยไม่ต้องเขียนโค้ด แต่แก้ละเอียดระดับแถวได้ในตารางเดียว</li>
       <li><b>ความปลอดภัยมาก่อน</b> — STOP ใช้ได้ทุกช่องทาง + safety timeout + backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม</li>
-      <li><b>โปร่งใส ตรวจสอบได้</b> — โอเพนซอร์สทั้งหมด, log การเล่นรายวัน, CI รันเทสต์ 339+12 ตัวทุก push</li>
+      <li><b>โปร่งใส ตรวจสอบได้</b> — โอเพนซอร์สทั้งหมด, log การเล่นรายวัน, CI รันเทสต์ 370+15 ตัวทุก push</li>
       <li><b>ขยายได้ไม่จำกัด</b> — เพิ่ม Action ใหม่ด้วยไฟล์ Python เดียวใน <code>plugins/</code></li>
     </ul>
     <div class="warn">⚠️ ใช้เพื่องานที่ชอบด้วย/อนุญาตเท่านั้น — อย่าใช้กับเกมหรือระบบที่ห้ามการทำงานอัตโนมัติ</div>

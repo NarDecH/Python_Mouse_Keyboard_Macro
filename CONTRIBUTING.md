@@ -8,9 +8,8 @@
 git clone https://github.com/NarDecH/Python_Mouse_Keyboard_Macro.git
 cd Python_Mouse_Keyboard_Macro
 py -m pip install -r requirements.txt        # pynput + opencv-python + Pillow
-py -m unittest test_auto_macro -v             # unit tests (274 ตัว)
-py -m unittest test_e2e -v                    # E2E (11 ตัว — รัน CLI จริง)
-py -m unittest test_e2e -v                    # E2E tests (สคริปต์ Beep ล้วน ปลอดภัย)
+py -m unittest test_auto_macro -v             # unit tests (370+ ตัว)
+py -m unittest test_e2e -v                    # E2E (รัน CLI จริง — สคริปต์ Beep ล้วน ปลอดภัย)
 ```
 
 > เครื่อง Windows ใช้ `py` launcher เสมอ (`python` ใน PATH อาจเป็น stub ของ Windows Store)

@@ -57,7 +57,7 @@
 • Schedule ทุก N นาที/รายวัน • Watchdog เริ่มใหม่เอง • CLI สำหรับ Task Scheduler
 • Backup อัตโนมัติ 7 วัน • log + กราฟสถิติ • self-check ตอนเปิดโปรแกรม
 
-ไฟล์เดียวจบ ไม่ต้องติดตั้ง | โอเพนซอร์ส (Python) | 339 unit + 12 E2E tests
+ไฟล์เดียวจบ ไม่ต้องติดตั้ง | โอเพนซอร์ส (Python) | 373 unit + 15 E2E tests
 ⬇️ https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ⚠️ อย่าใช้กับเกม/ระบบที่ห้าม bot นะ
 ```
@@ -89,7 +89,7 @@ Highlights:
 
 Tech: Python (Tkinter + pynput), optional opencv-python + Pillow, engine separated
 from the GUI (macro_engine.py — embed it in your own project).
-339 unit tests + 12 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
+373 unit tests + 15 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
 
 Download (no Python needed): https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 Source: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro
