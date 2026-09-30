@@ -193,12 +193,11 @@
 ├── build.bat            # สคริปต์ build .exe อัตโนมัติ
 ├── run.bat              # รันโปรแกรมจากซอร์สด้วย py
 ├── requirements.txt     # pynput + opencv-python + Pillow
-├── pic.png              # รูปตัวอย่างต้นแบบ
 ├── docs/
 │   ├── README.md / .html
 │   ├── RESEARCH.md / .html
 │   ├── CHANGELOG.md / .html
-│   └── images/pic.png
+│   └── images/               # รูปประกอบเอกสาร (screenshot.png, demo.gif ฯลฯ)
 └── dist/AutoMouseMacro.exe   # ผลลัพธ์ build (สร้างโดย build.bat)
 ```
 
@@ -309,5 +308,5 @@ build.bat                               # build .exe (หรือ: py -m PyInst
 
 - ทุกเอกสารทำเป็นคู่ **.md + .html** (HTML สวยงาม เปิดในเบราว์เซอร์ได้ทันที) **ภาษาไทย**
 - HTML ใช้ CSS inline ในไฟล์ ไม่พึ่ง CDN (เปิดออฟไลน์ได้) ธีมสีเขียว/ฟ้าตามโปรแกรม
-- รูปประกอบอยู่ที่ `docs/images/` — อ้างแบบ relative (`images/pic.png`)
+- รูปประกอบอยู่ที่ `docs/images/` — อ้างแบบ relative (`images/screenshot.png`)
 - อัพเดต CHANGELOG ทุกครั้งที่เพิ่มฟีเจอร์/แก้บั๊ก โดยเพิ่มเวอร์ชันใหม่ด้านบนสุด

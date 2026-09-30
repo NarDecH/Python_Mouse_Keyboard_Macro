@@ -64,7 +64,8 @@ or combos `Ctrl+W`, `Ctrl+Shift+T`, `Win+D` (v1.20.4). Physical keys are layout-
 **Extra (v1.5+):** Type Text (Thai + emoji, Unicode input — correct on any keyboard layout),
 Launch App (`notepad.exe` or `https://...`), Beep, Set/Read Clipboard (v1.20),
 Set Variable (v1.19), Image Click / Wait for Image (needs `opencv-python Pillow`),
-Wait for Pixel Color (v1.18), Custom plugins (v1.16).
+Wait for Pixel Color (v1.18), If Pixel Color / Read Pixel Color / If Variable (v2.5),
+Custom plugins (v1.16).
 
 Search Area syntax for image actions: `button.png@100,200,300,400` = search only that box,
 `#90` = threshold 90%.
@@ -88,6 +89,9 @@ rows 5-6 ...group B (played when not found)
 
 Wait for Pixel Color: Additional `x,y #RRGGBB`, e.g. `300,300 #ffffff` — waits (max 30 s,
 `60s` token overrides) until the pixel matches, then continues.
+
+**If Image retry window (v2.4):** append `Ns` to the Additional column, e.g. `img.png 5s` =
+keep re-checking for up to 5 seconds before deciding — fixes pages that are still loading.
 
 ---
 
@@ -142,6 +146,9 @@ py auto_macro.py script.json                 # play without opening the GUI
 py auto_macro.py script.json --loops 5 --speed 2
 py auto_macro.py script.json --loop          # infinite
 py auto_macro.py script.json --watchdog 3    # restart when finished (v1.10)
+py auto_macro.py script.json --max-minutes 60  # v2.4: safety timeout — auto-stop after 60 min
+py auto_macro.py script.json --validate      # v2.4: validate every row, don't play (exit 1 on problems)
+py auto_macro.py --version                   # print the version
 py engine_cli.py script.json                 # v2.1: engine-only CLI (no GUI code at all)
 py engine_cli.py script.jsonl --json-lines   # v2.2: one JSON row per line (skips #comments)
 ```
@@ -167,6 +174,10 @@ and the run continues).
 ---
 
 ## Chapter 10 — Plugins (v1.16+)
+
+Ten built-in plugins ship with the project: Sleep, Message Box, Play Sound, Webhook,
+Multi Image Click, **Screenshot**, **Toast** (Windows 10/11 notification),
+**Write Log** and **Ask Input** (asks the user for a value and stores it in a variable).
 
 Drop a short Python file into `plugins/` — it appears in the Action dropdown:
 
@@ -206,8 +217,43 @@ folder for you.
 | F6 / F8 | play / stop (global — no focus needed) |
 | F9 / F10 | record / toggle infinite loop |
 | F1–F4 | hot-profile play 1–4 |
-| Delete | delete selected row |
-| Ctrl+F / Ctrl+Z | find rows / undo (50 levels) |
+| Delete | delete selected row (multi-select with Ctrl/Shift+click, v2.4) |
+| Ctrl+F / Ctrl+Z | find & replace-all / undo (50 levels) |
+| Ctrl+Y | redo — cell edits are undoable too (v2.5) |
+| Alt+↑/↓ | move the selected rows up/down (v2.5) |
+
+---
+
+## Chapter 13 — What's new in v2.x (quick summary)
+
+### 13.1 Extensions (v2.0–2.3)
+- **Engine separated from the GUI** — `macro_engine.py` is pure Python (no Tk); a slim
+  `engine_cli.py` runs it directly · the 🔌 toolbar button opens the plugins folder ·
+  plugin marketplace: [PLUGINS.md](PLUGINS.md).
+- **📤 Export Bat menu** — generates `.bat` (Windows) + `.sh` (Linux/macOS) launchers next to
+  your saved script; double-click to run (extra args like `--loop` are forwarded).
+
+### 13.2 Robustness (v2.4)
+- **Self-healing global hotkeys** — a dead listener is detected and restarted automatically
+  (rate-limited to once per 10 s) and announced in the statusbar/log. Principle: STOP must always work.
+- **Safety timeout** — Settings "auto-stop after N minutes" (1–720) · CLI: `--max-minutes N`.
+- **If Image retry window** — append `Ns` (e.g. `img.png 5s`) to re-check before deciding.
+- **Multi-select rows** — Ctrl/Shift+click then Delete removes the whole set (undoable).
+- **Schedule picks a profile** — choose which profile to load at play time; Settings shows the current appointment.
+- **`--validate`** — report every problematic row without playing (exit code 1 when found).
+- Template cache for image search — 1000 rounds no longer read the .png 1000 times.
+
+### 13.3 Full conditions + an easier table (v2.5)
+- **If Pixel Color** — point-color condition: match → continue, mismatch → skip N rows (`Ns` re-checks first).
+- **Read Pixel Color** — store a point's color into `{name}` (Additional: `name x,y`).
+- **If Variable** — compare variables: numbers (`round > 5`) or text (`code = A-1`, `msg ~ failed`).
+- **Image Click sets `{img_x}/{img_y}`** — click relative to the found image.
+- **`rand a-b` in Set Variable** — `luck = rand 1-100` stores a random number.
+- **Drag to reorder** — press-hold and drag; drop above/below by cursor half; autoscroll;
+  drag the whole selection; dropping on a collapsed group is blocked.
+- **Redo (Ctrl+Y) + full undo** — cell edits are undoable · a **Note column** per row ·
+  **find & replace-all** in Ctrl+F.
+- **4 new plugins** — Screenshot · Toast · Write Log · Ask Input (`ctx["vars"]` shares script variables).
 
 ---
 
