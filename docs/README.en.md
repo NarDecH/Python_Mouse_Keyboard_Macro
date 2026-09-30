@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.2
+# 🖱️ Auto Mouse & Keyboard Macro v2.5.2
 
 <div align="center">
 
@@ -83,6 +83,17 @@
 | 🎨 **Row colors by category** (v1.22) | Conditions = light yellow · keyboard = light purple · special actions = light blue · mouse rows keep the zebra stripes — spot groups at a glance |
 | ⏱ **Per-action stats** (v1.18) | Stats shows the top 5 time-consuming Actions — spot your script's bottleneck instantly |
 | 🔍 **Find / Undo / Paste** (v1.17) | `Ctrl+F` search rows · `Ctrl+Z` undo delete (50 levels) · 📋 Paste menu inserts JSON rows from clipboard |
+| 🎨 **If Pixel Color** (v2.5) | Point-color condition: match → continue, mismatch → skip N rows (append `Ns` to re-check before deciding) |
+| 🎨 **Read Pixel Color** (v2.5) | Read a point's color into a variable: Additional `name x,y` → `{name}` |
+| 🔢 **If Variable** (v2.5) | Compare variables: numbers (`n > 5`) or text (`code = A-1`, `msg ~ failed`) — Repeat = rows to skip when false |
+| 🖱️ **Drag to reorder** (v2.5) | Press-hold and drag rows; drop above/below by cursor half; autoscroll; drag the whole selection; multi-select + Delete (v2.4); Alt+↑/↓ |
+| 🔁 **Undo/Redo + Notes** (v2.5) | `Ctrl+Z`/`Ctrl+Y` covers cell edits too · a Note column per row · find & replace-all in `Ctrl+F` |
+| 🛡 **Self-healing hotkeys** (v2.4) | Dead global-hotkey listeners are detected and restarted automatically — STOP must always work |
+| ⏱ **Safety timeout** (v2.4) | Auto-stop after N minutes of playing (1–720) — Settings or CLI `--max-minutes` |
+| 🔀 **If Image retry window** (v2.4) | Append `5s` to Additional = re-check for up to 5 s before deciding (fixes screens that are still loading) |
+| 📤 **Export .bat/.sh** (v2.3) | Generate double-click launchers next to your saved script (Windows/Linux/macOS) |
+| 🔎 **`--validate`** (v2.4) | Validate every row and report problems without playing — before the overnight run |
+| 🔌 **Plugins v2.5** | New built-ins: Screenshot · Toast (Windows 10/11) · Write Log · Ask Input — plus `ctx["vars"]` to share script variables |
 
 ---
 
@@ -136,6 +147,9 @@ py auto_macro.py script.json --loops 5       # 5 rounds
 py auto_macro.py script.json --speed 2       # 2× speed
 py auto_macro.py script.json --no-log        # disable play log
 py auto_macro.py script.json --stop-file D:\stop.flg   # create this file = stop now
+py auto_macro.py script.json --max-minutes 60  # safety timeout: auto-stop after 60 min
+py auto_macro.py script.json --validate        # validate only, don't play (exit 1 on problems)
+py auto_macro.py --version                     # print version
 ```
 
 Stop from anywhere with **F8**/**Esc** (even unfocused), **Esc**/**q** in the CLI window, or **Ctrl+C**.
@@ -186,8 +200,8 @@ Ready-to-load JSON scripts live in [`examples/`](../examples/) — from a safe a
 ## 🧪 Tests & build
 
 ```bash
-py -m unittest test_auto_macro -v    # 274 unit tests (+ test_e2e: 11 end-to-end)
-py -m unittest test_e2e -v           # 3 end-to-end tests (real CLI runs)
+py -m unittest test_auto_macro -v    # 339 unit tests (+ test_e2e: 12 end-to-end)
+py -m unittest test_e2e -v           # 12 end-to-end tests (real CLI runs)
 build.bat                            # build dist/AutoMouseMacro.exe (PyInstaller)
 ```
 
@@ -199,4 +213,5 @@ Single-file Python 3.8+ app (`auto_macro.py`): Tkinter GUI + `pynput` for input 
 
 ## 📄 License
 
-See the repository. Inspired by "Auto Mouse v1.3"; additional actions researched from automouseclick.com.
+See the repository. Free & open source — no ads, no tracking; all scripts stay on your machine as plain .json files.
+Use only for tasks you are authorized to automate (don't use it with games/services that prohibit bots).

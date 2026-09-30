@@ -1,4 +1,4 @@
-# 🔌 ตลาด Plugin — PLUGINS.md (v2.1)
+# 🔌 ตลาด Plugin — PLUGINS.md (v2.5)
 
 ขยายโปรแกรมด้วย **Custom Action** — เขียนไฟล์ Python สั้น ๆ วางใน `plugins/`
 โปรแกรมโหลดอัตโนมัติตอนเปิด แล้วชื่อจะโผล่ใน dropdown คอลัมน์ **Action** ทันที (ทั้ง GUI และ CLI)
@@ -15,6 +15,10 @@
 | `play_sound.py` | Play Sound | บี๊บเสียงจริง (winsound) ตามจำนวนครั้งใน Additional — fallback bell บน OS อื่น |
 | `webhook.py` | Webhook | ยิง POST JSON ไป URL ใน Additional (timeout 5 วิ) — แจ้งทีม/ระบบอื่นเมื่อสคริปต์ถึงจุดสำคัญ |
 | `multi_image_click.py` | Multi Image Click | คลิกภาพหลายไฟล์ตามลำดับ คั่น `|` รองรับ @กรอบ#threshold — ไฟล์ไหนไม่เจอข้ามให้ |
+| `screenshot.py` | Screenshot | ถ่ายหน้าจอเก็บไฟล์พร้อมเวลา (หลักฐานงานเฝ้าระบบ) |
+| `toast.py` | Toast | แจ้งเตือน Windows 10/11 ไม่บล็อกการเล่น (ส่งไม่ได้/OS อื่น → statusbar+log แทน) |
+| `write_log.py` | Write Log | เขียนข้อความของผู้ใช้ลง log การเล่น (ใช้ `{ตัวแปร}` ได้) |
+| `ask_input.py` | Ask Input | ถามค่าผู้ใช้ตอนเล่นเก็บเป็นตัวแปร — Additional `ชื่อ|หัวข้อ|ค่าเริ่มต้น` |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที
@@ -42,6 +46,7 @@ def run(ctx, row):
 | `ctx["stop_check"]()` | function | **คืน `False` เมื่อผู้ใช้กด STOP** — ลูปยาวต้องเช็คและออกเอง |
 | `ctx["ui"]["msg"](text, color)` | function | แสดงข้อความใน statusbar (GUI) หรือ print (CLI) |
 | `ctx["ui"]["beep"]()` | function | ส่งเสียงเตือน |
+| `ctx["vars"]` | dict | **ชี้ dict ตัวแปรเดียวกับของสคริปต์** — plugin เขียนค่าแล้วแถวถัดไปใช้ `{ชื่อ}` ต่อได้ (v2.5) |
 
 `row` คือ dict ของแถวที่กำลังเล่น: `x, y, additional, mins, secs, repeat, enabled`
 (ค่า `{ตัวแปร}` ถูกแทนค่าให้ก่อนส่งเข้ามาแล้ว)
@@ -57,9 +62,8 @@ def run(ctx, row):
 ## แนวคิด plugin ที่อยากเห็น (ชวนเขียน!)
 
 - 🔊 เสียงแจ้งเตือนจริง (ไฟล์ .wav) แทนบี๊บ
-- 📸 OCR อ่านข้อความบนจอแล้วเก็บเป็นตัวแปร
-- 🌐 เรียก webhook/HTTP แจ้งสถานะสคริปต์
-- 🖼️ ค้นภาพหลายไฟล์พร้อมกันแล้วคลิกตัวที่เจอก่อน
-- ⌨️ ฟอร์มกรอกข้อความชุดจากไฟล์ CSV
+- 📸 OCR อ่านข้อความบนจอแล้วเก็บเป็นตัวแปร (ผ่าน `ctx["vars"]`)
+- ⌨️ ฟอร์มกรอกข้อความชุดจากไฟล์ CSV (อ่านแถวแล้วเขียน `ctx["vars"]["row"]` ทีละบรรทัด)
+- 🖼️ ค้นภาพหลายไฟล์พร้อมกันแล้วคลิกตัวที่เจอก่อน (มีตัวอย่างแล้ว: multi_image_click.py)
 
 ส่ง PR มาที่ [CONTRIBUTING.md](../CONTRIBUTING.md) — plugin ดี ๆ จะถูกเพิ่มในตารางข้างบน

@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.4.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.5.3 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -10,7 +10,7 @@
 - **ไฟล์หลัก:** `auto_macro.py` (ไฟล์เดียวจบตอนแจกจ่าย) + `macro_engine.py` (engine ล้วน ไม่มี Tk —
   แหล่งจริงของบล็อก ENGINE-BEGIN/END ใน auto_macro.py · **แก้ engine ที่ macro_engine.py เสมอ**
   แล้วรัน `py build_singlefile.py` ซิงก์กลับก่อน build .exe — กฎ "ไฟล์เดียวจบ" ยังคงอยู่ผ่าน build script)
-- **แรงบันดาลใจ:** โปรแกรม "Auto Mouse v1.3" (ดูรูปตัวอย่าง `pic.png` / `docs/images/pic.png`)
+- **แรงบันดาลใจ:** UX ตารางคำสั่ง + ปุ่ม START/STOP/REPEAT/ RECORD แบบกดแล้วเล่นซ้ำ
 - **หน้าที่:** บันทึกและเล่นซ้ำการคลิกเมาส์ + การกดคีย์ตามสคริปต์ที่ผู้ใช้ตั้งไว้
 - **ฟีเจอร์เสริม v1.4:** Global Hotkey, คลิกตามภาพ (OpenCV), โปรไฟล์หลายสคริปต์,
   เล่นอัตโนมัติตามเวลา (schedule), unit tests (`test_auto_macro.py`)

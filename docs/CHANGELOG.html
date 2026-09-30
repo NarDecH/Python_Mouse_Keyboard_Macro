@@ -65,8 +65,80 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.2.1</h2>
+      <h2>เวอร์ชัน 2.5.3</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">30 กันยายน 2026</span>
+    </div>
+
+    <h3>📚 เอกสาร + About</h3>
+    <ul>
+      <li><b>ปรับปรุงเอกสารทั้งหมดให้ตรงกับโค้ด v2.5.2</b> — README/TUTORIAL/RESEARCH/PLUGINS/ROADMAP
+        เคยค้างที่ v1.18–v2.2: เพิ่มฟีเจอร์ v2.3–v2.5 ครบ (เงื่อนไขครบวงจร, ลากสลับแถว,
+        self-healing hotkey, safety timeout, <code>--validate</code>, Export .bat/.sh,
+        plugin ใหม่ 4 ตัว), แก้ตัวเลขเทสต์เป็น <b>339 unit + 12 E2E</b> (รันจริงยืนยัน)
+        และเพิ่ม CLI ใหม่ในตารางคำสั่ง</li>
+      <li><b>กล่อง About ในโปรแกรมขึ้นใหม่</b> (เมนู ℹ️ About) + หัวข้อ "เกี่ยวกับ (About)" ใน README
+        (md+html) — จุดยืนของโปรเจกต์: ฟรี/โอเพนซอร์ส ไม่มีโฆษณา-ล็อกอิน-การเก็บข้อมูลผู้ใช้,
+        ความปลอดภัยมาก่อน, โปร่งใสตรวจสอบได้ พร้อมคำเตือนการใช้งาน</li>
+      <li><b>ลบการอ้างอิง "ต้นแบบ Auto Mouse v1.3" ออกจากเอกสารทั้งหมด</b>
+        (README/TUTORIAL/RESEARCH ทั้ง .md และ .html รวมภาพ pic.png และคอลัมน์เทียบในตาราง)</li>
+      <li>TUTORIAL เพิ่ม<b>บทที่ 13 ใหม่ใน v2.x</b> สรุปฟีเจอร์ทั้งหมดหลัง v1.22 ·
+        RESEARCH อัพเดตสถาปัตยกรรม v2.x + วิวัฒนาการหลัง v1.5 ·
+        ROADMAP จัดใหม่เป็น "สถานะปัจจุบัน + แผนถัดไป + ประวัติ" ·
+        จัดลำดับ CHANGELOG ให้ 2.5.0 → 2.5.1 → 2.5.2 เรียงถูกต้อง (เดิมซ้ำ/สลับ)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.5.0</h2>
+      <span class="date">30 กันยายน 2026</span>
+    </div>
+
+    <h3>🖥 ปรับปรุง</h3>
+    <ul>
+      <li><b>🖱 ลากสลับแถวแบบเต็มรูปแบบ</b> — วางก่อน/หลังตามครึ่งแถว + autoscroll +
+        ลากทั้งก้อนที่เลือก + ไฮไลต์แถวที่ลาก · ห้ามวางบนกลุ่มย่อ</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.5.1</h2>
+      <span class="date">30 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เงื่อนไข/ตัวแปรครบวงจร (ชุด A)</h3>
+    <ul>
+      <li><b>🎨 If Pixel Color</b> — เงื่อนไขสีจุด: ตรง → เล่นต่อ, ไม่ตรง → ข้าม N แถว
+        (ต่อท้าย <code>Ns</code> ได้ = ตรวจซ้ำก่อนตัดสิน)</li>
+      <li><b>🎨 Read Pixel Color</b> — อ่านสีจุดเก็บเป็นตัวแปร <code>{ชื่อ}</code></li>
+      <li><b>🔢 If Variable</b> — เทียบตัวเลข/ข้อความ (<code>n &gt; 5</code>, <code>msg ~ ล้มเหลว</code>)</li>
+      <li><b>📍 Image Click เก็บพิกัดที่เจอ</b> — <code>{img_x}/{img_y}</code> อัตโนมัติ ·
+        <b>🎲 rand ใน Set Variable</b></li>
+      <li><b>🔌 Plugins ใหม่ 4 ตัว</b> — Screenshot · Toast · Write Log · Ask Input (ctx เพิ่ม <code>vars</code>)</li>
+      <li><b>🖥 GUI</b> — ลากสลับแถวด้วยเมาส์ + Alt+↑↓ · Redo (Ctrl+Y) · คอลัมน์ หมายเหตุ ·
+        ค้นหาแทนที่ทั้งหมด</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.5.2</h2>
+      <span class="date">30 กันยายน 2026</span>
+    </div>
+
+    <h3>🐛 แก้ (รายงานโดยผู้ใช้: "การลากสลับแถวยังใช้งานไม่ได้")</h3>
+    <ul>
+      <li><b>🖱 ลากสลับแถวไม่ทำงานเลยตั้งแต่ v2.5.0</b> — <code>bind("&lt;Button-1&gt;")</code>
+        (ไม่มี <code>add="+"</code>) เขียนทับ binding ของ <code>&lt;ButtonPress-1&gt;</code>
+        → <code>_on_drag_start</code> ไม่เคยถูกเรียก · แก้ลำดับ bind + regression test 2 ตัว</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.2.1</h2>
       <span class="date">29 กันยายน 2026</span>
     </div>
 

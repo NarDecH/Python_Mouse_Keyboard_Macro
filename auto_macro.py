@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.5.2"
+__version__ = "2.5.3"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -4314,10 +4314,20 @@ class MacroApp:
         win.destroy()
 
     def about(self):
-        messagebox.showinfo("About",
-                            APP_TITLE + "\n\nโปรแกรมสั่งงานเมาส์/คีย์บอร์ดอัตโนมัติ\n"
-                            "Python " + sys.version.split()[0] + "  •  Tkinter + pynput\n\n"            "F6 เล่น | F8 หยุด | F9 บันทึก | F10 วนซ้ำ | F1-F4 hot-profile\n"
-            "(คีย์ลัดกดได้แม้ไม่โฟกัสหน้าต่าง)")
+        """กล่อง About — ข้อความเดียวกับหัวข้อ About ใน docs/README.md (v2.5.3)"""
+        messagebox.showinfo(
+            "About",
+            APP_TITLE + "\n\n"
+            "โปรแกรมอัตโนมัติสำหรับเมาส์และคีย์บอร์ด — ฟรี โอเพนซอร์ส\n"
+            "อัดครั้งเดียว เล่นซ้ำได้ไม่จำกัด โดยไม่ต้องเขียนโค้ด\n\n"
+            "• ไม่มีโฆษณา ไม่มีล็อกอิน ไม่มีการเก็บข้อมูลผู้ใช้\n"
+            "  สคริปต์ทุกอย่างอยู่ในเครื่องคุณ (ไฟล์ .json อ่าน/แก้ได้)\n"
+            "• คลิกตามภาพ + เงื่อนไขในสคริปต์ (If Image/Pixel/Variable)\n"
+            "• ปุ่มลัด F6–F10 กดได้แม้ไม่โฟกัสหน้าต่าง\n\n"
+            "Python " + sys.version.split()[0] + "  •  Tkinter + pynput\n\n"
+            "F6 เล่น | F8 หยุด | F9 บันทึก | F10 วนซ้ำ | F1-F4 hot-profile\n"
+            "⚠️ ใช้เพื่องานที่ชอบด้วย/อนุญาตเท่านั้น\n\n"
+            "github.com/NarDecH/Python_Mouse_Keyboard_Macro")
 
     def help_dialog(self):
         """Help ฉบับเต็ม (v1.13) — หน้าต่างเลื่อนดูได้ ครอบทุกฟีเจอร์ + ปุ่มเปิดคู่มือ"""

@@ -36,6 +36,7 @@
 • ปุ่มลัด F1–F10 กดได้แม้ไม่โฟกัสหน้าต่าง
 • โหมดเฝ้าระบบ: จบแล้วเริ่มใหม่เอง วนไม่จำกัด
 • มี log + กราฟสถิติ + backup อัตโนมัติทุกครั้งที่ปิด
+• เงื่อนไขในสคริปต์ (If Image/Pixel Color/Variable) + ตัวแปร {ชื่อ} + ลากสลับแถวได้
 
 ดาวน์โหลด: ไฟล์ .exe เดียว (Windows) ไม่ต้องติดตั้ง Python
 ภาษาไทยทั้งโปรแกรมและคู่มือ 🇹🇭
@@ -56,7 +57,7 @@
 • Schedule ทุก N นาที/รายวัน • Watchdog เริ่มใหม่เอง • CLI สำหรับ Task Scheduler
 • Backup อัตโนมัติ 7 วัน • log + กราฟสถิติ • self-check ตอนเปิดโปรแกรม
 
-ไฟล์เดียวจบ ไม่ต้องติดตั้ง | โอเพนซอร์ส (Python) | 94 unit + 7 E2E tests
+ไฟล์เดียวจบ ไม่ต้องติดตั้ง | โอเพนซอร์ส (Python) | 339 unit + 12 E2E tests
 ⬇️ https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ⚠️ อย่าใช้กับเกม/ระบบที่ห้าม bot นะ
 ```
@@ -68,22 +69,27 @@
 **Title:** I built a free, open-source mouse & keyboard macro recorder (single .exe, Thai/English UI)
 
 ```
-Hi! I've been building Auto Mouse & Keyboard Macro — a Windows automation tool
-inspired by the classic "Auto Mouse v1.3", extended with features researched from
-modern macro tools.
+Hi! I've been building Auto Mouse & Keyboard Macro — a free, open-source Windows
+automation tool: record once, replay forever, edit everything row-by-row.
 
 Highlights:
 - Record clicks/keys/scroll with automatic timing, edit everything row-by-row
+  (drag to reorder, undo/redo, find & replace, notes per row)
 - Image Click with search area + per-row confidence threshold (OpenCV)
-- Global hotkeys (F1–F10) that work even when unfocused
-- Scheduler (every N minutes / daily HH:MM), random delays (anti-pattern),
-  shuffle & row sampling, watchdog auto-restart mode
-- CLI mode for Windows Task Scheduler with --stop-file for external control
-- Daily play logs + in-app stats with a 14-day bar chart, startup self-check,
+- In-script conditions: If Image / If Pixel Color / If Variable / If Loop / If Time,
+  variables `{name}`, clipboard actions, and 20+ built-in actions
+- Plugin system: drop a small .py into plugins/ to add new Actions
+  (10 built-ins: Screenshot, Toast, Webhook, Ask Input, ...)
+- Global hotkeys (F1–F10) that work even when unfocused, with self-healing listeners
+- Scheduler (every N minutes / daily HH:MM + profile pick), random delays (anti-pattern),
+  shuffle & row sampling, watchdog auto-restart mode, safety timeout
+- CLI mode for Windows Task Scheduler with --stop-file / --validate for external control
+- Daily play logs + in-app stats with charts, startup self-check,
   automatic 7-day backups, settings export/import
 
-Tech: single-file Python (Tkinter + pynput), optional opencv-python + Pillow.
-94 unit tests + 7 end-to-end tests, CI on 3.12/3.13/3.14, auto releases via tag.
+Tech: Python (Tkinter + pynput), optional opencv-python + Pillow, engine separated
+from the GUI (macro_engine.py — embed it in your own project).
+339 unit tests + 12 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
 
 Download (no Python needed): https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 Source: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro
@@ -95,6 +101,6 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 
 ## 💡 เคล็ดลับตอนโพสต์
 
-- แนบ `screenshot.png` หรือเปิด LANDING.html เป็นลิงก์หลัก (สวย อ่านง่าย มี CTA)
+- แนบ `screenshot.png` หรือเปิด [LANDING.html](LANDING.html) เป็นลิงก์หลัก (สวย อ่านง่าย มี CTA)
 - ช่วงเวลาโพสต์ดี: ค่ำวันธรรมดา / เช้าเสาร์ (คนไทยออนไลน์)
 - ถ้ามีคนถามถึงความปลอดภัย: โอเพนซอร์สทั้งหมด ตรวจโค้ดได้ มี CI รันเทสต์ทุก push

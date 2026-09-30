@@ -71,7 +71,11 @@ py auto_macro.py                        # หรือดับเบิลค�
 | Launch App | โปรแกรม/URL | `notepad.exe`, `https://...` |
 | Image Click / Wait for Image | ไฟล์.png หรือ `ไฟล์.png@x,y,w,h#threshold` | `btn.png@100,200,300,80#90` |
 | If Image / Else If Image (v1.17+) | ไฟล์.png (เหมือน Image Click) — Repeat มีความหมายพิเศษ | `btn.png` (Repeat = แถวที่ข้าม/แบ่งกลุ่ม) |
+| If Image แบบรอซ้ำ (v2.4) | เดิม + ต่อท้าย `Ns` = ตรวจซ้ำก่อนตัดสิน | `img.png 5s` = รอสูงสุด 5 วิ |
 | Wait for Pixel Color (v1.18) | `x,y #RRGGBB` (หน่วงก่อนตรวจใส่ใน Secs) | `300,300 #ffffff` |
+| If Pixel Color (v2.5) | `x,y #RRGGBB` ต่อท้าย `Ns` ได้ — ตรงเล่นต่อ ไม่ตรงข้าม N แถว | `300,300 #ffffff` |
+| Read Pixel Color (v2.5) | `ชื่อ x,y` — อ่านสีจุดเก็บเป็น `{ชื่อ}` | `สีจอ 300,300` |
+| If Variable (v2.5) | `ชื่อ ตัวดำเนินการ ค่า` (`> >= < <= = ~`) — `~` = มีคำนี้ในข้อความ | `รอบ > 5` |
 | Move Mouse by Offset | ระยะเปลี่ยนแปลง (ใส่ใน X,Y) | X=50 Y=-20 |
 | อื่น ๆ (Click/Down/Up/Move/Save/Restore/Beep) | ไม่ต้องใส่ | — |
 
@@ -88,7 +92,9 @@ py auto_macro.py                        # หรือดับเบิลค�
 **อัจฉริยะ:** Image Click (หาภาพแล้วคลิก), Wait for Image (รอภาพก่อนทำต่อ),
 Wait for Pixel Color (v1.18 — รอจุดสีก่อนทำต่อ)
 **เงื่อนไข (v1.17+):** If Image (ไม่เจอ → ข้าม N แถว), Else If Image (สองทาง A/B — ดูบทที่ 5A),
-If Loop / If Time (นับรอบ/เวลา — ดูบทที่ 5B), หัวข้อ Section (จัดระเบียบตาราง)
+If Loop / If Time (นับรอบ/เวลา — ดูบทที่ 5B), If Pixel Color (สีจุด), If Variable (เทียบตัวแปร),
+หัวข้อ Section (จัดระเบียบตาราง) — กฎเดียวกันทุกตัว: **Repeat = จำนวนแถวที่ข้ามเมื่อเงื่อนไขไม่จริง**
+**ตัวแปร:** Set Variable (รวม `rand a-b` — ดูบทที่ 12), Read Pixel Color, Image Click ตั้ง `{img_x}/{img_y}` ให้เอง
 **เสียง:** Beep (จุดเช็คว่าสคริปต์ถึงไหน)
 
 **หลักคิด: พิกัด vs ภาพ**
@@ -229,6 +235,8 @@ py auto_macro.py script.json              # เล่นรอบเดียว
 py auto_macro.py script.json --loop       # วนไม่จำกัด
 py auto_macro.py script.json --loops 10   # 10 รอบ
 py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า
+py auto_macro.py script.json --max-minutes 60  # safety timeout: หยุดเองหลังเล่น 60 นาที (v2.4)
+py auto_macro.py script.json --validate   # ตรวจสคริปต์อย่างเดียวไม่เล่น (v2.4)
 py engine_cli.py script.json              # CLI ย่อย engine ล้วน (ไม่แตะ tkinter)
 py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 แถว JSON ต่อบรรทัด (v2.2)
 ```
@@ -254,6 +262,7 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
 | `examples/07_conditions.json` | **เงื่อนไข (v1.18)** | If Image → กลุ่ม A/B, Wait for Pixel Color — ไม่คลิก ปลอดภัย |
 | `examples/08_variables.json` | ตัวแปร (v1.19) | Set Variable + `{ชื่อ}` แทนค่า |
 | `examples/09_clipboard.json` | คลิปบอร์ด (v1.20) | Set/Read Clipboard กับตัวแปร |
+| `examples/10_conditions_v21.json` | เงื่อนไขนับรอบ/เวลา (v1.21) | If Loop/If Time + หัวข้อ Section |
 
 ---
 
@@ -357,4 +366,41 @@ plugin จะออกเอง และรายงานสถานะด้
 
 ---
 
-*คู่มือฉบับนี้ตรงกับโค้ด v1.20 — ดูประวัติการเปลี่ยนแปลงที่ [CHANGELOG](CHANGELOG.html)*
+---
+
+## บทที่ 13 — ใหม่ใน v2.x (สรุปสั้น)
+
+### 13.1 ส่วนขยาย (v2.0–2.3)
+- **engine แยกจาก GUI** — `macro_engine.py` ล้วนไม่มี Tk · CLI ย่อย `engine_cli.py` ·
+  ปุ่ม 🔌 เปิดโฟลเดอร์ plugin จากในโปรแกรม · ตลาด plugin ที่ [PLUGINS.md](PLUGINS.md)
+- **เมนู 📤 Export Bat** — สร้าง `.bat` (Windows) + `.sh` (Linux/macOS) ข้างสคริปต์ที่ Save แล้ว
+  ดับเบิลคลิกรันได้ทันที (ส่งอาร์กิวเมนต์เพิ่มได้ เช่น `--loop`)
+
+### 13.2 ความทนทาน (v2.4)
+- **Global hotkey self-healing** — listener ปุ่มลัดตายเงียบ ๆ ได้ โปรแกรมรีสตาร์ตให้เอง
+  (กันยิงรัว ≥10 วิ) + แจ้งใน statusbar/log — หลักการ: ปุ่ม STOP ต้องใช้ได้เสมอ
+- **Safety timeout** — Settings "หยุดเองหลังเล่น N นาที" (1–720) กันสคริปต์วนไม่จำกัดลืมหยุด ·
+  CLI: `--max-minutes N`
+- **If Image รอได้** — Additional ต่อท้าย `Ns` เช่น `img.png 5s` = ตรวจซ้ำจนครบ 5 วิก่อนตัดสิน
+  แก้ปัญหาหน้าจอยังโหลดไม่เสร็จแล้วเงื่อนไขตัดสินผิด
+- **เลือกหลายแถว** — Ctrl/Shift+คลิกแล้ว Delete ลบทั้งชุด (Ctrl+Z กู้คืนได้)
+- **Schedule เลือกโปรไฟล์** — ตอนตั้งเวลาเลือกได้ว่าจะโหลดโปรไฟล์ไหนมาเล่น · Settings แสดงนัดหมายปัจจุบัน
+- **`--validate`** — ตรวจสคริปต์ทุกแถวรายงานปัญหาทีละข้อ (exit 1 เมื่อพบ) ก่อนปล่อยงานจริง
+- แคช template ค้นภาพ — สคริปต์วน 1000 รอบไม่อ่านไฟล์ภาพซ้ำ 1000 ครั้ง
+
+### 13.3 เงื่อนไขครบวงจร + ตารางจัดการง่าย (v2.5)
+- **If Pixel Color** — เงื่อนไขสีจุด: ตรง → เล่นต่อ, ไม่ตรง → ข้าม N แถว (ต่อท้าย `Ns` ให้รอซ้ำก่อนตัดสิน)
+- **Read Pixel Color** — อ่านสีจุดเก็บเป็นตัวแปร `{ชื่อ}` (Additional: `ชื่อ x,y`)
+- **If Variable** — เทียบตัวแปร: ตัวเลข (`รอบ > 5`) หรือข้อความ (`code = A-1`, `msg ~ ล้มเหลว`)
+- **Image Click ตั้ง `{img_x}/{img_y}`** — คลิกจุดสัมพัทธ์จากภาพที่เจอได้ (เช่น X = `{img_x} + 80`)
+- **`rand a-b` ใน Set Variable** — `สุ่ม = rand 1-100` สุ่มเลขเก็บลงตัวแปร
+- **ลากสลับแถว** — คลิกค้างแล้วลาก วางก่อน/หลังตามครึ่งแถว · เลื่อนจออัตโนมัติ · ลากทั้งก้อนที่เลือก ·
+  ห้ามวางบนกลุ่มย่อ — แถวลากไฮไลต์สีน้ำเงิน
+- **Redo (Ctrl+Y) + Undo ครบ** — แก้เซลล์ก็ย้อนได้ · **คอลัมน์ หมายเหตุ** จดกำกับรายแถว ·
+  **ค้นหาแทนที่ทั้งหมด** (Ctrl+F → แทนที่ทุกแถวที่ตรง)
+- **plugin ใหม่ 4 ตัว** — Screenshot · Toast (แจ้งเตือน Windows) · Write Log · Ask Input
+  (ctx เพิ่ม `vars` — plugin เขียนตัวแปรแถวถัดไปใช้ต่อได้)
+
+---
+
+*คู่มือฉบับนี้ตรงกับโค้ด v2.5 — ดูประวัติการเปลี่ยนแปลงที่ [CHANGELOG](CHANGELOG.html)*

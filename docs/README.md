@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v1.18
+# 🖱️ Auto Mouse & Keyboard Macro v2.5.2
 
 <div align="center">
 
@@ -28,19 +28,22 @@
 
 ## 🆚 เทียบกับโปรแกรมอื่น
 
-| | **Auto Mouse & Keyboard Macro** | Auto Mouse v1.3 (ต้นแบบ) | AutoHotkey | TinyTask |
-|---|---|---|---|---|
-| ราคา | ✅ ฟรี โอเพนซอร์ส | ฟรี (ปิดซอร์ส) | ฟรี | ฟรี |
-| อัดการทำงาน (RECORD) | ✅ คลิก+คีย์+scroll พร้อมจับเวลาอัตโนมัติ | ✅ | ✅ (ต้องเขียนสคริปต์) | ✅ |
-| แก้สคริปต์ทีละแถวในตาราง | ✅ แก้/สลับ/จับพิกัดในหน้าต่างเดียว | ⚠️ จำกัด | ❌ ต้องแก้โค้ด | ❌ |
-| คลิกตามภาพ (Image Click) | ✅ + กรอบค้นหา + threshold รายแถว | ❌ | ⚠️ ImageSearch | ❌ |
-| ปุ่มลัดทำงานแม้ไม่โฟกัส | ✅ F1–F10 | ❌ | ✅ | ⚠️ จำกัด |
-| เล่นตามเวลา (schedule) | ✅ ทุก N นาที / รายวัน HH:MM | ❌ | ⚠️ เขียนเอง | ❌ |
-| สุ่มลำดับ/สัดส่วนแถว | ✅ shuffle + % | ❌ | ⚠️ เขียนเอง | ❌ |
-| ดีเลย์สุ่ม (กันจับ pattern) | ✅ `1-3` | ❌ | ⚠️ เขียนเอง | ❌ |
-| รันแบบ CLI (Task Scheduler) | ✅ + watchdog รีสตาร์ตอัตโนมัติ | ❌ | ✅ | ❌ |
-| ไฟล์เดียวจบ ไม่ต้องติดตั้ง | ✅ .exe ไฟล์เดียว | ✅ | ❌ | ✅ |
-| log ตรวจสอบย้อนหลัง | ✅ รายวัน + ดูในโปรแกรม | ❌ | ❌ | ❌ |
+| | **Auto Mouse & Keyboard Macro** | AutoHotkey | TinyTask |
+|---|---|---|---|
+| ราคา | ✅ ฟรี โอเพนซอร์ส | ฟรี | ฟรี |
+| อัดการทำงาน (RECORD) | ✅ คลิก+คีย์+scroll พร้อมจับเวลาอัตโนมัติ | ✅ (ต้องเขียนสคริปต์) | ✅ |
+| แก้สคริปต์ทีละแถวในตาราง | ✅ แก้/ลากสลับ/จับพิกัดในหน้าต่างเดียว | ❌ ต้องแก้โค้ด | ❌ |
+| คลิกตามภาพ (Image Click) | ✅ + กรอบค้นหา + threshold รายแถว | ⚠️ ImageSearch | ❌ |
+| ปุ่มลัดทำงานแม้ไม่โฟกัส | ✅ F1–F10 (self-healing) | ✅ | ⚠️ จำกัด |
+| เงื่อนไขในสคริปต์ | ✅ If Image / Pixel Color / Variable / Loop / Time | ✅ (ต้องเขียนสคริปต์) | ❌ |
+| ตัวแปร + คลิปบอร์ดในสคริปต์ | ✅ `{ชื่อ}` + Set/Read Clipboard | ✅ (ต้องเขียนสคริปต์) | ❌ |
+| เล่นตามเวลา (schedule) | ✅ ทุก N นาที / รายวัน HH:MM + เลือกโปรไฟล์ | ⚠️ เขียนเอง | ❌ |
+| สุ่มลำดับ/สัดส่วนแถว | ✅ shuffle + % | ⚠️ เขียนเอง | ❌ |
+| ดีเลย์สุ่ม (กันจับ pattern) | ✅ `1-3` | ⚠️ เขียนเอง | ❌ |
+| ปลั๊กอินขยาย Action | ✅ ไฟล์ Python เดียววางใน `plugins/` | ✅ | ❌ |
+| รันแบบ CLI (Task Scheduler) | ✅ + watchdog + --validate + safety timeout | ✅ | ❌ |
+| ไฟล์เดียวจบ ไม่ต้องติดตั้ง | ✅ .exe ไฟล์เดียว | ❌ | ✅ |
+| log ตรวจสอบย้อนหลัง | ✅ รายวัน + สถิติ/กราฟในโปรแกรม | ❌ | ❌ |
 
 > สรุป: อยากได้ **ง่ายแบบกดอัดแล้วเล่นซ้ำ** + **แก้ได้ละเอียดแบบสคริปต์** ในตัวเดียว — นี่คือจุดขายของโปรแกรมนี้
 
@@ -63,15 +66,6 @@
 **🎥 คลิปสอนกลุ่ม IMAGE (v2.4):** [docs/images/tutorial_image.mp4](images/tutorial_image.mp4) —
 สอนครบทั้งขั้น: 📸 จับภาพ → Image Click + Search Area/Threshold → เล่นคลิกจริง →
 If Image ทางแยก A/B → Wait for Image (สร้างด้วย `tools/make_image_tutorial.py`)
-
----
-
-## 🖼️ ต้นแบบเดิม (Auto Mouse v1.3)
-
-<div align="center">
-<img src="images/pic.png" alt="ต้นแบบ Auto Mouse v1.3" width="480">
-<br><em>ต้นแบบ: ตารางคำสั่ง + ปุ่ม START / STOP / REPEAT / RECORD</em>
-</div>
 
 ---
 
@@ -102,7 +96,14 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 🩺 **Self-check ตอนเปิด** | ตรวจ pynput/OpenCV/global hotkey/สิทธิ์ admin แจ้งผลใน Settings ทันที |
 | 🖼️ **คลิกตามภาพ** | ระบุไฟล์ .png → หาบนหน้าจอด้วย OpenCV แล้วคลิกให้เอง |
 | 🎛️ **โปรไฟล์** | เก็บหลายสคริปต์สลับใช้ (งานบ้าน / เกม A / เกม B) |
-| ⏰ **เล่นตามเวลา** | ตั้งเล่นอัตโนมัติ "ทุก N นาที" หรือ "ทุกวัน HH:MM" |
+| ⏰ **เล่นตามเวลา** | ตั้งเล่นอัตโนมัติ "ทุก N นาที" หรือ "ทุกวัน HH:MM" + เลือกโปรไฟล์ที่จะเล่น |
+| 🛡️ **Safety timeout (v2.4)** | หยุดเองหลังเล่น N นาที (1–720) กันสคริปต์ลืมหยุด — ตั้งใน Settings หรือ CLI `--max-minutes` |
+| 🔄 **Global hotkey self-healing (v2.4)** | listener ปุ่มลัดตายเงียบ ๆ ได้ → โปรแกรมรีสตาร์ตให้เอง + แจ้งใน statusbar |
+| 🖱️ **ลากสลับแถว (v2.5)** | คลิกค้างแล้วลาก วางก่อน/หลังตามครึ่งแถว + autoscroll + ลากทั้งก้อนที่เลือก · เลือกหลายแถว Delete ทีเดียว (v2.4) · Alt+↑↓ |
+| 🔁 **Undo/Redo (v2.5)** | Ctrl+Z / Ctrl+Y รวมการแก้เซลล์ด้วย + คอลัมน์ หมายเหตุ (Note) + ค้นหาแทนที่ทั้งหมด (Ctrl+F) |
+| 🎨 **เงื่อนไขสี/ตัวแปร (v2.5)** | If Pixel Color · Read Pixel Color เก็บสีเป็น `{ตัวแปร}` · If Variable เทียบตัวเลข/ข้อความ · Image Click ตั้ง `{img_x}/{img_y}` · `rand 1-100` |
+| 📤 **Export .bat/.sh (v2.3)** | สร้างไฟล์ดับเบิลคลิกรันข้างสคริปต์ (Windows/Linux/macOS) |
+| 🔎 **--validate (v2.4)** | ตรวจสคริปต์ทุกแถวรายงานปัญหา ก่อนปล่อยงานค้างคืนจริง |
 
 ## 🧩 คำสั่งที่รองรับในตาราง
 
@@ -111,7 +112,7 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 **คีย์บอร์ด:** Tap Key / Press Key / Release Key — ช่อง Additional ใส่ชื่อคีย์ได้ เช่น
 `a` `5` `space` `enter` `esc` `ctrl` `shift` `alt` `win` `f1`–`f12` `up` `down` `left` `right` `pgup` `pgdn` `prtsc` หรือรหัส virtual key เช่น `27`
 
-**เพิ่มเติม v1.5 (แรงบันดาลใจจาก [automouseclick.com](https://www.automouseclick.com/)):**
+**Action เสริม (v1.5 ขึ้นไป):**
 - **Type Text** — พิมพ์ข้อความ (รองรับไทย) เช่น `สวัสดี world`
 - **Launch App** — เปิดโปรแกรม/เว็บ เช่น `notepad.exe` หรือ `https://example.com`
 - **Image Click / Wait for Image** — คลิกตามภาพ / รอภาพปรากฏ (ชื่อไฟล์ .png ใน Additional; ต้องติดตั้ง `opencv-python Pillow`)
@@ -253,19 +254,18 @@ py -m PyInstaller auto_macro.spec --noconfirm --clean
 ## 📁 โครงสร้างโปรเจกต์
 
 ```
-├── auto_macro.py        # โปรแกรมหลัก (GUI + engine ฝังในบล็อกเดียว)
-├── macro_engine.py      # engine ล้วน ไม่มี Tk (แหล่งจริงของบล็อก engine — แก้ที่นี่แล้วซิงก์)
+├── auto_macro.py        # โปรแกรมหลัก (GUI + engine ฝังในบล็อกเดียว) — build .exe จากไฟล์นี้เสมอ
+├── macro_engine.py      # engine ล้วน ไม่มี Tk (แหล่งจริงของบล็อก engine — แก้ที่นี่แล้วรัน build_singlefile.py ซิงก์)
+├── engine_cli.py        # CLI ย่อย ใช้ engine ล้วนไม่แตะ tkinter
+├── build_singlefile.py  # รวม macro_engine.py กลับเป็น auto_macro.py ก่อน build .exe
 ├── test_auto_macro.py   # unit tests (unittest)
+├── test_e2e.py          # E2E tests — รัน CLI จริงเป็น subprocess
 ├── auto_macro.spec      # ไฟล์ spec ของ PyInstaller
-├── build.bat            # สคริปต์ build .exe
-├── run.bat              # สคริปต์รันจากซอร์ส
-├── requirements.txt     # dependencies
-├── pic.png              # รูปต้นแบบ
+├── build.bat / run.bat  # สคริปต์ build .exe / รันจากซอร์ส
+├── requirements.txt     # pynput + opencv-python + Pillow
+├── plugins/             # Custom Action plugins (ตลาด plugin)
+├── examples/            # สคริปต์ตัวอย่าง 10+ ไฟล์
 └── docs/                # เอกสารทั้งหมด (md + html)
-    ├── README.md / README.html
-    ├── RESEARCH.md / RESEARCH.html
-    ├── CHANGELOG.md / CHANGELOG.html
-    └── images/pic.png
 ```
 
 ## 🔄 CI/CD อัตโนมัติ
@@ -291,6 +291,10 @@ py auto_macro.py script.json --rows-pct 50    # เล่นแค่ 50% ขอ
 py auto_macro.py script.json --watchdog       # จบแล้วเริ่มใหม่อัตโนมัติ (พัก 3 วิ)
 py auto_macro.py script.json --watchdog 10    # แบบกำหนดเวลาพักเอง
 py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์นี้เมื่อไร = หยุดทันที
+py auto_macro.py script.json --max-minutes 60 # safety timeout: หยุดเองหลังเล่น 60 นาที
+py auto_macro.py script.json --validate       # ตรวจสคริปต์อย่างเดียวไม่เล่น (exit 1 เมื่อพบแถวมีปัญหา)
+py auto_macro.py --version                    # แสดงเวอร์ชัน
+py engine_cli.py script.json                  # CLI ย่อย engine ล้วน (ไม่แตะ tkinter)
 ```
 
 > 💡 สคริปต์ที่มีแถว **Custom Action plugin** เล่นผ่าน CLI ได้เหมือนกัน — หัวโปรแกรมจะบอกรายชื่อ plugin ที่โหลดได้
@@ -312,7 +316,8 @@ def run(ctx, row):
     time.sleep(1.5)
 ```
 
-- `ctx` มี `mouse` / `kb` (pynput), `log(ข้อความ)` (เขียน log การเล่น), `cfg` (ภาษา)
+- `ctx` มี `mouse`/`kb` (pynput), `log(ข้อความ)`, `cfg` (ภาษา), `stop_check()` (คืน False เมื่อกด STOP),
+  `ui` (`msg`/`beep`), `vars` (ชี้ dict ตัวแปรของสคริปต์ — เขียนค่าได้แถวถัดไปใช้ต่อ) — API ครบที่ [docs/PLUGINS.md](PLUGINS.md)
 - `row` = ค่าทั้งแถวจากตาราง (`additional`, `secs`, ... )
 - ไฟล์พัง → ข้ามไฟล์นั้น โปรแกรมไม่พัง · ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด
 - ตัวอย่างในโปรเจกต์: `Sleep (plugin)`, `Message Box` — รายละเอียดครบที่ [plugins/README.md](../plugins/README.md)
@@ -365,8 +370,8 @@ def run(ctx, row):
 ## 🧪 ทดสอบ
 
 ```bash
-py -m unittest test_auto_macro -v    # 274 unit tests (รวมเปิด dialog จริง + เล่นจริง)
-py -m unittest test_e2e -v           # 7 E2E tests (รัน CLI จริง + โค้ดจริงทุกสาย)
+py -m unittest test_auto_macro -v    # 339 unit tests (รวมเปิด dialog จริง + เล่นจริง)
+py -m unittest test_e2e -v           # 12 E2E tests (รัน CLI จริง + โค้ดจริงทุกสาย)
 ```
 
 ## 🤝 ร่วมพัฒนา
@@ -383,15 +388,42 @@ py -m unittest test_e2e -v           # 7 E2E tests (รัน CLI จริง +
 | `02_form_filler.json` | กรอกฟอร์ม (ชื่อ/อีเมล/โทร) ด้วยการพิมพ์ + Enter |
 | `03_image_click.json` | Image Click + **Search Area** (`target.png@100,100,500,400`) — แถวคลิกปิด enabled ไว้ |
 | `04_scroll_gallery.json` | Scroll ดูรูป/เว็บ + Move Mouse (แถวดับเบิลคลิกปิดไว้) |
+| `05_watchdog_monitor.json` | งานเฝ้าระบบ ใช้กับ `--watchdog` |
+| `06_plugin_demo.json` | Custom Action plugins (Message Box + Sleep) |
+| `07_conditions.json` | เงื่อนไข: If Image กลุ่ม A/B + Wait for Pixel Color — ไม่คลิก ปลอดภัย |
+| `08_variables.json` | ตัวแปร `{ชื่อ}` + Set Variable |
+| `09_clipboard.json` | Set/Read Clipboard + ตัวแปร |
+| `10_conditions_v21.json` | If Loop / If Time + หัวข้อ Section |
 
 ทุกตัวอย่าง validate กับโค้ดจริงแล้ว และเริ่ม/จบด้วย Save/Restore Cursor เสมอ
 
 ## 📚 เอกสารเพิ่มเติม
 
-- **[TUTORIAL](TUTORIAL.html)** — 📘 คู่มือฉบับสมบูรณ์ 10 บท (ติดตั้ง → อัด → แก้ → Image Click → FAQ)
+- **[TUTORIAL](TUTORIAL.html)** — 📘 คู่มือฉบับสมบูรณ์ 12 บท (ติดตั้ง → อัด → แก้ → Image Click → เงื่อนไข/ตัวแปร → FAQ)
 - **[RESEARCH](RESEARCH.html)** — เทคนิคการควบคุมเมาส์/คีย์บอร์ดด้วย pynput, threading, และการเลือกเครื่องมือ
+- **[PLUGINS](PLUGINS.md)** — 🔌 ตลาด plugin: API, กฎ, วิธีเขียน Custom Action ใน 30 วินาที
 - **[CHANGELOG](CHANGELOG.html)** — ประวัติการเปลี่ยนแปลงทุกเวอร์ชัน
-- **[ROADMAP](ROADMAP.md)** — 🗺️ แผนพัฒนา v1.17→v2.0 + หลักการของโปรเจกต์
+- **[ROADMAP](ROADMAP.md)** — 🗺️ แผนพัฒนาต่อ + หลักการที่ห้ามฝ่าฝืน
+- **[ANNOUNCE](ANNOUNCE.md)** — 📣 โพสต์แนะนำโปรแกรมสำเร็จรูปสำหรับโซเชียล
+- **[README.en](README.en.md)** — 🇬🇧 สรุปภาษาอังกฤษ
+
+---
+
+## ℹ️ เกี่ยวกับ (About)
+
+**Auto Mouse & Keyboard Macro** — โปรแกรมอัตโนมัติสำหรับเมาส์และคีย์บอร์ด ฟรีและโอเพนซอร์ส
+สำหรับ Windows (รองรับ Linux/macOS ผ่านไลบรารีเดียวกัน) พัฒนาด้วย Python + Tkinter + pynput ล้วน
+
+- **ไม่มีโฆษณา ไม่มีล็อกอิน ไม่มีการเก็บข้อมูลผู้ใช้** — สคริปต์ทุกอย่างอยู่ในเครื่องคุณเท่านั้น (ไฟล์ .json อ่าน/แก้ได้)
+- **ใช้งานง่ายระดับกดปุ่ม** — อัดแล้วเล่นซ้ำโดยไม่ต้องเขียนโค้ด แต่แก้ละเอียดระดับแถวได้ในตารางเดียว
+- **ความปลอดภัยมาก่อน** — ปุ่ม STOP ใช้ได้ทุกช่องทาง + safety timeout + backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม
+- **โปร่งใส ตรวจสอบได้** — โอเพนซอร์สทั้งหมด, log การเล่นรายวัน, CI รันเทสต์ 339+12 ตัวทุก push
+- **ไม่ผูกขาดผู้ใช้** — ไม่มี dependency หนัก, ขยายความสามารถด้วย plugin ได้เอง
+
+⚠️ ใช้เพื่องานที่ชอบด้วย/อนุญาตเท่านั้น — อย่าใช้กับเกมหรือระบบที่ห้ามการทำงานอัตโนมัติ
+
+ดาวน์โหลด: [Releases](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest) ·
+รายงานบั๊ก/เสนอฟีเจอร์: [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
 ---
 

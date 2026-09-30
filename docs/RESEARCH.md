@@ -1,18 +1,16 @@
 # 🔬 RESEARCH — เทคนิคเบื้องหลัง Auto Mouse & Keyboard Macro
 
-> อัพเดตสำหรับ v1.4 — เพิ่มหัวข้อ 5: Global Hotkey / Image Click / โปรไฟล์ / Schedule
-
-> สรุปงานวิจัย/ทดลองที่ใช้ตัดสินใจเลือกเครื่องมือและวิธี implement โปรแกรมสั่งงานเมาส์/คีย์บอร์ดอัตโนมัติ
+> อัพเดตสำหรับ v2.5 — สรุปงานวิจัย/ทดลองที่ใช้ตัดสินใจเลือกเครื่องมือและวิธี implement โปรแกรมสั่งงานเมาส์/คีย์บอร์ดอัตโนมัติ
 
 ---
 
 ## 1. ทำไมต้องทำโปรแกรมนี้
 
-งานซ้ำ ๆ บนคอมพิวเตอร์ เช่น คลิกปุ่มเดิม, กรอกฟอร์มเดิม, ฟาร์มไอเทมในเกม สามารถมอบหมายให้โปรแกรมทำแทนได้ แนวคิดคือ "สคริปต์เหตุการณ์" — รายการของเหตุการณ์เมาส์/คีย์ที่เรียงลำดับกัน พร้อมเวลาหน่วงระหว่างขั้น โปรแกรมจะอ่านสคริปต์แล้วจำลองการกด/คลิกแทนมือผู้ใช้
+งานซ้ำ ๆ บนคอมพิวเตอร์ เช่น คลิกปุ่มเดิม, กรอกฟอร์มเดิม, ฟาร์มไอเทมในเกม สามารถมอบหมายให้โปรแกรมทำแทนได้ แนวคิดคือ **"สคริปต์เหตุการณ์"** — รายการของเหตุการณ์เมาส์/คีย์ที่เรียงลำดับกัน พร้อมเวลาหน่วงระหว่างขั้น โปรแกรมจะอ่านสคริปต์แล้วจำลองการกด/คลิกแทนมือผู้ใช้
 
-ต้นแบบที่ใช้เทียบคือ **Auto Mouse v1.3** (ดูรูป): ตาราง `# / X / Y / Button / Additional / Mins / Secs / Repeat` + ปุ่ม START / STOP / REPEAT / RECORD ซึ่งเป็น UX ที่เข้าใจง่ายและตรงจุด
-
-<div align="center"><img src="images/pic.png" alt="ต้นแบบ Auto Mouse v1.3" width="420"></div>
+แกน UX ของโปรแกรมคือ **ตารางคำสั่ง** `# / X / Y / Button / Additional / Mins / Secs / Repeat`
++ ปุ่ม START / STOP / REPEAT / RECORD — รูปแบบที่เข้าใจง่ายและตรงจุด แก้ไขทีละแถวได้ทันที
+โดยไม่ต้องเขียนโค้ด
 
 ---
 
@@ -27,24 +25,35 @@
 | C# + WinForms | Native Windows, แรง | ผูกกับ Windows, build ยาวกว่า | ผ่าน |
 | Electron/Node.js | UI สวยได้ง่าย | ตัวโปรแกรมใหญ่โดยไม่จำเป็น, robotjs ดูแลไม่ค่อยต่อ | ผ่าน |
 
-**ข้อสรุป:** Python + pynput ให้ต้นทุนต่ำสุดทั้งการพัฒนาและการแจกจ่าย และ Tkinter (มากับ Python) เพียงพอสำหรับ UI แบบตาราง + ปุ่มตามต้นแบบ
+**ข้อสรุป:** Python + pynput ให้ต้นทุนต่ำสุดทั้งการพัฒนาและการแจกจ่าย และ Tkinter (มากับ Python) เพียงพอสำหรับ UI แบบตาราง + ปุ่ม
 
 ---
 
 ## 3. สถาปัตยกรรม: Event List → Player
 
 ```
-┌─────────────┐   ผลักเหตุการณ์เข้าคิว    ┌──────────────┐
-│ pynput      │ ────────────────────────▶ │ _pending_rows │ (list ธรรมดา)
-│ Listeners   │  (เธรดของ listener)        │  + _live_pos  │
-│ (เมาส์+คีย์) │                           └──────┬───────┘
-└─────────────┘                                  │ poll ทุก 120 ms (main thread)
-                                                 ▼
-┌─────────────┐   ตั้งค่า state dict      ┌──────────────┐
-│ Player      │ ────────────────────────▶ │   UI update   │
-│ (เธรดแยก)    │  (row ที่กำลังเล่น, msg)   │  (Tk mainloop)│
-└─────────────┘                           └──────────────┘
+┌─────────────┐  ผลักเหตุการณ์เข้า pending_rows  ┌──────────────┐
+│ Recorder    │ ─────────────────────────────▶ │ recorder.    │
+│ (engine —   │  (เธรดของ listener ห้ามแตะ Tk)  │ pending_rows │
+│  ไม่มี Tk)  │                                 └──────┬───────┘
+└─────────────┘                                        │ drain_pending() ทุก tick (main thread)
+                                                       ▼
+┌─────────────┐  callbacks (msg/beep/clipboard) ┌──────────────┐
+│ ActionRunner│ ─────────────────────────────▶ │  UI update   │
+│ (engine)    │  state dict ผ่าน poller         │ (Tk mainloop)│
+└─────────────┘                                 └──────────────┘
 ```
+
+**สถาปัตยกรรม v2.x (3 phases จบแล้ว):**
+
+1. **macro_engine.py = engine ล้วน ไม่มี Tk** — ค่าคงที่/parser/คลิปบอร์ด/unicode/log/stats/plugins/Recorder/ค้นภาพ
+   นำไปฝังหรือเทสต์แยกได้ (auto_macro.py เก็บบล็อกเดียวกันไว้ระหว่างป้าย `# === ENGINE-BEGIN/END`
+   ซิงก์ด้วย `build_singlefile.py` — เทสต์ตรวจทุกฟังก์ชันสำคัญด้วย inspect.getsource)
+2. **ActionRunner = กลไก "ทำ 1 แถว" แหล่งเดียว** — GUI/CLI/engine_cli ส่ง controller + callbacks
+   (`stop_check/on_beep/on_message/on_clipboard_*/plugin_lookup`) เข้า runner แล้วเรียก `execute(r)`
+   — อย่าเขียน do_step สองชุด
+3. **ค้นภาพ/เงื่อนไขอยู่ใน engine** — `find_image_pos` (แคช template ตาม mtime+size),
+   `evaluate_condition` สำหรับเงื่อนไขทั้ง 5 (If Image/Else/Loop/Time/Variable) — CLI ทำได้ครบเท่า GUI
 
 **หลักการสำคัญ: กฎเหล็กของ Tkinter** — โค้ดที่แตะ widget ต้องรันบน main thread เท่านั้น
 การเรียก `root.after()` หรือแก้ widget จาก listener thread เป็น race condition เงียบ ๆ ที่พังบ้างบางครั้ง ยากต่อการ debug
@@ -83,17 +92,20 @@
 ## 5. ฟีเจอร์ v1.4: Global Hotkey, Image Click, โปรไฟล์, Schedule
 
 ### 5.1 Global Hotkey (กด F6/F8/F9/F10 ได้แม้ไม่โฟกัส)
-- ใช้ `pynput.keyboard.GlobalHotKeys` — listener เธรดแยก เหมือน recorder
+- ใช้ `keyboard.Listener` จับคู่คีย์เอง — **ไม่ใช่ GlobalHotKeys** (พิสูจน์แล้ว v1.8 ว่าบน pynput 1.8.x บางเครื่อง listener alive แต่ไม่ยิง callback)
 - callback จากเธรดของ pynput **ห้ามแตะ Tk ตรง ๆ** จึงผลักงานเข้า main thread ด้วย
   `root.after(0, fn)` — เป็นรูปแบบเดียวกับ poller แต่ย้อนทิศ (เธรดอื่น → main)
 - ปัญหาที่เจอ: ถ้าโปรแกรมอื่น (เช่น game overlay) จับคีย์เดียวกันไว้ก่อน pynput จะ error
   ตอน register → จับ exception แล้ว fallback ไปใช้ Tk binding แบบเดิม + แจ้งสถานะใน Settings
+- **v2.4 self-healing:** listener ตายเงียบ ๆ ได้ (OS ปล่อย hook หลุด) → poller ตรวจ `is_alive`
+  ทุก tick แล้วรีสตาร์ตเอง (เว้น ≥10 วิ กันยิงรัว) — หลักการข้อ 1: STOP ต้องใช้ได้เสมอ
 
 ### 5.2 Image Click (คลิกตามภาพ)
 - ทำไมต้องมี: พิกัด (X,Y) ใช้ไม่ได้เมื่อหน้าต่าง/ปุ่มเลื่อนตำแหน่ง — การหาจาก "ลักษณะภาพ"
   ทนทานกว่า
 - วิธี: `PIL.ImageGrab.grab()` จับหน้าจอ → `cv2.matchTemplate(TM_CCOEFF_NORMED)`
   → ถ้าความมั่นใจ ≥ 0.80 คลิกจุดศูนย์กลางของ region ที่เจอ
+  (**v2.4:** แคช template ตาม mtime+size — สคริปต์วน 1000 รอบไม่อ่านไฟล์ภาพซ้ำ 1000 ครั้ง)
 - DPI/scaling: Windows scaling 125–150% ทำให้ ImageGrab ได้ภาพต่างจากพิกัดที่ pynput รายงาน
   → ทดสอบแล้วบนเครื่อง 1200×1920 (scaling) ยังใช้ได้เพราะเทียบภาพ-กับ-ภาพจากแหล่งเดียวกัน
 - dependency เป็น **ตัวเลือก**: ห่อ import ด้วย try/except ตั้ง `HAS_CV` — ถ้าไม่มี opencv
@@ -114,20 +126,20 @@
 - โหมด: "ทุก N นาที" (`now >= next` แล้วตั้ง next ใหม่) และ "รายวัน HH:MM"
   (เทียบ timestamp `YYYY-MM-DD HH:MM` + เก็บ stamp ล่าสุดกันยิงซ้ำในนาทีเดียว)
 
-## 6. ฟีเจอร์ v1.5 — คัดสรรจาก automouseclick.com
+## 6. การศึกษาเทียบเคียงสำหรับฟีเจอร์ v1.5
 
-ศึกษา [Auto Mouse Click (MurGee)](https://www.automouseclick.com/) แล้วคัดเฉพาะสิ่งที่
+ศึกษา macro tools ยอดนิยมในตลาด (เช่น Auto Mouse Click, AutoHotkey, TinyTask) แล้วคัดเฉพาะสิ่งที่
 **ทำได้จริงด้วย pynput + stdlib** และ **มีประโยชน์กับผู้ใช้ทั่วไป** ได้ดังนี้
 
 ### 6.1 สิ่งที่เอามาใช้ (และวิธี implement)
-| จาก automouseclick.com | ของเรา (v1.5) | หมายเหตุการทำงาน |
+| ไอเดียจาก macro tools ทั่วไป | ของเรา (v1.5) | หมายเหตุการทำงาน |
 |---|---|---|
 | Scroll Up/Down | Action `Scroll Up/Down` + จำนวนจังหวะใน Additional | `mouse_ctl.scroll(0, ±n)` และอัดจาก `on_scroll` ตอน RECORD |
 | Double Click | `Double Left/Right Click` | `click(btn, 2)` |
 | Ctrl+Click ฯลฯ | `Ctrl+Click`, `Shift+Click`, `Alt+Click`, `Ctrl+Right Click` | press(mod) → click → release(mod) ใน finally กันคีย์ค้าง |
 | Move Mouse / Offset | `Move Mouse`, `Move Mouse by Offset` | absolute และ relative movement |
 | Save/Restore Cursor | `Save Cursor`, `Restore Cursor` | เก็บในหน่วยความจำระหว่างรอบเล่น |
-| Type Text | `Type Text` (รองรับไทย) | tap(KeyCode.from_char) ทีละตัวอักษร |
+| Type Text | `Type Text` (รองรับไทย) | tap ทีละตัวอักษร — **v1.20.2 เป็น SendInput KEYEVENTF_UNICODE** ไม่ขึ้นกับ layout คีย์บอร์ด (เดิม KeyCode.from_char เพี้ยนเมื่อ layout เป็นไทย) |
 | Launch App / Website | `Launch App` | `os.startfile()` (Windows) + xdg-open fallback |
 | Wait for Picture | `Wait for Image` | วนจับภาพทุก 0.5 วิ, threshold 0.80, timeout 30 วิ |
 | Beep | `Beep` | `root.bell()` — ไม่ต้องพึ่งไลบรารีเสียง |
@@ -152,6 +164,15 @@
 - `delay_range()` คืน `(lo, hi)` เสมอ → โค้ดเล่นเรียกครั้งเดียว ไม่ต้องแยกทาง
 - หน่วยคูณความเร็ว: หาร **หลัง** รวม mins แล้ว (สุ่มก่อนหาร — ทำให้สัดส่วนการสุ่มคงเดิมทุก speed)
 
+## 6A. วิวัฒนาการหลัง v1.5 (สรุปสั้น)
+
+- **เงื่อนไขครบวงจร (v1.17–v2.5):** If Image → Else If Image → If Loop/If Time → If Pixel Color → If Variable
+  — กฎเดียวของทุกเงื่อนไข: **Repeat = จำนวนแถวที่ข้ามเมื่อเงื่อนไขไม่จริง** · If Image รอซ้ำได้ (`5s`), If Pixel ก็เช่นกัน
+- **ตัวแปร/คลิปบอร์ด (v1.19–v2.0):** Set Variable `{ชื่อ}` (รวม `rand a-b`) แทนค่าได้ทุกช่อง · Set/Read Clipboard ผ่าน Win32 (ctypes)/pbcopy/wl-copy ตาม OS
+- **engine แยก (v2.0–2.2):** macro_engine.py ล้วน → ActionRunner → Recorder → ค้นภาพ — GUI/CLI/engine_cli สามหน้ากากบนแกนเดียว
+- **ความทนทาน (v2.4):** self-healing hotkey, safety timeout, `--validate`, แคช template, เลือกหลายแถว, Schedule เลือกโปรไฟล์
+- **UX ตาราง (v2.5):** ลากสลับแถวเต็มรูปแบบ (วางก่อน/หลังตามครึ่งแถว + autoscroll + ลากทั้งก้อน), Redo, คอลัมน์ Note, ค้นหาแทนที่ทั้งหมด
+
 ## 7. เทียบคีย์แบบ synthetic: SendInput vs pynput
 
 ประเด็นสำคัญของ macro บน Windows: เกม/แอปบางตัวอ่าน input ผ่าน **DirectInput/Raw Input** ซึ่งไม่สนใจ event ที่ flag เป็น "injected"
@@ -164,7 +185,7 @@
 | เกมที่กรอง injected | ❌ | ✅ (แต่ต้องต่อ lib เอง) |
 | มี Listener บันทึก | ✅ | ❌ |
 
-โปรเจกต์นี้เลือก pynput เป็นแกน (ครอบคลุม record + play ใน lib เดียว) ถ้าอนาคตต้องใช้กับเกมที่กรอง injected event ให้เพิ่ม adapter pydirectinput เฉพาะตอน "เล่น" — โครงสร้าง `do_step()` แยกอยู่แล้ว ทำได้โดยไม่กระทบส่วนอื่น
+โปรเจกต์นี้เลือก pynput เป็นแกน (ครอบคลุม record + play ใน lib เดียว) ถ้าอนาคตต้องใช้กับเกมที่กรอง injected event ให้เพิ่ม adapter pydirectinput เฉพาะตอน "เล่น" — โครงสร้าง `ActionRunner` แยกอยู่แล้ว ทำได้โดยไม่กระทบส่วนอื่น
 
 ---
 
@@ -192,12 +213,13 @@
 ## 10. ฟีเจอร์ v1.6: CLI, Context Menu, Progress
 
 ### 10.1 CLI mode (เล่นสคริปต์โดยไม่เปิด GUI)
-- จุดเดียวกับ GUI: อ่าน JSON รูปแบบเดิม → `cli_main()` มี do_step ของตัวเอง (ไม่แตะ Tk)
+- จุดเดียวกับ GUI: อ่าน JSON รูปแบบเดิม → ตั้งแต่ v2.1 ใช้ ActionRunner ตัวเดียวกับ GUI (ห้าม do_step สองชุด)
 - สคริปต์เดิมที่บันทึกจาก GUI ใช้ได้ทันที — ข้ามแถว `enabled: false` ให้เอง
-- หยุดด้วย `GlobalHotKeys` (F8/Esc) หรือ Ctrl+C — ใช้ list `[True]` แทน bool เพื่อ closure
+- หยุดด้วย `keyboard.Listener` (F8/Esc) หรือ Ctrl+C — ใช้ list `[True]` แทน bool เพื่อ closure
 - **บทเรียน cp1252:** คอนโซล Windows พิมพ์ไทยไม่ได้ → `sys.stdout.reconfigure(utf-8)`
   ใน main และ wrapper แบบเช็ค `buffer` ใน cli_main (กันเคส StringIO จากเทสต์)
-- ข้อจำกัด: Image Click/Wait for Image ยังไม่รองรับใน CLI (ต้อง Tk สำหรับข้อความสถานะ)
+- **v2.2 ขึ้นไป: ทำงานครบทุก action** — Image Click/If Image/Else/Wait for Image ใช้ค้นภาพจริงใน CLI ได้ (เดิมเตือน "ยังไม่รองรับ")
+- เพิ่มเติม v2.3–2.4: `--version`, `--validate` (ตรวจไม่เล่น, exit 1 เมื่อพบปัญหา), `--max-minutes N` (safety timeout) · engine_cli ย่อยมี `--json-lines` อ่าน 1 แถว/บรรทัด
 
 ### 10.2 Right-click menu บนตาราง
 - ผูก `<Button-3>` → เปิด `tk.Menu` ที่ตำแหน่งเมาส์: คัดลอกแถว / แทรกบน / แทรกล่าง / ลบ
@@ -217,8 +239,10 @@
 
 ## 11. ทางไปต่อ (Roadmap ทางเทคนิค)
 
-- 🐢 **ตัวคูณความเร็ว** (0.5× / 2×) ให้เล่นเร็ว-ช้าโดยไม่แก้ตาราง
-- 🖼️ **โซนค้นหาภาพ** ระบุกรอบพิกัดให้ Image Click ลดเวลาค้น/ลด false positive
-- ✂️ **จับภาพตัวอย่างในโปรแกรม** (crop จากหน้าจอ) ไม่ต้องเปิด editor ภายนอก
-- 💾 **รองรับ .ahk / .json export** เพื่อทำงานร่วมกับ ecosystem อื่น
-- 🧪 **เพิ่ม test ฝั่ง integration** — จำลอง Treeview + เล่นสคริปต์แบบ mock controller
+> สถานะจริงดูฉบับเต็มที่ [ROADMAP.md](ROADMAP.md) — หัวข้อข้างล่างคือของที่ยัง**ไม่ทำ**
+
+- 💾 **รองรับ .ahk import/export** เพื่อทำงานร่วมกับ ecosystem อื่น
+- 🧠 **เงื่อนไขเชิงซ้อน (nested if)** — ปัจจุบันทุกเงื่อนไขข้ามแถวตรง ๆ ยังไม่มีลูปย่อย/วงเล็บ
+- 🖥️ **SendInput scan code adapter** สำหรับเกมที่กรอง injected events
+- 🌐 **เอกสารจีน/ญี่ปุ่น** — โครง i18n พร้อม รอผู้ร่วมแปลจาก TUTORIAL.en.md
+- 📜 **โปรไฟล์ต่อ schedule หลายนัดหมาย** — ปัจจุบันตั้งนัดหมายพร้อมกันได้ชุดเดียว

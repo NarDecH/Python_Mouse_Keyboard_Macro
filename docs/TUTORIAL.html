@@ -139,7 +139,11 @@ py auto_macro.py                        # หรือดับเบิลค�
       <tr><td>Launch App</td><td>โปรแกรม/URL</td><td><code>notepad.exe</code>, <code>https://...</code></td></tr>
       <tr><td>Image Click / Wait for Image</td><td>ไฟล์.png หรือ <code>ไฟล์.png@x,y,w,h#threshold</code></td><td><code>btn.png@100,200,300,80#90</code></td></tr>
       <tr><td>If Image / Else If Image (v1.17+)</td><td>ไฟล์.png (เหมือน Image Click) — Repeat มีความหมายพิเศษ</td><td><code>btn.png</code></td></tr>
+      <tr><td>If Image แบบรอซ้ำ (v2.4)</td><td>เดิม + ต่อท้าย <code>Ns</code> = ตรวจซ้ำก่อนตัดสิน</td><td><code>img.png 5s</code></td></tr>
       <tr><td>Wait for Pixel Color (v1.18)</td><td><code>x,y #RRGGBB</code> (หน่วงก่อนตรวจใส่ใน Secs)</td><td><code>300,300 #ffffff</code></td></tr>
+      <tr><td>If Pixel Color (v2.5)</td><td><code>x,y #RRGGBB</code> ต่อท้าย <code>Ns</code> ได้ — ตรงเล่นต่อ ไม่ตรงข้าม N แถว</td><td><code>300,300 #ffffff</code></td></tr>
+      <tr><td>Read Pixel Color (v2.5)</td><td><code>ชื่อ x,y</code> — อ่านสีจุดเก็บเป็น <code>{ชื่อ}</code></td><td><code>สีจอ 300,300</code></td></tr>
+      <tr><td>If Variable (v2.5)</td><td><code>ชื่อ ตัวดำเนินการ ค่า</code> (<code>&gt; &gt;= &lt; &lt;= = ~</code>)</td><td><code>รอบ &gt; 5</code></td></tr>
       <tr><td>Move Mouse by Offset</td><td>ระยะเปลี่ยนแปลง (ใส่ใน X,Y)</td><td>X=50 Y=-20</td></tr>
       <tr><td>อื่น ๆ (Click/Down/Up/Move/Save/Restore/Beep)</td><td>ไม่ต้องใส่</td><td>—</td></tr>
     </table>
@@ -154,8 +158,9 @@ py auto_macro.py                        # หรือดับเบิลค�
       <li><b>จดจำตำแหน่ง:</b> Save Cursor → … → Restore Cursor (คู่ต้องใช้ด้วยกัน)</li>
       <li><b>คีย์บอร์ด:</b> Tap/Press/Release Key, Type Text</li>
       <li><b>ภายนอก:</b> Launch App (เปิดโปรแกรม/เว็บ)</li>
-      <li><b>อัจฉริยะ:</b> Image Click (หาภาพแล้วคลิก), Wait for Image (รอภาพก่อนทำต่อ), Wait for Pixel Color (v1.18 — รอจุดสี)</li>
-      <li><b>เงื่อนไข (v1.17+):</b> If Image (ไม่เจอ → ข้าม N แถว), Else If Image (สองทาง A/B — ดูบทที่ 5A), If Loop / If Time (นับรอบ/เวลา — บทที่ 5B), หัวข้อ Section</li>
+      <li><b>อัจฉริยะ:</b> Image Click (หาภาพแล้วคลิก + ตั้ง <code>{img_x}/{img_y}</code> ให้เอง), Wait for Image (รอภาพก่อนทำต่อ), Wait for Pixel Color (v1.18 — รอจุดสี), Read Pixel Color (v2.5 — อ่านสีเก็บตัวแปร)</li>
+      <li><b>เงื่อนไข (v1.17+):</b> If Image (ไม่เจอ → ข้าม N แถว), Else If Image (สองทาง A/B — ดูบทที่ 5A), If Loop / If Time (นับรอบ/เวลา — บทที่ 5B), If Pixel Color (สีจุด), If Variable (เทียบตัวแปร — v2.5), หัวข้อ Section<br>
+      <small>กฎเดียวกันทุกตัว: <b>Repeat = จำนวนแถวที่ข้ามเมื่อเงื่อนไขไม่จริง</b></small></li>
       <li><b>เสียง:</b> Beep (จุดเช็คว่าสคริปต์ถึงไหน)</li>
     </ul>
     <div class="note"><b>หลักคิด: พิกัด vs ภาพ</b><br>
@@ -278,12 +283,16 @@ py auto_macro.py                        # หรือดับเบิลค�
 py auto_macro.py script.json --loop       # วนไม่จำกัด
 py auto_macro.py script.json --loops 10   # 10 รอบ
 py auto_macro.py script.json --speed 2    # เร็ว 2 เท่า
+py auto_macro.py script.json --max-minutes 60  # safety timeout: หยุดเองหลังเล่น 60 นาที (v2.4)
+py auto_macro.py script.json --validate   # ตรวจสคริปต์อย่างเดียวไม่เล่น (v2.4)
 py engine_cli.py script.json              # CLI ย่อย engine ล้วน (ไม่แตะ tkinter)
 py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 แถว JSON ต่อบรรทัด (v2.2)</code></pre>
     <ul>
       <li>หยุด: กด <kbd>F8</kbd>/<kbd>Esc</kbd> (ได้แม้คอนโซลไม่โฟกัส) หรือ Ctrl+C</li>
       <li>แสดงความคืบหน้าทีละแถว — เหมาะกับ <b>Windows Task Scheduler</b></li>
       <li><b>v2.2: ทำงานครบทุก action</b> — Image Click/If Image/Else/Wait for Image ค้นภาพจริงใน CLI ได้แล้ว (ไฟล์หาย = รายงานเหตุผลแล้วเล่นต่อ)</li>
+      <li><b>v2.3–2.4:</b> <code>--version</code> · <code>--validate</code> (ตรวจสคริปต์ไม่เล่น, exit 1 เมื่อพบปัญหา) ·
+        <code>--max-minutes N</code> (safety timeout: หยุดเองหลังเล่น N นาที)</li>
     </ul>
   </div>
 
@@ -298,6 +307,8 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
       <tr><td><code>examples/06_plugin_demo.json</code></td><td>Custom Action plugins</td><td>Message Box + Sleep (plugin)</td></tr>
       <tr><td><code>examples/07_conditions.json</code></td><td><b>เงื่อนไข (v1.18)</b></td><td>If Image → กลุ่ม A/B, Wait for Pixel Color — ไม่คลิก ปลอดภัย</td></tr>
       <tr><td><code>examples/08_variables.json</code></td><td><b>ตัวแปร (v1.19)</b></td><td>Set Variable + <code>{รอบ}</code> — ไม่คลิก ปลอดภัย</td></tr>
+      <tr><td><code>examples/09_clipboard.json</code></td><td>คลิปบอร์ด (v1.20)</td><td>Set/Read Clipboard กับตัวแปร</td></tr>
+      <tr><td><code>examples/10_conditions_v21.json</code></td><td>เงื่อนไขนับรอบ/เวลา (v1.21)</td><td>If Loop/If Time + หัวข้อ Section</td></tr>
       <tr><td><code>examples/04_scroll_gallery.json</code></td><td>เลื่อนดูรูป/เว็บ</td><td>Scroll คู่ขึ้น-ลง</td></tr>
     </table>
   </div>
@@ -380,7 +391,40 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
       ดูตัวอย่างเต็มที่ <code>plugins/README.md</code></p>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v1.20</footer>
+  <div class="card" id="ch13">
+    <h2 class="chapter">บทที่ 13 — ใหม่ใน v2.x (สรุปสั้น)</h2>
+    <h3>13.1 ส่วนขยาย (v2.0–2.3)</h3>
+    <ul>
+      <li><b>engine แยกจาก GUI</b> — <code>macro_engine.py</code> ล้วนไม่มี Tk · CLI ย่อย <code>engine_cli.py</code> ·
+        ปุ่ม 🔌 เปิดโฟลเดอร์ plugin จากในโปรแกรม · ตลาด plugin ที่ <a href="PLUGINS.md">PLUGINS.md</a></li>
+      <li><b>เมนู 📤 Export Bat</b> — สร้าง <code>.bat</code> (Windows) + <code>.sh</code> (Linux/macOS) ข้างสคริปต์ที่ Save แล้ว
+        ดับเบิลคลิกรันได้ทันที (ส่งอาร์กิวเมนต์เพิ่มได้ เช่น <code>--loop</code>)</li>
+    </ul>
+    <h3>13.2 ความทนทาน (v2.4)</h3>
+    <ul>
+      <li><b>Global hotkey self-healing</b> — listener ปุ่มลัดตายเงียบ ๆ ได้ โปรแกรมรีสตาร์ตให้เอง
+        (กันยิงรัว ≥10 วิ) + แจ้งใน statusbar/log — หลักการ: ปุ่ม STOP ต้องใช้ได้เสมอ</li>
+      <li><b>Safety timeout</b> — Settings "หยุดเองหลังเล่น N นาที" (1–720) · CLI: <code>--max-minutes N</code></li>
+      <li><b>If Image รอได้</b> — Additional ต่อท้าย <code>Ns</code> เช่น <code>img.png 5s</code> = ตรวจซ้ำจนครบ 5 วิก่อนตัดสิน</li>
+      <li><b>เลือกหลายแถว</b> — Ctrl/Shift+คลิกแล้ว Delete ลบทั้งชุด (Ctrl+Z กู้คืนได้)</li>
+      <li><b>Schedule เลือกโปรไฟล์</b> — ตอนตั้งเวลาเลือกได้ว่าจะโหลดโปรไฟล์ไหนมาเล่น</li>
+      <li><b><code>--validate</code></b> — ตรวจสคริปต์ทุกแถวรายงานปัญหาทีละข้อ ก่อนปล่อยงานจริง</li>
+      <li>แคช template ค้นภาพ — สคริปต์วน 1000 รอบไม่อ่านไฟล์ภาพซ้ำ</li>
+    </ul>
+    <h3>13.3 เงื่อนไขครบวงจร + ตารางจัดการง่าย (v2.5)</h3>
+    <ul>
+      <li><b>If Pixel Color</b> — เงื่อนไขสีจุด: ตรง → เล่นต่อ, ไม่ตรง → ข้าม N แถว (ต่อท้าย <code>Ns</code> ให้รอซ้ำก่อนตัดสิน)</li>
+      <li><b>Read Pixel Color</b> — อ่านสีจุดเก็บเป็นตัวแปร <code>{ชื่อ}</code> (Additional: <code>ชื่อ x,y</code>)</li>
+      <li><b>If Variable</b> — เทียบตัวแปร: ตัวเลข (<code>รอบ &gt; 5</code>) หรือข้อความ (<code>code = A-1</code>, <code>msg ~ ล้มเหลว</code>)</li>
+      <li><b>Image Click ตั้ง <code>{img_x}/{img_y}</code></b> — คลิกจุดสัมพัทธ์จากภาพที่เจอได้</li>
+      <li><b><code>rand a-b</code> ใน Set Variable</b> — <code>สุ่ม = rand 1-100</code> สุ่มเลขเก็บลงตัวแปร</li>
+      <li><b>ลากสลับแถว</b> — คลิกค้างแล้วลาก วางก่อน/หลังตามครึ่งแถว · เลื่อนจออัตโนมัติ · ลากทั้งก้อนที่เลือก · ห้ามวางบนกลุ่มย่อ</li>
+      <li><b>Redo (Ctrl+Y) + Undo ครบ</b> — แก้เซลล์ก็ย้อนได้ · <b>คอลัมน์ หมายเหตุ</b> · <b>ค้นหาแทนที่ทั้งหมด</b> (Ctrl+F)</li>
+      <li><b>plugin ใหม่ 4 ตัว</b> — Screenshot · Toast · Write Log · Ask Input (ctx เพิ่ม <code>vars</code> — plugin เขียนตัวแปรแถวถัดไปใช้ต่อได้)</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.5.2</footer>
 
 </body>
 </html>

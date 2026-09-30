@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Mouse &amp; Keyboard Macro v1.3 — คู่มือการใช้งาน</title>
+<title>Auto Mouse &amp; Keyboard Macro v2.5.2 — คู่มือการใช้งาน</title>
 <style>
   :root {
     --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.2</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.5.2</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -136,6 +136,16 @@
       <tr><td>🔀 <b>Else If Image v1.18</b></td><td>เงื่อนไขสองทาง: If เจอ → เล่นกลุ่ม A แล้วข้ามกลุ่ม B, ไม่เจอ → เล่นกลุ่ม B (ดู TUTORIAL บทที่ 5A)</td></tr>
       <tr><td>🖱️ <b>CLI ครบทุก action v2.2</b></td><td>Image Click / If Image / Else / Wait for Image ทำงานใน CLI จริงแล้ว · engine_cli เพิ่ม <code>--json-lines</code> (1 แถว/บรรทัด)</td></tr>
       <tr><td>🎵 <b>plugin ใหม่ v2.2</b></td><td>Play Sound (เสียงเตือนตามจำนวนครั้ง) · Webhook (ยิง POST แจ้งเหตุการณ์) · Multi Image Click (คลิกภาพหลายไฟล์ตามลำดับ)</td></tr>
+      <tr><td>🎨 <b>เงื่อนไขสี/ตัวแปร v2.5</b></td><td>If Pixel Color · Read Pixel Color เก็บสีเป็น <code>{ตัวแปร}</code> · If Variable เทียบตัวเลข/ข้อความ · Image Click ตั้ง <code>{img_x}/{img_y}</code> · Set Variable รับ <code>rand 1-100</code></td></tr>
+      <tr><td>🔌 <b>plugin ใหม่ v2.5</b></td><td>Screenshot (ถ่ายจอเก็บหลักฐาน) · Toast (แจ้งเตือน Windows 10/11) · Write Log · Ask Input (ถามค่าผู้ใช้เก็บเป็นตัวแปร)</td></tr>
+      <tr><td>🖱️ <b>ลากสลับแถว v2.5</b></td><td>คลิกค้างแล้วลาก วางก่อน/หลังตามครึ่งแถว + autoscroll + ลากทั้งก้อนที่เลือก · เลือกหลายแถว Delete ทีเดียว (v2.4) · Alt+↑↓ ย้ายด้วยคีย์</td></tr>
+      <tr><td>🔁 <b>Undo/Redo v2.5</b></td><td><kbd>Ctrl+Z</kbd>/<kbd>Ctrl+Y</kbd> รวมการแก้เซลล์ด้วย · คอลัมน์ หมายเหตุ (Note) · ค้นหาแทนที่ทั้งหมดใน <kbd>Ctrl+F</kbd></td></tr>
+      <tr><td>🛡 <b>self-healing hotkey v2.4</b></td><td>listener ปุ่มลัดตายเงียบ ๆ ได้ → โปรแกรมรีสตาร์ตให้เอง + แจ้งใน statusbar — หลักการ: STOP ต้องใช้ได้เสมอ</td></tr>
+      <tr><td>⏱ <b>Safety timeout v2.4</b></td><td>หยุดเองหลังเล่น N นาที (1–720) — ตั้งใน Settings หรือ CLI <code>--max-minutes</code></td></tr>
+      <tr><td>🔀 <b>If Image รอได้ v2.4</b></td><td>Additional ต่อท้าย <code>5s</code> = ตรวจซ้ำจนครบ 5 วิก่อนตัดสิน — แก้ปัญหาหน้าจอยังโหลดไม่เสร็จแล้วเงื่อนไขตัดสินผิด</td></tr>
+      <tr><td>📤 <b>Export .bat/.sh v2.3</b></td><td>เมนู 📤 Export Bat สร้างไฟล์ดับเบิลคลิกรันข้างสคริปต์ (Windows/Linux/macOS)</td></tr>
+      <tr><td>⏰ <b>Schedule เลือกโปรไฟล์ v2.4</b></td><td>ตอนตั้งเวลาเลือกได้ว่าจะโหลดโปรไฟล์ไหนมาเล่น + Settings แสดงนัดหมายปัจจุบัน</td></tr>
+      <tr><td>🔎 <b>--validate v2.4</b></td><td>ตรวจสคริปต์ทุกแถวรายงานปัญหา (ไม่เล่น) — คู่หูของงาน watchdog ค้างคืน</td></tr>
       <tr><td>🎨 <b>Wait for Pixel Color v1.18</b></td><td>รอจนจุด (x,y) มีสีที่กำหนด (<code>300,300 #ffffff</code>) ก่อนทำงานต่อ</td></tr>
       <tr><td>🔁 <b>If Loop v1.21</b></td><td>เงื่อนไขนับรอบ: Additional = เลขรอบ N เช่น <code>3</code> → รอบที่ 3 ขึ้นไปข้าม N แถวถัดไป (Repeat) — "รอบแรก setup รอบถัดไปข้าม" (ดู TUTORIAL บทที่ 5B)</td></tr>
       <tr><td>🕐 <b>If Time v1.21</b></td><td>เงื่อนไขเวลา: Additional = <code>HH:MM</code> เช่น <code>22:30</code> → ผ่านเวลากำหนดแล้วข้าม N แถวถัดไป (Repeat)</td></tr>
@@ -235,6 +245,8 @@ run.bat                                  # หรือ: py auto_macro.py</code>
       <tr><td><kbd>Delete</kbd></td><td>ลบแถวที่เลือก (<kbd>Ctrl+Z</kbd> กู้คืนได้)</td></tr>
       <tr><td><kbd>Ctrl+F</kbd></td><td>ค้นหาแถว (Enter ซ้ำ = ผลถัดไป)</td></tr>
       <tr><td><kbd>Ctrl+Z</kbd></td><td>กู้คืนแถวที่ลบ/ถูกแทนที่ล่าสุด</td></tr>
+      <tr><td><kbd>Ctrl+Y</kbd></td><td>Redo — ทำซ้ำสิ่งที่ undo (รวมการแก้เซลล์)</td></tr>
+      <tr><td><kbd>Alt+↑/↓</kbd></td><td>ย้ายแถวที่เลือกขึ้น/ลงด้วยคีย์</td></tr>
       <tr><td><kbd>Double-click</kbd></td><td>แก้ค่าในเซลล์</td></tr>
     </table>
 
@@ -249,18 +261,15 @@ py -m PyInstaller auto_macro.spec --noconfirm --clean</code></pre>
     <p>ผลลัพธ์: <code>dist/AutoMouseMacro.exe</code> (ไฟล์เดียว ~13 MB, GUI ไม่มี console)</p>
 
     <h3>โครงสร้างโปรเจกต์</h3>
-<pre><code>├── auto_macro.py        # โปรแกรมหลักทั้งหมด (ไฟล์เดียวจบ)
+<pre><code>├── auto_macro.py        # โปรแกรมหลัก (GUI + engine ฝังในบล็อกเดียว) — build .exe จากไฟล์นี้เสมอ
+├── macro_engine.py      # engine ล้วน ไม่มี Tk (แก้ที่นี่แล้วรัน build_singlefile.py ซิงก์)
+├── engine_cli.py        # CLI ย่อย ใช้ engine ล้วนไม่แตะ tkinter
+├── build_singlefile.py  # รวม engine กลับเป็น auto_macro.py ก่อน build .exe
 ├── test_auto_macro.py   # unit tests (unittest)
-├── auto_macro.spec      # ไฟล์ spec ของ PyInstaller
-├── build.bat            # สคริปต์ build .exe
-├── run.bat              # สคริปต์รันจากซอร์ส
-├── requirements.txt     # dependencies
-├── pic.png              # รูปต้นแบบ
-└── docs/                # เอกสารทั้งหมด (md + html)
-    ├── README.md / README.html
-    ├── RESEARCH.md / RESEARCH.html
-    ├── CHANGELOG.md / CHANGELOG.html
-    └── images/pic.png</code></pre>
+├── test_e2e.py          # E2E tests — รัน CLI จริงเป็น subprocess
+├── plugins/             # Custom Action plugins (ตลาด plugin)
+├── examples/            # สคริปต์ตัวอย่าง 10+ ไฟล์
+└── docs/                # เอกสารทั้งหมด (md + html)</code></pre>
   </div>
 
   <div class="card">
@@ -273,7 +282,10 @@ py auto_macro.py script.json --no-log         # ไม่บันทึก log
 py auto_macro.py script.json --shuffle        # สุ่มลำดับแถวทุกรอบ
 py auto_macro.py script.json --rows-pct 50    # เล่นแค่ 50% ของแถว (สุ่มชุดใหม่ทุกรอบ)
 py auto_macro.py script.json --watchdog       # จบแล้วเริ่มใหม่อัตโนมัติ (พัก 3 วิ)
-py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์ = หยุดทันที</code></pre>
+py auto_macro.py script.json --max-minutes 60 # safety timeout: หยุดเองหลังเล่น 60 นาที
+py auto_macro.py script.json --validate       # ตรวจสคริปต์อย่างเดียวไม่เล่น (exit 1 เมื่อพบแถวมีปัญหา)
+py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟล์ = หยุดทันที
+py engine_cli.py script.json                  # CLI ย่อย engine ล้วน (ไม่แตะ tkinter)</code></pre>
     <p>หยุดได้ทุกที่: <kbd>F8</kbd>/<kbd>Esc</kbd> (แม้ไม่โฟกัส), <kbd>Esc</kbd>/<kbd>q</kbd>
       ในหน้าต่าง CLI, หรือ Ctrl+C — เหมาะกับ Windows Task Scheduler</p>
   </div>
@@ -301,8 +313,8 @@ py auto_macro.py script.json --stop-file D:\stop.flg   # สร้างไฟ�
 
   <div class="card">
     <h2>🧪 ทดสอบ</h2>
-<pre><code>py -m unittest test_auto_macro -v    # 274 unit tests (รวมเล่นจริง + ครบวงจร Recorder)
-py -m unittest test_e2e -v           # 11 E2E tests (รัน CLI จริง)</code></pre>
+<pre><code>py -m unittest test_auto_macro -v    # 339 unit tests (รวมเล่นจริง + ครบวงจร Recorder)
+py -m unittest test_e2e -v           # 12 E2E tests (รัน CLI จริง)</code></pre>
   </div>
 
   <div class="card">
@@ -313,6 +325,12 @@ py -m unittest test_e2e -v           # 11 E2E tests (รัน CLI จริง)
       <tr><td><code>02_form_filler.json</code></td><td>กรอกฟอร์ม (ชื่อ/อีเมล/โทร) ด้วยการพิมพ์ + Enter</td></tr>
       <tr><td><code>03_image_click.json</code></td><td>Image Click + Search Area (<code>target.png@100,100,500,400</code>) — แถวคลิกปิด enabled ไว้</td></tr>
       <tr><td><code>04_scroll_gallery.json</code></td><td>Scroll ดูรูป/เว็บ + Move Mouse (แถวดับเบิลคลิกปิดไว้)</td></tr>
+      <tr><td><code>05_watchdog_monitor.json</code></td><td>งานเฝ้าระบบ ใช้กับ <code>--watchdog</code></td></tr>
+      <tr><td><code>06_plugin_demo.json</code></td><td>Custom Action plugins (Message Box + Sleep)</td></tr>
+      <tr><td><code>07_conditions.json</code></td><td>เงื่อนไข: If Image กลุ่ม A/B + Wait for Pixel Color — ไม่คลิก ปลอดภัย</td></tr>
+      <tr><td><code>08_variables.json</code></td><td>ตัวแปร <code>{ชื่อ}</code> + Set Variable</td></tr>
+      <tr><td><code>09_clipboard.json</code></td><td>Set/Read Clipboard + ตัวแปร</td></tr>
+      <tr><td><code>10_conditions_v21.json</code></td><td>If Loop / If Time + หัวข้อ Section</td></tr>
     </table>
     <p>ทุกตัวอย่าง validate กับโค้ดจริงแล้ว เริ่ม/จบด้วย Save/Restore Cursor เสมอ</p>
   </div>
@@ -323,12 +341,30 @@ py -m unittest test_e2e -v           # 11 E2E tests (รัน CLI จริง)
       <a href="TUTORIAL.html">📘 TUTORIAL — คู่มือฉบับสมบูรณ์ 10 บท</a>
       <a href="RESEARCH.html">🔬 RESEARCH — เทคนิคการควบคุมเมาส์/คีย์บอร์ด</a>
       <a href="CHANGELOG.html">📋 CHANGELOG — ประวัติการเปลี่ยนแปลง</a>
+      <a href="PLUGINS.md">🔌 PLUGINS — ตลาด plugin</a>
+      <a href="ROADMAP.md">🗺️ ROADMAP — แผนพัฒนาต่อ</a>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>ℹ️ เกี่ยวกับ (About)</h2>
+    <p><b>Auto Mouse &amp; Keyboard Macro</b> — โปรแกรมอัตโนมัติสำหรับเมาส์และคีย์บอร์ด ฟรีและโอเพนซอร์ส
+    สำหรับ Windows (รองรับ Linux/macOS ผ่านไลบรารีเดียวกัน) พัฒนาด้วย Python + Tkinter + pynput ล้วน</p>
+    <ul>
+      <li><b>ไม่มีโฆษณา ไม่มีล็อกอิน ไม่มีการเก็บข้อมูลผู้ใช้</b> — สคริปต์ทุกอย่างอยู่ในเครื่องคุณ (ไฟล์ .json อ่าน/แก้ได้)</li>
+      <li><b>ใช้งานง่ายระดับกดปุ่ม</b> — อัดแล้วเล่นซ้ำโดยไม่ต้องเขียนโค้ด แต่แก้ละเอียดระดับแถวได้ในตารางเดียว</li>
+      <li><b>ความปลอดภัยมาก่อน</b> — STOP ใช้ได้ทุกช่องทาง + safety timeout + backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม</li>
+      <li><b>โปร่งใส ตรวจสอบได้</b> — โอเพนซอร์สทั้งหมด, log การเล่นรายวัน, CI รันเทสต์ 339+12 ตัวทุก push</li>
+      <li><b>ขยายได้ไม่จำกัด</b> — เพิ่ม Action ใหม่ด้วยไฟล์ Python เดียวใน <code>plugins/</code></li>
+    </ul>
+    <div class="warn">⚠️ ใช้เพื่องานที่ชอบด้วย/อนุญาตเท่านั้น — อย่าใช้กับเกมหรือระบบที่ห้ามการทำงานอัตโนมัติ</div>
+    <p><a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest">ดาวน์โหลดล่าสุด</a> ·
+    <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues">รายงานบั๊ก/เสนอฟีเจอร์</a></p>
   </div>
 
 </div>
 
-<footer>Auto Mouse &amp; Keyboard Macro v1.3 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
+<footer>Auto Mouse &amp; Keyboard Macro v2.5.2 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
 
 </body>
 </html>

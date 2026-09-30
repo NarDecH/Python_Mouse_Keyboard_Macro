@@ -75,11 +75,10 @@
     <p>งานซ้ำ ๆ บนคอมพิวเตอร์ เช่น คลิกปุ่มเดิม, กรอกฟอร์มเดิม, ฟาร์มไอเทมในเกม สามารถมอบหมายให้โปรแกรมทำแทนได้
     แนวคิดคือ <b>"สคริปต์เหตุการณ์"</b> — รายการเหตุการณ์เมาส์/คีย์ที่เรียงลำดับกัน พร้อมเวลาหน่วงระหว่างขั้น
     โปรแกรมจะอ่านสคริปต์แล้วจำลองการกด/คลิกแทนมือผู้ใช้</p>
-    <p>ต้นแบบที่ใช้เทียบคือ <b>Auto Mouse v1.3</b> (ดูรูป): ตาราง
+    <p>แกน UX ของโปรแกรมคือ <b>ตารางคำสั่ง</b>
     <code># / X / Y / Button / Additional / Mins / Secs / Repeat</code>
-    + ปุ่ม START / STOP / REPEAT / RECORD ซึ่งเป็น UX ที่เข้าใจง่ายและตรงจุด</p>
-    <img class="shot" src="images/pic.png" alt="ต้นแบบ Auto Mouse v1.3">
-    <p class="caption">ต้นแบบ Auto Mouse v1.3 ที่ใช้เป็นข้อกำหนด UX</p>
+    + ปุ่ม START / STOP / REPEAT / RECORD — รูปแบบที่เข้าใจง่ายและตรงจุด
+    แก้ไขทีละแถวได้ทันทีโดยไม่ต้องเขียนโค้ด</p>
   </div>
 
   <div class="card">
@@ -94,21 +93,31 @@
       <tr><td>Electron/Node.js</td><td>UI สวยได้ง่าย</td><td>ตัวโปรแกรมใหญ่โดยไม่จำเป็น, robotjs ดูแลไม่ค่อยต่อ</td><td>ผ่าน</td></tr>
     </table>
     <div class="note">ข้อสรุป: <b>Python + pynput</b> ให้ต้นทุนต่ำสุดทั้งการพัฒนาและการแจกจ่าย
-    และ Tkinter (มากับ Python) เพียงพอสำหรับ UI แบบตาราง + ปุ่มตามต้นแบบ</div>
+    และ Tkinter (มากับ Python) เพียงพอสำหรับ UI แบบตาราง + ปุ่ม</div>
   </div>
 
   <div class="card">
     <h2>3. สถาปัตยกรรม: Event List → Player</h2>
-<pre>┌─────────────┐   ผลักเหตุการณ์เข้าคิว    ┌──────────────┐
-│ pynput      │ ────────────────────────▶ │ _pending_rows │ (list ธรรมดา)
-│ Listeners   │  (เธรดของ listener)        │  + _live_pos  │
-│ (เมาส์+คีย์) │                           └──────┬───────┘
-└─────────────┘                                  │ poll ทุก 120 ms (main thread)
-                                                 ▼
-┌─────────────┐   ตั้งค่า state dict      ┌──────────────┐
-│ Player      │ ────────────────────────▶ │   UI update   │
-│ (เธรดแยก)    │  (row ที่กำลังเล่น, msg)   │  (Tk mainloop)│
-└─────────────┘                           └──────────────┘</pre>
+<pre>┌─────────────┐  ผลักเหตุการณ์เข้า pending_rows  ┌──────────────┐
+│ Recorder    │ ─────────────────────────────▶ │ recorder.    │
+│ (engine —   │  (เธรดของ listener ห้ามแตะ Tk)  │ pending_rows │
+│  ไม่มี Tk)  │                                 └──────┬───────┘
+└─────────────┘                                        │ drain_pending() ทุก tick (main thread)
+                                                       ▼
+┌─────────────┐  callbacks (msg/beep/clipboard) ┌──────────────┐
+│ ActionRunner│ ─────────────────────────────▶ │  UI update   │
+│ (engine)    │  state dict ผ่าน poller         │ (Tk mainloop)│
+└─────────────┘                                 └──────────────┘</pre>
+    <h3>สถาปัตยกรรม v2.x (3 phases จบแล้ว)</h3>
+    <ol>
+      <li><b>macro_engine.py = engine ล้วน ไม่มี Tk</b> — parser/คลิปบอร์ด/unicode/log/stats/plugins/
+        Recorder/ค้นภาพ นำไปฝังหรือเทสต์แยกได้ (auto_macro.py เก็บบล็อกเดียวกันไว้ระหว่างป้าย
+        <code>ENGINE-BEGIN/END</code> ซิงก์ด้วย <code>build_singlefile.py</code>)</li>
+      <li><b>ActionRunner = กลไก "ทำ 1 แถว" แหล่งเดียว</b> — GUI/CLI/engine_cli ส่ง controller +
+        callbacks เข้า runner แล้วเรียก <code>execute(r)</code> — อย่าเขียน do_step สองชุด</li>
+      <li><b>ค้นภาพ/เงื่อนไขอยู่ใน engine</b> — <code>find_image_pos</code> (แคช template ตาม mtime+size),
+        <code>evaluate_condition</code> สำหรับเงื่อนไขทั้ง 5 — CLI ทำได้ครบเท่า GUI</li>
+    </ol>
     <h3>กฎเหล็กของ Tkinter</h3>
     <p>โค้ดที่แตะ widget ต้องรันบน main thread เท่านั้น — การเรียก <code>root.after()</code>
     หรือแก้ widget จาก listener thread เป็น race condition เงียบ ๆ ที่พังบ้างบางครั้ง ยากต่อการ debug</p>
@@ -163,7 +172,10 @@
 
     <h3>5.1 Global Hotkey (กด F6/F8/F9/F10 ได้แม้ไม่โฟกัส)</h3>
     <ul>
-      <li>ใช้ <code>pynput.keyboard.GlobalHotKeys</code> — listener เธรดแยก เหมือน recorder</li>
+      <li>ใช้ <code>keyboard.Listener</code> จับคู่คีย์เอง — <b>ไม่ใช่ GlobalHotKeys</b>
+        (พิสูจน์แล้ว v1.8 ว่าบน pynput 1.8.x บางเครื่อง listener alive แต่ไม่ยิง callback)</li>
+      <li><b>v2.4 self-healing:</b> listener ตายเงียบ ๆ ได้ → poller ตรวจ <code>is_alive</code> ทุก tick
+        แล้วรีสตาร์ตเอง (เว้น ≥10 วิ) — หลักการ: STOP ต้องใช้ได้เสมอ</li>
       <li>callback จากเธรดของ pynput <b>ห้ามแตะ Tk ตรง ๆ</b> จึงผลักงานเข้า main thread ด้วย
         <code>root.after(0, fn)</code></li>
       <li>ถ้าโปรแกรมอื่นจับคีย์เดียวกันไว้ก่อน pynput จะ error ตอน register →
@@ -174,7 +186,8 @@
     <ul>
       <li><b>ทำไม:</b> พิกัด (X,Y) ใช้ไม่ได้เมื่อหน้าต่าง/ปุ่มเลื่อนตำแหน่ง — หาจาก "ลักษณะภาพ" ทนทานกว่า</li>
       <li><b>วิธี:</b> <code>PIL.ImageGrab.grab()</code> จับหน้าจอ →
-        <code>cv2.matchTemplate(TM_CCOEFF_NORMED)</code> → ความมั่นใจ ≥ 0.80 → คลิกจุดศูนย์กลาง</li>
+        <code>cv2.matchTemplate(TM_CCOEFF_NORMED)</code> → ความมั่นใจ ≥ 0.80 → คลิกจุดศูนย์กลาง
+        (<b>v2.4:</b> แคช template ตาม mtime+size — สคริปต์วน 1000 รอบไม่อ่านไฟล์ภาพซ้ำ)</li>
       <li><b>DPI/scaling:</b> Windows scaling ทำให้พิกัดเบี่ยง แต่เทียบภาพ-กับ-ภาพจากแหล่งเดียวกันจึงยังใช้ได้</li>
       <li><b>dependency เป็นตัวเลือก:</b> ห่อ import ด้วย try/except ตั้ง <code>HAS_CV</code> —
         ไม่มี opencv โปรแกรมก็ยังเปิดได้ แถว Image Click แจ้งเตือนตอนเล่นแทนการ crash</li>
@@ -201,13 +214,12 @@
   </div>
 
   <div class="card">
-    <h2>6. ฟีเจอร์ v1.5 — คัดสรรจาก automouseclick.com</h2>
-    <p>ศึกษา <a href="https://www.automouseclick.com/">Auto Mouse Click (MurGee)</a>
-    แล้วคัดเฉพาะสิ่งที่ <b>ทำได้จริงด้วย pynput + stdlib</b> และ <b>มีประโยชน์กับผู้ใช้ทั่วไป</b></p>
+    <h2>6. การศึกษาเทียบเคียงสำหรับฟีเจอร์ v1.5</h2>
+    <p>ศึกษา macro tools ยอดนิยมในตลาด (เช่น Auto Mouse Click, AutoHotkey, TinyTask) แล้วคัดเฉพาะสิ่งที่ <b>ทำได้จริงด้วย pynput + stdlib</b> และ <b>มีประโยชน์กับผู้ใช้ทั่วไป</b></p>
 
     <h3>6.1 สิ่งที่เอามาใช้</h3>
     <table>
-      <tr><th>จาก automouseclick.com</th><th>ของเรา (v1.5)</th><th>หมายเหตุการทำงาน</th></tr>
+      <tr><th>ไอเดียจาก macro tools ทั่วไป</th><th>ของเรา (v1.5)</th><th>หมายเหตุการทำงาน</th></tr>
       <tr><td>Scroll Up/Down</td><td>Action <code>Scroll Up/Down</code> + จำนวนจังหวะ</td><td><code>mouse_ctl.scroll(0, ±n)</code> + อัดจาก <code>on_scroll</code> ตอน RECORD</td></tr>
       <tr><td>Double Click</td><td><code>Double Left/Right Click</code></td><td><code>click(btn, 2)</code></td></tr>
       <tr><td>Ctrl+Click ฯลฯ</td><td><code>Ctrl+Click</code>, <code>Shift+Click</code>, <code>Alt+Click</code>, <code>Ctrl+Right Click</code></td><td>press(mod) → click → release(mod) ใน finally กันคีย์ค้าง</td></tr>
@@ -256,7 +268,7 @@
     </table>
     <p>โปรเจกต์นี้เลือก pynput เป็นแกน (ครอบคลุม record + play ใน lib เดียว)
     ถ้าอนาคตต้องใช้กับเกมที่กรอง injected event ให้เพิ่ม adapter pydirectinput เฉพาะตอน "เล่น" —
-    โครงสร้าง <code>do_step()</code> แยกอยู่แล้ว ทำได้โดยไม่กระทบส่วนอื่น</p>
+    โครงสร้าง <code>ActionRunner</code> แยกอยู่แล้ว ทำได้โดยไม่กระทบส่วนอื่น</p>
   </div>
 
   <div class="card">
@@ -294,10 +306,13 @@
     <h3>10.1 CLI mode (เล่นสคริปต์โดยไม่เปิด GUI)</h3>
     <ul>
       <li>อ่าน JSON รูปแบบเดิม — สคริปต์ที่บันทึกจาก GUI ใช้ได้ทันที + ข้ามแถว <code>enabled: false</code></li>
-      <li>หยุดด้วย <code>GlobalHotKeys</code> (F8/Esc) หรือ Ctrl+C — ใช้ list <code>[True]</code> แทน bool เพื่อ closure</li>
+      <li>ตั้งแต่ v2.1 ใช้ <code>ActionRunner</code> ตัวเดียวกับ GUI (ห้าม do_step สองชุด) —
+        <b>v2.2 ทำงานครบทุก action</b> รวม Image Click/If Image/Wait for Image ใน CLI</li>
+      <li>หยุดด้วย <code>keyboard.Listener</code> (F8/Esc) หรือ Ctrl+C — ใช้ list <code>[True]</code> แทน bool เพื่อ closure</li>
       <li><b>บทเรียน cp1252:</b> คอนโซล Windows พิมพ์ไทยไม่ได้ →
         <code>sys.stdout.reconfigure(utf-8)</code> + เช็ค <code>buffer</code> กันเคส StringIO ในเทสต์</li>
-      <li>ข้อจำกัด: Image Click/Wait for Image ยังไม่รองรับใน CLI</li>
+      <li>เพิ่มเติม v2.3–2.4: <code>--version</code>, <code>--validate</code> (ตรวจไม่เล่น),
+        <code>--max-minutes</code> (safety timeout) · engine_cli ย่อยมี <code>--json-lines</code></li>
     </ul>
 
     <h3>10.2 Right-click menu บนตาราง</h3>
