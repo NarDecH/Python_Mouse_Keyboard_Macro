@@ -1766,7 +1766,8 @@ class TestPlayLoopGui(unittest.TestCase):
         self.assertIn("_on_drag_start", combined)
 
     def test_drag_with_real_events(self):
-        """v2.5.2: ลากจริงผ่าน event_generate — ลาก R2 ไปครึ่งล่างของ R4"""
+        """v2.5.2: ลากจริงผ่าน event_generate — ลาก R2 ไปครึ่งล่างของ R4
+        (bbox มีค่าเมื่อหน้าต่างถูก map — บน Linux/macOS ต้อง deiconify ก่อน)"""
         self._clean_table(0)
         for n in range(4):
             self.app._append_row(button="Beep", secs=0, note="R%d" % (n + 1))
@@ -1775,21 +1776,27 @@ class TestPlayLoopGui(unittest.TestCase):
         def order():
             return [str(tree.item(i, "values")[9]) for i in tree.get_children()]
 
-        kids = list(tree.get_children())
-        src, dst = tree.bbox(kids[1]), tree.bbox(kids[3])
-        self.assertTrue(src and dst, "bbox ต้องมีค่าเมื่อหน้าต่างถูก map")
-        sx, sy = src[0] + 200, src[1] + src[3] // 2
-        dx, dy = dst[0] + 200, dst[1] + dst[3] - 3
-        tree.event_generate("<ButtonPress-1>", x=sx, y=sy)
+        self.root.deiconify()
         self.root.update()
-        for step in range(1, 6):
-            tree.event_generate("<B1-Motion>",
-                                x=sx + (dx - sx) * step // 5,
-                                y=sy + (dy - sy) * step // 5)
+        try:
+            kids = list(tree.get_children())
+            src, dst = tree.bbox(kids[1]), tree.bbox(kids[3])
+            if not src or not dst:
+                self.skipTest("bbox ยังว่าง — หน้าต่างไม่ถูก map บนสภาพแวดล้อมนี้")
+            sx, sy = src[0] + 200, src[1] + src[3] // 2
+            dx, dy = dst[0] + 200, dst[1] + dst[3] - 3
+            tree.event_generate("<ButtonPress-1>", x=sx, y=sy)
             self.root.update()
-        tree.event_generate("<ButtonRelease-1>", x=dx, y=dy)
-        self.root.update()
-        self.assertEqual(order(), ["R1", "R3", "R4", "R2"])
+            for step in range(1, 6):
+                tree.event_generate("<B1-Motion>",
+                                    x=sx + (dx - sx) * step // 5,
+                                    y=sy + (dy - sy) * step // 5)
+                self.root.update()
+            tree.event_generate("<ButtonRelease-1>", x=dx, y=dy)
+            self.root.update()
+            self.assertEqual(order(), ["R1", "R3", "R4", "R2"])
+        finally:
+            self.root.withdraw()
 
     def test_drag_reorder_above_and_below(self):
         """v2.5: ลากแถววางก่อน/หลังแถวเป้าหมาย (ครึ่งบน = ก่อน, ครึ่งล่าง = หลัง)"""
