@@ -395,6 +395,7 @@ py -m unittest test_e2e -v           # 12 E2E tests (รัน CLI จริง 
 | `08_variables.json` | ตัวแปร `{ชื่อ}` + Set Variable |
 | `09_clipboard.json` | Set/Read Clipboard + ตัวแปร |
 | `10_conditions_v21.json` | If Loop / If Time + หัวข้อ Section |
+| `11_and_conditions.json` | เงื่อนไขรวม AND (`&&`) — ผสมภาพ+สีจุด+ตัวแปร+รอบ+เวลา |
 
 ทุกตัวอย่าง validate กับโค้ดจริงแล้ว และเริ่ม/จบด้วย Save/Restore Cursor เสมอ
 

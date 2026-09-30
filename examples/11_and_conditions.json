@@ -1,0 +1,27 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "Message Box", "additional": "เดโม่เงื่อนไขรวม AND (v2.5.4)\nเครื่องหมาย && คั่นเงื่อนไขย่อย — ทุกชิ้นต้องจริง จึง \"เล่นต่อ\"\nมีชิ้นใดไม่จริง = ข้าม N แถว (N = คอลัมน์ Repeat ของแถวเงื่อนไข)\nใช้ได้กับ If Image / If Pixel Color / If Variable / If Loop / If Time\n(ภาพทดสอบ: examples/target.png ข้างโปรแกรม — แก้พาธได้ตามจริง)", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม A — If Image && ตัวแปร (เจอภาพและ stage = 1 จึงเล่น)",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "stage = 1", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Image", "additional": "examples/target.png && stage = 1", "mins": 0, "secs": 1, "repeat": 3},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่ม A: เจอ target.png และ stage = 1 — เสียงที่ 1", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่ม A: เสียงที่ 2 (Repeat ของ If Image = 3)", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Else If Image", "additional": "examples/target.png && stage = 1", "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่ม B: ภาพไม่เจอหรือ stage ≠ 1", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม C — If Pixel Color && If Variable (สีตรงและ n เกิน 5 จึงเล่น)",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "n = 10", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Pixel Color", "additional": "300,300 #ffffff && n > 5", "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่ม C: สีจุด 300,300 เป็นสีขาว และ n > 5", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "กลุ่ม D — If Loop && If Time (รอบที่ 2 ขึ้นไป และผ่าน 07:00 แล้ว)",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Loop", "additional": "2 && 3", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่ม D: รอบแรกแถวนี้ถูกเล่น / รอบ 2-3 ถูกข้าม", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Time", "additional": "07:00 && 22:00", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่ม D: ระหว่าง 07:00-22:00 แถวนี้ถูกข้าม", "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "เล่นทุกรอบ — จบเดโม่เงื่อนไขรวม", "mins": 0, "secs": 0, "repeat": 1}
+]

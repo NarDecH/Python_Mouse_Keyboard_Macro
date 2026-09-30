@@ -631,19 +631,41 @@ def validate_rows(rows, plugin_names=()):
         elif btn == "Read Clipboard" and not re.fullmatch(_VAR_NAME, add.strip() or ""):
             issues.append((i, "Read Clipboard ต้องระบุชื่อตัวแปร เช่น mytext"))
         elif btn in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
-            p = parse_search_area(add)[0] if add.strip() else ""
+            # v2.5.4: If Image ใช้ && ได้ — ตรวจภาพชิ้นแรก (ตัด timeout token ก่อน)
+            # แล้วตรวจชิ้นย่อยที่เหลือตามประเภท (สีจุด / ตัวแปร)
+            head, extra = add, []
+            if btn in (IF_IMAGE, ELSE_IMAGE):
+                raw, _w = parse_wait_timeout(add, 0)
+                parts = split_condition_and(raw)
+                head = parts[0] if parts else raw
+                extra = parts[1:]
+            p = parse_search_area(head)[0] if head.strip() else ""
             p = resolve_image_path(p) if p else ""
             if not p or not os.path.isfile(p):
                 issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
+            elif btn == IF_IMAGE:
+                bad = [q for q in extra if parse_if_var(q) is None
+                       and not parse_pixel_spec(q)]
+                if bad:
+                    issues.append((i, "If Image เงื่อนไขรวมรูปแบบไม่ถูก: %s" % bad[0]))
         elif btn == IF_PIXEL:
+            # v2.5.4: ชิ้นแรกต้องเป็นสีจุด, ชิ้นถัดไปเป็นสีจุดหรือตัวแปรก็ได้ (ตาม runner)
             parts = split_condition_and(add) or [add]
-            bad = any(not parse_pixel_spec(p) for p in parts)
+            bad = (not parse_pixel_spec(parts[0])
+                   or any(parse_if_var(p) is None and not parse_pixel_spec(p)
+                          for p in parts[1:]))
             if bad:
                 issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb คั่น && ได้)"))
         elif btn == IF_VAR:
             if not all(parse_if_var(p) for p in (split_condition_and(add) or [add])):
                 issues.append((i, "If Variable รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
                                   "name ~ ข้อความ คั่น && ได้)"))
+        elif btn == IF_LOOP:
+            if not all(parse_if_loop(p) for p in (split_condition_and(add) or [add])):
+                issues.append((i, "If Loop รูปแบบไม่ถูก (ต้องเป็นเลข >= 1 คั่น && ได้)"))
+        elif btn == IF_TIME:
+            if not all(parse_if_time(p) for p in (split_condition_and(add) or [add])):
+                issues.append((i, "If Time รูปแบบไม่ถูก (ต้องเป็น HH:MM คั่น && ได้)"))
         elif btn == READ_PIXEL:
             parts = add.split()
             ok = (len(parts) == 2 and re.fullmatch(_VAR_NAME, parts[0])
@@ -1160,24 +1182,42 @@ class ActionRunner:
           ถึงรอบ/ผ่านเวลา → (จำนวนแถวที่ข้าม = Repeat, ข้อความ "ข้าม N แถว")
           Additional ไม่ถูก → (0, ข้อความเตือน)"""
         if btn == IF_LOOP:
-            n = parse_if_loop(additional)
-            if n is None:
-                return 0, "If Loop %s → Additional ไม่ถูก (ต้องเป็นเลข >= 1) เล่นต่อ" % (additional or "")
-            if n_loop < n:
-                return 0, "If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ" % (additional, n_loop, n)
+            # v2.5.4 (ชุด N1): รองรับ && เช่น "3 && 10" — ถึงรอบตามทุกเลขจึงข้าม
+            parts = split_condition_and(additional) or [additional]
+            nums = []
+            for p in parts:
+                n = parse_if_loop(p)
+                if n is None:
+                    return 0, ("If Loop %s → Additional ไม่ถูก (ต้องเป็นเลข >= 1 คั่น && ได้) "
+                               "เล่นต่อ" % (additional or ""))
+                nums.append(n)
+            not_yet = [n for n in nums if n_loop < n]
+            if not_yet:
+                return 0, "If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ" % (
+                    additional, n_loop, max(not_yet))
             skip = parse_int(repeat, 1)
-            return skip, "If Loop %s → รอบที่ %d >= %d ข้าม %d แถว" % (additional, n_loop, n, skip)
+            return skip, "If Loop %s → รอบที่ %d >= %d ข้าม %d แถว" % (
+                additional, n_loop, min(nums), skip)
         if btn == IF_TIME:
-            spec = parse_if_time(additional)
+            # v2.5.4 (ชุด N1): รองรับ && เช่น "08:00 && 22:30" — ผ่านทุกเวลาจึงข้าม
             lt = now or time.localtime()
-            if spec is None:
-                return 0, "If Time %s → Additional ไม่ถูก (ต้องเป็น HH:MM) เล่นต่อ" % (additional or "")
-            if (lt.tm_hour, lt.tm_min) < spec:
+            parts = split_condition_and(additional) or [additional]
+            specs = []
+            for p in parts:
+                spec = parse_if_time(p)
+                if spec is None:
+                    return 0, ("If Time %s → Additional ไม่ถูก (ต้องเป็น HH:MM คั่น && ได้) "
+                               "เล่นต่อ" % (additional or ""))
+                specs.append(spec)
+            pending = [s for s in specs if (lt.tm_hour, lt.tm_min) < s]
+            if pending:
+                s = min(pending)
                 return 0, "If Time %02d:%02d → ยังไม่ถึง %02d:%02d เล่นต่อ" % (
-                    lt.tm_hour, lt.tm_min, spec[0], spec[1])
+                    lt.tm_hour, lt.tm_min, s[0], s[1])
             skip = parse_int(repeat, 1)
+            s = max(specs)
             return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
-                spec[0], spec[1], skip)
+                s[0], s[1], skip)
         if btn == IF_VAR:
             # v2.5.4 (ชุด N1): รองรับ && เช่น "n > 5 && code = A-1" — ทุกเงื่อนไขต้องจริง
             parts = split_condition_and(additional) or [additional]

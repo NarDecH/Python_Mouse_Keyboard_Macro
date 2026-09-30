@@ -25,6 +25,17 @@
   ดึงเนื้อหาหัวข้อ [X.Y.Z] จาก CHANGELOG เป็น body ของ Release (append ไม่ทับ)
 - **GitHub Issue #1** — RFC เปิดโหวต 4 คำถามของชุด N2 (Block Start/End + ลูปย่อย)
 
+### 🚀 ชุด N1 ต่อยอด — && ครบทุกเงื่อนไข + ตัวอย่าง
+- **ขยาย && ไป If Loop / If Time** — `3 && 5` = ต้องถึงรอบ 3 **และ** 5 ·
+  `08:00 && 22:30` = ต้องผ่านทั้งสองเวลา (ข้อความรายงานเลข/เวลาที่ยังไม่ถึงตัวแรก)
+- **--validate ครบทุกชนิด** — เพิ่มตรวจ If Loop/If Time (เดิมไม่ถูกตรวจ), If Image/If Pixel
+  ยอมรับชิ้นย่อยตัวแปรตามที่ runner เล่นจริง, Else If Image แยก timeout `Ns` ก่อนตรวจไฟล์
+- **examples/11_and_conditions.json** — เดโม่ && ครบ 5 ชนิด (ภาพ+ตัวแปร / สีจุด+ตัวแปร /
+  If Loop หลายเลข / If Time หลายเวลา) validate กับโค้ดจริงแล้ว + เพิ่มที่อยู่ใน examples/README
+  และ docs/README
+- **TestN1AndLoopTime 10 ตัว** — && ของ If Loop/If Time, แถวเดี่ยวผลเดิม 100%, validate
+  (รวมทั้งหมด **361 unit + 12 E2E**)
+
 ---
 
 ## [Unreleased]

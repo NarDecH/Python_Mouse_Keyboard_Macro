@@ -65,8 +65,41 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.5.3</h2>
+      <h2>เวอร์ชัน 2.5.4</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">30 กันยายน 2026</span>
+    </div>
+
+    <h3>✨ เงื่อนไขรวม AND — ชุด N1 แรกของแผน nested if</h3>
+    <ul>
+      <li><b>&amp;&amp; ในทุกเงื่อนไขหลัก</b> — ทุกเงื่อนไขย่อยต้องจริงจึงเล่นต่อ,
+        ชิ้นใดไม่จริง = ข้าม N แถว (Repeat ตามกฎเดียวเดิม):
+        <b>If Image</b> <code>img.png &amp;&amp; 300,300 #ffffff &amp;&amp; n &gt; 5</code>
+        (ตั้ง <code>{img_x}/{img_y}</code> + ใช้ timeout <code>Ns</code> ร่วมได้),
+        <b>If Pixel Color</b> <code>300,300 #ffffff &amp;&amp; 400,400 #000000</code>,
+        <b>If Variable</b> <code>n &gt; 5 &amp;&amp; code = A-1</code>,
+        <b>If Loop</b> <code>3 &amp;&amp; 5</code> (ต้องถึงทั้งสองรอบ),
+        <b>If Time</b> <code>08:00 &amp;&amp; 22:30</code> (ต้องผ่านทั้งสองเวลา)</li>
+      <li><b><code>--validate</code> เข้าใจ &amp;&amp;</b> — ตรวจทุกชิ้นย่อยรายแถว + เพิ่มตรวจ
+        If Loop/If Time (เดิมไม่ถูกตรวจ) + If Image/If Pixel ยอมรับชิ้นย่อยตัวแปรตาม runner</li>
+      <li><b>เข้ากันได้ 100%</b> — สคริปต์เดิม (ไม่มี &amp;&amp;) เล่นผลเหมือนเดิมทุกอย่าง</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ / เครื่องมือ / ชุมชน</h3>
+    <ul>
+      <li>เพิ่ม <b>TestN1AndConditions 10 ตัว + TestN1AndLoopTime 10 ตัว + TestDocsCheck 2 ตัว</b>
+        → รวม <b>361 unit + 12 E2E</b></li>
+      <li><b>ตัวอย่างใหม่ <code>examples/11_and_conditions.json</code></b> — เดโม่ &amp;&amp; ครบ 5 ชนิด
+        (validate กับโค้ดจริงแล้ว)</li>
+      <li><b>workflow Release Notes อัตโนมัติ</b> — push tag แล้วดึงเนื้อหาหัวข้อ [X.Y.Z]
+        จาก CHANGELOG เป็น body ของ Release (append ไม่ทับ)</li>
+      <li><b>GitHub Issue #1</b> — RFC เปิดโหวต 4 คำถามของชุด N2 (Block Start/End + ลูปย่อย)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.5.3</h2>
       <span class="date">30 กันยายน 2026</span>
     </div>
 

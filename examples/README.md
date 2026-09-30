@@ -44,6 +44,25 @@ py auto_macro.py examples/09_clipboard.json
 และ **Read Clipboard** (อ่านกลับเก็บเป็นตัวแปร) — หลังเล่นจบ กด Ctrl+V ที่ไหนก็ได้
 เพื่อดูข้อความที่ macro ตั้งไว้
 
+### ตัวอย่างเงื่อนไขนับรอบ/เวลา (v1.21+)
+
+```bash
+py auto_macro.py examples/10_conditions_v21.json
+```
+
+สาธิต **If Loop** (ข้ามแถวเมื่อถึงรอบ 3) + **If Time** (ก่อน/หลังเที่ยงตัดสินเส้นทาง)
+พร้อมหัวข้อ Section จัดระเบียบสคริปต์
+
+### ตัวอย่างเงื่อนไขรวม AND (v2.5.4+)
+
+```bash
+py auto_macro.py examples/11_and_conditions.json
+```
+
+สาธิตเครื่องหมาย **`&&`** คั่นเงื่อนไขย่อย — ทุกชิ้นต้องจริงจึงเล่นต่อ:
+`If Image + If Variable`, `If Pixel Color + If Variable`, `If Loop` หลายเลข,
+`If Time` หลายเวลา (ภาพทดสอบ `examples/target.png` — แก้พาธให้ตรงเครื่องคุณได้)
+
 ### ตัวอย่างงานเฝ้าระบบ (v1.10+)
 
 ```bash
@@ -68,6 +87,8 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `07_conditions.json` | **เงื่อนไข (v1.18)**: If Image → กลุ่ม A/B (Else If Image) + Wait for Pixel Color | ✅ ไม่คลิก |
 | `08_variables.json` | **ตัวแปร (v1.19)**: Set Variable (`=`, `+=`) + เรียกใช้ `{รอบ}` ในช่องอื่น | ✅ ไม่คลิก |
 | `09_clipboard.json` | **คลิปบอร์ด (v1.20)**: Set Clipboard + Read Clipboard (เขียนทับคลิปเดิม) | ✅ ไม่คลิก |
+| `10_conditions_v21.json` | **เงื่อนไข (v1.21)**: If Loop / If Time + หัวข้อ Section | ✅ ไม่คลิก |
+| `11_and_conditions.json` | **เงื่อนไขรวม AND (v2.5.4)**: `&&` ผสมภาพ+สีจุด+ตัวแปร+รอบ+เวลา | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 
 ทุกสคริปต์แถวแรกคือ `Save Cursor` และแถวสุดท้าย `Restore Cursor` เสมอ

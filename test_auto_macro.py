@@ -4293,5 +4293,91 @@ class TestDocsCheck(unittest.TestCase):
                          "ไฟล์จริงต้องไม่มีหัวข้อซ้ำ")
 
 
+class TestN1AndLoopTime(unittest.TestCase):
+    """v2.5.4 (ชุด N1 ต่อยอด): ขยาย && ไป If Loop / If Time
+    กติกาเดียวกับ N1: ทุกเงื่อนไขย่อยจริง → เล่นต่อ, ไม่จริง → ข้าม N แถว (Repeat)
+    If Loop "3 && 5" = ต้องถึงรอบ 3 *และ* 5 · If Time "08:00 && 22:30" = ผ่านทั้งสองเวลา
+    แถวเดี่ยว (ไม่มี &&) ต้องเล่นผลเดิม 100%"""
+
+    def _ev(self, *args, **kw):
+        return me_mod.ActionRunner.evaluate_condition(*args, **kw)
+
+    # ---------- If Loop ----------
+
+    def test_if_loop_and_all_reached(self):
+        skip, msg = self._ev(me_mod.IF_LOOP, "3 && 5", 4, 5)
+        self.assertEqual(skip, 4)
+        self.assertIn("ข้าม 4 แถว", msg)
+
+    def test_if_loop_and_not_yet(self):
+        # ถึงรอบ 3 แต่ยังไม่ถึง 5 → ยังไม่ข้าม
+        skip, msg = self._ev(me_mod.IF_LOOP, "3 && 5", 1, 3)
+        self.assertEqual(skip, 0)
+        self.assertIn("ยังไม่ถึง 5", msg)
+
+    def test_if_loop_single_unchanged(self):
+        # แถวเดี่ยวต้องคืนผลเหมือนเดิมทุกอย่าง (กัน regression N1)
+        self.assertEqual(self._ev(me_mod.IF_LOOP, "3", 1, 2)[0], 0)
+        skip, msg = self._ev(me_mod.IF_LOOP, "3", 1, 9)
+        self.assertEqual(skip, 1)
+        self.assertIn("ข้าม 1 แถว", msg)
+
+    def test_if_loop_and_bad_format(self):
+        # ชิ้นใดพัง → เตือนเล่นต่อ (เหมือนแถวเดี่ยวรูปแบบไม่ถูก)
+        skip, msg = self._ev(me_mod.IF_LOOP, "3 && พัง", 4, 1)
+        self.assertEqual(skip, 0)
+        self.assertIn("ไม่ถูก", msg)
+
+    def test_if_loop_and_three_parts(self):
+        self.assertEqual(self._ev(me_mod.IF_LOOP, "2 && 3 && 4", 4, 1)[0], 0)
+        self.assertEqual(self._ev(me_mod.IF_LOOP, "2 && 3 && 4", 4, 4)[0], 4)
+
+    # ---------- If Time ----------
+
+    @staticmethod
+    def _t(h, m):
+        return time.struct_time((2026, 9, 30, h, m, 0, 2, 273, 0))
+
+    def test_if_time_and_all_passed(self):
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00 && 22:30", 2, 1, now=self._t(23, 59))
+        self.assertEqual(skip, 2)
+        self.assertIn("ข้าม 2 แถว", msg)
+
+    def test_if_time_and_pending(self):
+        # ผ่าน 08:00 แต่ยังไม่ถึง 22:30 → เล่นต่อ และรายงานเวลาที่ยังไม่ถึง
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00 && 22:30", 2, 1, now=self._t(9, 0))
+        self.assertEqual(skip, 0)
+        self.assertIn("ยังไม่ถึง 22:30", msg)
+
+    def test_if_time_single_unchanged(self):
+        # แถวเดี่ยวต้องคืนผลเหมือนเดิมทุกอย่าง (กัน regression N1)
+        self.assertEqual(self._ev(me_mod.IF_TIME, "08:00", 3, 1, now=self._t(7, 0))[0], 0)
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00", 3, 1, now=self._t(8, 1))
+        self.assertEqual(skip, 3)
+        self.assertIn("ข้าม 3 แถว", msg)
+
+    def test_if_time_and_bad_format(self):
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00 && 25:99", 3, 1, now=self._t(23, 0))
+        self.assertEqual(skip, 0)
+        self.assertIn("ไม่ถูก", msg)
+
+    # ---------- --validate ----------
+
+    def test_validate_if_loop_if_time(self):
+        rows = [
+            {"button": me_mod.IF_LOOP, "additional": "3 && 5"},
+            {"button": me_mod.IF_TIME, "additional": "08:00 && 22:30"},
+        ]
+        self.assertEqual(me_mod.validate_rows(rows), [])
+        rows_bad = [
+            {"button": me_mod.IF_LOOP, "additional": "3 && พัง"},
+            {"button": me_mod.IF_TIME, "additional": "08:00 && 25:99"},
+            {"button": me_mod.IF_LOOP, "additional": "0"},
+        ]
+        issues = me_mod.validate_rows(rows_bad)
+        self.assertEqual(len(issues), 3)
+        self.assertEqual([i for i, _m in issues], [1, 2, 3])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
