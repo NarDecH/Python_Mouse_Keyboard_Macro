@@ -161,7 +161,10 @@
   Set Variable รับ `rand a-b`, plugin ctx เพิ่ม `"vars"` (ชี้ dict เดียวกับ
   runner.variables — plugin เขียนค่าแถวถัดไปใช้ได้), ชุด C: ลากสลับแถวเต็มรูปแบบ
   (v2.5.1: `_drag_reorder` คำนวณลำดับปลายทาง — วางก่อน/หลังตามครึ่งแถว, autoscroll,
-  ลากทั้งก้อนที่เลือก, แถวไฮไลต์ tag "drag", ห้ามวางบนกลุ่มย่อ) +
+  ลากทั้งก้อนที่เลือก, แถวไฮไลต์ tag "drag", ห้ามวางบนกลุ่มย่อ) ·
+  ⚠️ v2.5.2: bind `<Button-1>` ต้องมาก่อน `<ButtonPress-1>` แล้ว drag ผ่าน
+  add="+" — ไม่งั้น _on_click (bind ทีหลังไม่มี add) เขียนทับ press binding
+  รวมของ event เดียวกัน → _on_drag_start ไม่ถูกเรียก (ต้นตอลากไม่ทำงาน) +
   Alt+↑↓ + Redo (Ctrl+Y — `_redo_stack`, `_restore_rows` ร่วมกับ undo,
   _apply_edit push undo) + คอลัมน์ Note (COLS/EDIT_COLS/serialize/paste —
   ไม่ส่งเข้า runner) + ค้นหาแทนที่ (`_replace_all` ใน Ctrl+F dialog) ·

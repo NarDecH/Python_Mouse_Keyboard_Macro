@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.5.1"
+__version__ = "2.5.2"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -1888,10 +1888,13 @@ class MacroApp:
 
         self.tree.bind("<Alt-Up>", lambda e: self.move(-1))    # v2.5: ย้ายแถวด้วยคีย์
         self.tree.bind("<Alt-Down>", lambda e: self.move(1))
+        # ⚠️ ลำดับสำคัญ: <Button-1> (= <ButtonPress-1>) ต้อง bind ก่อน แล้ว drag start
+        # ผ่าน add="+" — เมื่อก่อน _on_click bind ทีหลังโดยไม่มี add="+" ทำให้เขียนทับ
+        # binding รวมของ press → _on_drag_start ไม่เคยถูกเรียก (ลากไม่ทำงาน, v2.5.0)
+        self.tree.bind("<Button-1>", self._on_click)
         self.tree.bind("<ButtonPress-1>", self._on_drag_start, add="+")   # v2.5: ลากสลับแถว
         self.tree.bind("<B1-Motion>", self._on_drag_motion, add="+")
         self.tree.bind("<ButtonRelease-1>", self._on_drag_release, add="+")
-        self.tree.bind("<Button-1>", self._on_click)
         self.tree.bind("<Double-1>", self._on_dbl_click)
         self.tree.bind("<Button-3>", self._on_right_click)
         self.tree.bind("<Delete>", self._on_del)
