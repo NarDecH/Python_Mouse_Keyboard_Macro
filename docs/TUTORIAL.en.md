@@ -138,6 +138,9 @@ Demo: `examples/08_variables.json`, `examples/09_clipboard.json`.
 - **Schedule** — play "every N minutes" or "daily at HH:MM"; daily accepts several
   comma-separated times like `08:00,12:30,22:00` (v2.7.0); a background thread pushes
   commands to the UI through a queue (thread-safe).
+- **Per-time profiles (v2.8.0)** — a daily entry may bind its own profile with
+  `HH:MM=profile`, e.g. `08:00, 12:30=morning job, 22:00` — at that time the profile is
+  loaded and played automatically; times without `=` use the default profile.
 
 ---
 
@@ -293,5 +296,5 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
 
 ---
 
-*Guide for code v2.7.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.8.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

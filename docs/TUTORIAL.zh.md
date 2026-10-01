@@ -282,7 +282,16 @@ max 10              无条件 — 把块体重复 10 次
 - **4 个新插件** — Screenshot · Toast · Write Log · Ask Input
   （`ctx["vars"]` 与脚本共享变量）。
 
+### v2.7–v2.8 新增
+- **四种语言文档** — 泰语/英语/中文/日语。
+- **.ahk 互通** — 菜单 🔀 导出/导入（Send/Click/MouseMove/Sleep/Run）·
+  v2.8 变量双向：`Set Variable` → `n := 5`，`If Variable` → `if (n > 5)`；
+  导入 `n := 0` / `n += 2` / `if (n > 5)` 可还原为行（`x := y` → `x = {y}`）。
+- **每个时间可选配置文件** — `08:00, 12:30=早班, 22:00`（到点自动加载该配置文件）。
+- **社区插件 3 个** — Random Pause（随机暂停）· Counter（计数变量）· Open URL（打开网页）
+  + 用于提交插件的 issue 模板（标准见 docs/PLUGINS.md）。
+
 ---
 
-*对应代码 v2.7.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.8.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*

@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.7.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.8.0
 
 <div align="center">
 
@@ -96,8 +96,10 @@
 | 🔌 **Plugins v2.5** | New built-ins: Screenshot · Toast (Windows 10/11) · Write Log · Ask Input — plus `ctx["vars"]` to share script variables |
 | 🔗 **AND conditions** (v2.6.0) | Append `&&` to any main condition — every part must be true: `img.png && 300,300 #ffffff && n > 5` (If Image/Pixel/Variable; understood by `--validate`) |
 | 🧱 **Block Start/End** (v2.6.0) | Condition blocks + sub-loops: `if ...` skips the whole block when false, `until ... max N` repeats until true (8-level nesting, `--validate` checks pairs) |
-| 🕒 **Multiple schedules** (v2.7.0) | Daily mode accepts several times, comma-separated: `08:00,12:30,22:00` — old settings are migrated automatically + 🕐/＋/clear buttons |
+| 🕒 **Per-time profiles** (v2.8.0) | Daily mode accepts several times, and each time may bind its own profile: `08:00, 12:30=morning job, 22:00` — at that time the profile is loaded and played automatically |
 | 🔀 **AutoHotkey interop** (v2.7.0) | 🔀 menu: export the current script as .ahk / import .ahk files (Send/Click/MouseMove/Sleep/Run) into the table — pushes undo for you |
+| 🔀 **.ahk variables both ways** (v2.8.0) | export `Set Variable` → `n := 5` / `If Variable` → `if (n > 5)` · import `n := 0` / `n += 2` / `if (n > 5)` back as rows |
+| 🔌 **Community plugins** (v2.8.0) | new examples Random Pause / Counter / Open URL + an issue template for submitting plugins (criteria: docs/PLUGINS.md) |
 
 ---
 

@@ -4675,8 +4675,9 @@ class TestAhkRoundTrip(unittest.TestCase):
         self.assertEqual(rows[4]["additional"], "notepad.exe")
 
     def test_import_skips_junk_lines(self):
-        rows = me_mod.ahk_to_rows("; หมายเหตุ\nx := 5\nIfWinActive ahk_exe game.exe\nMsgBox hi")
-        self.assertEqual(rows, [])                               # นิพจน์/label/mensagem ข้ามหมด
+        # v2.8: "x := 5" แปลเป็น Set Variable ได้แล้ว — ขยะจริงคือ assign แบบเก่า/label/นิพจน์อื่น
+        rows = me_mod.ahk_to_rows("; หมายเหตุ\nx = 5\nIfWinActive ahk_exe game.exe\nMsgBox hi")
+        self.assertEqual(rows, [])                               # นิพจน์/label/assign เก่า ข้ามหมด
 
     def test_ahk_dialog_real_tk(self):
         """เปิด dialog 🔀 จริงด้วย Tk จำลอง — ต้องสร้างได้ไม่ crash (มาตรฐาน v1.20.1)"""
@@ -4707,6 +4708,250 @@ class TestAhkRoundTrip(unittest.TestCase):
             self.assertTrue(calls)                               # showinfo ถูกเรียกจริง (จาก ahk_export)
         finally:
             root.destroy()
+
+
+class TestSchedPerProfile(unittest.TestCase):
+    """v2.8: นัดหมายรายเวลาเลือกโปรไฟล์เอง — "HH:MM=โปรไฟล์" ทั้ง parser/check/poll/dialog"""
+
+    def _app(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app.running = False
+        app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}
+        return app
+
+    def test_parse_sched_entry(self):
+        self.assertEqual(me_mod.parse_sched_entry("08:00=งานเช้า"), ("08:00", "งานเช้า"))
+        self.assertEqual(me_mod.parse_sched_entry("08:00"), ("08:00", ""))
+        self.assertIsNone(me_mod.parse_sched_entry("บ่ายสาม"))
+        self.assertIsNone(me_mod.parse_sched_entry("25:00"))
+
+    def test_sched_time_profiles_mixed(self):
+        self.assertEqual(
+            me_mod.sched_time_profiles(["08:00=งานเช้า", "12:30", "22:00=งานดึก", "บ่าย"]),
+            [("08:00", "งานเช้า"), ("12:30", ""), ("22:00", "งานดึก")])
+        self.assertEqual(me_mod.sched_time_profiles(None), [])
+
+    def test_parse_hhmm_list_strips_profile(self):
+        self.assertEqual(me_mod.parse_hhmm_list("08:00=งานเช้า, 09:00"), ["08:00", "09:00"])
+
+    def test_sched_check_fires_per_time_profile(self):
+        app = self._app()
+        app._sched = {"mode": "daily", "every": 10,
+                      "times": ["09:30=งานเช้า", "22:00"], "profile": ""}
+        with mock.patch.object(am.time, "strftime", return_value="2026-10-01 09:30"):
+            am.MacroApp._sched_check(app)
+        self.assertEqual(app._sched_q.qsize(), 1)
+        self.assertEqual(app._sched_q.get_nowait(), ("play", "งานเช้า"))   # ส่งโปรไฟล์ของเวลานั้น
+        app2 = self._app()
+        app2._sched = dict(app._sched)
+        with mock.patch.object(am.time, "strftime", return_value="2026-10-01 22:00"):
+            am.MacroApp._sched_check(app2)
+        self.assertEqual(app2._sched_q.get_nowait(), ("play", ""))          # ไม่ระบุ = โปรไฟล์ตั้งต้น
+
+    def test_sched_check_no_double_fire_same_minute(self):
+        app = self._app()
+        app._sched = {"mode": "daily", "every": 10, "times": ["09:30"], "profile": ""}
+        with mock.patch.object(am.time, "strftime", return_value="2026-10-01 09:30"):
+            am.MacroApp._sched_check(app)
+            am.MacroApp._sched_check(app)
+        self.assertEqual(app._sched_q.qsize(), 1)
+
+    def test_poll_uses_time_profile_over_default(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app._sched_q.put(("play", "งานเช้า"))
+        app.running = False
+        app._log_enabled = False
+        app._profiles = {"งานเช้า": [{"button": "Beep", "secs": 1}],
+                         "งานดึก": [{"button": "Beep", "secs": 2}]}
+        app._sched = {"mode": "daily", "every": 10, "times": [], "profile": "งานดึก"}
+        am.MacroApp._sched_poll(app)
+        app._load_rows.assert_called_once_with([{"button": "Beep", "secs": 1}])   # โปรไฟล์ของเวลาชนะ
+        app._start_player.assert_called_once_with(False, once=True)
+
+    def test_poll_str_item_uses_default_profile(self):
+        import queue
+        app = mock.MagicMock()
+        app._sched_q = queue.Queue()
+        app._sched_q.put("play")                # สตริงเดิม (v2.7) — ใช้โปรไฟล์ตั้งต้น
+        app.running = False
+        app._log_enabled = False
+        app._profiles = {"งานดึก": [{"button": "Beep", "secs": 2}]}
+        app._sched = {"mode": "daily", "every": 10, "times": [], "profile": "งานดึก"}
+        am.MacroApp._sched_poll(app)
+        app._load_rows.assert_called_once_with([{"button": "Beep", "secs": 2}])
+
+    def test_dialog_real_tk_per_time_profile(self):
+        """เปิด dialog ตั้งเวลาจริง — ใส่ 08:00=งานเช้า, 22:00 แล้วกดตกลง → times เก็บครบ"""
+        try:
+            root = am.tk.Tk()
+            root.withdraw()
+        except am.tk.TclError:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        try:
+            app = mock.MagicMock()
+            app.root = root
+            app._profiles = {"งานเช้า": []}
+            app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}
+            am.MacroApp._schedule_dialog(app)
+
+            def walk(w):
+                yield w
+                for c in w.winfo_children():
+                    yield from walk(c)
+
+            ws = list(walk(root))
+            ent_time = [w for w in ws if isinstance(w, am.tk.Entry)
+                        and not isinstance(w, am.tk.Spinbox)][0]
+            daily = [w for w in ws if isinstance(w, am.tk.Radiobutton)
+                     and str(w.cget("value")) == "daily"][0]
+            ok_btn = [w for w in ws if isinstance(w, am.tk.Button)
+                      and str(w.cget("text")) == "ตกลง"][0]
+            daily.invoke()
+            ent_time.delete(0, "end")
+            ent_time.insert(0, "08:00=งานเช้า, 22:00")
+            ok_btn.invoke()
+        finally:
+            root.destroy()
+        self.assertEqual(app._sched["mode"], "daily")
+        self.assertEqual(app._sched["times"], ["08:00=งานเช้า", "22:00"])
+
+
+class TestAhkVars(unittest.TestCase):
+    """v2.8: .ahk ตัวแปร/เงื่อนไขสองทิศ — Set Variable/If Variable ⇄ :=, +=, -=, if"""
+
+    def test_export_set_var_number_string_increment(self):
+        def last(add):
+            s = me_mod.rows_to_ahk([{"enabled": True, "button": "Set Variable",
+                                     "additional": add}])
+            return s.strip().splitlines()[-1]
+        self.assertEqual(last("n = 5"), "n := 5")
+        self.assertEqual(last("ชื่อ = สวัสดี"), 'ชื่อ := "สวัสดี"')
+        self.assertEqual(last("n += 3"), "n += 3")
+        self.assertEqual(last("n -= 2"), "n -= 2")
+        self.assertEqual(last("b = {a}"), "b := a")           # {ตัวแปร} → อ้างตัวแปร AHK
+        self.assertIn("; (Set Variable รูปแบบไม่ถูก", last("พัง"))
+
+    def test_export_if_var(self):
+        def last(add):
+            s = me_mod.rows_to_ahk([{"enabled": True, "button": "If Variable",
+                                     "additional": add}])
+            return s.strip().splitlines()[-1]
+        self.assertEqual(last("n > 5"), "if (n > 5)")
+        self.assertEqual(last("ข้อความ ~ hello"), 'if ข้อความ contains "hello"')
+        self.assertIn("; (If Variable รูปแบบไม่ถูก", last("พัง"))
+
+    def test_import_assignments(self):
+        rows = me_mod.ahk_to_rows(
+            'counter := 0\ncounter += 2\ncounter -= 1\nname := "สวัสดี"\nx := y')
+        self.assertEqual([r["button"] for r in rows], ["Set Variable"] * 5)
+        self.assertEqual([r["additional"] for r in rows],
+                         ["counter = 0", "counter += 2", "counter -= 1",
+                          "name = สวัสดี", "x = {y}"])
+
+    def test_import_conditions_and_junk(self):
+        rows = me_mod.ahk_to_rows(
+            'if (n > 5)\nif name contains "สวัสดี"\nif x = 5\nIfWinActive ahk_exe game.exe\nif (n + 1)')
+        self.assertEqual([(r["button"], r["additional"]) for r in rows],
+                         [("If Variable", "n > 5"), ("If Variable", "name ~ สวัสดี"),
+                          ("If Variable", "x = 5")])   # IfWinActive/นิพจน์แปลไม่ได้ = ข้าม
+
+    def test_roundtrip_preserves_delay(self):
+        rows = me_mod.ahk_to_rows("Sleep 500\nn := 5")
+        self.assertEqual(rows[0]["button"], "Set Variable")
+        self.assertEqual(rows[0]["secs"], 0.5)
+
+    def test_cond_to_macro_edges(self):
+        self.assertEqual(me_mod.ahk_cond_to_macro("n >= 10"), "n >= 10")
+        self.assertEqual(me_mod.ahk_cond_to_macro('x == "สวัสดี"'), "x == สวัสดี")
+        self.assertEqual(me_mod.ahk_cond_to_macro('n contains "abc"'), "n ~ abc")
+        self.assertEqual(me_mod.ahk_cond_to_macro("n + 1"), "n + 1")   # แปลไม่ได้ = คืนเดิม
+
+
+class TestPluginsCommunity(unittest.TestCase):
+    """v2.8: plugin ชุมชนตัวอย่าง 3 ตัว — มาตรฐานเดียวกับ TestPluginsComplete
+    (โหลดได้ / ทำงานถูก / ทน input พัง / ทน ctx ขาด / เขียน vars)"""
+
+    def _plugin(self, name):
+        pl = dict(me_mod.load_plugins())
+        self.assertIn(name, pl, "plugin %s ต้องโหลดได้" % name)
+        return pl[name]
+
+    def test_community_plugins_loaded(self):
+        pl = dict(me_mod.load_plugins())
+        for name in ("Random Pause", "Counter", "Open URL"):
+            self.assertIn(name, pl)
+
+    # ---------------- Random Pause ----------------
+    def test_random_pause_sleeps_in_range(self):
+        # พักเป็นชิ้นสั้น ๆ (≤0.2 วิ) เพื่อเช็ค STOP ระหว่างทาง — รวมชิ้น = ช่วงที่สั่ง
+        pl = self._plugin("Random Pause")
+        with mock.patch.object(pl.time, "sleep") as slept:
+            pl.run({"log": lambda m: None}, {"additional": "2-3"})
+        total = sum(c.args[0] for c in slept.call_args_list)
+        self.assertGreaterEqual(total, 2.0)
+        self.assertLessEqual(total, 3.0)
+        self.assertTrue(all(0 < c.args[0] <= 0.2 + 1e-9 for c in slept.call_args_list))
+
+    def test_random_pause_bad_input_and_stop(self):
+        pl = self._plugin("Random Pause")
+        with mock.patch.object(pl.time, "sleep") as slept:
+            pl.run({"log": lambda m: None}, {"additional": "abc"})   # พัง → รวม 1.0
+            pl.run({"log": lambda m: None}, {"additional": ""})
+        totals = [sum(c.args[0] for c in calls) for calls in (slept.call_args_list[:5],)]
+        self.assertAlmostEqual(sum(c.args[0] for c in slept.call_args_list), 2.0, delta=1e-6)
+        with mock.patch.object(pl.time, "sleep") as slept2:
+            pl.run({"stop_check": lambda: True}, {"additional": "5"})  # STOP ระหว่างพัก
+        slept2.assert_not_called()
+
+    # ---------------- Counter ----------------
+    def test_counter_increments_and_sets_vars(self):
+        pl = self._plugin("Counter")
+        ctx = {"log": lambda m: None, "vars": {"n": "0"}}
+        pl.run(ctx, {"additional": "n"})
+        self.assertEqual(float(ctx["vars"]["n"]), 1.0)
+        pl.run(ctx, {"additional": "n += 5"})
+        self.assertEqual(float(ctx["vars"]["n"]), 6.0)
+        pl.run(ctx, {"additional": "name = hello"})
+        self.assertEqual(ctx["vars"]["name"], "hello")
+        pl.run(ctx, {"additional": "r = rand 1-2"})
+        self.assertIn(ctx["vars"]["r"], ("1", "2"))
+
+    def test_counter_bad_and_missing_ctx(self):
+        pl = self._plugin("Counter")
+        ctx = {"log": lambda m: None, "vars": {}}
+        pl.run(ctx, {"additional": ""})                    # ว่าง = ไม่แตะ vars
+        self.assertEqual(ctx["vars"], {})
+        pl.run(ctx, {"additional": "พัง ๆ!!"})              # รูปแบบไม่ parse = ไม่แตะ vars
+        self.assertEqual(ctx["vars"], {})
+        pl.run(ctx, {"additional": "ชื่อไทย"})              # ชื่อเดี่ยว (ไทยได้) = นับ +1
+        self.assertEqual(float(ctx["vars"]["ชื่อไทย"]), 1.0)
+        pl.run({"log": lambda m: None}, {"additional": "n"})   # ไม่มี vars → ข้าม
+        pl.run({}, {"additional": "n"})                        # ctx ไม่ใช่ dict
+
+    # ---------------- Open URL ----------------
+    def test_open_url_prefixes_scheme_and_subs_vars(self):
+        pl = self._plugin("Open URL")
+        opened = []
+        with mock.patch.object(pl.webbrowser, "open",
+                               side_effect=lambda u: opened.append(u) or True):
+            pl.run({"log": lambda m: None}, {"additional": "example.com"})
+            pl.run({"log": lambda m: None, "vars": {"p": "a"}},
+                   {"additional": "https://x.io/{p}"})
+        self.assertEqual(opened, ["https://example.com", "https://x.io/a"])
+
+    def test_open_url_bad_input_and_crash_tolerated(self):
+        pl = self._plugin("Open URL")
+        opened = []
+        with mock.patch.object(pl.webbrowser, "open",
+                               side_effect=lambda u: opened.append(u) or True):
+            pl.run({"log": lambda m: None}, {"additional": ""})      # ว่าง = ไม่เปิด
+        self.assertEqual(opened, [])
+        with mock.patch.object(pl.webbrowser, "open", side_effect=Exception("พัง")):
+            pl.run({"log": lambda m: None}, {"additional": "example.com"})  # ทนได้
 
 
 if __name__ == "__main__":

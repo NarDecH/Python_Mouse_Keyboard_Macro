@@ -19,6 +19,9 @@
 | `toast.py` | Toast | แจ้งเตือน Windows 10/11 ไม่บล็อกการเล่น (ส่งไม่ได้/OS อื่น → statusbar+log แทน) |
 | `write_log.py` | Write Log | เขียนข้อความของผู้ใช้ลง log การเล่น (ใช้ `{ตัวแปร}` ได้) |
 | `ask_input.py` | Ask Input | ถามค่าผู้ใช้ตอนเล่นเก็บเป็นตัวแปร — Additional `ชื่อ|หัวข้อ|ค่าเริ่มต้น` |
+| `random_pause.py` | Random Pause | สุ่มพักช่วงเวลากันจังหวะเครื่องจักร — Additional `1.5-4` (วินาที) พักเป็นชิ้นสั้นเช็ค STOP ระหว่างทาง |
+| `counter.py` | Counter | นับ/ตั้งตัวแปร — `ชื่อ` = +1, `ชื่อ += 5`, `ชื่อ = rand 1-10` — คู่ If Variable เป็นลูปนับรอบได้ |
+| `open_url.py` | Open URL | เปิดลิงก์เว็บด้วย webbrowser ของ stdlib — แทน `{ตัวแปร}` ก่อนเปิด, ไม่มี scheme เติม https:// ให้ |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที
@@ -87,3 +90,13 @@ PR plugin ใหม่ต้องผ่านครบทั้ง 6 ข้อ 
    (กฎความปลอดภัยข้อ 1 ของโปรเจกต์: ห้ามทำให้ STOP ใช้ไม่ได้)
 6. **เอกสารครบ** — เพิ่มแถวในตาราง "Plugin ที่มากับโปรเจกต์" ด้านบน + ตัวอย่าง
    การใช้งาน (ค่าที่ใส่ช่อง Additional) ใน PR description
+
+## 🚪 ขั้นตอนส่ง plugin เข้าโปรแกรม (v2.8)
+
+1. เปิด issue ด้วยแบบฟอร์ม [เสนอ plugin ใหม่](../.github/ISSUE_TEMPLATE/plugin_submission.md)
+   (label `plugin`) — บอกหน้าที่/Additional ที่รับ/ตัวแปรที่เขียน
+2. Fork → เขียน `plugins/ชื่อของคุณ.py` ตาม [`plugins/_template.py`](../plugins/_template.py)
+3. เพิ่มเทสต์ 4 แบบตามแม่แบบท้าย _template.py ลง test_auto_macro.py
+   (⚠️ ชื่อคลาสเทสต์ห้ามซ้ำกับคลาสเดิม — ดู AGENTS.md)
+4. เปิด PR อ้าง issue — checklist ฝั่ง plugin ใน PR template จะช่วยให้รีวิวเร็ว
+   (ตัวอย่างที่ผ่านแล้ว: random_pause.py / counter.py / open_url.py — เทสต์ TestPluginsCommunity)

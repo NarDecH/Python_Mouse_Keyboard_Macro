@@ -65,8 +65,54 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.7.0</h2>
+      <h2>เวอร์ชัน 2.8.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">1 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🕒 Schedule รายเวลาเลือกโปรไฟล์เอง</h3>
+    <ul>
+      <li><b>นัดหมายแต่ละเวลามีโปรไฟล์ของตัวเองได้</b> — ใส่ <code>08:00, 12:30=งานเช้า, 22:00</code>
+        → ถึงเที่ยงโหลดโปรไฟล์ "งานเช้า" มาเล่นเอง · เวลาที่ไม่ใส่ <code>=</code>
+        ใช้โปรไฟล์ตั้งต้นจาก dropdown (v2.4/v2.7) ต่อไป</li>
+      <li><b>engine</b> — <code>parse_sched_entry()</code> + <code>sched_time_profiles()</code>
+        (รายการพังข้าม ไม่มีวันพังโปรแกรม) · <code>parse_hhmm_list()</code> ตัดส่วน <code>=โปรไฟล์</code> ให้เอง</li>
+      <li><b>ตัวยิงใหม่</b> — scheduler ส่ง tuple <code>("play", โปรไฟล์)</code> ต่อนัดหมาย ·
+        โปรไฟล์ของเวลาชนะค่าตั้งต้น · รับคำสั่งแบบเก่า v2.7 ได้เต็มรูปแบบ</li>
+    </ul>
+
+    <h3>🔀 .ahk ตัวแปร/เงื่อนไขสองทิศ</h3>
+    <ul>
+      <li><b>export</b> — <code>Set Variable</code> → <code>n := 5</code> / <code>n += 3</code>
+        (ตัวเลข/ตัวแปรส่งตรง, ข้อความครอบ <code>""</code>) · <code>If Variable</code> →
+        <code>if (n &gt; 5)</code> / <code>if x contains "ข้อความ"</code></li>
+      <li><b>import</b> — <code>n := 0</code> → Set Variable, <code>x := y</code> →
+        <code>x = {y}</code> (อ้างตัวแปรต่อได้) · <code>if (n &gt; 5)</code> / <code>if x = 5</code>
+        → If Variable · เงื่อนไขแปลไม่ได้ (IfWinActive ฯลฯ) ข้ามเหมือนเดิม</li>
+      <li><b>กติกาชัดเจน</b> — <code>{ชื่อ}</code> คือตัวแปรฝั่งเรา, ข้อความอื่นคือข้อความเสมอ</li>
+    </ul>
+
+    <h3>🔌 รับ plugin จากชุมชนจริง</h3>
+    <ul>
+      <li><b>plugin ตัวอย่าง 3 ตัว</b> — <code>Random Pause</code> (สุ่มพัก กันจังหวะเครื่องจักร,
+        เช็ค STOP ระหว่างพัก) · <code>Counter</code> (นับ/ตั้งตัวแปร คู่ If Variable) ·
+        <code>Open URL</code> (เปิดเว็บ stdlib ล้วน) — ทน input พัง/ctx ขาด ตามเกณฑ์ 6 ข้อ</li>
+      <li><b>ประตูรับครบชุด</b> — issue template ใหม่ <code>plugin_submission.md</code>
+        + PR template ฝั่ง plugin (กาเกณฑ์ 6 ข้อของ PLUGINS.md)</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม <b>TestSchedPerProfile 8 ตัว + TestAhkVars 6 ตัว + TestPluginsCommunity 7 ตัว</b>
+        → รวม <b>407 unit + 15 E2E = 422</b> · อัพเดตเทสต์เดิมให้ตรงฟีเจอร์ใหม่
+        (<code>x := 5</code> ใน .ahk ตอนนี้แปลได้ตั้งใจ)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.7.0</h2>
+      <span class="tag">2.7.0</span>
       <span class="date">1 ตุลาคม 2026</span>
     </div>
 

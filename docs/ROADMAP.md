@@ -1,8 +1,8 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v2.7.0 (เดือน ต.ค. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v2.8.0 (เดือน ต.ค. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
-## 🎯 สถานะปัจจุบัน (v2.6.0)
+## 🎯 สถานะปัจจุบัน (v2.8.0)
 
 สถาปัตยกรรม v2.0 จบครบ 3 phases · ชุดเงื่อนไขครบวงจร (If Image/Pixel/Variable/Loop/Time)
 + ตัวแปร + คลิปบอร์ด + ตารางจัดการง่าย (ลากสลับ/Redo/Note/แทนที่) พร้อมใช้งานแล้วทั้งหมด —
@@ -14,8 +14,15 @@
       ชุด N2 (Block Start/End + ลูปย่อย until/max) ✅ v2.6.0 ·
       feedback/ใช้งานจริงแชร์ได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
       · อ่านข้อเสนอฉบับเต็มที่ [DESIGN-nested-if.md](DESIGN-nested-if.md) (เปิดดู [HTML](DESIGN-nested-if.html) ได้)
-- [ ] **รวบรวม plugin จากชุมชน (ต่อยอดตลาด v2.1)** — เปิดรับ PR เพิ่ม `plugins/*.py` +
-      แนวทางรีวิวใน docs/PLUGINS.md (เกณฑ์: stdlib/pynput เท่านั้น, ทน error, มีตัวอย่างในเอกสาร)
+- [x] ~~**รวบรวม plugin จากชุมชน (ต่อยอดตลาด v2.1)**~~ ✅ v2.8.0 — ประตูรับครบชุด:
+      issue template ส่ง plugin + PR checklist ตามเกณฑ์ 6 ข้อใน docs/PLUGINS.md +
+      plugin ตัวอย่างจากชุมชน 3 ตัว (Random Pause / Counter / Open URL) พร้อมเทสต์มาตรฐาน
+- [x] ~~**Schedule แต่ละนัดหมายเลือกโปรไฟล์เอง**~~ ✅ v2.8.0 — ช่องเวลาใส่ `HH:MM=ชื่อโปรไฟล์`
+      ได้ (เช่น `08:00, 12:30=งานเช้า, 22:00`) ถึงเวลาโหลดโปรไฟล์นั้นมาเล่นเอง —
+      เวลาที่ไม่ระบุใช้โปรไฟล์ตั้งต้นต่อ (v2.4/v2.7 เข้ากันได้)
+- [x] ~~**.ahk ตัวแปร/เงื่อนไขสองทิศ**~~ ✅ v2.8.0 — export `Set Variable` → `n := 5` /
+      `If Variable` → `if (n > 5)` · import `n := 0` / `n += 2` / `if (n > 5)` กลับเป็นแถว
+      (`x := y` → `x = {y}` อ้างตัวแปร) — เงื่อนไขแปลไม่ได้ข้ามเหมือนเดิม
 - [x] ~~**Multi-language docs (จีน/ญี่ปุ่น)**~~ ✅ v2.7.0 (TUTORIAL.zh.md + TUTORIAL.ja.md
       แปลครบทุกบทจาก TUTORIAL.en.md — ฉบับอื่นในอนาคตแปลจาก en ต่อได้)
 - [x] ~~**ส่งออก .ahk import/export**~~ ✅ v2.7.0 (เมนู 🔀: ส่งออก .ahk / นำเข้า .ahk —
@@ -79,5 +86,5 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v2.7.0 — ถอดจาก CHANGELOG · Schedule หลายนัดหมาย + .ahk + เอกสารจีน-ญี่ปุ่น +
-เกณฑ์รีวิว plugin เสร็จแล้ว — หัวข้อค้าง: รับ plugin ชุมชนจริงผ่าน PR*
+*อัพเดตล่าสุด: v2.8.0 — ถอดจาก CHANGELOG · Schedule รายเวลาเลือกโปรไฟล์ + .ahk ตัวแปรสองทิศ +
+ประตูรับ plugin ชุมชนครบชุด (template + ตัวอย่าง 3 ตัว) — หัวข้อค้าง: รอ PR plugin จากชุมชนจริง*

@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.7.0"
+__version__ = "2.8.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -907,6 +907,17 @@ def rows_to_ahk(rows):
             return mods + "".join(rest)
         return key_map.get(s.lower(), s)
 
+    def _ahk_var_expr(val):
+        """ค่าในนิพจน์ AHK (v2.8): ตัวเลข/ชื่อตัวแปร = ส่งตรง, ข้อความ = ครอบ "" """""
+        s = str(val).strip()
+        if re.fullmatch(r"-?\d+(?:\.\d+)?", s):
+            return s
+        m = re.fullmatch(r"\{(%s)\}" % _VAR_NAME, s, re.UNICODE)
+        if m:
+            return m.group(1)                  # {ตัวแปร} → อ้างตัวแปร AHK ตรง ๆ (สองทิศ)
+        # ข้อความอื่น (แม้ตรง _VAR_NAME) ครอบ "" เสมอ — กันชื่อไทย/คำธรรมดาโดนตีความเป็นตัวแปร
+        return '"' + s.replace('"', '""') + '"'
+
     for r in rows or []:
         if not r.get("enabled", True):
             continue
@@ -958,7 +969,27 @@ def rows_to_ahk(rows):
         elif btn == "Beep":
             lines = ["SoundBeep, 750, 300"]
         elif btn == "Set Variable":
-            lines = ["; ตัวแปร: %s" % add]
+            # v2.8: ตัวแปรสองทิศ — name := ค่า / name += จำนวน (ตัวเลข/ตัวแปรตรง ข้อความครอบ "")
+            sv = parse_set_var(add)
+            if not sv:
+                lines = ["; (Set Variable รูปแบบไม่ถูก: %s)" % add]
+            else:
+                name, op, val = sv
+                if op == "=":
+                    lines = ["%s := %s" % (name, _ahk_var_expr(val))]
+                else:
+                    lines = ["%s %s= %s" % (name, op[0], _ahk_var_expr(val))]
+        elif btn == IF_VAR:
+            # v2.8: เงื่อนไขตัวแปร → if (name op ค่า) / if name contains ข้อความ
+            fv = parse_if_var(add)
+            if not fv:
+                lines = ["; (If Variable รูปแบบไม่ถูก: %s)" % add]
+            else:
+                name, op, val = fv
+                if op == "~":
+                    lines = ["if %s contains %s" % (name, _ahk_var_expr(val))]
+                else:
+                    lines = ["if (%s %s %s)" % (name, op, _ahk_var_expr(val))]
         if not lines:
             note = btn if not add else "%s (%s)" % (btn, add)
             lines = ["; (ไม่รองรับ: %s)" % note]
@@ -1080,8 +1111,61 @@ def ahk_to_rows(text):
                 rows.append(r2)
             pending = {}
             continue
-        # บรรทัดอื่น (assign :=, if, label, hotkey ฯลฯ) = ข้าม
+        # v2.8: ตัวแปร AHK → Set Variable (name := ค่า / name += จำนวน)
+        m = re.match(r"^(\S+)\s*(:=|\+=|-=)\s*(.+)$", line)
+        if m and re.fullmatch(_VAR_NAME, m.group(1), re.UNICODE):
+            name, aop, val = m.group(1), m.group(2), m.group(3).strip()
+            if aop == ":=":
+                if re.fullmatch(r"-?\d+(?:\.\d+)?", val):
+                    add_txt = "%s = %s" % (name, val)
+                elif val.startswith('"') and val.endswith('"') and len(val) >= 2:
+                    add_txt = "%s = %s" % (name, val[1:-1].replace('""', '"'))
+                else:
+                    add_txt = "%s = {%s}" % (name, val)   # อ้างตัวแปร AHK → {ตัวแปร}
+            else:
+                dv = val.strip('"') if val.startswith('"') else val
+                add_txt = "%s %s %s" % (name, aop, dv)
+            rows.append(dict(x="", y="", button="Set Variable", additional=add_txt,
+                             **pending))
+            pending = {}
+            continue
+        # v2.8: เงื่อนไข AHK → If Variable (if (n > 5) / if x > 5 / if x contains ข้อความ)
+        m = re.match(r"^if\s+(?:\((.+)\)|(.+))\s*$", line, re.I)
+        if m:
+            cond = (m.group(1) or m.group(2) or "").strip()
+            if cond:
+                add_txt = ahk_cond_to_macro(cond)
+                # รับเฉพาะรูปแบบ If Variable (ชื่อ + ตัวดำเนินการ + ค่า) — นิพจน์อื่นข้าม
+                if re.fullmatch(r"\s*%s\s*(==|!=|>=|<=|>|<|=|~)\s*\S.*" % _VAR_NAME,
+                                add_txt, re.UNICODE | re.S):
+                    rows.append(dict(x="", y="", button=IF_VAR, additional=add_txt,
+                                     **pending))
+                    pending = {}
+            continue
+        # บรรทัดอื่น (assign ธรรมดา, label, hotkey ฯลฯ) = ข้าม
     return rows
+
+
+def ahk_cond_to_macro(cond):
+    """แปลงเงื่อนไข AHK (v2.8) → Additional ของ If Variable — แปลไม่ได้คืนข้อความเดิม
+    รองรับ: n > 5 / n = "ข้อความ" / x == y / n contains "ข้อความ" / n in a,b"""
+    s = str(cond or "").strip()
+    m = re.fullmatch(r"(%s)\s*(==|!=|>=|<=|>|<|=)\s*(.+)" % _VAR_NAME, s, re.UNICODE)
+    if m:
+        val = m.group(3).strip()
+        if val.startswith('"') and val.endswith('"') and len(val) >= 2:
+            val = val[1:-1].replace('""', '"')
+        op = m.group(2)
+        if op == "=":
+            op = "="                           # AHK เดิมใช้ = เชิงเปรียบเทียบ — คงรูปเดิม
+        return "%s %s %s" % (m.group(1), op, val)
+    m = re.fullmatch(r"(%s)\s+contains\s+(.+)" % _VAR_NAME, s, re.I | re.UNICODE)
+    if m:
+        val = m.group(2).strip()
+        if val.startswith('"') and val.endswith('"') and len(val) >= 2:
+            val = val[1:-1].replace('""', '"')
+        return "%s ~ %s" % (m.group(1), val)
+    return s
 
 
 def validate_rows(rows, plugin_names=()):
@@ -1334,16 +1418,17 @@ def parse_hhmm_list(txt):
     """แปลงข้อความ HH:MM คั่น , → list เวลาสะอาด (v2.7) — รูปแบบใดพัง = ข้ามรายการนั้น
     คืน [] เมื่อไม่มีเวลาถูกต้องแม้แต่รายการเดียว (ผู้เรียกใช้เตือนเอง)
     ตัวอย่าง: '09:00, 12:30 , 22:00' → ['09:00', '12:30', '22:00']
-    รับ list/tuple จาก JSON ได้โดยตรง (conf รูปแบบใหม่เก็บ times เป็น list)"""
+    รับ list/tuple จาก JSON ได้โดยตรง (conf รูปแบบใหม่เก็บ times เป็น list)
+    v2.8: รายการ "HH:MM=โปรไฟล์" ได้ — คืนเฉพาะเวลา (โปรไฟล์ดู sched_time_profiles)"""
     out = []
     if isinstance(txt, (list, tuple, set)):
         parts = [str(t) for t in txt]      # list จาก JSON — ห้าม str() ทั้งก้อน
     else:
         parts = str(txt or "").split(",")
     for part in parts:
-        t = part.strip()
-        if re_match_hhmm(t) and t not in out:
-            out.append(t)
+        ent = parse_sched_entry(part)
+        if ent and ent[0] not in out:
+            out.append(ent[0])
     return out
 
 
@@ -1395,6 +1480,31 @@ def sched_migrate(mode, every, at, profile):
 def re_match_hhmm(txt):
     """เช็ครูปแบบเวลา HH:MM (00:00–23:59)"""
     return bool(re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", (txt or "").strip()))
+
+
+def parse_sched_entry(t):
+    """แยกนัดหมายรายเวลา (v2.8) — "HH:MM" หรือ "HH:MM=ชื่อโปรไฟล์"
+    คืน (เวลา, โปรไฟล์) — โปรไฟล์ว่าง = เล่นงานที่เปิดค้าง, รูปแบบพัง = None"""
+    s = str(t or "").strip()
+    if "=" in s:
+        t2, prof = s.split("=", 1)
+        t2, prof = t2.strip(), prof.strip()
+    else:
+        t2, prof = s, ""
+    if not re_match_hhmm(t2):
+        return None
+    return (t2, prof)
+
+
+def sched_time_profiles(times):
+    """แตกรายการเวลาของโหมด daily → [(HH:MM, โปรไฟล์)] (v2.8)
+    รับได้ทั้ง "08:00" และ "08:00=งานเช้า" — รายการพังข้าม ไม่มีวันพังโปรแกรม"""
+    out = []
+    for t in times or []:
+        ent = parse_sched_entry(t)
+        if ent:
+            out.append(ent)
+    return out
 
 
 # ------------------------------------------------------- log การเล่น (v1.8) --
@@ -4049,19 +4159,25 @@ class MacroApp:
                 self._sched_q.put("play")
         elif mode == "daily":
             stamp = time.strftime("%Y-%m-%d %H:%M")
-            if stamp[11:] in (self._sched.get("times") or []) \
-                    and self._sched_last != stamp and not self.running:
-                self._sched_last = stamp
-                self._sched_q.put("play")
+            # v2.8: แต่ละเวลามีโปรไฟล์ของตัวเองได้ ("HH:MM=โปรไฟล์") — ส่ง tuple ("play", prof)
+            if self._sched_last != stamp and not self.running:
+                for t, prof in sched_time_profiles(self._sched.get("times") or []):
+                    if stamp[11:] == t:
+                        self._sched_last = stamp
+                        self._sched_q.put(("play", prof))
+                        break
 
     def _sched_poll(self):
         """ฝั่ง UI: หยิบคำสั่งเล่นจาก scheduler มาทำ (thread-safe)"""
         try:
             while True:
-                self._sched_q.get_nowait()
+                item = self._sched_q.get_nowait()
                 if not self.running:
-                    # v2.4/v2.7: เลือกโปรไฟล์ตอนตั้งเวลาได้ — โหลดแถวก่อนเล่น (ว่าง = งานที่เปิดค้าง)
-                    prof = (getattr(self, "_sched", None) or {}).get("profile", "") or ""
+                    # v2.8: นัดหมายระบุโปรไฟล์เองได้ (tuple ("play", prof)) —
+                    # เวลาไหนไม่ระบุ = ใช้โปรไฟล์ตั้งต้นจาก dialog (v2.4/v2.7) ต่อไป
+                    prof = item[1] if isinstance(item, tuple) and len(item) > 1 else ""
+                    if not prof:
+                        prof = (getattr(self, "_sched", None) or {}).get("profile", "") or ""
                     if prof and prof in self._profiles:
                         self._load_rows(self._profiles[prof])
                         if self._log_enabled:
@@ -4100,8 +4216,8 @@ class MacroApp:
         ent_time = tk.Entry(frm, width=22)
         ent_time.insert(0, ",".join(s.get("times") or []) or "09:00")
         ent_time.grid(row=2, column=1, sticky="w", columnspan=2)
-        tk.Label(frm, text="เช่น 08:00, 12:30, 22:00", fg="#888").grid(
-            row=3, column=1, columnspan=2, sticky="w")
+        tk.Label(frm, text="เช่น 08:00, 12:30=งานเช้า, 22:00 — เวลาไหนใส่ =โปรไฟล์ เล่นโปรไฟล์นั้นเอง (v2.8)",
+                 fg="#888").grid(row=3, column=1, columnspan=2, sticky="w")
         # v2.4/v2.7: เลือกโปรไฟล์ที่ schedule จะโหลดมาเล่น
         tk.Label(frm, text="เล่นโปรไฟล์:").grid(row=4, column=0, sticky="w", pady=(8, 0))
         cmb_prof = ttk.Combobox(frm, width=22, state="readonly")
@@ -4152,16 +4268,22 @@ class MacroApp:
                 msg = "เล่นอัตโนมัติทุก %d นาที (รอบแรกในอีก %d นาที)%s" % (
                     self._sched["every"], self._sched["every"], prof_note)
             elif mode == "daily":
-                times = parse_hhmm_list(ent_time.get())
-                if not times:
+                # v2.8: เก็บทั้ง "HH:MM" และ "HH:MM=โปรไฟล์" — dedupe ตามเวลา
+                ents = []
+                for part in str(ent_time.get() or "").split(","):
+                    ent = parse_sched_entry(part)
+                    if ent and ent[0] not in [e[0] for e in ents]:
+                        ents.append(ent)
+                if not ents:
                     messagebox.showwarning(
-                        APP_TITLE, "รูปแบบเวลาต้องเป็น HH:MM คั่นด้วย comma\nเช่น 09:30, 12:00, 22:00",
+                        APP_TITLE, "รูปแบบเวลาต้องเป็น HH:MM คั่นด้วย comma\n"
+                                   "เช่น 09:30, 12:00=งานเช้า, 22:00",
                         parent=win)
                     return
                 self._sched["mode"] = "daily"
-                self._sched["times"] = times
+                self._sched["times"] = [t + ("=" + p if p else "") for t, p in ents]
                 self._sched_last = ""
-                msg = "เล่นอัตโนมัติทุกวัน เวลา " + ", ".join(times) + prof_note
+                msg = "เล่นอัตโนมัติทุกวัน เวลา " + ", ".join(self._sched["times"]) + prof_note
             else:
                 self._sched_next = 0.0
                 msg = "ปิดโหมดเล่นอัตโนมัติแล้ว"

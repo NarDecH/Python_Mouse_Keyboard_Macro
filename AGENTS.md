@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.7.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.8.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -181,6 +181,14 @@
   **เกณฑ์รีวิว plugin ชุมชน 6 ข้อ** (docs/PLUGINS.md) + scaffold เทสต์ใน `plugins/_template.py` ·
   **เอกสารจีน/ญี่ปุ่น** `docs/TUTORIAL.zh.md` + `TUTORIAL.ja.md` (แปลจาก en ครบทุกบท —
   ⚠️ เอกสารหลักต้องมีเวอร์ชันปัจจุบันทุกไฟล์ — `py tools/check_docs.py` ก่อน push)
+- **ฟีเจอร์เสริม v2.8:** Schedule รายเวลาเลือกโปรไฟล์ (ช่องเวลารับ `HH:MM=ชื่อโปรไฟล์` —
+  engine `parse_sched_entry`/`sched_time_profiles`, `_sched_check` ยิง tuple `("play", prof)`
+  · `_sched_poll` ให้โปรไฟล์ของเวลาชนะตั้งต้น, `parse_hhmm_list` ตัด `=โปรไฟล์` ให้เอง) ·
+  **.ahk ตัวแปรสองทิศ** (export `Set Variable` → `n := 5` / `If Variable` → `if (n > 5)` ·
+  import `n := 0`/`n += 2`/`if (n > 5)` — ⚠️ กติกา: อ้างตัวแปรเฉพาะรูปแบบ `{ชื่อ}` เท่านั้น,
+  ข้อความอื่นครอบ `""` เสมอ แม้ตรง `_VAR_NAME` — กันคำไทยโดนตีความเป็นตัวแปร) ·
+  **ประตูรับ plugin ชุมชน** (issue template `plugin_submission.md` + PR checklist เกณฑ์ 6 ข้อ ·
+  plugin ตัวอย่างใหม่ random_pause/counter/open_url พร้อมเทสต์ TestPluginsCommunity)
 
 ## เทคโนโลยี
 

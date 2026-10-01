@@ -290,7 +290,16 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
 - **新プラグイン 4 個** — Screenshot · Toast · Write Log · Ask Input
   （`ctx["vars"]` がスクリプト変数を共有）。
 
+### v2.7–v2.8 の新機能
+- **4 か国語ドキュメント** — タイ語/英語/中国語/日本語。
+- **.ahk 連携** — メニュー 🔀 でエクスポート/インポート（Send/Click/MouseMove/Sleep/Run）·
+  v2.8 は変数も双方向：`Set Variable` → `n := 5`、`If Variable` → `if (n > 5)`；
+  `n := 0` / `n += 2` / `if (n > 5)` を行に戻せます（`x := y` → `x = {y}`）。
+- **時刻ごとにプロファイル指定** — `08:00, 12:30=朝の仕事, 22:00`（時刻になったらそのプロファイルを自動読み込み）。
+- **コミュニティプラグイン 3 個** — Random Pause（ランダム休止）· Counter（カウンタ変数）·
+  Open URL（Web を開く）+ プラグイン投稿用 issue テンプレート（基準は docs/PLUGINS.md）。
+
 ---
 
-*コード v2.7.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
+*コード v2.8.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
 プロジェクト文書：[README.md](README.md) · プラグインマーケット：[PLUGINS.md](PLUGINS.md)*
