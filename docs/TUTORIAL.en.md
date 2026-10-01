@@ -302,5 +302,19 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
 - **Validate button (v2.8.1)** — the 🔍 Validate menu checks the whole script with the same
   engine as `--validate` and reports "row N: reason" in a dialog, no CLI needed.
 
-*Guide for code v2.8.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+---
+
+- **START pre-validates (v2.9.0)** — pressing START runs `validate_rows` automatically:
+  on issues it asks "play skipping broken rows?" — confirm = only valid rows play, decline =
+  go back and fix; if every row is broken nothing plays at all (no more silent failures).
+- **Collapse all / Expand all (v2.9.0)** — right-menu: "Collapse all" folds every Section +
+  block at once (outer groups swallow inner ones top-down); "Expand all" walks back until the
+  table is fully restored in the exact original order.
+- **.ahk block support both ways (v2.9.0)** — export: `if n > 5` → `if (n > 5) { … }`,
+  `max 3` → `Loop, 3 {`, `until n >= 5` → `Loop { … } Until, n >= 5` (conditions join with
+  `&&`, text search `~` → `InStr()`); image/color conditions that can't translate become a
+  comment for the whole block — no stray braces, the .ahk always runs · import converts all
+  three forms back to Block Start/End rows.
+
+*Guide for code v2.9.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

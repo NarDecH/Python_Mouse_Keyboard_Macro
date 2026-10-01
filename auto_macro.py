@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.8.1"
+__version__ = "2.9.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -867,11 +867,13 @@ def batch_export_sh(script_name, py_cmd="python3"):
 
 # ----------------------------- ทำงานร่วม AutoHotkey .ahk (v2.7) ----------
 def rows_to_ahk(rows):
-    """แปลงแถวสคริปต์ → เนื้อหาไฟล์ .ahk (v2.7 — ทำงานร่วมกับ AutoHotkey v1)
+    """แปลงแถวสคริปต์ → เนื้อหาไฟล์ .ahk (v2.7 — v2.9 รองรับบล็อก)
     รองรับ: Tap Key/Press Key/Release Key, Left/Right Click, Double Click, Scroll,
     Ctrl/Shift/Alt+Click, Move Mouse (+Offset), Save/Restore Cursor (CoordMode Mouse),
-    Type Text (ครอบสัญลักษณ์พิเศษ), Launch App, Beep, Set Variable (AHK :=)
-    แถวที่ไม่รองรับ (เงื่อนไข/คลิปบอร์ด/ภาพ/block) เขียนเป็น comment เพื่อไม่หายไป"""
+    Type Text (ครอบสัญลักษณ์พิเศษ), Launch App, Beep, Set Variable (AHK :=),
+    If Variable (if), Block Start/End → บล็อก { } ของ AHK:
+    "if n > 5" → if (n > 5) { … } · "max N" → Loop, N { … } · "until cond" → Loop { … } Until
+    (เงื่อนไขที่แปลไม่ได้ เช่น ภาพ/สีจุด = ทั้งคู่ Start/End เขียนเป็น comment)"""
     out = ["; Auto Mouse & Keyboard Macro v%s — exported .ahk" % __version__,
            "; แปลงคร่าว ๆ — ตรวจก่อนใช้จริง (รายละเอียด: docs/README.en.md)"]
     key_map = {"esc": "Esc", "enter": "Enter", "return": "Enter", "tab": "Tab",
@@ -918,7 +920,41 @@ def rows_to_ahk(rows):
         # ข้อความอื่น (แม้ตรง _VAR_NAME) ครอบ "" เสมอ — กันชื่อไทย/คำธรรมดาโดนตีความเป็นตัวแปร
         return '"' + s.replace('"', '""') + '"'
 
-    for r in rows or []:
+    def _ahk_block_cond(txt):
+        """เงื่อนไข Block Start → นิพจน์ AHK หรือ None (ภาพ/สีจุด/ผสม = แปลไม่ได้)
+        คืน "" เมื่อไม่มีเงื่อนไข (บล็อกเปล่า) — รองรับ && หลายเงื่อนไข (v2.9)"""
+        s = str(txt or "").strip()
+        if not s:
+            return ""
+        parts = split_condition_and(s) or [s]
+        exprs = []
+        for p in parts:
+            fv = parse_if_var(p)
+            if fv is None:
+                return None
+            name, op, val = fv
+            if op == "~":
+                exprs.append("InStr(%s, %s)" % (name, _ahk_var_expr(val)))
+            else:
+                exprs.append("%s %s %s" % (name, op, _ahk_var_expr(val)))
+        return " && ".join(exprs)
+
+    # v2.9: Block Start ที่เงื่อนไขแปลไม่ได้ (ภาพ/สีจุด) → ทั้งคู่ Start/End เขียน comment
+    # (ห้ามออก } ลอย ๆ เพราะ .ahk จะพังตอนรัน)
+    skip_ends = set()
+    btns = [{"button": str(x.get("button", ""))} for x in (rows or [])]
+    for si, r0 in enumerate(rows or []):
+        if str(r0.get("button", "")) != BLOCK_START:
+            continue
+        spec = parse_block_spec(r0.get("additional"))
+        if spec is not None and _ahk_block_cond(spec["if"]) is not None:
+            continue
+        ei = find_block_end_index(btns, si)
+        if ei is not None:
+            skip_ends.add(ei)
+
+    block_stack = []                      # บริบทบล็อกที่เปิดค้าง (until ของ Loop)
+    for bi, r in enumerate(rows or []):
         if not r.get("enabled", True):
             continue
         btn = str(r.get("button", ""))
@@ -990,6 +1026,28 @@ def rows_to_ahk(rows):
                     lines = ["if %s contains %s" % (name, _ahk_var_expr(val))]
                 else:
                     lines = ["if (%s %s %s)" % (name, op, _ahk_var_expr(val))]
+        elif btn == BLOCK_START:
+            # v2.9: บล็อก → { } ของ AHK — if/max/until (เงื่อนไขแปลไม่ได้ = comment ทั้งคู่)
+            spec = parse_block_spec(add)
+            cond = _ahk_block_cond(spec["if"]) if spec else None
+            if cond is None:
+                lines = ["; (Block Start แปลไม่ได้ตรง ๆ: %s — จัดบล็อก/ค้นภาพใน AHK เอง)" % add]
+            elif spec["kind"] == "once":
+                lines = ["if (%s) {" % cond] if cond else ["{"]
+                block_stack.append({"until": ""})
+            else:
+                lines = ["Loop, %d {" % spec["max"] if spec["max"] else "Loop {"]
+                block_stack.append({"until": spec["until"]})
+        elif btn == BLOCK_END:
+            if bi in skip_ends:
+                lines = ["; (Block End — คู่ Block Start แปลไม่ได้ จัดบล็อกเอง)"]
+            elif block_stack:
+                ctx = block_stack.pop()
+                lines = ["}"]
+                if ctx.get("until"):
+                    lines.append("Until, %s" % ctx["until"])
+            else:
+                lines = ["; (Block End เกิน — ไม่มี Block Start เปิดคู่)"]
         if not lines:
             note = btn if not add else "%s (%s)" % (btn, add)
             lines = ["; (ไม่รองรับ: %s)" % note]
@@ -1050,7 +1108,29 @@ def ahk_to_rows(text):
                     out.append({"button": "Type Text", "additional": t})
         return out
 
-    for raw in str(text or "").splitlines():
+    raw_lines = str(text or "").splitlines()
+    # v2.9: จับคู่ '} Until, cond' / '}' + 'Until, cond' กับ 'Loop...{' ที่เปิด (ก่อนแปลรายบรรทัด)
+    untils = {}                       # index ของบรรทัด 'Loop...{' → เงื่อนไข Until
+    loop_stack = []
+    for li, raw in enumerate(raw_lines):
+        s = raw.strip()
+        if re.match(r"^Loop(,\s*\d+)?\s*\{$", s, re.I):
+            loop_stack.append(li)
+        elif s.startswith("}") and loop_stack:
+            j = loop_stack.pop()
+            m = re.match(r"^}\s*Until,?\s*(.+)$", s, re.I)
+            if m:
+                untils[j] = m.group(1).strip()
+                continue
+            for nxt in raw_lines[li + 1:]:
+                s2 = nxt.strip()
+                if not s2:
+                    continue
+                m2 = re.match(r"^Until,?\s*(.+)$", s2, re.I)
+                if m2:
+                    untils[j] = m2.group(1).strip()
+                break
+    for li, raw in enumerate(raw_lines):
         line = raw.strip()
         if not line or line.startswith(";"):
             continue
@@ -1129,6 +1209,34 @@ def ahk_to_rows(text):
                              **pending))
             pending = {}
             continue
+        # v2.9: บล็อก AHK → Block Start/End — if (...) { / Loop, N { / Loop { / }
+        m = re.match(r"^if\s+(?:\((.+)\)|(.+))\s*\{$", line, re.I)
+        if m:
+            cond = (m.group(1) or m.group(2) or "").strip()
+            add_txt = ahk_cond_to_macro(cond)
+            if "&&" in add_txt:
+                add_txt = " && ".join(ahk_cond_to_macro(p.strip())
+                                      for p in add_txt.split("&&"))
+            add_txt = add_txt.strip()
+            if add_txt and parse_block_spec("if " + add_txt) is not None:
+                rows.append(dict(x="", y="", button=BLOCK_START,
+                                 additional="if " + add_txt, **pending))
+                pending = {}
+            continue
+        m = re.match(r"^Loop(,\s*(\d+))?\s*\{$", line, re.I)
+        if m:
+            add_txt = "max %s" % m.group(2) if m.group(2) else ""
+            if li in untils:                      # Loop { … } Until cond → until
+                u = ahk_cond_to_macro(untils[li])
+                add_txt = ("until " + u + ((" " + add_txt) if add_txt else "")).strip()
+            rows.append(dict(x="", y="", button=BLOCK_START, additional=add_txt,
+                             **pending))
+            pending = {}
+            continue
+        if line.startswith("}"):
+            rows.append(dict(x="", y="", button=BLOCK_END, additional="", **pending))
+            pending = {}
+            continue
         # v2.8: เงื่อนไข AHK → If Variable (if (n > 5) / if x > 5 / if x contains ข้อความ)
         m = re.match(r"^if\s+(?:\((.+)\)|(.+))\s*$", line, re.I)
         if m:
@@ -1148,8 +1256,14 @@ def ahk_to_rows(text):
 
 def ahk_cond_to_macro(cond):
     """แปลงเงื่อนไข AHK (v2.8) → Additional ของ If Variable — แปลไม่ได้คืนข้อความเดิม
-    รองรับ: n > 5 / n = "ข้อความ" / x == y / n contains "ข้อความ" / n in a,b"""
+    รองรับ: n > 5 / n = "ข้อความ" / x == y / n contains "ข้อความ" / InStr(n, "ข้อความ")"""
     s = str(cond or "").strip()
+    m = re.fullmatch(r"InStr\(\s*(%s)\s*,\s*(.+?)\s*\)" % _VAR_NAME, s, re.I | re.UNICODE)
+    if m:
+        val = m.group(2).strip()
+        if val.startswith('"') and val.endswith('"') and len(val) >= 2:
+            val = val[1:-1].replace('""', '"')
+        return "%s ~ %s" % (m.group(1), val)
     m = re.fullmatch(r"(%s)\s*(==|!=|>=|<=|>|<|=)\s*(.+)" % _VAR_NAME, s, re.UNICODE)
     if m:
         val = m.group(3).strip()
@@ -3457,6 +3571,9 @@ class MacroApp:
                              command=lambda: self._group_toggle(self._marker_head(iid)))
         else:
             menu.add_command(label=self._t("ctx_section"), command=lambda: self._row_toggle_section(iid))
+        menu.add_separator()
+        menu.add_command(label="ย่อทั้งหมด (Section + บล็อก)", command=self._collapse_all_groups)
+        menu.add_command(label="ขยายทั้งหมด", command=self._expand_all_groups)
         menu.add_command(label=self._t("ctx_del"), command=self._on_del)
         try:
             menu.tk_popup(event.x_root, event.y_root)
@@ -3549,6 +3666,8 @@ class MacroApp:
         (v1.22) · Block Start = แถวระหว่างมันกับ Block End คู่ (v2.8.1 — นับวงเล็บบล็อกซ้อน)
         ถ้ากลุ่มนี้ย่ออยู่ คืนลิสต์ว่าง (แถวสมาชิกถูก detach ไว้)"""
         kids = self.tree.get_children()
+        if head_iid not in kids:
+            return []                       # แถวถูกย่อไปกับกลุ่มนอกแล้ว (v2.9 กัน ValueError)
         idx = kids.index(head_iid)
         if self._group_collapsed(head_iid):
             return []
@@ -3633,6 +3752,38 @@ class MacroApp:
             self.tree.item(head_iid, values=vals)
             self.refresh_nums()
             self._ui_state["msg"] = ("ย่อกลุ่มแล้ว (%d แถว) — การเล่นไม่เปลี่ยน กดซ้ำเพื่อขยาย" % n, "#080")
+
+    # ----------------------------------- ย่อ/ขยายทั้งหมด (v2.9) --------------
+    def _collapse_all_groups(self):
+        """ย่อหัวข้อ Section และบล็อกทุกตัว (เดินบนลงล่าง — กลุ่มนอกกลืนกลุ่มในตามลำดับ)"""
+        n = 0
+        for iid in list(self.tree.get_children()):
+            if iid not in self.tree.get_children():
+                continue                      # แถวถูกย่อไปกับกลุ่มก่อนหน้าแล้ว
+            try:
+                kind = str(self.tree.item(iid, "values")[4])
+            except tk.TclError:
+                continue
+            if kind in (SECTION_HEADER, BLOCK_START) and not self._group_collapsed(iid):
+                before = len(self._section_stash)
+                self._group_toggle(iid)
+                if len(self._section_stash) > before:
+                    n += 1
+        self._ui_state["msg"] = (("ย่อทั้งหมดแล้ว %d กลุ่ม — การเล่นไม่เปลี่ยน" % n, "#080") if n
+                                 else ("ไม่มีกลุ่มให้ย่อ", "#a60"))
+
+    def _expand_all_groups(self):
+        """ขยายกลุ่ม/บล็อกที่ย่ออยู่ทุกตัว (ซ้อนย่อถูกกันอยู่แล้ว — หัวที่ย่อมองเห็นหมด)"""
+        n = 0
+        for iid in list(self.tree.get_children()):
+            try:
+                if self._group_collapsed(iid):
+                    self._group_toggle(iid)
+                    n += 1
+            except tk.TclError:
+                continue
+        self._ui_state["msg"] = (("ขยายทั้งหมดแล้ว %d กลุ่ม — ลำดับเดิมเป๊ะ" % n, "#080") if n
+                                 else ("ไม่มีกลุ่มที่ย่ออยู่", "#a60"))
 
     def del_selected(self):
         self._on_del()
@@ -3842,11 +3993,24 @@ class MacroApp:
         if not items:
             messagebox.showinfo(APP_TITLE, self._t("no_rows"))
             return
-        if not self._validate_rows(rows):
+        # v2.9: ตรวจด้วย engine เดียวกับเมนู 🔍 Validate / CLI --validate —
+        # แถวที่ตรวจไม่ผ่าน "ถูกข้ามจริง" (เดิมแจ้งเตือนแต่ยังเล่นทุกแถว)
+        issues = validate_rows(rows, plugin_names=[n for n, _ in self._plugins])
+        if issues:
             if not messagebox.askyesno(APP_TITLE,
-                    "มีแถวที่ค่าไม่ครบ (คีย์ว่าง/สะกดไม่รู้จัก หรือไม่พบไฟล์ภาพ)\n"
-                    "แถวเหล่านั้นจะถูกข้าม ต้องการเล่นต่อหรือไม่?"):
+                    "มีแถวที่ตรวจไม่ผ่าน %d จุด (คีย์ว่าง/ภาพหาย/บล็อกไม่ปิด ฯลฯ)\n"
+                    "แถวเหล่านั้นจะถูกข้าม — ต้องการเล่นต่อหรือไม่?\n"
+                    "(ดูรายละเอียดแถวที่มีปัญหา: เมนู 🔍 Validate)" % len(issues)):
                 return
+            bad = {num - 1 for num, _ in issues}      # index 0-based ของแถวที่ข้าม
+            items = [it for i, it in enumerate(items) if i not in bad]
+            if not items:
+                messagebox.showinfo(APP_TITLE,
+                                    "ทุกแถวตรวจไม่ผ่าน — ไม่มีอะไรให้เล่น\n"
+                                    "แก้ตามรายงานในเมนู 🔍 Validate ก่อน")
+                return
+            self._ui_state["msg"] = ("ข้ามแถวที่ตรวจไม่ผ่าน %d จุด — รายละเอียดที่เมนู 🔍 Validate"
+                                     % len(issues), "#a60")
         self.stop_all(silent=True)          # หยุดเธรดเดิม + ปล่อยคีย์ค้างก่อน
         self._play_gen += 1                 # เธรดใหม่รุ่นใหม่ — เธรดเก่าที่ sleep ค้างจะหยุดเอง
         self.running = True

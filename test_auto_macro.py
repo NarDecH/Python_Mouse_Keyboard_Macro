@@ -5115,5 +5115,177 @@ class TestGuiValidate(unittest.TestCase):
             root.destroy()
 
 
+class TestAhkBlocks(unittest.TestCase):
+    """v2.9: .ahk บล็อกสองทิศ — Block Start/End ⇄ if (...) { } / Loop, N { } / Until"""
+
+    def _src(self, add):
+        return [dict(enabled=True, button=me_mod.BLOCK_START, additional=add),
+                dict(enabled=True, button="Left Click", x="1", y="2"),
+                dict(enabled=True, button=me_mod.BLOCK_END, additional="")]
+
+    def test_export_if_block(self):
+        s = me_mod.rows_to_ahk(self._src("if n > 5"))
+        self.assertIn("if (n > 5) {", s)
+        self.assertIn("\n}", s)
+
+    def test_export_max_and_until(self):
+        s = me_mod.rows_to_ahk(self._src("max 3"))
+        self.assertIn("Loop, 3 {", s)
+        self.assertIn("\n}", s)
+        s2 = me_mod.rows_to_ahk(self._src("until n >= 5"))
+        self.assertIn("Loop {", s2)
+        self.assertIn("Until, n >= 5", s2)      # ต้องอยู่หลังปิดบล็อก
+        self.assertLess(s2.index("\n}"), s2.index("Until,"))   # } มาก่อน Until เสมอ
+
+    def test_export_image_cond_comments_both_ends(self):
+        s = me_mod.rows_to_ahk(self._src("if img.png"))
+        self.assertIn("; (Block Start", s)
+        self.assertIn("; (Block End", s)
+        self.assertNotIn("\n}", s)               # ห้ามปีกกาลอย — .ahk ต้องรันได้
+
+    def test_import_blocks(self):
+        rows = me_mod.ahk_to_rows("if (n > 5) {\nClick 1, 2\n}")
+        self.assertEqual([(r["button"], r["additional"]) for r in rows],
+                         [(me_mod.BLOCK_START, "if n > 5"), ("Left Click", ""),
+                          (me_mod.BLOCK_END, "")])
+        rows2 = me_mod.ahk_to_rows("Loop, 3 {\nClick 1, 2\n}")
+        self.assertEqual(rows2[0]["additional"], "max 3")
+        rows3 = me_mod.ahk_to_rows("Loop {\nClick 1, 2\n}\nUntil, n >= 5")
+        self.assertEqual(rows3[0]["additional"], "until n >= 5")
+        self.assertEqual(rows3[-1]["button"], me_mod.BLOCK_END)
+
+    def test_roundtrip_blocks(self):
+        for add in ("if n > 5", "max 3", "until n >= 5"):
+            back = me_mod.ahk_to_rows(me_mod.rows_to_ahk(self._src(add)))
+            self.assertEqual([(r["button"], r["additional"]) for r in back],
+                             [(me_mod.BLOCK_START, add), ("Left Click", ""),
+                              (me_mod.BLOCK_END, "")], add)
+
+    def test_junk_brace_still_skipped(self):
+        self.assertEqual(me_mod.ahk_to_rows("{\nif (((\nMsgBox hi"), [])
+
+
+class TestCollapseAll(unittest.TestCase):
+    """v2.9: เมนูขวา ย่อทั้งหมด/ขยายทั้งหมด — ครอบ Section + บล็อกพร้อมกัน"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        kids = iter("k%d" % i for i in range(1, 999))
+        order = []
+        store = {}
+
+        def insert(parent, index, **kw):
+            iid = next(kids)
+            store[iid] = list(kw["values"])
+            pos = len(order) if str(index) == "end" else int(index)
+            order.insert(pos, iid)
+            return iid
+
+        def item(iid, *args, **kw):
+            if "values" in kw:
+                store[iid] = list(kw["values"])
+                return None
+            return store[iid]
+
+        app.tree.get_children.side_effect = lambda: list(order)
+        app.tree.insert = insert
+        app.tree.item = item
+        app.tree.index = lambda iid: order.index(iid)
+        app.tree.detach = lambda iid: order.remove(iid)
+        app._section_stash = []
+        app._hl_row = None
+        app._ui_state = {"msg": None, "row": None, "prog": None, "reset": False}
+        app.refresh_nums = lambda: am.MacroApp.refresh_nums(app)
+        for m in ("_group_members", "_group_collapsed", "_group_toggle", "_serialize",
+                  "_collapse_all_groups", "_expand_all_groups"):
+            setattr(app, m, getattr(am.MacroApp, m).__get__(app))
+        return app, store, order
+
+    def _rows(self, app):
+        for r in [(am.SECTION_HEADER, "หัวข้อ A", 0), ("Beep", "s1", 1),
+                  (am.BLOCK_START, "if n > 5", 0), ("Beep", "b1", 1),
+                  (am.BLOCK_END, "", 0), ("Left Click", "", 1)]:
+            app.tree.insert("", "end", values=["☑", "#", "", "", r[0], r[1], 0, r[2], 1])
+
+    def test_collapse_all_hides_section_and_block(self):
+        app, store, order = self._app()
+        self._rows(app)
+        app._collapse_all_groups()
+        self.assertEqual(len(app.tree.get_children()), 1)   # เห็นหัวข้อ Section เดียว
+        rows = app._serialize()
+        self.assertEqual([r["additional"] for r in rows],
+                         ["หัวข้อ A", "s1", "if n > 5", "b1", "", ""])   # ครบ ลำดับเดิม
+
+    def test_expand_all_restores_everything(self):
+        app, store, order = self._app()
+        self._rows(app)
+        app._collapse_all_groups()
+        app._expand_all_groups()
+        self.assertEqual(len(app.tree.get_children()), 6)
+        self.assertEqual(app._section_stash, [])
+        adds = [app.tree.item(i, "values")[5] for i in app.tree.get_children()]
+        self.assertEqual(adds, ["หัวข้อ A", "s1", "if n > 5", "b1", "", ""])
+
+    def test_empty_table_no_crash(self):
+        app, store, order = self._app()
+        app._collapse_all_groups()
+        app._expand_all_groups()
+        self.assertEqual(app.tree.get_children(), [])
+
+
+class TestUnifiedPlayValidation(unittest.TestCase):
+    """v2.9: กด START ตรวจด้วย engine เดียวกับ 🔍 Validate — แถวที่ตรวจไม่ผ่านถูกข้ามจริง"""
+
+    def _app(self, rows, iids):
+        app = mock.MagicMock()
+        app._rows_and_iids_for_play = lambda: (list(rows), list(iids))
+        app._plugins = []
+        app._ui_state = {"msg": None, "row": None, "prog": None, "reset": False}
+        app._play_gen = 0
+        app._log_enabled = False
+        app.chk_forever.get.return_value = False
+        app.chk_restore.get.return_value = False
+        app.chk_shuffle.get.return_value = False
+        app.cmb_speed.get.return_value = "1"
+        app.ent_loops.get.return_value = "1"
+        app._play_options = lambda: 100
+        return app
+
+    def test_invalid_rows_skipped_when_confirmed(self):
+        app = self._app(
+            [{"button": "Tap Key", "additional": ""}, {"button": "Beep", "secs": 0}],
+            ["i1", "i2"])
+        threads = []
+        with mock.patch.object(am.messagebox, "askyesno", return_value=True) as ask, \
+             mock.patch.object(am.threading, "Thread",
+                               side_effect=lambda *a, **k:
+                               threads.append(k) or mock.MagicMock()):
+            am.MacroApp._start_player(app, False)
+        ask.assert_called_once()
+        self.assertIn("1 จุด", ask.call_args[0][1])
+        self.assertEqual(len(threads), 1)
+        items = threads[0]["args"][0]
+        self.assertEqual([r["button"] for r, _ in items], ["Beep"])   # คีย์ว่างถูกข้ามจริง
+
+    def test_decline_does_not_play(self):
+        app = self._app([{"button": "Tap Key", "additional": ""}], ["i1"])
+        with mock.patch.object(am.messagebox, "askyesno", return_value=False) as ask, \
+             mock.patch.object(am.threading, "Thread") as th:
+            am.MacroApp._start_player(app, False)
+        ask.assert_called_once()
+        th.assert_not_called()
+
+    def test_all_invalid_shows_info(self):
+        app = self._app([{"button": "Tap Key", "additional": ""}], ["i1"])
+        infos = []
+        with mock.patch.object(am.messagebox, "askyesno", return_value=True), \
+             mock.patch.object(am.messagebox, "showinfo",
+                               side_effect=lambda *a, **k: infos.append(a)), \
+             mock.patch.object(am.threading, "Thread") as th:
+            am.MacroApp._start_player(app, False)
+        self.assertTrue(infos)      # ไม่มีอะไรให้เล่น
+        th.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

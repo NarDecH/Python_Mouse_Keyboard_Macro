@@ -57,7 +57,7 @@
 • Schedule ทุก N นาที/รายวัน • Watchdog เริ่มใหม่เอง • CLI สำหรับ Task Scheduler
 • Backup อัตโนมัติ 7 วัน • log + กราฟสถิติ • self-check ตอนเปิดโปรแกรม
 
-ไฟล์เดียวจบ ไม่ต้องติดตั้ง | โอเพนซอร์ส (Python) | 373 unit + 15 E2E tests
+ไฟล์เดียวจบ ไม่ต้องติดตั้ง | โอเพนซอร์ส (Python) | 428 unit + 15 E2E tests
 ⬇️ https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ⚠️ อย่าใช้กับเกม/ระบบที่ห้าม bot นะ
 ```
@@ -86,13 +86,14 @@ Highlights:
   random delays (anti-pattern), shuffle & row sampling, watchdog auto-restart mode, safety timeout
 - CLI mode for Windows Task Scheduler with --stop-file / --validate for external control
 - Collapse Block Start→End groups in the table (hidden rows still play) + a 🔍 Validate
-  button that reports problem rows in-app
+  button that reports problem rows in-app; START pre-validates too (skips broken rows after
+  a confirm) and a two-way .ahk bridge covers if/Loop/Until blocks in both directions
 - Daily play logs + in-app stats with charts, startup self-check,
   automatic 7-day backups, settings export/import
 
 Tech: Python (Tkinter + pynput), optional opencv-python + Pillow, engine separated
 from the GUI (macro_engine.py — embed it in your own project).
-416 unit tests + 15 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
+428 unit tests + 15 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
 Docs in Thai, English, Chinese and Japanese.
 
 Download (no Python needed): https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest

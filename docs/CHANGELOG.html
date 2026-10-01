@@ -65,8 +65,49 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.8.1</h2>
+      <h2>เวอร์ชัน 2.9.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">1 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🚦 START ตรวจสคริปต์ก่อนเล่น (engine เดียวกับ 🔍 Validate)</h3>
+    <ul>
+      <li><b>กด START = ตรวจด้วย <code>validate_rows()</code> ทันที</b> — พบปัญหา → ถามยืนยัน
+        "เล่นโดยข้ามแถวที่มีปัญหา?" · ยืนยัน = เล่นเฉพาะแถวที่ผ่าน · ปฏิเสธ = กลับไปแก้ก่อน ·
+        ทุกแถวพัง = แจ้งและไม่เล่น — กัน "กดแล้วเงียบ" จากแถวคีย์ว่าง/ภาพหาย</li>
+    </ul>
+
+    <h3>🗜️ เมนูขวา ย่อทั้งหมด / ขยายทั้งหมด</h3>
+    <ul>
+      <li><b>"ย่อทั้งหมด (Section + บล็อก)"</b> — เดินบนลงล่าง ย่อหัวข้อ Section และ Block Start
+        ทุกตัว (กลุ่มนอกกลืนกลุ่มใน — แถวที่ถูกย่อไปแล้วถูกข้าม ไม่ย่อซ้ำ) ·
+        <b>"ขยายทั้งหมด"</b> — วนขยายทุกหัวที่ย่ออยู่จนกลับเต็ม ลำดับเดิมเป๊ะ</li>
+      <li>แก้ <code>_group_members()</code> กัน iid ที่ถูกย่อไปกับกลุ่มนอก (ไม่ชน ValueError)</li>
+    </ul>
+
+    <h3>🔀 .ahk รองรับ Block Start→End สองทิศ</h3>
+    <ul>
+      <li><b>export</b> — <code>if</code> → <code>if (n &gt; 5) { … }</code> · <code>max N</code> →
+        <code>Loop, N {</code> · <code>until</code> → <code>Loop { … } Until, cond</code>
+        (หลายเงื่อนไขรวม <code>&amp;&amp;</code>, ค้นหาข้อความ <code>~</code> → <code>InStr()</code>) ·
+        ภาพ/สีจุดที่แปลไม่ได้ → ทั้งบล็อกเป็น comment — ไม่มีปีกกาลลอย .ahk ที่ได้รันได้เสมอ</li>
+      <li><b>import</b> — <code>if (…) {</code> / <code>Loop, N {</code> / <code>Loop {</code> +
+        <code>Until,</code> (เดี่ยวหรือบรรทัดเดียวกับ <code>}</code>) → BLOCK_START … BLOCK_END ·
+        <code>InStr</code> กลับเป็น <code>~</code></li>
+      <li><b>roundtrip ผ่านครบ</b> — if/max/until แปลไป–กลับตรงเป๊ะ · ปีกกาลลอยถูกข้ามปลอดภัย</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม <b>TestAhkBlocks 6 + TestCollapseAll 3 + TestUnifiedPlayValidation 3</b> → รวม
+        <b>428 unit + 15 E2E = 443</b> · เทสต์เดิมผ่านหมด</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.8.1</h2>
+      <span class="tag">2.8.1</span>
       <span class="date">1 ตุลาคม 2026</span>
     </div>
 

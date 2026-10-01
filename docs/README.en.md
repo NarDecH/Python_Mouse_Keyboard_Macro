@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.8.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.9.0
 
 <div align="center">
 
@@ -102,6 +102,9 @@
 | 🔌 **Community plugins** (v2.8.0) | new examples Random Pause / Counter / Open URL + an issue template for submitting plugins (criteria: docs/PLUGINS.md) |
 | 🗜️ **Collapse blocks** (v2.8.1) | right-click a Block Start to collapse rows up to its matching Block End (same mechanism as Sections) — hidden rows still play and save correctly, nested collapse refused automatically |
 | 🔍 **Validate button in GUI** (v2.8.1) | 🔀 menu → 🔍 Validate checks the whole script with the same engine as --validate and reports "row N: reason" in a dialog |
+| 🚦 **START pre-validates** (v2.9.0) | pressing START runs the same validate_rows engine — on issues it asks to skip broken rows (they are really skipped), if every row is broken it refuses to play |
+| 🗜️ **Collapse/expand all** (v2.9.0) | right-menu "Collapse all" folds every Section + block at once, "Expand all" restores the full table in the exact original order |
+| 🔀 **.ahk blocks both ways** (v2.9.0) | export Block Start → `if (…) {` / `Loop, N {` / `} Until,` · import them back as Block Start/End rows — untranslatable image/color conditions become comments for the whole block, no stray braces |
 
 ---
 

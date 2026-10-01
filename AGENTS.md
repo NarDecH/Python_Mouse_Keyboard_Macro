@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.8.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.9.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -198,6 +198,17 @@
   กลุ่ม/บล็อกที่ย่ออยู่ "ไม่ถูกเล่น" ขัดสัญญา "ย่อแล้วเล่นเหมือนเดิม" — ตอนนี้แทรกแถวซ่อนกลับ
   ตามลำดับ (iid=None = ข้ามไฮไลต์) + ตัดป้าย `(ย่อ N แถว)` ออกจากเงื่อนไขก่อนเล่น —
   ⚠️ เพิ่มกลไกซ่อนแถวใหม่ต้องอัพเดตทั้ง `_serialize` + `_rows_and_iids_for_play` เสมอ
+- **ฟีเจอร์เสริม v2.9.0:** START ตรวจก่อนเล่น (`_start_player` เรียก engine `validate_rows`
+  เดียวกับ 🔍 Validate — พบปัญหา askyesno ยืนยัน → ข้ามแถวพังจริง (`bad` set index),
+  ทุกแถวพัง showinfo ไม่เล่น · ⚠️ กด START แล้วเงียบ = บั๊กที่ห้ามกลับไปเป็นอีก) ·
+  **เมนูขวา ย่อทั้งหมด/ขยายทั้งหมด** (`_collapse_all_groups` เดินบนลงล่าง กลุ่มนอกกลืนกลุ่มใน —
+  ตรวจ iid ยังอยู่ในตารางก่อนย่อ · `_expand_all_groups` วน toggle หัวที่ย่อ ·
+  ⚠️ `_group_members` กัน iid ที่ถูกย่อไปกับกลุ่มนอก — เคย ValueError) ·
+  **.ahk บล็อกสองทิศ** (export `_ahk_block_cond` แปลง if-variable → `if (…) {`…`}` /
+  `max N` → `Loop, N {` / `until` → `} Until,` — แปลไม่ได้ = prescan `skip_ends` ทำทั้งบล็อก
+  comment ไม่มีปีกกาลลอย · import prescan `untils` (`}`+Until บรรทัดเดียวหรือแยกบรรทัด) —
+  ⚠️ ลูปหลัก import ต้อง `enumerate(raw_lines)` ให้ `li` ตรงเสมอ) — เทสต์ TestAhkBlocks/
+  TestCollapseAll/TestUnifiedPlayValidation
 
 ## เทคโนโลยี
 

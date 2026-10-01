@@ -425,7 +425,21 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.8.1 ·
+  <div class="chapter">
+    <h2>14. v2.9.0 — เล่นปลอดภัย + จัดระเบียบครั้งเดียว + .ahk ครบวงจร</h2>
+    <ul>
+      <li><b>START ตรวจก่อนเล่น</b> — กด START ตรวจด้วย <code>validate_rows</code> เดียวกับ
+        🔍 Validate · พบปัญหา → ถามยืนยัน "เล่นโดยข้ามแถวที่มีปัญหา?" ยืนยัน = เล่นเฉพาะแถวที่ผ่าน
+        · ทุกแถวพัง = แจ้งเตือนและไม่เล่น (กันกดแล้วเงียบ)</li>
+      <li><b>ย่อทั้งหมด / ขยายทั้งหมด</b> — เมนูขวาในตาราง: ย่อ Section + บล็อกทุกตัวในครั้งเดียว
+        / ขยายคืนจนตารางเต็ม ลำดับเดิมเป๊ะ</li>
+      <li><b>.ahk บล็อกสองทิศ</b> — export Block Start → <code>if (…) {</code> / <code>Loop, N {</code> /
+        <code>} Until,</code> · import กลับเป็นแถว Block Start/End · ภาพ/สีที่แปลไม่ได้ = comment
+        ทั้งบล็อก — .ahk ที่ได้รันได้เสมอ (ไม่มีปีกกาลลอย)</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.9.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>
