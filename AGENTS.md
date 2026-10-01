@@ -164,7 +164,8 @@
   ลากทั้งก้อนที่เลือก, แถวไฮไลต์ tag "drag", ห้ามวางบนกลุ่มย่อ) ·
   ⚠️ v2.5.2: bind `<Button-1>` ต้องมาก่อน `<ButtonPress-1>` แล้ว drag ผ่าน
   add="+" — ไม่งั้น _on_click (bind ทีหลังไม่มี add) เขียนทับ press binding
-  รวมของ event เดียวกัน → _on_drag_start ไม่ถูกเรียก (ต้นตอลากไม่ทำงาน) +
+  รวมของ event เดียวกัน → _on_drag_start ไม่ถูกเรียก (ต้นตอลากไม่ทำงาน) ·
+  🤖 docs/PROMPT.md = พรอมต์มาตรฐานพา AI ตัวใหม่เข้าโปรเจกต์ (เวอร์ชันต้องตรง) +
   Alt+↑↓ + Redo (Ctrl+Y — `_redo_stack`, `_restore_rows` ร่วมกับ undo,
   _apply_edit push undo) + คอลัมน์ Note (COLS/EDIT_COLS/serialize/paste —
   ไม่ส่งเข้า runner) + ค้นหา  แทนที่ (`_replace_all` ใน Ctrl+F dialog) ·
