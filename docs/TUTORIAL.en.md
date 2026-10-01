@@ -296,5 +296,11 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
 
 ---
 
-*Guide for code v2.8.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+- **Collapse blocks (v2.8.1)** — right-click a Block Start row to collapse the rows between
+  it and its matching Block End (same mechanism as Sections) — hidden rows still play and
+  save correctly; nested collapse is refused automatically.
+- **Validate button (v2.8.1)** — the 🔍 Validate menu checks the whole script with the same
+  engine as `--validate` and reports "row N: reason" in a dialog, no CLI needed.
+
+*Guide for code v2.8.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

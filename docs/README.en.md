@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.8.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.8.1
 
 <div align="center">
 
@@ -100,6 +100,8 @@
 | 🔀 **AutoHotkey interop** (v2.7.0) | 🔀 menu: export the current script as .ahk / import .ahk files (Send/Click/MouseMove/Sleep/Run) into the table — pushes undo for you |
 | 🔀 **.ahk variables both ways** (v2.8.0) | export `Set Variable` → `n := 5` / `If Variable` → `if (n > 5)` · import `n := 0` / `n += 2` / `if (n > 5)` back as rows |
 | 🔌 **Community plugins** (v2.8.0) | new examples Random Pause / Counter / Open URL + an issue template for submitting plugins (criteria: docs/PLUGINS.md) |
+| 🗜️ **Collapse blocks** (v2.8.1) | right-click a Block Start to collapse rows up to its matching Block End (same mechanism as Sections) — hidden rows still play and save correctly, nested collapse refused automatically |
+| 🔍 **Validate button in GUI** (v2.8.1) | 🔀 menu → 🔍 Validate checks the whole script with the same engine as --validate and reports "row N: reason" in a dialog |
 
 ---
 

@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.8.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.8.1
 
 <div align="center">
 
@@ -108,6 +108,8 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 🔀 **ทำงานร่วม AutoHotkey (v2.7.0)** | เมนู 🔀: ส่งออกสคริปต์เป็น .ahk / นำเข้าไฟล์ .ahk (Send/Click/MouseMove/Sleep/Run) เข้าตาราง — push undo ให้เอง |
 | 🔀 **.ahk ตัวแปรสองทิศ (v2.8.0)** | export `Set Variable` → `n := 5` / `If Variable` → `if (n > 5)` · import `n := 0` / `n += 2` / `if (n > 5)` กลับเป็นแถวได้ |
 | 🔌 **plugin ชุมชน (v2.8.0)** | ตัวอย่างใหม่ Random Pause / Counter / Open URL + issue template สำหรับส่ง plugin เข้าโปรแกรม (เกณฑ์: docs/PLUGINS.md) |
+| 🗜️ **ย่อ/ขยายกลุ่มบล็อก (v2.8.1)** | คลิกขวาที่ Block Start → ย่อแถวระหว่างคู่ Block End ได้ (กลไกเดียวกับ Section) — แถวซ่อนยังเล่น/บันทึกครบ กันซ้อนย่ออัตโนมัติ |
+| 🔍 **ปุ่มตรวจสคริปต์ใน GUI (v2.8.1)** | เมนู 🔍 Validate — ตรวจทั้งสคริปต์ด้วย engine เดียวกับ --validate แล้วรายงาน "แถว N: เหตุผล" เป็นหน้าต่าง |
 | 📤 **Export .bat/.sh (v2.3)** | สร้างไฟล์ดับเบิลคลิกรันข้างสคริปต์ (Windows/Linux/macOS) |
 | 🔎 **--validate (v2.4)** | ตรวจสคริปต์ทุกแถวรายงานปัญหา ก่อนปล่อยงานค้างคืนจริง |
 

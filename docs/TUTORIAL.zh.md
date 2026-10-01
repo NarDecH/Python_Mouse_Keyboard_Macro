@@ -293,5 +293,10 @@ max 10              无条件 — 把块体重复 10 次
 
 ---
 
-*对应代码 v2.8.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+- **折叠代码块 (v2.8.1)** — 右键 Block Start 行可折叠到配对 Block End 之间的行
+  （与分区相同的机制）— 隐藏的行仍会正常播放和保存；拒绝嵌套折叠。
+- **校验按钮 (v2.8.1)** — 菜单 🔍 Validate 用与 `--validate` 相同的引擎检查整个脚本，
+  并在窗口中报告 "第 N 行：原因"，无需命令行。
+
+*对应代码 v2.8.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*

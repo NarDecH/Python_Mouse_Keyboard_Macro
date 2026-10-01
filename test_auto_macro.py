@@ -1439,6 +1439,7 @@ class TestPlayLoopFixes(unittest.TestCase):
                 ["☑", 3, "", "", "Beep", "", "0", "1", "1"]]
         app.tree.get_children.return_value = ["i1", "i2", "i3"]
         app.tree.item.side_effect = lambda iid, key: {"values": vals[int(iid[1]) - 1]}[key]
+        app._section_stash = []                                 # v2.8.1: แถวซ่อนแทรกกลับตอนเล่น
         rows, iids = am.MacroApp._rows_and_iids_for_play(app)   # เดิม: AttributeError — เมธอดหาย
         self.assertEqual([r["button"] for r in rows], ["Beep", "Beep"])
         self.assertEqual(iids, ["i1", "i3"])                    # iid ตรงกับแถวที่เล่นจริง (ไฮไลต์)
@@ -4952,6 +4953,166 @@ class TestPluginsCommunity(unittest.TestCase):
         self.assertEqual(opened, [])
         with mock.patch.object(pl.webbrowser, "open", side_effect=Exception("พัง")):
             pl.run({"log": lambda m: None}, {"additional": "example.com"})  # ทนได้
+
+
+class TestBlockCollapse(unittest.TestCase):
+    """v2.8.1: ย่อ/ขยายกลุ่มบล็อก Block Start→End — กลไกเดียวกับ Section (_section_stash)
+    ⚠️ แถวซ่อนต้องยังเล่นตามลำดับเดิม (แก้บั๊กแฝง _rows_and_iids_for_play เดิมข้ามแถวซ่อน)"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        kids = iter("k%d" % i for i in range(1, 999))
+        order = []
+        store = {}
+
+        def insert(parent, index, **kw):
+            iid = next(kids)
+            store[iid] = list(kw["values"])
+            pos = len(order) if str(index) == "end" else int(index)
+            order.insert(pos, iid)              # แทรกตามตำแหน่งจริงเหมือน Tk
+            return iid
+
+        def item(iid, *args, **kw):
+            if "values" in kw:
+                store[iid] = list(kw["values"])
+                return None
+            return store[iid]
+
+        app.tree.get_children.side_effect = lambda: list(order)
+        app.tree.insert = insert
+        app.tree.item = item
+        app.tree.index = lambda iid: order.index(iid)
+        app.tree.detach = lambda iid: order.remove(iid)
+        app._section_stash = []
+        app._hl_row = None
+        app.refresh_nums = lambda: am.MacroApp.refresh_nums(app)
+        for m in ("_group_members", "_group_collapsed", "_group_toggle", "_serialize",
+                  "_rows_and_iids_for_play", "_on_del_cleanup"):
+            setattr(app, m, getattr(am.MacroApp, m).__get__(app))
+        return app, store
+
+    def _rows(self, app, rows):
+        for r in rows:
+            app.tree.insert("", "end", values=["☑", "#", "", "", r[0], r[1], 0, r[2], 1])
+
+    def test_collapse_block_hides_members_and_serialize_keeps(self):
+        app, store = self._app()
+        self._rows(app, [("Left Click", "", 1), (am.BLOCK_START, "", 0),
+                         ("Beep", "b1", 1), ("Beep", "b2", 1),
+                         (am.BLOCK_END, "", 0), ("Left Click", "", 1)])
+        start = app.tree.get_children()[1]
+        app._group_toggle(start)                       # ย่อบล็อก
+        self.assertEqual(len(app.tree.get_children()), 4)   # LC + Start + End + LC
+        self.assertIn("(ย่อ 2 แถว)", str(app.tree.item(start, "values")[5]))
+        rows = app._serialize()
+        self.assertEqual([r["additional"] for r in rows], ["", "", "b1", "b2", "", ""])
+        self.assertEqual(rows[1]["additional"], "")    # ป้ายย่อถูกตัด — เงื่อนไข Block Start สะอาด
+
+    def test_expand_block_restores_order(self):
+        app, store = self._app()
+        self._rows(app, [("Left Click", "", 1), (am.BLOCK_START, "until x", 0),
+                         ("Beep", "x1", 1), ("Beep", "x2", 1),
+                         (am.BLOCK_END, "", 0), ("Left Click", "", 1)])
+        start = app.tree.get_children()[1]
+        app._group_toggle(start)
+        app._group_toggle(start)
+        adds = [app.tree.item(i, "values")[5] for i in app.tree.get_children()]
+        self.assertEqual(adds, ["", "until x", "x1", "x2", "", ""])   # ลำดับ+เงื่อนไขเดิมเป๊ะ
+        self.assertEqual(app._section_stash, [])
+
+    def test_collapse_nested_block_refused(self):
+        app, store = self._app()
+        self._rows(app, [(am.BLOCK_START, "A", 0), ("Beep", "a1", 1),
+                         (am.BLOCK_START, "B", 0), ("Beep", "b1", 1),
+                         (am.BLOCK_END, "", 0), ("Beep", "a2", 1),
+                         (am.BLOCK_END, "", 0)])
+        kids = app.tree.get_children()
+        app._group_toggle(kids[2])                     # ย่อบล็อกใน (B) ก่อน — ได้
+        app._group_toggle(kids[0])                     # ย่อบล็อกนอก (A) — ต้องถูกปฏิเสธ
+        self.assertEqual(len(app.tree.get_children()), 6)   # ไม่ถูกย่อ (ซ่อนเฉพาะ b1 ของ B)
+        rows = app._serialize()
+        self.assertEqual([r["additional"] for r in rows],
+                         ["A", "a1", "B", "b1", "", "a2", ""])   # ข้อมูลครบ ไม่หาย
+
+    def test_unpaired_block_start_not_collapsible(self):
+        app, store = self._app()
+        self._rows(app, [("Left Click", "", 1), (am.BLOCK_START, "", 0), ("Beep", "b1", 1)])
+        start = app.tree.get_children()[1]
+        app._group_toggle(start)                       # ไม่มี Block End คู่ = ย่อไม่ได้
+        self.assertEqual(len(app.tree.get_children()), 3)
+        self.assertNotIn("(ย่อ", str(app.tree.item(start, "values")[5]))
+
+    def test_del_collapsed_block_start_expands_first(self):
+        app, store = self._app()
+        self._rows(app, [(am.BLOCK_START, "", 0), ("Beep", "b1", 1), (am.BLOCK_END, "", 0)])
+        start = app.tree.get_children()[0]
+        app._group_toggle(start)
+        self.assertEqual(len(app.tree.get_children()), 2)
+        app._on_del_cleanup(start)                     # ลบหัวบล็อกที่ย่อ → ขยายคืนก่อน
+        self.assertEqual(app._section_stash, [])
+        self.assertEqual(len(app.tree.get_children()), 3)
+
+    def test_play_includes_hidden_rows_and_strips_marker(self):
+        app, store = self._app()
+        self._rows(app, [(am.BLOCK_START, "if x", 0), ("Beep", "b1", 1), ("Beep", "b2", 1),
+                         (am.BLOCK_END, "", 0), ("Left Click", "", 1)])
+        start = app.tree.get_children()[0]
+        app._group_toggle(start)
+        rows, iids = app._rows_and_iids_for_play()
+        self.assertEqual([r["additional"] for r in rows], ["if x", "b1", "b2", "", ""])
+        self.assertEqual(iids, [start, None, None, "k4", "k5"])   # แถวซ่อน = iid None (ไม่ไฮไลต์) แถวเห็น = iid จริง
+
+
+class TestGuiValidate(unittest.TestCase):
+    """v2.8.1: ปุ่ม 🔍 Validate ใน GUI — รายงานแถวที่มีปัญหาเป็น dialog
+    (engine เดียวกับ CLI --validate: validate_rows + validate_blocks)"""
+
+    def test_menu_has_validate(self):
+        self.assertIn("validate_dialog", [name for _, _, name, _ in am.MacroApp._menu_items()])
+
+    def test_dialog_lists_issues_real_tk(self):
+        try:
+            root = am.tk.Tk()
+            root.withdraw()
+        except am.tk.TclError:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        try:
+            app = mock.MagicMock()
+            app.root = root
+            app._plugins = []
+            app._serialize = lambda: [
+                {"button": "Tap Key", "additional": ""},          # คีย์ว่าง = ปัญหา
+                {"button": "Block Start", "additional": ""},
+                {"button": "Beep", "additional": ""}]             # Block Start ไม่ปิด = ปัญหา
+            am.MacroApp.validate_dialog(app)
+            win = root.winfo_children()[-1]
+            texts = [w for w in win.winfo_children() if isinstance(w, am.tk.Text)]
+            self.assertTrue(texts, "ต้องมีกล่องรายงาน")
+            content = texts[0].get("1.0", "end")
+            self.assertIn("แถว 1", content)
+            self.assertIn("Block Start", content)                # บล็อกไม่ปิดถูกรายงาน
+            win.destroy()
+        finally:
+            root.destroy()
+
+    def test_dialog_clean_shows_pass(self):
+        try:
+            root = am.tk.Tk()
+            root.withdraw()
+        except am.tk.TclError:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        try:
+            app = mock.MagicMock()
+            app.root = root
+            app._plugins = []
+            app._serialize = lambda: [{"button": "Beep", "additional": ""}]
+            am.MacroApp.validate_dialog(app)
+            win = root.winfo_children()[-1]
+            labels = [w for w in win.winfo_children() if isinstance(w, am.tk.Label)]
+            self.assertTrue(any("ผ่านการตรวจ" in str(l.cget("text")) for l in labels))
+            win.destroy()
+        finally:
+            root.destroy()
 
 
 if __name__ == "__main__":

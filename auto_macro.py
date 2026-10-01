@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.8.0"
+__version__ = "2.8.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -2560,6 +2560,7 @@ class MacroApp:
                 ("📂", "Load", "load_script", "#333"),
                 ("📋", "Paste", "_paste_rows_clipboard", "#333"),
                 ("📤", "Export Bat", "export_batch_files", "#333"),
+                ("🔍", "Validate", "validate_dialog", "#333"),
                 ("🔀", "AHK", "ahk_dialog", "#333"),
                 ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
@@ -3203,8 +3204,8 @@ class MacroApp:
             vals = self.tree.item(iid, "values")
         except tk.TclError:
             return
-        if str(vals[4]) == SECTION_HEADER and self._group_collapsed(iid):
-            self._group_toggle(iid)        # ขยายคืนก่อน แล้วลบเฉพาะหัวข้อต่อไป
+        if str(vals[4]) in (SECTION_HEADER, BLOCK_START) and self._group_collapsed(iid):
+            self._group_toggle(iid)        # ขยายคืนก่อน (หัวข้อ/บล็อก) แล้วลบเฉพาะแถวนั้นต่อไป
 
     # ------------------------------------- v1.17: undo / find / clipboard ----
     def _snapshot_rows(self):
@@ -3445,7 +3446,8 @@ class MacroApp:
         menu.add_command(label="🔷 เพิ่ม Block Start", command=lambda: self._add_block(iid, True))
         menu.add_command(label="🔷 เพิ่ม Block End", command=lambda: self._add_block(iid, False))
         menu.add_separator()
-        if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:      # v1.22: ย่อ/ขยายกลุ่ม
+        if str(self.tree.item(iid, "values")[4]) in (SECTION_HEADER, BLOCK_START):
+            # v1.22: ย่อ/ขยายกลุ่ม Section · v2.8.1: ย่อ/ขยายบล็อก Block Start→End ด้วยกลไกเดียวกัน
             collapsed = self._group_collapsed(iid)
             menu.add_command(label=self._t("group_expand" if collapsed else "group_collapse"),
                              command=lambda: self._group_toggle(iid))
@@ -3515,14 +3517,47 @@ class MacroApp:
         self.tree.selection_set(new_iid)
         self.refresh_nums()
 
+    # -------------------------------------------- ตรวจสคริปต์ (v2.8.1) -------
+    def validate_dialog(self):
+        """🔍 ตรวจสคริปต์ทั้งหมดโดยไม่เล่น — engine เดียวกับ CLI --validate:
+        คีย์ไม่ถูก/ภาพหาย/ตัวแปรผิดรูปแบบ/Block Start ไม่ปิด ฯลฯ → รายงานทีละแถว"""
+        rows = self._serialize()
+        plugin_names = [n for n, _ in self._plugins]
+        issues = validate_rows(rows, plugin_names=plugin_names)
+        win = tk.Toplevel(self.root)
+        win.title("ตรวจสคริปต์ (Validate)")
+        if not issues:
+            tk.Label(win, text="สคริปต์ผ่านการตรวจ ✓  (%d แถว ไม่พบปัญหา)" % len(rows),
+                     font=("Segoe UI", 11, "bold"), fg="#080").pack(padx=20, pady=(26, 10))
+            tk.Button(win, text="ปิด", width=10, command=win.destroy).pack(pady=(6, 20))
+            self._ui_state["msg"] = ("ตรวจสคริปต์แล้ว: ผ่านทั้งหมด (%d แถว)" % len(rows), "#080")
+            return
+        tk.Label(win, text="พบปัญหา %d จุด — แก้ก่อนเล่นจริง (แถวที่มีปัญหาจะถูกข้ามตอนเล่น)" % len(issues),
+                 font=("Segoe UI", 10, "bold"), fg="#c00").pack(padx=16, pady=(14, 6), anchor="w")
+        txt = tk.Text(win, height=15, width=68, wrap="word")
+        txt.pack(padx=16, pady=(0, 8), fill="both", expand=True)
+        for num, reason in issues:
+            txt.insert("end", "แถว %d: %s\n" % (num, reason))
+        txt.config(state="disabled")
+        tk.Button(win, text="ปิด", width=10, command=win.destroy).pack(pady=(2, 14))
+        self._ui_state["msg"] = ("ตรวจสคริปต์แล้ว: พบปัญหา %d จุด — ดูรายละเอียดในหน้าต่าง 🔍" % len(issues),
+                                 "#a60")
+
     # --------------------------------------------- ย่อ/ขยายกลุ่ม Section (v1.22) --
     def _group_members(self, head_iid):
-        """คืนรายชื่อแถวในกลุ่มของหัวข้อ head_iid (ทุกแถวถัดไปจนถึงหัวข้อถัดไปหรือจบตาราง)
+        """คืนรายชื่อแถวในกลุ่มของ head_iid — หัวข้อ Section = ทุกแถวถัดไปจนถึงหัวข้อถัดไป
+        (v1.22) · Block Start = แถวระหว่างมันกับ Block End คู่ (v2.8.1 — นับวงเล็บบล็อกซ้อน)
         ถ้ากลุ่มนี้ย่ออยู่ คืนลิสต์ว่าง (แถวสมาชิกถูก detach ไว้)"""
         kids = self.tree.get_children()
         idx = kids.index(head_iid)
         if self._group_collapsed(head_iid):
             return []
+        if str(self.tree.item(head_iid, "values")[4]) == BLOCK_START:
+            buttons = [{"button": str(self.tree.item(k, "values")[4])} for k in kids]
+            end_i = find_block_end_index(buttons, idx)
+            if end_i is None:                    # Block Start ไม่มี Block End คู่ = ย่อไม่ได้
+                return []
+            return kids[idx + 1:end_i]           # ไม่รวม Block End
         end = len(kids)
         for j in range(idx + 1, len(kids)):
             if str(self.tree.item(kids[j], "values")[4]) == SECTION_HEADER:
@@ -3545,7 +3580,7 @@ class MacroApp:
             idx = self.tree.index(iid)
             if _COLLAPSED_RE.search(str(self.tree.item(iid, "values")[5]).strip()):
                 return True
-            if idx > 0 and str(self.tree.item(kids[idx - 1], "values")[4]) == SECTION_HEADER \
+            if idx > 0 and str(self.tree.item(kids[idx - 1], "values")[4]) in (SECTION_HEADER, BLOCK_START) \
                     and _COLLAPSED_RE.search(str(self.tree.item(kids[idx - 1], "values")[5]).strip()):
                 return True
         except tk.TclError:
@@ -3557,7 +3592,7 @@ class MacroApp:
         kids = self.tree.get_children()
         idx = self.tree.index(iid)
         for j in range(idx, -1, -1):
-            if str(self.tree.item(kids[j], "values")[4]) == SECTION_HEADER:
+            if str(self.tree.item(kids[j], "values")[4]) in (SECTION_HEADER, BLOCK_START):
                 return kids[j]
         return iid
 
@@ -3583,8 +3618,13 @@ class MacroApp:
             members = self._group_members(head_iid)
             n = len(members)
             if n == 0:
-                self._ui_state["msg"] = ("กลุ่มนี้ไม่มีแถวให้ย่อ", "#a60")
+                self._ui_state["msg"] = ("กลุ่มนี้ไม่มีแถวให้ย่อ (บล็อกต้องมี Block End คู่)", "#a60")
                 return
+            # v2.8.1: กันซ้อนย่อ — ข้างในมีกลุ่ม/บล็อกที่ย่ออยู่ = ให้ขยายก่อน (กันแถวหายตอนบันทึก)
+            for m_iid in members:
+                if _COLLAPSED_RE.search(str(self.tree.item(m_iid, "values")[5]).strip()):
+                    self._ui_state["msg"] = ("ขยายกลุ่ม/บล็อกย่อยข้างในก่อน — ย่อซ้อนกันบันทึกไม่ครบ", "#a60")
+                    return
             for m_iid in members:
                 self._section_stash.append({"after": head_iid, "vals": list(self.tree.item(m_iid, "values"))})
                 self.tree.detach(m_iid)
@@ -3727,14 +3767,28 @@ class MacroApp:
 
     def _rows_and_iids_for_play(self):
         """คู่ (แถว, iid ในตาราง) ของแถวที่เปิดใช้ (☑) — iid ใช้ทำไฮไลต์แถวที่กำลังเล่น
-        แยกจาก _rows_for_play เพื่อให้ player ไม่ต้องเรียก Tk ข้ามเธรด (v1.19)"""
+        แยกจาก _rows_for_play เพื่อให้ player ไม่ต้องเรียก Tk ข้ามเธรด (v1.19)
+        v2.8.1: แก้บั๊กแฝง v1.22 — แถวในกลุ่ม/บล็อกที่ย่ออยู่เดิม "หลุด" จากรายการเล่น
+        (สัญญาคือย่อแล้วเล่นเหมือนเดิม) — ตอนนี้แทรกกลับหลังหัวข้อตามลำดับ ส่ง iid=None
+        เพื่อข้ามไฮไลต์ (แถวซ่อนไม่อยู่ในตาราง) + ตัดป้าย "(ย่อ N แถว)" ออกจากเงื่อนไขบล็อก"""
         rows, iids = [], []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
+            add = str(v[5])
+            if str(v[4]) in (SECTION_HEADER, BLOCK_START):
+                m = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", add.strip())
+                if m:
+                    add = m.group(1)             # ป้ายย่อไม่ใช่เงื่อนไข/ชื่อ — ตัดก่อนเล่น
             if str(v[0]) == "☑":
-                rows.append(dict(x=v[2], y=v[3], button=v[4], additional=v[5],
+                rows.append(dict(x=v[2], y=v[3], button=v[4], additional=add,
                                  mins=v[6], secs=v[7], repeat=v[8]))
                 iids.append(iid)
+            for hv in self._section_stash:
+                if hv.get("after") == iid and str(hv["vals"][0]) == "☑":
+                    w = hv["vals"]
+                    rows.append(dict(x=w[2], y=w[3], button=w[4], additional=str(w[5]),
+                                     mins=w[6], secs=w[7], repeat=w[8]))
+                    iids.append(None)            # แถวซ่อน — ไฮไลต์ไม่ได้
         return rows, iids
 
     def _plugin_module(self, name):
@@ -4408,11 +4462,14 @@ class MacroApp:
 
     # ------------------------------------------------------ save / load ------
     def _serialize(self):
-        """แถวที่เห็นในตาราง + แถวที่ถูกย่อไว้ (v1.22) — แถวซ่อนแทรกกลับหลังหัวข้อตามลำดับเดิม"""
+        """แถวที่เห็นในตาราง + แถวที่ถูกย่อไว้ (v1.22) — v2.8.1 ครอบบล็อก Block Start→End ด้วย
+        แถวซ่อนแทรกกลับหลังหัวข้อ/Block Start ตามลำดับเดิม"""
         out = []
         for iid in self.tree.get_children():
             v = self.tree.item(iid, "values")
-            if str(v[4]) != SECTION_HEADER or not _COLLAPSED_RE.search(str(v[5]).strip()):
+            is_collapsed_head = str(v[4]) in (SECTION_HEADER, BLOCK_START) and \
+                _COLLAPSED_RE.search(str(v[5]).strip())
+            if not is_collapsed_head:
                 out.append(dict(enabled=str(v[0]) == "☑", x=str(v[2]), y=str(v[3]), button=str(v[4]),
                                 additional=str(v[5]), mins=v[6], secs=v[7], repeat=v[8],
                                 note=str(v[9]) if len(v) > 9 else ""))

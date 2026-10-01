@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.8.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.8.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -189,6 +189,15 @@
   ข้อความอื่นครอบ `""` เสมอ แม้ตรง `_VAR_NAME` — กันคำไทยโดนตีความเป็นตัวแปร) ·
   **ประตูรับ plugin ชุมชน** (issue template `plugin_submission.md` + PR checklist เกณฑ์ 6 ข้อ ·
   plugin ตัวอย่างใหม่ random_pause/counter/open_url พร้อมเทสต์ TestPluginsCommunity)
+- **ฟีเจอร์เสริม v2.8.1:** ย่อ/ขยายกลุ่มบล็อก Block Start→End (ค้างจาก DESIGN-nested-if —
+  กลไก `_section_stash` เดียวกับ Section, `_group_members` หาสมาชิกด้วย
+  `find_block_end_index`, กันซ้อนย่อ = ปฏิเสธพร้อมเตือน, ลบหัวที่ย่อ = ขยายคืนก่อน) ·
+  **เมนู 🔍 Validate** (`validate_dialog` — engine `validate_rows` เดียวกับ CLI --validate
+  รายงาน "แถว N: เหตุผล" เป็นหน้าต่าง) ·
+  ⚠️ **แก้บั๊กแฝง v1.22:** `_rows_and_iids_for_play` เดิมอ่านเฉพาะแถวที่มองเห็น → แถวใน
+  กลุ่ม/บล็อกที่ย่ออยู่ "ไม่ถูกเล่น" ขัดสัญญา "ย่อแล้วเล่นเหมือนเดิม" — ตอนนี้แทรกแถวซ่อนกลับ
+  ตามลำดับ (iid=None = ข้ามไฮไลต์) + ตัดป้าย `(ย่อ N แถว)` ออกจากเงื่อนไขก่อนเล่น —
+  ⚠️ เพิ่มกลไกซ่อนแถวใหม่ต้องอัพเดตทั้ง `_serialize` + `_rows_and_iids_for_play` เสมอ
 
 ## เทคโนโลยี
 

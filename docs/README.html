@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Mouse &amp; Keyboard Macro v2.8.0 — คู่มือการใช้งาน</title>
+<title>Auto Mouse &amp; Keyboard Macro v2.8.1 — คู่มือการใช้งาน</title>
 <style>
   :root {
     --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.8.0</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.8.1</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -141,6 +141,8 @@
       <tr><td>🕒 <b>Schedule รายเวลาเลือกโปรไฟล์ v2.8.0</b></td><td>ทุกวันใส่เวลาได้หลายเวลาคั่น comma และแต่ละเวลาระบุโปรไฟล์ได้ เช่น <code>08:00, 12:30=งานเช้า, 22:00</code> — ถึงเวลาโหลดโปรไฟล์นั้นมาเล่นเอง · เวลาที่ไม่ใส่ <code>=</code> ใช้โปรไฟล์ตั้งต้น</td></tr>
       <tr><td>🔀 <b>.ahk ตัวแปรสองทิศ v2.8.0</b></td><td>export <code>Set Variable</code> → <code>n := 5</code> / <code>If Variable</code> → <code>if (n &gt; 5)</code> · import <code>n := 0</code> / <code>n += 2</code> / <code>if (n &gt; 5)</code> กลับเป็นแถวได้</td></tr>
       <tr><td>🔌 <b>plugin ชุมชน v2.8.0</b></td><td>ตัวอย่างใหม่ Random Pause / Counter / Open URL + issue template สำหรับส่ง plugin เข้าโปรแกรม (เกณฑ์: <a href="PLUGINS.md">PLUGINS.md</a>)</td></tr>
+      <tr><td>🗜️ <b>ย่อ/ขยายกลุ่มบล็อก v2.8.1</b></td><td>คลิกขวาที่ Block Start → ย่อแถวระหว่างคู่ Block End (กลไกเดียวกับ Section) — แถวซ่อนยังเล่น/บันทึกครบ กันซ้อนย่ออัตโนมัติ</td></tr>
+      <tr><td>🔍 <b>ปุ่มตรวจสคริปต์ใน GUI v2.8.1</b></td><td>เมนู 🔍 Validate — ตรวจทั้งสคริปต์ด้วย engine เดียวกับ <code>--validate</code> แล้วรายงาน "แถว N: เหตุผล" เป็นหน้าต่าง</td></tr>
       <tr><td>🔀 <b>ทำงานร่วม AutoHotkey v2.7.0</b></td><td>เมนู 🔀: ส่งออกสคริปต์เป็น <code>.ahk</code> หรือนำเข้าไฟล์ <code>.ahk</code> (Send/Click/MouseMove/Sleep/Run) เข้าตาราง — push undo ให้เอง</td></tr>
       <tr><td>🔌 <b>plugin ใหม่ v2.5</b></td><td>Screenshot (ถ่ายจอเก็บหลักฐาน) · Toast (แจ้งเตือน Windows 10/11) · Write Log · Ask Input (ถามค่าผู้ใช้เก็บเป็นตัวแปร)</td></tr>
       <tr><td>🖱️ <b>ลากสลับแถว v2.5</b></td><td>คลิกค้างแล้วลาก วางก่อน/หลังตามครึ่งแถว + autoscroll + ลากทั้งก้อนที่เลือก · เลือกหลายแถว Delete ทีเดียว (v2.4) · Alt+↑↓ ย้ายด้วยคีย์</td></tr>
@@ -369,7 +371,7 @@ py -m unittest test_e2e -v           # 15 E2E tests (รัน CLI จริง)
 
 </div>
 
-<footer>Auto Mouse &amp; Keyboard Macro v2.8.0 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
+<footer>Auto Mouse &amp; Keyboard Macro v2.8.1 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
 
 </body>
 </html>
