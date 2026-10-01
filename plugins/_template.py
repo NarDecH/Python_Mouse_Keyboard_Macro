@@ -9,10 +9,51 @@ ACTION_NAME = "My Action"          # ชื่อที่โชว์ในค�
 
 def run(ctx, row):
     """ctx: mouse, kb, log(ข้อความ), cfg={"lang": "th"/"en"},
-          stop_check() (v1.20 — False เมื่อผู้ใช้กด STOP), ui={"msg", "beep"} (v1.20)
-    row: dict ของแถว (x, y, additional, mins, secs, repeat, ...)"""
+          stop_check() (v1.20 — False เมื่อผู้ใช้กด STOP), ui={"msg", "beep"} (v1.20),
+          vars (v2.5 — dict ตัวแปรของสคริปต์ แถวถัดไปใช้ {ชื่อ} ต่อได้)
+    row: dict ของแถว (x, y, additional, mins, secs, repeat, ...)
+    กฎสำคัญ: input พัง/ขาดต้องทนได้เอง — ห้ามให้โปรแกรม crash ตอนเล่น"""
     msg = str(row.get("additional") or "")
     if callable(ctx.get("log")):
         ctx["log"]("my action: %r" % msg)
     # ... ทำงานของคุณที่นี่ เช่น ctx["mouse"].position, ctx["kb"].tap(...)
     time.sleep(0.1)
+
+
+# ---------------------------------------------------------------------------
+# แม่แบบเทสต์มาตรฐาน (v2.7) — ก๊อปไป test_auto_macro.py แล้วแก้ชื่อ plugin ได้เลย
+# เกณฑ์ครบ 4 อย่าง: เรียก run จริงด้วย ctx จำลอง / ทน Additional พัง / ทน ctx ขาด / เขียน vars ได้
+# (ตัวอย่างเต็ม: TestPluginsComplete ใน test_auto_macro.py)
+#
+# class TestMyPlugin(unittest.TestCase):
+#     """v2.7+PR: เทสต์ plugin My Action — มาตรฐานตาม docs/PLUGINS.md"""
+#
+#     def _ctx(self):
+#         import queue
+#         return {"mouse": mock.MagicMock(), "kb": mock.MagicMock(),
+#                 "log": lambda text: None, "cfg": {"lang": "th"},
+#                 "stop_check": lambda: True,
+#                 "ui": {"msg": lambda text, color="#080": None,
+#                        "beep": lambda: None},
+#                 "vars": {}}
+#
+#     def test_runs_with_defaults(self):
+#         import my_action
+#         self.assertIsNone(my_action.run(self._ctx(), {}))   # เรียกจริง = ไม่ raise
+#
+#     def test_tolerates_bad_input(self):
+#         import my_action
+#         for bad in (None, "ไม่ใช่ตัวเลข", -1):
+#             self.assertIsNone(my_action.run(self._ctx(), {"additional": bad}))
+#
+#     def test_tolerates_missing_ctx_keys(self):
+#         import my_action
+#         ctx = self._ctx()
+#         ctx.pop("ui"); ctx.pop("vars")
+#         self.assertIsNone(my_action.run(ctx, {"additional": "x"}))
+#
+#     def test_can_write_vars(self):
+#         import my_action
+#         ctx = self._ctx()
+#         my_action.run(ctx, {"additional": "ค่า 42"})
+#         self.assertEqual(ctx["vars"].get("ค่า"), "42")       # แถวถัดไปใช้ {ค่า} ได้

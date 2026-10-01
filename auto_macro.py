@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.6.0"
+__version__ = "2.7.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -865,6 +865,225 @@ def batch_export_sh(script_name, py_cmd="python3"):
         "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
 
 
+# ----------------------------- ทำงานร่วม AutoHotkey .ahk (v2.7) ----------
+def rows_to_ahk(rows):
+    """แปลงแถวสคริปต์ → เนื้อหาไฟล์ .ahk (v2.7 — ทำงานร่วมกับ AutoHotkey v1)
+    รองรับ: Tap Key/Press Key/Release Key, Left/Right Click, Double Click, Scroll,
+    Ctrl/Shift/Alt+Click, Move Mouse (+Offset), Save/Restore Cursor (CoordMode Mouse),
+    Type Text (ครอบสัญลักษณ์พิเศษ), Launch App, Beep, Set Variable (AHK :=)
+    แถวที่ไม่รองรับ (เงื่อนไข/คลิปบอร์ด/ภาพ/block) เขียนเป็น comment เพื่อไม่หายไป"""
+    out = ["; Auto Mouse & Keyboard Macro v%s — exported .ahk" % __version__,
+           "; แปลงคร่าว ๆ — ตรวจก่อนใช้จริง (รายละเอียด: docs/README.en.md)"]
+    key_map = {"esc": "Esc", "enter": "Enter", "return": "Enter", "tab": "Tab",
+               "space": "Space", "ctrl": "Ctrl", "shift": "Shift", "alt": "Alt",
+               "win": "LWin", "up": "Up", "down": "Down", "left": "Left",
+               "right": "Right", "pgup": "PgUp", "pgdn": "PgDn", "del": "Del",
+               "ins": "Ins", "home": "Home", "end": "End", "backspace": "Backspace",
+               "prtsc": "PrintScreen", "capslock": "CapsLock"}
+
+    def ahk_key(k):
+        s = str(k or "").strip()
+        if not s:
+            return ""
+        if len(s) == 1:
+            return s.lower() if s.isalpha() else s   # ตัวพิมพ์เล็ก — AHK ตีความตัวใหญ่ = กด Shift ร่วม
+        if "+" in s and len(s) > 2:          # combo เช่น ctrl+s → ^s, ctrl+shift+esc → ^+{Esc}
+            mods, rest = "", []
+            for p in (x.strip() for x in s.split("+")):
+                if not p:
+                    continue
+                pl = p.lower()
+                if pl == "ctrl":
+                    mods += "^"
+                elif pl == "shift":
+                    mods += "+"
+                elif pl == "alt":
+                    mods += "!"
+                elif pl == "win":
+                    mods += "#"
+                else:
+                    rp = ahk_key(p)
+                    rest.append("{%s}" % rp if len(rp) > 1 else rp)
+            return mods + "".join(rest)
+        return key_map.get(s.lower(), s)
+
+    for r in rows or []:
+        if not r.get("enabled", True):
+            continue
+        btn = str(r.get("button", ""))
+        add = str(r.get("additional") or "")
+        delay = float(r.get("mins", 0) or 0) * 60 + float(r.get("secs", 0) or 0)
+        rep = max(1, int(r.get("repeat", 1) or 1))
+        lines = []
+        if btn in ("Tap Key", "Press Key"):
+            k = ahk_key(add) or add
+            # ตัวอักษรเดี่ยว/combo (^+!#) ส่งตรง เช่น Send ^s — ชื่อคีย์หลายตัวอักษรค่อยห่อ {}
+            if len(k) == 1 or any(c in k for c in "^+!#"):
+                lines = ["Send %s" % k]
+            else:
+                lines = ["Send {%s}" % k]
+        elif btn == "Release Key":
+            k = ahk_key(add) or add
+            lines = ["; (release-only — AHK ไม่มีตรง ๆ: Send {%s} จึงใช้แทนได้" % k]
+        elif btn in ("Left Click", "Right Click"):
+            btn_txt = "L" if btn == "Left Click" else "R"
+            for _ in range(rep):
+                lines.append("Click %s, %s, %s" % (r.get("x", ""), r.get("y", ""), btn_txt))
+        elif btn in DBL_ACTIONS:
+            x, y = str(r.get("x", "")), str(r.get("y", ""))
+            lines = ["Click %s, %s, 2" % (x, y)]
+        elif btn in SCROLL_ACTIONS:
+            lines = ["Send {Wheel%s %d}" % ("Up" if btn == "Scroll Up" else "Down", rep)]
+        elif btn in MOD_CLICKS:
+            mods = "".join("#" if m == "ctrl" else "+" if m == "shift" else "!" for m in
+                           ("ctrl" if "Ctrl" in btn else "", "shift" if "Shift" in btn else "",
+                            "alt" if "Alt" in btn else ""))
+            lines = ["Send {%s}{Click %s, %s, %s}" % (
+                mods, r.get("x", ""), r.get("y", ""),
+                "R" if "Right" in btn else "L")]
+        elif btn == "Move Mouse":
+            lines = ["MouseMove %s, %s" % (r.get("x", ""), r.get("y", ""))]
+        elif btn == "Move Mouse by Offset":
+            ox = add.split(",")[0].strip() if "," in add else "0"
+            oy = add.split(",")[1].strip() if "," in add and len(add.split(",")) > 1 else "0"
+            lines = ["MouseMove %s, %s, , R" % (ox, oy)]
+        elif btn == "Save Cursor":
+            lines = ["CoordMode Mouse, Screen", "MouseGetPos, ax, ay"]
+        elif btn == "Restore Cursor":
+            lines = ["MouseMove ax, ay"]
+        elif btn == "Type Text":
+            lines = ["SendRaw %s" % add]   # SendRaw = ส่งทุกตัวอักษรตามตัวพิมพ์ ไม่ตีความ {} ของ AHK
+        elif btn == "Launch App":
+            lines = ["Run %s" % add]
+        elif btn == "Beep":
+            lines = ["SoundBeep, 750, 300"]
+        elif btn == "Set Variable":
+            lines = ["; ตัวแปร: %s" % add]
+        if not lines:
+            note = btn if not add else "%s (%s)" % (btn, add)
+            lines = ["; (ไม่รองรับ: %s)" % note]
+        for ln in lines:
+            out.append(ln)
+        if delay > 0:
+            out.append("Sleep %d" % round(delay * 1000))
+        if rep > 1 and btn not in ("Left Click", "Right Click", "Beep") \
+                and not (btn in ("Tap Key", "Press Key", "Type Text", "Launch App",
+                                 "Set Variable") or btn in SCROLL_ACTIONS):
+            for _ in range(rep - 1):
+                out.append(lines[0])
+        if rep > 1 and (btn in ("Tap Key", "Press Key", "Type Text", "Launch App",
+                                "Set Variable") or btn in SCROLL_ACTIONS):
+            out.append("; (repeat %d ครั้งของแถวนี้อาจต้องปรับใน AHK เอง)" % rep)
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"
+
+
+def ahk_to_rows(text):
+    """แปลงไฟล์ .ahk → แถวสคริปต์ (v2.7) — รองรับคำสั่งหลัก AHK v1:
+    Send/SendInput/SendRaw (คีย์/ข้อความ), Click, MouseMove, MouseClick, Sleep, Run
+    คืน list แถวแบบเดียวกับไฟล์ Save .json — บรรทัดที่แปลไม่ได้ข้าม
+    (จำกัดพันธุ์: นิพจน์/ตัวแปร/ป้ายกำกับ AHK ไม่แปล — เอกสารบอกผู้ใช้ชัดเจน)"""
+    rows = []
+    pending = {}                       # ดีเลย์/รีพีตรอแกะจาก Sleep ถัดไป
+    keymap = {"CTRL": "ctrl", "LCTRL": "ctrl", "RCTRL": "ctrl",
+              "SHIFT": "shift", "LSHIFT": "shift", "RSHIFT": "shift",
+              "ALT": "alt", "LALT": "alt", "RALT": "alt",
+              "ENTER": "enter", "RETURN": "enter", "ESC": "esc", "TAB": "tab",
+              "SPACE": "space", "UP": "up", "DOWN": "down", "LEFT": "left",
+              "RIGHT": "right", "PGUP": "pgup", "PGDN": "pgdn", "DEL": "del",
+              "INS": "ins", "HOME": "home", "END": "end",
+              "BACKSPACE": "backspace", "CAPSLOCK": "capslock", "PRINTSCREEN": "prtsc"}
+
+    def parse_send_keys(txt):
+        """'{Ctrl down}ข้อความ{Ctrl up}' / '{Del}' → แถว Press/Release/Tap/Type"""
+        out = []
+        for m in re.finditer(r"\{[^}]+\}|[^{}]+", txt):
+            tok = m.group(0)
+            if tok.startswith("{"):
+                body = tok[1:-1].strip()
+                low = body.lower()
+                if low.endswith(" down"):
+                    k = body[:-5].strip().lower()
+                    out.append({"button": "Press Key", "additional": keymap.get(
+                        k.upper(), k)})
+                elif low.endswith(" up"):
+                    k = body[:-3].strip().lower()
+                    out.append({"button": "Release Key", "additional": keymap.get(
+                        k.upper(), k)})
+                else:
+                    k = keymap.get(body.upper(), body.lower() if len(body) > 1 else body)
+                    out.append({"button": "Tap Key", "additional": k})
+            else:
+                t = tok.replace("\r", "").replace("\n", "")
+                if t:
+                    out.append({"button": "Type Text", "additional": t})
+        return out
+
+    for raw in str(text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        low = line.lower()
+        if low.startswith("sleep "):
+            try:
+                secs = int(line[6:].split()[0]) / 1000.0
+            except (ValueError, IndexError):
+                continue
+            if secs > 0:
+                pending = {"mins": 0, "secs": round(secs, 3)}
+            continue
+        if low.startswith("run "):
+            rows.append(dict(x="", y="", button="Launch App", additional=line[4:].strip(),
+                             **pending))
+            pending = {}
+            continue
+        if low.startswith("mousemove "):
+            try:
+                parts = [p.strip() for p in line[10:].split(",")]
+                rows.append(dict(x=parts[0], y=parts[1], button="Move Mouse",
+                                 additional="", **pending))
+            except (IndexError, ValueError):
+                pass
+            pending = {}
+            continue
+        if low.startswith("mouseclick "):
+            try:
+                parts = [p.strip() for p in line[11:].split(",")]
+                x, y = parts[1], parts[2]
+                which = (parts[0] or "L").strip().upper()
+                clicks = int(parts[3]) if len(parts) > 3 and parts[3].strip() else 1
+            except (IndexError, ValueError):
+                x = y = ""; which = "L"; clicks = 1
+            btn_name = "Right Click" if which.startswith("R") else "Left Click"
+            if clicks >= 2:
+                rows.append(dict(x=x, y=y, button="Double " + btn_name,
+                                 additional="", **pending))
+            else:
+                rows.append(dict(x=x, y=y, button=btn_name, additional="", **pending))
+            pending = {}
+            continue
+        if low.startswith("click ") or line == "click":
+            try:
+                parts = [p.strip() for p in line[6:].split(",")]
+                x, y = (parts[0], parts[1]) if len(parts) >= 2 else ("", "")
+                which = "R" if (len(parts) > 2 and parts[2].strip().upper().startswith("R")) else "L"
+            except (IndexError, ValueError):
+                x = y = ""; which = "L"
+            rows.append(dict(x=x, y=y, button="Left Click" if which == "L" else "Right Click",
+                             additional="", **pending))
+            pending = {}
+            continue
+        if low.startswith(("send ", "sendinput ", "sendraw ")):
+            body = line.split(" ", 1)[1].strip()
+            for r2 in parse_send_keys(body):
+                r2.update(pending)
+                rows.append(r2)
+            pending = {}
+            continue
+        # บรรทัดอื่น (assign :=, if, label, hotkey ฯลฯ) = ข้าม
+    return rows
+
+
 def validate_rows(rows, plugin_names=()):
     """ตรวจแถวสคริปต์โดยไม่เล่น (v2.4 — ใช้โดย CLI --validate)
     คืน list ของ (ลำดับแถว 1-based, เหตุผล) — ว่าง = สคริปต์พร้อมเล่น"""
@@ -1108,6 +1327,69 @@ def parse_int(v, default=1):
         return max(1, int(float(str(v))))
     except (ValueError, TypeError):
         return default
+
+
+# ---------------------------------- นัดหมายหลายชุด (v2.7 — Roadmap ชุด C) --
+def parse_hhmm_list(txt):
+    """แปลงข้อความ HH:MM คั่น , → list เวลาสะอาด (v2.7) — รูปแบบใดพัง = ข้ามรายการนั้น
+    คืน [] เมื่อไม่มีเวลาถูกต้องแม้แต่รายการเดียว (ผู้เรียกใช้เตือนเอง)
+    ตัวอย่าง: '09:00, 12:30 , 22:00' → ['09:00', '12:30', '22:00']
+    รับ list/tuple จาก JSON ได้โดยตรง (conf รูปแบบใหม่เก็บ times เป็น list)"""
+    out = []
+    if isinstance(txt, (list, tuple, set)):
+        parts = [str(t) for t in txt]      # list จาก JSON — ห้าม str() ทั้งก้อน
+    else:
+        parts = str(txt or "").split(",")
+    for part in parts:
+        t = part.strip()
+        if re_match_hhmm(t) and t not in out:
+            out.append(t)
+    return out
+
+
+def parse_sched_list(sched):
+    """แยกค่า schedule หลายนัดหมาย (v2.7) — รับได้ทั้ง dict รูปแบบใหม่และ str รูปแบบเก่า
+    คืน (mode, every, times, profile):
+      mode    = "off" / "interval" / "daily"
+      every   = จำนวนนาที (1-1440, โหมด interval)
+      times   = list HH:MM ที่ถูกต้อง (โหมด daily — ว่างได้ = ยังไม่ตั้งเวลา)
+      profile = ชื่อโปรไฟล์ ("" = งานที่เปิดค้าง)
+    รูปแบบพัง/ไม่รู้จัก = ปิดอยู่ ("off", 10, [], "") — โปรแกรมต้องไม่พังเสมอ"""
+    if isinstance(sched, str):
+        s = sched.strip()
+        if s in ("interval", "daily"):
+            return (s, 10, [], "")            # รูปแบบเก่าที่ยังไม่ migrate — ใช้ค่าเริ่มต้น
+        return ("off", 10, [], "")
+    if not isinstance(sched, dict):
+        return ("off", 10, [], "")
+    mode = sched.get("mode")
+    mode = mode if mode in ("interval", "daily") else "off"
+    try:
+        every = max(1, min(1440, int(sched.get("every", 10))))
+    except (TypeError, ValueError):
+        every = 10
+    times = parse_hhmm_list(sched.get("times") or "") if mode == "daily" else []
+    prof = sched.get("profile") or ""
+    prof = prof if isinstance(prof, str) else ""
+    return (mode, every, times, prof)
+
+
+def sched_migrate(mode, every, at, profile):
+    """แปลงค่า schedule เก่า (v1.19-v2.6: sched_mode/every/at/profile แยกกัน) → dict ใหม่ (v2.7)
+    ทำงานร่วมได้ทั้งสองทิศ: ผ่าน dict มาแล้ว = คืนตามเดิม (normalize ปลอดภัย)"""
+    if isinstance(mode, dict):
+        m, e, t, p = parse_sched_list(mode)
+        return {"mode": m, "every": e, "times": list(t), "profile": p}
+    m = mode if mode in ("interval", "daily") else "off"
+    try:
+        e = max(1, min(1440, int(every)))
+    except (TypeError, ValueError):
+        e = 10
+    t = parse_hhmm_list(at) if m == "daily" else []
+    if m == "daily" and not t:
+        m = "off"                               # เวลาพังหมด = ไม่มีนัดหมายให้ทำงาน
+    p = profile if isinstance(profile, str) else ""
+    return {"mode": m, "every": e, "times": t, "profile": p}
 
 
 def re_match_hhmm(txt):
@@ -2075,7 +2357,8 @@ class MacroApp:
         self._active_profile = DEFAULT_PROFILE
         self._sched_next = 0.0             # เวลาที่จะเล่นรอบถัดไป (โหมดทุก N นาที)
         self._sched_last = ""              # กันยิงซ้ำในนาทีเดียวกัน (โหมดรายวัน)
-        self._sched_profile = ""           # โปรไฟล์ที่ schedule จะโหลดมาเล่น ("" = งานที่เปิดค้าง, v2.4)
+        self._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}  # นัดหมายหลายชุด (v2.7)
+        # เติมเต็มจาก conf ใน _load_conf ด้านล่าง · คีย์: mode/every/times/profile — ดู parse_sched_list
         self._gk = None                    # GlobalHotKeys instance
         self._gk_heal_at = 0.0             # เวลาที่รีสตาร์ต hotkey ล่าสุด (กันยิงรัว, v2.4)
         self._img_area = ()                # กรอบค้นหาภาพ (left, top, right, bottom)
@@ -2167,6 +2450,7 @@ class MacroApp:
                 ("📂", "Load", "load_script", "#333"),
                 ("📋", "Paste", "_paste_rows_clipboard", "#333"),
                 ("📤", "Export Bat", "export_batch_files", "#333"),
+                ("🔀", "AHK", "ahk_dialog", "#333"),
                 ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
                 ("📊", "Stats", "view_stats", "#333"),
@@ -3699,6 +3983,42 @@ class MacroApp:
         self._save_profiles()
 
     # ------------------------------------------------------- schedule --------
+    # v2.7: สถานะนัดหมายย้ายไป self._sched (dict) — คง property เดิมไว้ให้โค้ด/เทสต์เก่าอ่าน-เขียนได้
+    @property
+    def _sched_mode(self):
+        return (getattr(self, "_sched", None) or {}).get("mode", "")
+
+    @_sched_mode.setter
+    def _sched_mode(self, v):
+        s = self._sched
+        s["mode"] = v if v in ("interval", "daily") else ""
+        if s["mode"] != "daily":
+            s["times"] = []
+
+    @property
+    def _sched_every(self):
+        return (getattr(self, "_sched", None) or {}).get("every", 10)
+
+    @_sched_every.setter
+    def _sched_every(self, v):
+        self._sched["every"] = v
+
+    @property
+    def _sched_at(self):
+        return ",".join((getattr(self, "_sched", None) or {}).get("times") or [])
+
+    @_sched_at.setter
+    def _sched_at(self, v):
+        self._sched["times"] = parse_hhmm_list(v)
+
+    @property
+    def _sched_profile(self):
+        return (getattr(self, "_sched", None) or {}).get("profile", "")
+
+    @_sched_profile.setter
+    def _sched_profile(self, v):
+        self._sched["profile"] = v or ""
+
     def _start_scheduler(self):
         """เธรดตรวจเวลาเล่นอัตโนมัติ — สั่งงานผ่าน queue เพื่อให้ Tk เป็นผู้เล่นเอง"""
         import queue
@@ -3716,19 +4036,21 @@ class MacroApp:
 
     def _sched_check(self, now=None):
         """ตรวจเงื่อนไขเล่นอัตโนมัติ 1 ครั้ง (แยกออกจากเธรดเพื่อทดสอบได้, v1.19)
-        โหมด interval = ทุก N นาที (นับจากตอนเปิด/ตั้งค่า), โหมด daily = ทุกวันตอน HH:MM
+        v2.7 — นัดหมายหลายชุดจาก self._sched (dict เดียว ดู parse_sched_list):
+        interval = ทุก N นาที (นับจากตอนเปิด/ตั้งค่า), daily = ทุกวันตอนเวลาใดก็ได้ใน "times"
         (เทียบเฉพาะ %H:%M — ใช้ stamp เต็มกันยิงซ้ำในนาทีเดียวกัน)"""
-        mode = getattr(self, "_sched_mode", "")
+        mode = (getattr(self, "_sched", None) or {}).get("mode", "")
         if not mode:
             return
         now = time.time() if now is None else now
         if mode == "interval":
             if self._sched_next and now >= self._sched_next and not self.running:
-                self._sched_next = now + self._sched_every * 60
+                self._sched_next = now + (self._sched.get("every", 10) or 10) * 60
                 self._sched_q.put("play")
         elif mode == "daily":
             stamp = time.strftime("%Y-%m-%d %H:%M")
-            if stamp[11:] == self._sched_at and self._sched_last != stamp and not self.running:
+            if stamp[11:] in (self._sched.get("times") or []) \
+                    and self._sched_last != stamp and not self.running:
                 self._sched_last = stamp
                 self._sched_q.put("play")
 
@@ -3738,8 +4060,8 @@ class MacroApp:
             while True:
                 self._sched_q.get_nowait()
                 if not self.running:
-                    # v2.4: เลือกโปรไฟล์ตอนตั้งเวลาได้ — โหลดแถวก่อนเล่น (ว่าง = งานที่เปิดค้าง)
-                    prof = getattr(self, "_sched_profile", "") or ""
+                    # v2.4/v2.7: เลือกโปรไฟล์ตอนตั้งเวลาได้ — โหลดแถวก่อนเล่น (ว่าง = งานที่เปิดค้าง)
+                    prof = (getattr(self, "_sched", None) or {}).get("profile", "") or ""
                     if prof and prof in self._profiles:
                         self._load_rows(self._profiles[prof])
                         if self._log_enabled:
@@ -3752,13 +4074,17 @@ class MacroApp:
             self.root.after(500, self._sched_poll)
 
     def _schedule_dialog(self):
+        """v2.7: ตั้งเวลาเล่นหลายนัดหมาย — เวลารายวันใส่รวมกันได้คั่น comma เช่น 08:00,12:30,22:00
+        (ค่าเดิม v1.19–v2.6 ถูกย้ายมาแสดงให้อัตโนมัติ — บันทึกเป็นรูปแบบใหม่เมื่อกดตกลง)"""
+        s = getattr(self, "_sched", None) or {}
+        cur_mode = s.get("mode", "") or "off"
         win = tk.Toplevel(self.root)
         win.title("เล่นอัตโนมัติตามเวลา (Schedule)")
         win.resizable(False, False)
-        tk.Label(win, text="เลือกโหมดเล่นอัตโนมัติ — ใช้สคริปต์ที่เปิดใช้ (☑) อยู่ตอนถึงเวลา "
+        tk.Label(win, text="ตั้งเวลาเล่นอัตโนมัติ — ใช้สคริปต์ที่เปิดใช้ (☑) อยู่ตอนถึงเวลา "
                            "(จำค่าไว้แม้ปิดโปรแกรม)",
                  font=("Segoe UI", 10, "bold")).pack(padx=18, pady=(14, 4))
-        var = tk.StringVar(value=getattr(self, "_sched_mode", "") or "off")
+        var = tk.StringVar(value=cur_mode)
         frm = tk.Frame(win)
         frm.pack(padx=18, pady=6)
         tk.Radiobutton(frm, text="ปิด (ไม่เล่นอัตโนมัติ)", variable=var, value="off").grid(
@@ -3766,47 +4092,78 @@ class MacroApp:
         tk.Radiobutton(frm, text="ทุก ๆ", variable=var, value="interval").grid(row=1, column=0, sticky="w")
         ent_min = tk.Spinbox(frm, from_=1, to=1440, width=5)
         ent_min.delete(0, "end")
-        ent_min.insert(0, str(getattr(self, "_sched_every", 10)))
+        ent_min.insert(0, str(s.get("every", 10) or 10))
         ent_min.grid(row=1, column=1, sticky="w")
         tk.Label(frm, text="นาที").grid(row=1, column=2, sticky="w")
-        tk.Radiobutton(frm, text="ทุกวัน เวลา (HH:MM)", variable=var, value="daily").grid(row=2, column=0, sticky="w")
-        ent_time = tk.Entry(frm, width=8)
-        ent_time.insert(0, getattr(self, "_sched_at", "09:00") or "09:00")
-        ent_time.grid(row=2, column=1, sticky="w")
-        # v2.4: เลือกโปรไฟล์ที่ schedule จะโหลดมาเล่น
-        tk.Label(frm, text="เล่นโปรไฟล์:").grid(row=3, column=0, sticky="w", pady=(8, 0))
+        tk.Radiobutton(frm, text="ทุกวัน เวลา (HH:MM คั่น , ได้หลายเวลา)",
+                       variable=var, value="daily").grid(row=2, column=0, sticky="w")
+        ent_time = tk.Entry(frm, width=22)
+        ent_time.insert(0, ",".join(s.get("times") or []) or "09:00")
+        ent_time.grid(row=2, column=1, sticky="w", columnspan=2)
+        tk.Label(frm, text="เช่น 08:00, 12:30, 22:00", fg="#888").grid(
+            row=3, column=1, columnspan=2, sticky="w")
+        # v2.4/v2.7: เลือกโปรไฟล์ที่ schedule จะโหลดมาเล่น
+        tk.Label(frm, text="เล่นโปรไฟล์:").grid(row=4, column=0, sticky="w", pady=(8, 0))
         cmb_prof = ttk.Combobox(frm, width=22, state="readonly")
         cmb_prof["values"] = ["(งานที่เปิดค้าง)"] + sorted(self._profiles)
         cmb_prof.current(0)
-        cmb_prof.grid(row=3, column=1, sticky="w", columnspan=2, pady=(8, 0))
-        cur_prof = getattr(self, "_sched_profile", "") or ""
+        cmb_prof.grid(row=4, column=1, sticky="w", columnspan=2, pady=(8, 0))
+        cur_prof = s.get("profile", "") or ""
         if cur_prof and cur_prof in self._profiles:
             cmb_prof.set(cur_prof)
+        trow = tk.Frame(win)
+        trow.pack(pady=(4, 0))
+
+        def grab_now():                    # ปุ่ม 🕐 — เติมเวลาปัจจุบัน+15 นาที (ข้ามเที่ยงคืน)
+            self._apply_current_time(ent_time)
+            trow.focus_set()
+
+        def add_time():                    # ปุ่ม ＋ — ต่อท้ายเวลาปัจจุบัน+15 นาทีด้วย comma
+            try:
+                h, m2 = time.strftime("%H:%M").split(":")
+                tot = (int(h) * 60 + int(m2) + 15) % (24 * 60)
+                add_t = "%02d:%02d" % (tot // 60, tot % 60)
+            except (ValueError, TypeError):
+                add_t = ""
+            if add_t:
+                cur = ent_time.get().strip().rstrip(",")
+                ent_time.delete(0, "end")
+                ent_time.insert(0, (cur + "," if cur else "") + add_t)
+
+        def clear_times():                 # ปุ่มล้าง — เอาเวลาทั้งหมดออก
+            ent_time.delete(0, "end")
+
+        tk.Button(trow, text="🕐 เวลาปัจจุบัน+15น.", command=grab_now).pack(side="left", padx=2)
+        tk.Button(trow, text="＋ เพิ่มเวลาตอนนี้", command=add_time).pack(side="left", padx=2)
+        tk.Button(trow, text="ล้างเวลา", command=clear_times).pack(side="left", padx=2)
 
         def apply():
             mode = var.get()
-            self._sched_mode = "" if mode == "off" else mode
-            self._sched_next = 0.0
-            # v2.4: โปรไฟล์ที่ schedule จะโหลดมาเล่น ("" = งานที่เปิดค้าง)
-            self._sched_profile = "" if cmb_prof.get().startswith("(") else cmb_prof.get()
-            prof_note = (" · โปรไฟล์: " + self._sched_profile) if self._sched_profile else ""
+            self._sched = {"mode": "", "every": max(1, s.get("every", 10) or 10),
+                           "times": list(s.get("times") or []),
+                           "profile": "" if cmb_prof.get().startswith("(") else cmb_prof.get()}
+            prof_note = (" · โปรไฟล์: " + self._sched["profile"]) if self._sched["profile"] else ""
             if mode == "interval":
                 try:
-                    self._sched_every = max(1, int(ent_min.get()))
+                    self._sched["every"] = max(1, int(ent_min.get()))
                 except ValueError:
-                    self._sched_every = 10
-                self._sched_next = time.time() + self._sched_every * 60
+                    self._sched["every"] = 10
+                self._sched_next = time.time() + self._sched["every"] * 60
                 msg = "เล่นอัตโนมัติทุก %d นาที (รอบแรกในอีก %d นาที)%s" % (
-                    self._sched_every, self._sched_every, prof_note)
+                    self._sched["every"], self._sched["every"], prof_note)
             elif mode == "daily":
-                t = ent_time.get().strip()
-                if not re_match_hhmm(t):
-                    messagebox.showwarning(APP_TITLE, "รูปแบบเวลาต้องเป็น HH:MM เช่น 09:30", parent=win)
+                times = parse_hhmm_list(ent_time.get())
+                if not times:
+                    messagebox.showwarning(
+                        APP_TITLE, "รูปแบบเวลาต้องเป็น HH:MM คั่นด้วย comma\nเช่น 09:30, 12:00, 22:00",
+                        parent=win)
                     return
-                self._sched_at = t
+                self._sched["mode"] = "daily"
+                self._sched["times"] = times
                 self._sched_last = ""
-                msg = "เล่นอัตโนมัติทุกวัน เวลา " + t + prof_note
+                msg = "เล่นอัตโนมัติทุกวัน เวลา " + ", ".join(times) + prof_note
             else:
+                self._sched_next = 0.0
                 msg = "ปิดโหมดเล่นอัตโนมัติแล้ว"
             self._ui_state["msg"] = (msg, "#080")
             win.destroy()
@@ -4008,7 +4365,10 @@ class MacroApp:
                     self._load_rows(data)
                 elif isinstance(data, dict):
                     if isinstance(data.get("rows"), list):
-                        self._load_rows(data["rows"])
+                        try:
+                            self._load_rows(data["rows"])   # แถวจาก conf — mock อาจไม่มี _serialize ครบ ห้ามให้ทำทั้ง load ตกหมด
+                        except Exception:
+                            pass
                     self._log_enabled = bool(data.get("log_enabled", True))
                     hp = data.get("hot_profile_dir")
                     if isinstance(hp, str) and hp and os.path.isdir(hp):
@@ -4048,21 +4408,18 @@ class MacroApp:
                         self.ent_pct.insert(0, str(pc))
                     except (TypeError, ValueError):
                         pass
-                    sm = data.get("sched_mode")
-                    if sm in ("interval", "daily"):
-                        self._sched_mode = sm
-                        try:
-                            self._sched_every = max(1, min(1440, int(data.get("sched_every", 10))))
-                        except (TypeError, ValueError):
-                            self._sched_every = 10
-                        at = data.get("sched_at", "")
-                        if re_match_hhmm(at):
-                            self._sched_at = at
-                        sp2 = data.get("sched_profile", "")
-                        self._sched_profile = sp2 if (sp2 in self._profiles) else ""
-                        self._sched_last = ""
-                        if sm == "interval":
-                            self._sched_next = time.time() + self._sched_every * 60
+                    # v2.7: นัดหมายหลายชุด — dict "sched" ใหม่ หรือคีย์เก่า sched_mode ฯลฯ (อ่านได้ทั้งคู่)
+                    sd = sched_migrate(
+                        data.get("sched") if data.get("sched") is not None
+                        else data.get("sched_mode", ""),
+                        data.get("sched_every", 10), data.get("sched_at", ""),
+                        data.get("sched_profile", ""))
+                    # โปรไฟล์ต้องมีอยู่จริง — mock/ข้อมูลเสียไม่มี _profiles ให้ใช้ = ว่าง (งานที่เปิดค้าง)
+                    profiles = self._profiles if isinstance(getattr(self, "_profiles", None), dict) else {}
+                    self._sched = dict(sd, profile=sd["profile"] if sd["profile"] in profiles else "")
+                    self._sched_last = ""
+                    if sd["mode"] == "interval":
+                        self._sched_next = time.time() + sd["every"] * 60
             except Exception:
                 pass
 
@@ -4107,10 +4464,9 @@ class MacroApp:
                            "restore": self.chk_restore.get(),
                            "shuffle": self.chk_shuffle.get(),
                            "pct": self._play_options(),
-                           "sched_mode": getattr(self, "_sched_mode", "") or "",
-                           "sched_every": getattr(self, "_sched_every", 10),
-                           "sched_at": getattr(self, "_sched_at", "") or "",
-                           "sched_profile": getattr(self, "_sched_profile", "") or ""},
+                           # นัดหมายหลายชุด (v2.7) — dict เดียวแทน sched_mode/every/at/profile เดิม
+                           "sched": dict(getattr(self, "_sched", None)
+                                         or {"mode": "off", "every": 10, "times": [], "profile": ""})},
                           fh, ensure_ascii=False, indent=2)
         except OSError:
             pass
@@ -4124,9 +4480,11 @@ class MacroApp:
                                          initialfile="macro_settings.json")
         if not f:
             return
-        data = {"kind": "automousemacro-settings", "version": 1,
+        data = {"kind": "automousemacro-settings", "version": 2,
                 "rows": self._serialize(),
                 "profiles": self._profiles,
+                # v2.7: นัดหมายหลายชุดเดินทางไปกับไฟล์ settings ด้วย
+                "sched": dict(getattr(self, "_sched", None) or {}),
                 "active_profile": self._active_profile,
                 "log_enabled": self._log_enabled,
                 "hot_profile_dir": self._hp_dir}
@@ -4136,6 +4494,73 @@ class MacroApp:
             self._ui_state["msg"] = ("ส่งออกการตั้งค่าแล้ว: " + os.path.basename(f), "#080")
         except OSError as exc:
             messagebox.showerror(APP_TITLE, "ส่งออกไม่สำเร็จ:\n%s" % exc)
+
+    # --------------------------------- ทำงานร่วม AutoHotkey .ahk (v2.7) ----
+    def ahk_dialog(self):
+        """🔀 หน้าต่างทำงานร่วม AutoHotkey: export สคริปต์ปัจจุบันเป็น .ahk หรือ
+        import ไฟล์ .ahk เข้าตาราง (รองรับ Send/Click/MouseMove/Sleep/Run — ดูเอกสาร)"""
+        win = tk.Toplevel(self.root)
+        win.title("AutoHotkey (.ahk) — ส่งออก/นำเข้า")
+        win.resizable(False, False)
+        tk.Label(win, text="ส่งออกสคริปต์ปัจจุบันเป็นไฟล์ .ahk หรือนำเข้าไฟล์ .ahk เข้าตาราง\n"
+                           "รองรับคำสั่งหลัก: Send, Click, MouseMove, MouseClick, Sleep, Run, "
+                           "SendInput, SendRaw",
+                 justify="left").pack(padx=18, pady=(14, 8))
+        bf = tk.Frame(win)
+        bf.pack(pady=(0, 4))
+
+        def do_export():
+            win.destroy()
+            self.ahk_export()
+
+        def do_import():
+            win.destroy()
+            self.ahk_import()
+
+        tk.Button(bf, text="📤 ส่งออกเป็น .ahk", width=18, command=do_export).pack(side="left", padx=6)
+        tk.Button(bf, text="📥 นำเข้าจาก .ahk", width=18, command=do_import).pack(side="left", padx=6)
+        tk.Button(bf, text="ยกเลิก", width=10, command=win.destroy).pack(side="left", padx=6)
+
+    def ahk_export(self):
+        """ส่งออกสคริปต์ปัจจุบันเป็นไฟล์ .ahk (ต้อง 💾 Save ก่อนเหมือน Export Bat)"""
+        if not self._loaded_file or not os.path.isfile(self._loaded_file):
+            messagebox.showinfo(APP_TITLE,
+                                "ยังไม่มีไฟล์สคริปต์ — กด 💾 Save บันทึกก่อน "
+                                "แล้วจึงส่งออกเป็น .ahk ได้")
+            return
+        base = os.path.splitext(self._loaded_file)[0]
+        try:
+            with open(base + ".ahk", "w", encoding="utf-8", newline="\r\n") as fh:
+                fh.write(rows_to_ahk(self._serialize()))
+        except OSError as exc:
+            messagebox.showerror(APP_TITLE, "ส่งออก .ahk ไม่สำเร็จ:\n%s" % exc)
+            return
+        self._ui_state["msg"] = ("ส่งออก .ahk แล้ว: " + os.path.basename(base) +
+                                 ".ahk — เปิดด้วย AutoHotkey ได้เลย", "#080")
+
+    def ahk_import(self):
+        """นำเข้าไฟล์ .ahk — แปลงเป็นแถวแล้วใส่ตาราง (push undo ก่อนแทนที่, v2.7)"""
+        f = filedialog.askopenfilename(filetypes=[("AutoHotkey script", "*.ahk"),
+                                                  ("All files", "*.*")])
+        if not f or not os.path.isfile(f):
+            return
+        try:
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                rows = ahk_to_rows(fh.read())
+        except OSError as exc:
+            messagebox.showerror(APP_TITLE, "อ่านไฟล์ไม่สำเร็จ:\n%s" % exc)
+            return
+        if not rows:
+            messagebox.showinfo(APP_TITLE,
+                                "ไม่พบคำสั่งที่แปลได้ในไฟล์นี้\n(รองรับ Send/Click/MouseMove/"
+                                "MouseClick/Sleep/Run/SendInput/SendRaw)")
+            return
+        if self.running or self.recording:
+            messagebox.showinfo(APP_TITLE, "หยุดการเล่น/อัดก่อนนำเข้า")
+            return
+        self._load_rows(rows)          # push undo ให้เอง — Ctrl+Z กู้ตารางเดิมได้
+        self._ui_state["msg"] = ("นำเข้า .ahk แล้ว %d แถว: %s — ตรวจก่อนเล่นจริง"
+                                 % (len(rows), os.path.basename(f)), "#080")
 
     def import_settings(self):
         """นำเข้าไฟล์ที่ Export ไว้ — ประเมินผลก่อน แล้วถามยืนยัน (แทนที่ทั้งหมด)"""
@@ -4626,12 +5051,13 @@ class MacroApp:
         self.spin_limit.pack(side="left", padx=(4, 2))
         tk.Label(tbar, text="นาที", fg="#666").pack(side="left")
         # ⏰ นัดหมายปัจจุบัน + 🔌 สถานะ plugins (v2.4)
-        sched = getattr(self, "_sched_mode", "") or ""
-        prof = getattr(self, "_sched_profile", "") or "งานที่เปิดค้าง"
+        sched = (getattr(self, "_sched", None) or {}).get("mode", "") or ""
+        sdict = getattr(self, "_sched", None) or {}
+        prof = sdict.get("profile", "") or "งานที่เปิดค้าง"
         if sched == "interval":
-            sched_txt = "ทุก %d นาที · โปรไฟล์: %s" % (getattr(self, "_sched_every", 10), prof)
+            sched_txt = "ทุก %d นาที · โปรไฟล์: %s" % (sdict.get("every", 10) or 10, prof)
         elif sched == "daily":
-            sched_txt = "ทุกวัน %s · โปรไฟล์: %s" % (getattr(self, "_sched_at", ""), prof)
+            sched_txt = "ทุกวัน %s · โปรไฟล์: %s" % (", ".join(sdict.get("times") or []), prof)
         else:
             sched_txt = "ปิดอยู่"
         tk.Label(win, text="⏰ Schedule: " + sched_txt, fg="#555").pack(pady=(10, 0))

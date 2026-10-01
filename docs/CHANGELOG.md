@@ -2,6 +2,52 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.7.0] — 2026-10-01
+
+### 🕒 Schedule หลายนัดหมาย (แผน Roadmap ชุด C)
+- **โหมดทุกวันใส่เวลาได้หลายเวลา** — คั่น comma เช่น `08:00,12:30,22:00` เล่นได้ทั้งวัน
+  ตามตารางเดียว · ค่าตั้งเก่า (v1.19–v2.6 `sched_mode/every/at/profile`) ถูก migrate
+  เป็นรูปแบบใหม่อัตโนมัติทั้ง `macro_conf.json` และไฟล์ Export settings
+- **สถานะใหม่ `self._sched`** (dict เดียว: mode/every/times/profile) — คง property
+  `_sched_mode/_sched_every/_sched_at/_sched_profile` ไว้ให้โค้ด/เทสต์เดิมใช้ต่อได้
+  (`_sched_at` getter/setter join/split comma ให้เอง)
+- **หน้าต่าง Schedule ใหม่** — ช่องเวลากว้างรับหลายเวลา + ปุ่ม 🕐 เวลาปัจจุบัน+15 นาที
+  (ข้ามเที่ยงคืน) · ปุ่ม ＋ ต่อท้ายเวลาตอนนี้+15 นาที · ปุ่มล้าง · ตรวจรูปแบบทั้งชุด
+  ก่อนบันทึก (ผิดแจ้งเตือนแล้วให้แก้ต่อ)
+- **engine** — `parse_hhmm_list()` (คั่น comma, ตัดซ้ำ, พัง = ข้ามรายการนั้น) +
+  `parse_sched_list()` (dict ใหม่/str เก่า → (mode, every, times, profile),
+  รูปแบบพัง = ปิดอยู่ ไม่มีวันพัง) + `sched_migrate()` แหล่งเดียวทั้ง GUI/CLI/เทสต์
+- Settings แสดงรายการเวลาครบ (เช่น "ทุกวัน 08:00, 12:30, 22:00 · โปรไฟล์: …")
+- Export/Import settings เวอร์ชัน 2 — ขน `"sched"` ไปกับไฟล์ด้วย (ไฟล์เก่ายัง import ได้)
+
+### 🔀 ทำงานร่วม AutoHotkey .ahk (แผน Roadmap)
+- **เมนู 🔀 AHK ใหม่** — ส่งออกสคริปต์ปัจจุบันเป็นไฟล์ `.ahk` (ต้อง 💾 Save ก่อนเหมือน Export Bat)
+  หรือนำเข้าไฟล์ `.ahk` เข้าตาราง (push undo ให้เอง — Ctrl+Z กู้ตารางเดิมได้)
+- **export รองรับ** Tap/Press/Release Key (combo `ctrl+s` → `^s`), Left/Right/Double Click,
+  Scroll, Ctrl/Shift/Alt+Click, Move Mouse (+Offset), Save/Restore Cursor (CoordMode),
+  Type Text (SendRaw), Launch App (Run), Beep (SoundBeep) · แถวที่ไม่รองรับ = comment
+  คงไว้ไม่หาย · หัวไฟล์แจ้งว่า "แปลงค่า ๆ ตรวจก่อนใช้จริง"
+- **import รองรับ** Send/SendInput/SendRaw (`{Ctrl down}…{Ctrl up}` แตกเป็น Press/Release,
+  `{Del}` = Tap, ข้อความล้วน = Type Text), Click, MouseClick (double → Double Click),
+  MouseMove, Sleep (ms → ดีเลย์ของแถวถัดไป), Run — นิพจน์/ตัวแปร/label AHK ข้าม
+- **engine ล้วน** — `rows_to_ahk()`/`ahk_to_rows()` ใน macro_engine.py · GUI/เทสต์/นำไป embed ใช้ร่วมกัน
+
+### 📝 ชุมชน + เอกสารหลายภาษา (แผน Roadmap)
+- **เกณฑ์รีวิว plugin ชุมชน 6 ข้อ** (docs/PLUGINS.md) — โครงไฟล์/dependency/ทน error/
+  มีเทสต์/STOP หยุดได้/เอกสารครบ · **scaffold เทสต์ใน `_template.py`** ก๊อปไปแก้ได้เลย
+  (เกณฑ์เดียวกับ TestPluginsComplete)
+- **คู่มือภาษาจีน + ญี่ปุ่นฉบับเต็ม** — `docs/TUTORIAL.zh.md` + `docs/TUTORIAL.ja.md`
+  แปลครบทุกบทจาก TUTORIAL.en.md (แผน multi-language) · TUTORIAL.th/en ใส่ลิงก์สลับภาษา
+
+### 🧪 ทดสอบ
+- เพิ่ม **TestSchedMulti 7 ตัว** (parse_hhmm_list/parse_sched_list ทุกสาย/migrate ค่าเก่า→ใหม่/
+  conf รอบด้าน) + **TestAhkRoundTrip 6 ตัว** (export key/combo/click/delay + import
+  send/sleep/click/run/ข้ามบรรทัดมั่ว + dialog เปิดจริง) → รวม **386 unit + 15 E2E**
+- เข้ากันได้ 100% — เทสต์เดิมผ่านหมด (property เดิมยังใช้ได้, conf รูปแบบเก่าอ่านได้,
+  สคริปต์เดิมเล่นผลเดิมทุกอย่าง)
+
+---
+
 ## [2.6.0] — 2026-09-30
 
 ### 🧱 ชุด N2 — Block Start/End + ลูปย่อย ตาม [DESIGN](DESIGN-nested-if.md) (ทางเลือก A)

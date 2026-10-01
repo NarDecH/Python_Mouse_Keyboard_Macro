@@ -2,6 +2,7 @@
 
 > Complete English guide: from installation to complex scripts, with hands-on exercises.
 > (Thai full version: [TUTORIAL.md](TUTORIAL.md) · this file mirrors it chapter by chapter)
+> Other translations: [中文](TUTORIAL.zh.md) · [日本語](TUTORIAL.ja.md)
 
 ---
 
@@ -134,7 +135,8 @@ Demo: `examples/08_variables.json`, `examples/09_clipboard.json`.
   `macro_profiles.json`.
 - **Hot-profiles (v1.9)** — pick a folder, then F1–F4 loads the 1st–4th .json (sorted by
   name) and plays immediately.
-- **Schedule** — play "every N minutes" or "daily at HH:MM"; a background thread pushes
+- **Schedule** — play "every N minutes" or "daily at HH:MM"; daily accepts several
+  comma-separated times like `08:00,12:30,22:00` (v2.7.0); a background thread pushes
   commands to the UI through a queue (thread-safe).
 
 ---
@@ -291,5 +293,5 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
 
 ---
 
-*Guide for code v2.6.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.7.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

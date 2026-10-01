@@ -81,8 +81,8 @@ Highlights:
 - Plugin system: drop a small .py into plugins/ to add new Actions
   (10 built-ins: Screenshot, Toast, Webhook, Ask Input, ...)
 - Global hotkeys (F1–F10) that work even when unfocused, with self-healing listeners
-- Scheduler (every N minutes / daily HH:MM + profile pick), random delays (anti-pattern),
-  shuffle & row sampling, watchdog auto-restart mode, safety timeout
+- Scheduler (every N minutes / daily HH:MM — several daily times, comma-separated — + profile pick),
+  random delays (anti-pattern), shuffle & row sampling, watchdog auto-restart mode, safety timeout
 - CLI mode for Windows Task Scheduler with --stop-file / --validate for external control
 - Daily play logs + in-app stats with charts, startup self-check,
   automatic 7-day backups, settings export/import
@@ -90,6 +90,7 @@ Highlights:
 Tech: Python (Tkinter + pynput), optional opencv-python + Pillow, engine separated
 from the GUI (macro_engine.py — embed it in your own project).
 373 unit tests + 15 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
+Docs in Thai, English, Chinese and Japanese.
 
 Download (no Python needed): https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 Source: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro

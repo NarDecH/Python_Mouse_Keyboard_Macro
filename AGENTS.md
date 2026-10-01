@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.6.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.7.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -167,8 +167,20 @@
   รวมของ event เดียวกัน → _on_drag_start ไม่ถูกเรียก (ต้นตอลากไม่ทำงาน) +
   Alt+↑↓ + Redo (Ctrl+Y — `_redo_stack`, `_restore_rows` ร่วมกับ undo,
   _apply_edit push undo) + คอลัมน์ Note (COLS/EDIT_COLS/serialize/paste —
-  ไม่ส่งเข้า runner) + ค้นหาแทนที่ (`_replace_all` ใน Ctrl+F dialog) ·
+  ไม่ส่งเข้า runner) + ค้นหา  แทนที่ (`_replace_all` ใน Ctrl+F dialog) ·
   plugin ใหม่ screenshot/toast/write_log/ask_input (ctx["vars"])
+- **v2.7:** **Schedule หลายนัดหมาย** — สถานะใหม่ `self._sched` = dict เดียว
+  `{mode, every, times, profile}` (property `_sched_mode/_sched_every/_sched_at/_sched_profile`
+  คงไว้ให้โค้ดเก่า — setter/getter join/split comma ให้เอง), โหมด daily รับหลายเวลาคั่น comma
+  (`08:00,12:30,22:00`) parse ผ่าน `parse_hhmm_list`/`parse_sched_list` + `sched_migrate`
+  (แหล่งเดียวใน engine · conf รูปแบบเก่า sched_mode/every/at/profile ถูก migrate อัตโนมัติ
+  · รูปแบบพัง = ปิดอยู่ ไม่มีวันพัง), dialog ใหม่มีปุ่ม 🕐/＋/ล้าง, Export settings เวอร์ชัน 2
+  ขน `"sched"` ไปด้วย · **ทำงานร่วม .ahk** — เมนู 🔀 `ahk_dialog` → `ahk_export`/`ahk_import`
+  ผ่าน engine `rows_to_ahk`/`ahk_to_rows` (import push undo ให้เอง · export ต้อง 💾 Save ก่อน
+  · รองรับ Send/Click/MouseMove/Sleep/Run — แถวไม่รองรับเป็น comment) ·
+  **เกณฑ์รีวิว plugin ชุมชน 6 ข้อ** (docs/PLUGINS.md) + scaffold เทสต์ใน `plugins/_template.py` ·
+  **เอกสารจีน/ญี่ปุ่น** `docs/TUTORIAL.zh.md` + `TUTORIAL.ja.md` (แปลจาก en ครบทุกบท —
+  ⚠️ เอกสารหลักต้องมีเวอร์ชันปัจจุบันทุกไฟล์ — `py tools/check_docs.py` ก่อน push)
 
 ## เทคโนโลยี
 

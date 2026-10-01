@@ -65,8 +65,53 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.6.0</h2>
+      <h2>เวอร์ชัน 2.7.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">1 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🕒 Schedule หลายนัดหมาย</h3>
+    <ul>
+      <li><b>โหมดทุกวันใส่เวลาได้หลายเวลา</b> — คั่น comma เช่น <code>08:00,12:30,22:00</code>
+        เล่นได้ทั้งวันตามตารางเดียว · ค่าตั้งเก่าถูก migrate อัตโนมัติทั้ง conf และไฟล์ Export settings</li>
+      <li><b>สถานะใหม่ <code>self._sched</code></b> (dict เดียว) — คง property เดิม
+        <code>_sched_mode/_sched_at</code> ฯลฯ ไว้ให้โค้ด/เทสต์เดิมใช้ต่อได้</li>
+      <li><b>หน้าต่าง Schedule ใหม่</b> — ปุ่ม 🕐 เวลาปัจจุบัน+15 นาที · ปุ่ม ＋ ต่อท้าย · ปุ่มล้าง ·
+        ตรวจรูปแบบทั้งชุดก่อนบันทึก · Settings แสดงรายการเวลาครบ</li>
+      <li><b>engine</b> — <code>parse_hhmm_list()</code> / <code>parse_sched_list()</code> /
+        <code>sched_migrate()</code> แหล่งเดียว — รูปแบบพัง = ปิดอยู่ โปรแกรมไม่พังเสมอ</li>
+    </ul>
+
+    <h3>🔀 ทำงานร่วม AutoHotkey .ahk</h3>
+    <ul>
+      <li><b>เมนู 🔀 AHK ใหม่</b> — ส่งออกสคริปต์เป็น <code>.ahk</code> หรือนำเข้าไฟล์
+        <code>.ahk</code> เข้าตาราง (push undo ให้เอง — Ctrl+Z กู้ตารางเดิมได้)</li>
+      <li><b>export</b> รองรับคีย์/คอมโบ (<code>ctrl+s</code> → <code>^s</code>), คลิกทุกชนิด, Scroll,
+        Move Mouse, Save/Restore Cursor, Type Text (SendRaw), Launch App, Beep ·
+        แถวที่ไม่รองรับ = comment คงไว้</li>
+      <li><b>import</b> รองรับ Send/SendInput/SendRaw, Click, MouseClick, MouseMove, Sleep, Run —
+        นิพจน์/ตัวแปร/label AHK ข้าม</li>
+    </ul>
+
+    <h3>📝 ชุมชน + เอกสารหลายภาษา</h3>
+    <ul>
+      <li><b>เกณฑ์รีวิว plugin ชุมชน 6 ข้อ</b> (PLUGINS.md) + <b>scaffold เทสต์ใน _template.py</b>
+        — ก๊อปไปแก้ได้เลย (มาตรฐานเดียวกับ TestPluginsComplete)</li>
+      <li><b>คู่มือภาษาจีน + ญี่ปุ่นฉบับเต็ม</b> — <code>TUTORIAL.zh.md</code> +
+        <code>TUTORIAL.ja.md</code> แปลครบทุกบท · ทุกฉบับลิงก์สลับภาษากัน</li>
+    </ul>
+
+    <h3>🧪 ทดสอบ</h3>
+    <ul>
+      <li>เพิ่ม <b>TestSchedMulti 7 ตัว + TestAhkRoundTrip 6 ตัว</b> → รวม
+        <b>386 unit + 15 E2E</b> · เทสต์เดิมผ่านหมด (เข้ากันได้ 100%)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.6.0</h2>
+      <span class="tag">2.6.0</span>
       <span class="date">30 กันยายน 2026</span>
     </div>
 

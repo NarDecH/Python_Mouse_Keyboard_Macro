@@ -1987,22 +1987,19 @@ class TestSchedCheck(unittest.TestCase):
         app = mock.MagicMock()
         app._sched_q = queue.Queue()
         app.running = False
+        app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}   # v2.7: dict เดียว
         return app
 
     def test_daily_fires_at_matching_time(self):
         app = self._app()
-        app._sched_mode = "daily"
-        app._sched_at = "09:30"
-        app._sched_last = ""
+        app._sched = {"mode": "daily", "every": 10, "times": ["09:30"], "profile": ""}
         with mock.patch.object(am.time, "strftime", return_value="2026-10-01 09:30"):
             am.MacroApp._sched_check(app)
         self.assertEqual(app._sched_q.qsize(), 1)
 
     def test_daily_fires_once_per_minute(self):
         app = self._app()
-        app._sched_mode = "daily"
-        app._sched_at = "09:30"
-        app._sched_last = ""
+        app._sched = {"mode": "daily", "every": 10, "times": ["09:30"], "profile": ""}
         with mock.patch.object(am.time, "strftime", return_value="2026-10-01 09:30"):
             am.MacroApp._sched_check(app)
             am.MacroApp._sched_check(app)          # นาทีเดียวกัน = ไม่ยิงซ้ำ
@@ -2010,17 +2007,14 @@ class TestSchedCheck(unittest.TestCase):
 
     def test_daily_ignores_other_times(self):
         app = self._app()
-        app._sched_mode = "daily"
-        app._sched_at = "09:30"
-        app._sched_last = ""
+        app._sched = {"mode": "daily", "every": 10, "times": ["09:30"], "profile": ""}
         with mock.patch.object(am.time, "strftime", return_value="2026-10-01 14:05"):
             am.MacroApp._sched_check(app)
         self.assertEqual(app._sched_q.qsize(), 0)
 
     def test_interval_rearms(self):
         app = self._app()
-        app._sched_mode = "interval"
-        app._sched_every = 10
+        app._sched = {"mode": "interval", "every": 10, "times": [], "profile": ""}
         app._sched_next = 1000.0
         am.MacroApp._sched_check(app, now=2000.0)
         self.assertEqual(app._sched_q.qsize(), 1)
@@ -2028,7 +2022,7 @@ class TestSchedCheck(unittest.TestCase):
 
     def test_no_mode_is_noop(self):
         app = self._app()
-        app._sched_mode = ""
+        app._sched = {"mode": "", "every": 10, "times": [], "profile": ""}
         am.MacroApp._sched_check(app, now=2000.0)
         self.assertEqual(app._sched_q.qsize(), 0)
 
@@ -2054,10 +2048,8 @@ class TestPersistSettings(unittest.TestCase):
         app._play_options = lambda: 50          # อ่านค่าจาก widget จำลอง
         app._time_limit_enabled = True          # v2.4: keys ใหม่ใน conf
         app._time_limit_min = 30
-        app._sched_profile = ""
-        app._sched_mode = "interval"
-        app._sched_every = 15
-        app._sched_at = ""
+        # v2.7: สถานะ schedule เป็น dict เดียว (property เก่ายังอ่านได้ผ่าน getter)
+        app._sched = {"mode": "interval", "every": 15, "times": [], "profile": ""}
         with tempfile.TemporaryDirectory() as d:
             conf = os.path.join(d, "macro_conf.json")
             with mock.patch.object(am, "CONF", conf):
@@ -2070,16 +2062,17 @@ class TestPersistSettings(unittest.TestCase):
                 self.assertTrue(data["forever"])
                 self.assertTrue(data["shuffle"])
                 self.assertEqual(data["pct"], 50)
-                self.assertEqual(data["sched_mode"], "interval")
-                self.assertEqual(data["sched_every"], 15)
+                # v2.7: คีย์เดียว "sched" เป็น dict (แทน sched_mode/every/at/profile แยก)
+                self.assertEqual(data["sched"]["mode"], "interval")
+                self.assertEqual(data["sched"]["every"], 15)
                 # โหลดกลับเข้าเครื่องจำลอง
                 app2 = mock.MagicMock()
                 app2._serialize.return_value = []
                 am.MacroApp._load_conf(app2)
         app2.ent_loops.delete.assert_called()          # ค่าถูก set กลับเข้า widget
         app2.chk_forever.set.assert_called_with(True)
-        self.assertEqual(app2._sched_mode, "interval")
-        self.assertEqual(app2._sched_every, 15)
+        self.assertEqual(app2._sched["mode"], "interval")
+        self.assertEqual(app2._sched["every"], 15)
         self.assertGreater(app2._sched_next, 0)        # interval ถูกตั้งเวลาเล่นรอบแรก
 
 
@@ -3826,10 +3819,7 @@ class TestSafetyTimeout(unittest.TestCase):
         app.chk_restore.get.return_value = False
         app.chk_shuffle.get.return_value = False
         app._play_options = lambda: 100
-        app._sched_mode = ""
-        app._sched_every = 10
-        app._sched_at = ""
-        app._sched_profile = ""
+        app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}   # v2.7: dict เดียว
         with tempfile.TemporaryDirectory() as d:
             conf = os.path.join(d, "macro_conf.json")
             with mock.patch.object(am, "CONF", conf):
@@ -3851,7 +3841,7 @@ class TestSchedProfilePoll(unittest.TestCase):
         app.running = False
         app._log_enabled = False                 # กันเทสต์เขียน log จริงของผู้ใช้
         app._profiles = {"งานเช้า": [{"button": "Beep", "secs": 1}]}
-        app._sched_profile = "งานเช้า"
+        app._sched = {"mode": "daily", "every": 10, "times": ["08:00"], "profile": "งานเช้า"}   # v2.7
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_called_once_with([{"button": "Beep", "secs": 1}])
         app._start_player.assert_called_once_with(False, once=True)
@@ -3863,7 +3853,7 @@ class TestSchedProfilePoll(unittest.TestCase):
         app._sched_q.put("play")
         app.running = False
         app._log_enabled = False                 # กันเทสต์เขียน log จริงของผู้ใช้
-        app._sched_profile = ""                      # งานที่เปิดค้าง — ไม่แตะตาราง
+        app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}   # งานที่เปิดค้าง — ไม่แตะตาราง
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_not_called()
         app._start_player.assert_called_once_with(False, once=True)
@@ -3876,7 +3866,7 @@ class TestSchedProfilePoll(unittest.TestCase):
         app.running = False
         app._log_enabled = False                 # กันเทสต์เขียน log จริงของผู้ใช้
         app._profiles = {}
-        app._sched_profile = "โปรไฟล์ถูกลบไปแล้ว"
+        app._sched = {"mode": "daily", "every": 10, "times": ["08:00"], "profile": "โปรไฟล์ถูกลบไปแล้ว"}   # v2.7
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_not_called()           # ทนได้ — เล่นงานที่เปิดค้างแทน
         app._start_player.assert_called_once_with(False, once=True)
@@ -4574,6 +4564,148 @@ class TestN2Blocks(unittest.TestCase):
                     app.stop_all(silent=True)
                 except Exception:
                     pass
+            root.destroy()
+
+
+class TestSchedMulti(unittest.TestCase):
+    """v2.7: Schedule หลายนัดหมาย — parser/migration/conf รูปแบบใหม่ (dict เดียว self._sched)
+    ⚠️ ชื่อคลาสเทสต์ซ้ำกันไม่ได้ — คลาสหลังจะบังคลาสหน้า (AGENTS.md v1.11)"""
+
+    def test_parse_hhmm_list_basic_and_dedupe(self):
+        self.assertEqual(me_mod.parse_hhmm_list("09:00, 12:30 , 22:00"),
+                         ["09:00", "12:30", "22:00"])
+        self.assertEqual(me_mod.parse_hhmm_list("08:00,08:00"), ["08:00"])  # ตัดซ้ำ
+
+    def test_parse_hhmm_list_bad_parts_skipped(self):
+        self.assertEqual(me_mod.parse_hhmm_list("9:00, บ่ายสาม, 25:00, 07:60, 06:15"),
+                         ["06:15"])            # พัง = ข้ามเฉพาะรายการนั้น
+        self.assertEqual(me_mod.parse_hhmm_list(""), [])
+        self.assertEqual(me_mod.parse_hhmm_list(None), [])
+
+    def test_parse_sched_list_new_dict(self):
+        m, e, tl, p = me_mod.parse_sched_list(
+            {"mode": "daily", "every": 10, "times": "08:00,12:30", "profile": "งานเช้า"})
+        self.assertEqual((m, e, tl, p), ("daily", 10, ["08:00", "12:30"], "งานเช้า"))
+
+    def test_parse_sched_list_tolerates_garbage(self):
+        for bad in (None, 42, [], {"mode": "รัว ๆ"}, {"mode": "interval", "every": "ล้าน"}):
+            m, e, tl, p = me_mod.parse_sched_list(bad)
+            if isinstance(bad, dict) and bad.get("mode") == "interval":
+                self.assertEqual((m, e), ("interval", 10))   # every พัง = ค่าเริ่มต้น
+            else:
+                self.assertEqual((m, e, tl, p), ("off", 10, [], ""))
+
+    def test_sched_migrate_old_conf_keys(self):
+        d = me_mod.sched_migrate("daily", 15, "08:00,22:00", "งานดึก")
+        self.assertEqual(d, {"mode": "daily", "every": 15,
+                             "times": ["08:00", "22:00"], "profile": "งานดึก"})
+        d2 = me_mod.sched_migrate("interval", 20, "", "")
+        self.assertEqual(d2, {"mode": "interval", "every": 20, "times": [], "profile": ""})
+
+    def test_sched_migrate_daily_without_times_turns_off(self):
+        d = me_mod.sched_migrate("daily", 10, "บ่ายสาม", "")   # เวลาพังหมด = ไม่มีนัดให้ทำงาน
+        self.assertEqual(d["mode"], "off")
+        self.assertEqual(d["times"], [])
+
+    def test_conf_roundtrip_multi_sched(self):
+        import tempfile
+        app = mock.MagicMock()
+        app._serialize.return_value = [{"button": "Beep"}]
+        app._log_enabled = True
+        app._hp_dir = None
+        app._backup_enabled = True
+        app._backup_days = 7
+        app._lang = "th"
+        app.cmb_speed.get.return_value = "1"
+        app.ent_loops.get.return_value = "1"
+        app.chk_forever.get.return_value = False
+        app.chk_restore.get.return_value = False
+        app.chk_shuffle.get.return_value = False
+        app.ent_pct.get.return_value = "100"
+        app._play_options = lambda: 100
+        app._time_limit_enabled = False
+        app._time_limit_min = 30
+        app._sched = {"mode": "daily", "every": 10,
+                      "times": ["08:00", "12:30"], "profile": "งานเช้า"}
+        with tempfile.TemporaryDirectory() as d:
+            conf = os.path.join(d, "macro_conf.json")
+            with mock.patch.object(am, "CONF", conf):
+                am.MacroApp._save_conf(app)
+                raw = json.load(open(conf, encoding="utf-8"))
+                self.assertEqual(raw["sched"]["times"], ["08:00", "12:30"])   # รูปแบบใหม่จริง
+                app2 = mock.MagicMock()
+                app2._profiles = {"งานเช้า": []}      # โปรไฟล์ต้องมีอยู่จริงจึงจะคืนค่า (guard ใน _load_conf)
+                am.MacroApp._load_conf(app2)
+        self.assertEqual(app2._sched["mode"], "daily")
+        self.assertEqual(app2._sched["times"], ["08:00", "12:30"])
+        self.assertEqual(app2._sched["profile"], "งานเช้า")
+
+
+class TestAhkRoundTrip(unittest.TestCase):
+    """v2.7: ทำงานร่วม AutoHotkey — export/import ผ่าน engine ล้วน (ไม่แตะ Tk)"""
+
+    def test_export_key_and_delay(self):
+        s = me_mod.rows_to_ahk([{"enabled": True, "button": "Tap Key", "additional": "esc",
+                                 "mins": 0, "secs": 1.5, "repeat": 1}])
+        self.assertIn("Send {Esc}", s)   # ชื่อคีย์ตาม key_map (AHK ไม่ sensitive case)
+        self.assertIn("Sleep 1500", s)
+        self.assertIn("Auto Mouse", s.splitlines()[0])          # หัวไฟล์บอกที่มา
+
+    def test_export_combo_and_disabled_rows(self):
+        s = me_mod.rows_to_ahk([
+            {"enabled": False, "button": "Tap Key", "additional": "a"},
+            {"enabled": True, "button": "Tap Key", "additional": "ctrl+s"}])
+        self.assertNotIn("Send {a}", s)                          # แถวปิดไม่ออก
+        self.assertIn("^s", s)                                    # combo ctrl+s → ^s
+
+    def test_export_click_and_unsupported_as_comment(self):
+        s = me_mod.rows_to_ahk([
+            {"enabled": True, "button": "Left Click", "x": "100", "y": "200"},
+            {"enabled": True, "button": "If Image", "additional": "img.png"}])
+        self.assertIn("Click 100, 200, L", s)
+        self.assertIn("; (ไม่รองรับ", s)                          # แถวเงื่อนไขคงไว้เป็น comment
+
+    def test_import_send_sleep_click_run(self):
+        rows = me_mod.ahk_to_rows(
+            "Send {Ctrl down}สวัสดี{Ctrl up}\nSleep 500\nClick 100, 200\nRun notepad.exe")
+        self.assertEqual([r["button"] for r in rows],
+                         ["Press Key", "Type Text", "Release Key", "Left Click", "Launch App"])
+        self.assertEqual(rows[1]["additional"], "สวัสดี")
+        self.assertEqual(rows[3]["secs"], 0.5)                  # Sleep 500ms → ดีเลย์ของแถวถัดไป
+        self.assertEqual(rows[4]["additional"], "notepad.exe")
+
+    def test_import_skips_junk_lines(self):
+        rows = me_mod.ahk_to_rows("; หมายเหตุ\nx := 5\nIfWinActive ahk_exe game.exe\nMsgBox hi")
+        self.assertEqual(rows, [])                               # นิพจน์/label/mensagem ข้ามหมด
+
+    def test_ahk_dialog_real_tk(self):
+        """เปิด dialog 🔀 จริงด้วย Tk จำลอง — ต้องสร้างได้ไม่ crash (มาตรฐาน v1.20.1)"""
+        try:
+            root = am.tk.Tk()
+            root.withdraw()
+        except am.tk.TclError:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        try:
+            app = mock.MagicMock()
+            app.root = root
+            app._t = lambda key: am.tr("th", key)
+            app._loaded_file = None              # ยังไม่มีไฟล์สคริปต์ → export แจ้งเตือน
+            # MagicMock กลืน self.ahk_export เป็น attr — ผูกเมธอดจริงกลับเข้า mock
+            app.ahk_export = lambda: am.MacroApp.ahk_export(app)
+            calls = []
+            with mock.patch.object(am.messagebox, "showinfo",
+                                   side_effect=lambda *a, **k: calls.append(a)):
+                am.MacroApp.ahk_dialog(app)                      # ไม่มีไฟล์สคริปต์ → แจ้งเตือน
+                # dialog เปิดแบบ non-modal — ปุ่มไม่กดเอง หาปุ่มส่งออกแล้ว invoke เอง
+                # โครง: root → win (Toplevel) → bf (Frame) → ปุ่ม
+                for w in root.winfo_children():
+                    for f in w.winfo_children():
+                        for b in f.winfo_children():
+                            if isinstance(b, am.tk.Button) and "ส่งออก" in str(b.cget("text")):
+                                b.invoke()                       # → do_export → ahk_export
+                                break
+            self.assertTrue(calls)                               # showinfo ถูกเรียกจริง (จาก ahk_export)
+        finally:
             root.destroy()
 
 

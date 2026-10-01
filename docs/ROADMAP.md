@@ -1,6 +1,6 @@
 # 🗺️ ROADMAP — แผนพัฒนาต่อ
 
-> สถานะ: v2.6.0 (เดือน ก.ย. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
+> สถานะ: v2.7.0 (เดือน ต.ค. 2026) — เสนอไอเดีย/โหวตได้ที่ [Issues](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues)
 
 ## 🎯 สถานะปัจจุบัน (v2.6.0)
 
@@ -16,10 +16,12 @@
       · อ่านข้อเสนอฉบับเต็มที่ [DESIGN-nested-if.md](DESIGN-nested-if.md) (เปิดดู [HTML](DESIGN-nested-if.html) ได้)
 - [ ] **รวบรวม plugin จากชุมชน (ต่อยอดตลาด v2.1)** — เปิดรับ PR เพิ่ม `plugins/*.py` +
       แนวทางรีวิวใน docs/PLUGINS.md (เกณฑ์: stdlib/pynput เท่านั้น, ทน error, มีตัวอย่างในเอกสาร)
-- [ ] **Multi-language docs (จีน/ญี่ปุ่น)** — i18n ตัวโปรแกรมรองรับแล้ว · พื้นฐาน EN ครบแล้ว
-      (TUTORIAL.en.md) — รอผู้ร่วมแปล แปลจาก TUTORIAL.en.md ได้ทันที
-- [ ] **ส่งออก .ahk import/export** — ทำงานร่วมกับ ecosystem อื่น
-- [ ] **Schedule หลายนัดหมาย** — ปัจจุบันตั้งนัดหมายพร้อมกันได้ชุดเดียว
+- [x] ~~**Multi-language docs (จีน/ญี่ปุ่น)**~~ ✅ v2.7.0 (TUTORIAL.zh.md + TUTORIAL.ja.md
+      แปลครบทุกบทจาก TUTORIAL.en.md — ฉบับอื่นในอนาคตแปลจาก en ต่อได้)
+- [x] ~~**ส่งออก .ahk import/export**~~ ✅ v2.7.0 (เมนู 🔀: ส่งออก .ahk / นำเข้า .ahk —
+      Send/Click/MouseMove/Sleep/Run · แถวไม่รองรับเขียนเป็น comment)
+- [x] ~~**Schedule หลายนัดหมาย**~~ ✅ v2.7.0 (โหมดทุกวันใส่เวลาได้หลายเวลาคั่น comma +
+      migrate ค่าเก่าอัตโนมัติ + ปุ่ม 🕐/＋/ล้าง)
 - [x] ~~**cross-platform จริง (Linux/macOS)**~~ ✅ v2.3.0 (CI เพิ่ม job ubuntu/macos —
       unit ทุก OS, E2E ฝั่ง Linux ใต้ xvfb, macOS continue-on-error รอสิทธิ์ accessibility)
 - [x] ~~**Safety timeout + self-healing hotkey + --validate**~~ ✅ v2.4.0
@@ -77,4 +79,5 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v2.6.0 — ถอดจาก CHANGELOG · เงื่อนไขเชิงซ้อน (ชุด N1/N2) เสร็จแล้ว — ชุดถัดไป: ชุมชน/plugin/.ahk/ชดเชยนัดหมาย*
+*อัพเดตล่าสุด: v2.7.0 — ถอดจาก CHANGELOG · Schedule หลายนัดหมาย + .ahk + เอกสารจีน-ญี่ปุ่น +
+เกณฑ์รีวิว plugin เสร็จแล้ว — หัวข้อค้าง: รับ plugin ชุมชนจริงผ่าน PR*

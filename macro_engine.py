@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.6.0"
+__version__ = "2.7.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -773,6 +773,225 @@ def batch_export_sh(script_name, py_cmd="python3"):
         "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
 
 
+# ----------------------------- ทำงานร่วม AutoHotkey .ahk (v2.7) ----------
+def rows_to_ahk(rows):
+    """แปลงแถวสคริปต์ → เนื้อหาไฟล์ .ahk (v2.7 — ทำงานร่วมกับ AutoHotkey v1)
+    รองรับ: Tap Key/Press Key/Release Key, Left/Right Click, Double Click, Scroll,
+    Ctrl/Shift/Alt+Click, Move Mouse (+Offset), Save/Restore Cursor (CoordMode Mouse),
+    Type Text (ครอบสัญลักษณ์พิเศษ), Launch App, Beep, Set Variable (AHK :=)
+    แถวที่ไม่รองรับ (เงื่อนไข/คลิปบอร์ด/ภาพ/block) เขียนเป็น comment เพื่อไม่หายไป"""
+    out = ["; Auto Mouse & Keyboard Macro v%s — exported .ahk" % __version__,
+           "; แปลงคร่าว ๆ — ตรวจก่อนใช้จริง (รายละเอียด: docs/README.en.md)"]
+    key_map = {"esc": "Esc", "enter": "Enter", "return": "Enter", "tab": "Tab",
+               "space": "Space", "ctrl": "Ctrl", "shift": "Shift", "alt": "Alt",
+               "win": "LWin", "up": "Up", "down": "Down", "left": "Left",
+               "right": "Right", "pgup": "PgUp", "pgdn": "PgDn", "del": "Del",
+               "ins": "Ins", "home": "Home", "end": "End", "backspace": "Backspace",
+               "prtsc": "PrintScreen", "capslock": "CapsLock"}
+
+    def ahk_key(k):
+        s = str(k or "").strip()
+        if not s:
+            return ""
+        if len(s) == 1:
+            return s.lower() if s.isalpha() else s   # ตัวพิมพ์เล็ก — AHK ตีความตัวใหญ่ = กด Shift ร่วม
+        if "+" in s and len(s) > 2:          # combo เช่น ctrl+s → ^s, ctrl+shift+esc → ^+{Esc}
+            mods, rest = "", []
+            for p in (x.strip() for x in s.split("+")):
+                if not p:
+                    continue
+                pl = p.lower()
+                if pl == "ctrl":
+                    mods += "^"
+                elif pl == "shift":
+                    mods += "+"
+                elif pl == "alt":
+                    mods += "!"
+                elif pl == "win":
+                    mods += "#"
+                else:
+                    rp = ahk_key(p)
+                    rest.append("{%s}" % rp if len(rp) > 1 else rp)
+            return mods + "".join(rest)
+        return key_map.get(s.lower(), s)
+
+    for r in rows or []:
+        if not r.get("enabled", True):
+            continue
+        btn = str(r.get("button", ""))
+        add = str(r.get("additional") or "")
+        delay = float(r.get("mins", 0) or 0) * 60 + float(r.get("secs", 0) or 0)
+        rep = max(1, int(r.get("repeat", 1) or 1))
+        lines = []
+        if btn in ("Tap Key", "Press Key"):
+            k = ahk_key(add) or add
+            # ตัวอักษรเดี่ยว/combo (^+!#) ส่งตรง เช่น Send ^s — ชื่อคีย์หลายตัวอักษรค่อยห่อ {}
+            if len(k) == 1 or any(c in k for c in "^+!#"):
+                lines = ["Send %s" % k]
+            else:
+                lines = ["Send {%s}" % k]
+        elif btn == "Release Key":
+            k = ahk_key(add) or add
+            lines = ["; (release-only — AHK ไม่มีตรง ๆ: Send {%s} จึงใช้แทนได้" % k]
+        elif btn in ("Left Click", "Right Click"):
+            btn_txt = "L" if btn == "Left Click" else "R"
+            for _ in range(rep):
+                lines.append("Click %s, %s, %s" % (r.get("x", ""), r.get("y", ""), btn_txt))
+        elif btn in DBL_ACTIONS:
+            x, y = str(r.get("x", "")), str(r.get("y", ""))
+            lines = ["Click %s, %s, 2" % (x, y)]
+        elif btn in SCROLL_ACTIONS:
+            lines = ["Send {Wheel%s %d}" % ("Up" if btn == "Scroll Up" else "Down", rep)]
+        elif btn in MOD_CLICKS:
+            mods = "".join("#" if m == "ctrl" else "+" if m == "shift" else "!" for m in
+                           ("ctrl" if "Ctrl" in btn else "", "shift" if "Shift" in btn else "",
+                            "alt" if "Alt" in btn else ""))
+            lines = ["Send {%s}{Click %s, %s, %s}" % (
+                mods, r.get("x", ""), r.get("y", ""),
+                "R" if "Right" in btn else "L")]
+        elif btn == "Move Mouse":
+            lines = ["MouseMove %s, %s" % (r.get("x", ""), r.get("y", ""))]
+        elif btn == "Move Mouse by Offset":
+            ox = add.split(",")[0].strip() if "," in add else "0"
+            oy = add.split(",")[1].strip() if "," in add and len(add.split(",")) > 1 else "0"
+            lines = ["MouseMove %s, %s, , R" % (ox, oy)]
+        elif btn == "Save Cursor":
+            lines = ["CoordMode Mouse, Screen", "MouseGetPos, ax, ay"]
+        elif btn == "Restore Cursor":
+            lines = ["MouseMove ax, ay"]
+        elif btn == "Type Text":
+            lines = ["SendRaw %s" % add]   # SendRaw = ส่งทุกตัวอักษรตามตัวพิมพ์ ไม่ตีความ {} ของ AHK
+        elif btn == "Launch App":
+            lines = ["Run %s" % add]
+        elif btn == "Beep":
+            lines = ["SoundBeep, 750, 300"]
+        elif btn == "Set Variable":
+            lines = ["; ตัวแปร: %s" % add]
+        if not lines:
+            note = btn if not add else "%s (%s)" % (btn, add)
+            lines = ["; (ไม่รองรับ: %s)" % note]
+        for ln in lines:
+            out.append(ln)
+        if delay > 0:
+            out.append("Sleep %d" % round(delay * 1000))
+        if rep > 1 and btn not in ("Left Click", "Right Click", "Beep") \
+                and not (btn in ("Tap Key", "Press Key", "Type Text", "Launch App",
+                                 "Set Variable") or btn in SCROLL_ACTIONS):
+            for _ in range(rep - 1):
+                out.append(lines[0])
+        if rep > 1 and (btn in ("Tap Key", "Press Key", "Type Text", "Launch App",
+                                "Set Variable") or btn in SCROLL_ACTIONS):
+            out.append("; (repeat %d ครั้งของแถวนี้อาจต้องปรับใน AHK เอง)" % rep)
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"
+
+
+def ahk_to_rows(text):
+    """แปลงไฟล์ .ahk → แถวสคริปต์ (v2.7) — รองรับคำสั่งหลัก AHK v1:
+    Send/SendInput/SendRaw (คีย์/ข้อความ), Click, MouseMove, MouseClick, Sleep, Run
+    คืน list แถวแบบเดียวกับไฟล์ Save .json — บรรทัดที่แปลไม่ได้ข้าม
+    (จำกัดพันธุ์: นิพจน์/ตัวแปร/ป้ายกำกับ AHK ไม่แปล — เอกสารบอกผู้ใช้ชัดเจน)"""
+    rows = []
+    pending = {}                       # ดีเลย์/รีพีตรอแกะจาก Sleep ถัดไป
+    keymap = {"CTRL": "ctrl", "LCTRL": "ctrl", "RCTRL": "ctrl",
+              "SHIFT": "shift", "LSHIFT": "shift", "RSHIFT": "shift",
+              "ALT": "alt", "LALT": "alt", "RALT": "alt",
+              "ENTER": "enter", "RETURN": "enter", "ESC": "esc", "TAB": "tab",
+              "SPACE": "space", "UP": "up", "DOWN": "down", "LEFT": "left",
+              "RIGHT": "right", "PGUP": "pgup", "PGDN": "pgdn", "DEL": "del",
+              "INS": "ins", "HOME": "home", "END": "end",
+              "BACKSPACE": "backspace", "CAPSLOCK": "capslock", "PRINTSCREEN": "prtsc"}
+
+    def parse_send_keys(txt):
+        """'{Ctrl down}ข้อความ{Ctrl up}' / '{Del}' → แถว Press/Release/Tap/Type"""
+        out = []
+        for m in re.finditer(r"\{[^}]+\}|[^{}]+", txt):
+            tok = m.group(0)
+            if tok.startswith("{"):
+                body = tok[1:-1].strip()
+                low = body.lower()
+                if low.endswith(" down"):
+                    k = body[:-5].strip().lower()
+                    out.append({"button": "Press Key", "additional": keymap.get(
+                        k.upper(), k)})
+                elif low.endswith(" up"):
+                    k = body[:-3].strip().lower()
+                    out.append({"button": "Release Key", "additional": keymap.get(
+                        k.upper(), k)})
+                else:
+                    k = keymap.get(body.upper(), body.lower() if len(body) > 1 else body)
+                    out.append({"button": "Tap Key", "additional": k})
+            else:
+                t = tok.replace("\r", "").replace("\n", "")
+                if t:
+                    out.append({"button": "Type Text", "additional": t})
+        return out
+
+    for raw in str(text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";"):
+            continue
+        low = line.lower()
+        if low.startswith("sleep "):
+            try:
+                secs = int(line[6:].split()[0]) / 1000.0
+            except (ValueError, IndexError):
+                continue
+            if secs > 0:
+                pending = {"mins": 0, "secs": round(secs, 3)}
+            continue
+        if low.startswith("run "):
+            rows.append(dict(x="", y="", button="Launch App", additional=line[4:].strip(),
+                             **pending))
+            pending = {}
+            continue
+        if low.startswith("mousemove "):
+            try:
+                parts = [p.strip() for p in line[10:].split(",")]
+                rows.append(dict(x=parts[0], y=parts[1], button="Move Mouse",
+                                 additional="", **pending))
+            except (IndexError, ValueError):
+                pass
+            pending = {}
+            continue
+        if low.startswith("mouseclick "):
+            try:
+                parts = [p.strip() for p in line[11:].split(",")]
+                x, y = parts[1], parts[2]
+                which = (parts[0] or "L").strip().upper()
+                clicks = int(parts[3]) if len(parts) > 3 and parts[3].strip() else 1
+            except (IndexError, ValueError):
+                x = y = ""; which = "L"; clicks = 1
+            btn_name = "Right Click" if which.startswith("R") else "Left Click"
+            if clicks >= 2:
+                rows.append(dict(x=x, y=y, button="Double " + btn_name,
+                                 additional="", **pending))
+            else:
+                rows.append(dict(x=x, y=y, button=btn_name, additional="", **pending))
+            pending = {}
+            continue
+        if low.startswith("click ") or line == "click":
+            try:
+                parts = [p.strip() for p in line[6:].split(",")]
+                x, y = (parts[0], parts[1]) if len(parts) >= 2 else ("", "")
+                which = "R" if (len(parts) > 2 and parts[2].strip().upper().startswith("R")) else "L"
+            except (IndexError, ValueError):
+                x = y = ""; which = "L"
+            rows.append(dict(x=x, y=y, button="Left Click" if which == "L" else "Right Click",
+                             additional="", **pending))
+            pending = {}
+            continue
+        if low.startswith(("send ", "sendinput ", "sendraw ")):
+            body = line.split(" ", 1)[1].strip()
+            for r2 in parse_send_keys(body):
+                r2.update(pending)
+                rows.append(r2)
+            pending = {}
+            continue
+        # บรรทัดอื่น (assign :=, if, label, hotkey ฯลฯ) = ข้าม
+    return rows
+
+
 def validate_rows(rows, plugin_names=()):
     """ตรวจแถวสคริปต์โดยไม่เล่น (v2.4 — ใช้โดย CLI --validate)
     คืน list ของ (ลำดับแถว 1-based, เหตุผล) — ว่าง = สคริปต์พร้อมเล่น"""
@@ -1016,6 +1235,69 @@ def parse_int(v, default=1):
         return max(1, int(float(str(v))))
     except (ValueError, TypeError):
         return default
+
+
+# ---------------------------------- นัดหมายหลายชุด (v2.7 — Roadmap ชุด C) --
+def parse_hhmm_list(txt):
+    """แปลงข้อความ HH:MM คั่น , → list เวลาสะอาด (v2.7) — รูปแบบใดพัง = ข้ามรายการนั้น
+    คืน [] เมื่อไม่มีเวลาถูกต้องแม้แต่รายการเดียว (ผู้เรียกใช้เตือนเอง)
+    ตัวอย่าง: '09:00, 12:30 , 22:00' → ['09:00', '12:30', '22:00']
+    รับ list/tuple จาก JSON ได้โดยตรง (conf รูปแบบใหม่เก็บ times เป็น list)"""
+    out = []
+    if isinstance(txt, (list, tuple, set)):
+        parts = [str(t) for t in txt]      # list จาก JSON — ห้าม str() ทั้งก้อน
+    else:
+        parts = str(txt or "").split(",")
+    for part in parts:
+        t = part.strip()
+        if re_match_hhmm(t) and t not in out:
+            out.append(t)
+    return out
+
+
+def parse_sched_list(sched):
+    """แยกค่า schedule หลายนัดหมาย (v2.7) — รับได้ทั้ง dict รูปแบบใหม่และ str รูปแบบเก่า
+    คืน (mode, every, times, profile):
+      mode    = "off" / "interval" / "daily"
+      every   = จำนวนนาที (1-1440, โหมด interval)
+      times   = list HH:MM ที่ถูกต้อง (โหมด daily — ว่างได้ = ยังไม่ตั้งเวลา)
+      profile = ชื่อโปรไฟล์ ("" = งานที่เปิดค้าง)
+    รูปแบบพัง/ไม่รู้จัก = ปิดอยู่ ("off", 10, [], "") — โปรแกรมต้องไม่พังเสมอ"""
+    if isinstance(sched, str):
+        s = sched.strip()
+        if s in ("interval", "daily"):
+            return (s, 10, [], "")            # รูปแบบเก่าที่ยังไม่ migrate — ใช้ค่าเริ่มต้น
+        return ("off", 10, [], "")
+    if not isinstance(sched, dict):
+        return ("off", 10, [], "")
+    mode = sched.get("mode")
+    mode = mode if mode in ("interval", "daily") else "off"
+    try:
+        every = max(1, min(1440, int(sched.get("every", 10))))
+    except (TypeError, ValueError):
+        every = 10
+    times = parse_hhmm_list(sched.get("times") or "") if mode == "daily" else []
+    prof = sched.get("profile") or ""
+    prof = prof if isinstance(prof, str) else ""
+    return (mode, every, times, prof)
+
+
+def sched_migrate(mode, every, at, profile):
+    """แปลงค่า schedule เก่า (v1.19-v2.6: sched_mode/every/at/profile แยกกัน) → dict ใหม่ (v2.7)
+    ทำงานร่วมได้ทั้งสองทิศ: ผ่าน dict มาแล้ว = คืนตามเดิม (normalize ปลอดภัย)"""
+    if isinstance(mode, dict):
+        m, e, t, p = parse_sched_list(mode)
+        return {"mode": m, "every": e, "times": list(t), "profile": p}
+    m = mode if mode in ("interval", "daily") else "off"
+    try:
+        e = max(1, min(1440, int(every)))
+    except (TypeError, ValueError):
+        e = 10
+    t = parse_hhmm_list(at) if m == "daily" else []
+    if m == "daily" and not t:
+        m = "off"                               # เวลาพังหมด = ไม่มีนัดหมายให้ทำงาน
+    p = profile if isinstance(profile, str) else ""
+    return {"mode": m, "every": e, "times": t, "profile": p}
 
 
 def re_match_hhmm(txt):

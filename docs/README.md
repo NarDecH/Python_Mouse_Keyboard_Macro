@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.6.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.7.0
 
 <div align="center">
 
@@ -104,6 +104,8 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 🎨 **เงื่อนไขสี/ตัวแปร (v2.5)** | If Pixel Color · Read Pixel Color เก็บสีเป็น `{ตัวแปร}` · If Variable เทียบตัวเลข/ข้อความ · Image Click ตั้ง `{img_x}/{img_y}` · `rand 1-100` |
 | 🔗 **เงื่อนไขรวม && (v2.6.0)** | ต่อเงื่อนไขด้วย `&&` — ทุกเงื่อนไขต้องจริงจึงเล่นต่อ เช่น `img.png && 300,300 #ffffff && n > 5` (ใช้กับ If Image/Pixel/Variable + `--validate` เข้าใจ) |
 | 🧱 **Block Start/End (v2.6.0)** | บล็อกเงื่อนไข + ลูปย่อย: `if ...` ข้ามทั้งบล็อกเมื่อไม่จริง, `until ... max N` วนกลับจนจริง (ซ้อนได้ 8 ชั้น, `--validate` ตรวจคู่เปิด/ปิด) |
+| 🕒 **Schedule หลายนัดหมาย (v2.7.0)** | ทุกวันเวลาได้หลายเวลาคั่น comma เช่น `08:00,12:30,22:00` — ค่าตั้งเดิมถูกย้ายขึ้นแสดงอัตโนมัติ + ปุ่ม 🕐/＋/ล้าง |
+| 🔀 **ทำงานร่วม AutoHotkey (v2.7.0)** | เมนู 🔀: ส่งออกสคริปต์เป็น .ahk / นำเข้าไฟล์ .ahk (Send/Click/MouseMove/Sleep/Run) เข้าตาราง — push undo ให้เอง |
 | 📤 **Export .bat/.sh (v2.3)** | สร้างไฟล์ดับเบิลคลิกรันข้างสคริปต์ (Windows/Linux/macOS) |
 | 🔎 **--validate (v2.4)** | ตรวจสคริปต์ทุกแถวรายงานปัญหา ก่อนปล่อยงานค้างคืนจริง |
 
