@@ -30,6 +30,12 @@ VERSION_DOC_FILES = [
     "docs/TUTORIAL.md",
     "docs/TUTORIAL.html",
     "docs/TUTORIAL.en.md",
+    "docs/CHANGELOG.en.md",
+]
+
+# ไฟล์ที่ต้องมีหัวข้อ [เวอร์ชันปัจจุบัน] (เสริมจาก CHANGELOG.md ที่ตรวจอยู่แล้ว)
+CHANGELOG_HEAD_FILES = [
+    "docs/CHANGELOG.en.md",
 ]
 
 
@@ -102,6 +108,12 @@ def check_versions(version, files):
         text = open(chg, encoding="utf-8").read()
         if f"## [{version}]" not in text:
             problems.append(f"docs/CHANGELOG.md ยังไม่มีหัวข้อ [{version}]")
+    for rel in CHANGELOG_HEAD_FILES:
+        path = os.path.join(ROOT, rel)
+        if os.path.exists(path):
+            text = open(path, encoding="utf-8").read()
+            if f"## [{version}]" not in text:
+                problems.append(f"{rel} ยังไม่มีหัวข้อ [{version}] — แปลการ์ดใหม่ค้าง?")
     return problems
 
 

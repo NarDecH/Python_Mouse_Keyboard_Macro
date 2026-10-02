@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.9.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.9.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -210,6 +210,13 @@
   comment ไม่มีปีกกาลลอย · import prescan `untils` (`}`+Until บรรทัดเดียวหรือแยกบรรทัด) —
   ⚠️ ลูปหลัก import ต้อง `enumerate(raw_lines)` ให้ `li` ตรงเสมอ) — เทสต์ TestAhkBlocks/
   TestCollapseAll/TestUnifiedPlayValidation
+- **ฟีเจอร์เสริม v2.9.1:** log [SKIP] — แถวที่ START-validate/CLI ตรวจไม่ผ่านถูกบันทึก
+  "แถว N ถูกข้าม (เหตุผล)" ทุกแถว + สรุปผ่าน/ข้าม (parse_log_stats ไม่นับ [SKIP] เป็น STEP —
+  สถิติไม่เพี้ยน) · CLI ตรวจตั้งแต่หัว (`cli_issue_rows` set ตัดแถวพังก่อนเล่น — ทุกแถวพัง
+  exit 1) · schedule auto-skip (`_start_player` = wrapper → `_start_player_inner(loop,
+  once, auto=False)` — auto=True ไม่เด้งถาม ทุกแถวพัง log แล้วออกเงียบ — ⚠️ เทสต์ที่เคยชี้
+  `_start_player` ต้องชี้ inner ให้ครบ) · CHANGELOG.en.md (check_docs บังคับหัวข้อเวอร์ชัน) ·
+  ตัวอย่าง examples/13 — เทสต์ TestE2EStartValidateSkip
 
 ## เทคโนโลยี
 

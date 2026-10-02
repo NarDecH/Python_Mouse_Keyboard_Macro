@@ -310,5 +310,5 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.9.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.9.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*

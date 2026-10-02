@@ -65,6 +65,34 @@
 
   <div class="card">
     <div class="version">
+      <h2>เวอร์ชัน 2.9.1</h2>
+      <span class="tag latest">ล่าสุด</span>
+      <span class="date">1 ตุลาคม 2026</span>
+    </div>
+
+    <h3>📝 log แจ้งแถวที่ถูกข้ามชัดเจน (ต่อยอด START-validate ของ v2.9.0)</h3>
+    <ul>
+      <li><b>mode [SKIP] ใหม่ใน log</b> — ทุกแถวที่ตรวจไม่ผ่านถูกบันทึก "แถว N ถูกข้าม (เหตุผล)"
+        + สรุป "เล่นเฉพาะแถวที่ผ่าน X/Y แถว" · START line ระบุ <code>ข้าม=1,3</code> —
+        งานค้างคืน/นัดหมายอ่านย้อนรู้ได้ทันทีว่าเล่นจริงกี่แถว ข้ามอะไรไปบ้าง
+        (parse_log_stats ไม่นับ [SKIP] เป็น STEP — สถิติเดิมไม่ผิดเพี้ยน)</li>
+      <li><b>CLI ตรวจตั้งแต่หัวโปรแกรม</b> — engine <code>validate_rows</code> เดียวกับ
+        <code>--validate</code> รันก่อนเล่น: รายงานแถวพังทั้งชุดตั้งแต่ต้น + ตัดออกจากการเล่น ·
+        ทุกแถวพัง = จบด้วย exit code 1 พร้อมข้อความ "แก้ตามรายงาน หรือรัน --validate" ·
+        END line ระบุจำนวนแถวที่ข้าม</li>
+      <li><b>schedule auto-skip ไม่เด้งถาม</b> — นัดหมายถึงเวลาแล้วแถวพัง: ข้ามเอง + log [SKIP]
+        ทุกแถว (เดิมเด้ง askyesno ค้างรอคนกด) · กด START เองยังถามเหมือนเดิม · ทุกแถวพังในโหมด
+        อัตโนมัติ = บันทึก log แล้วออกเงียบ ๆ</li>
+      <li><b>เทสต์ 447</b> — เพิ่ม TestE2EStartValidateSkip 3 ตัว + ตัวอย่าง 13 เข้าเทสต์</li>
+      <li><b>ตัวอย่างใหม่</b> — <code>examples/13_start_validate_ahk_blocks.json</code>
+        สาธิต START-validate + บล็อก if/until/max ที่ export .ahk ได้ครบ</li>
+      <li><b>เอกสาร</b> — CHANGELOG ฉบับอังกฤษ <code>docs/CHANGELOG.en.md</code> ·
+        ROADMAP เพิ่มชุดข้อเสนอ v2.10 5 หัวข้อ</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
       <h2>เวอร์ชัน 2.9.0</h2>
       <span class="tag latest">ล่าสุด</span>
       <span class="date">1 ตุลาคม 2026</span>

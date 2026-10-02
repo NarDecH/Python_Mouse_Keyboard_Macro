@@ -316,5 +316,11 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
   comment for the whole block — no stray braces, the .ahk always runs · import converts all
   three forms back to Block Start/End rows.
 
-*Guide for code v2.9.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+- **Log notes skipped rows (v2.9.1)** — rows that fail START pre-validation (or CLI up-front
+  validation) are written to the log as [SKIP] lines "row N skipped (reason)" plus a
+  played/skipped summary — overnight jobs can be reviewed to see exactly what ran ·
+  scheduled sessions skip broken rows automatically without a dialog (previously the
+  3 a.m. run sat waiting for someone to click OK).
+
+*Guide for code v2.9.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

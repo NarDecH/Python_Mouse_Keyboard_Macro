@@ -3411,7 +3411,7 @@ class TestSchedPoll(unittest.TestCase):
         app = self._app()
         app._sched_q.put("play")
         am.MacroApp._sched_poll(app)
-        app._start_player.assert_called_once_with(False, once=True)   # เล่น 1 รอบต่อสั่ง
+        app._start_player_inner.assert_called_once_with(False, once=True, auto=True)   # เล่น 1 รอบต่อสั่ง (v2.9.1: auto=True ข้ามแถวพังเอง)
 
     def test_poll_skips_when_running(self):
         app = self._app()
@@ -3431,9 +3431,9 @@ class TestSchedPoll(unittest.TestCase):
         app._sched_q.put("play")
         app._sched_q.put("play")
         # (เลียนแบบโค้ดจริง: เริ่มเล่นแล้ว self.running = True — คำสั่งถัดไปต้องถูกข้าม)
-        app._start_player.side_effect = lambda *a, **k: setattr(app, "running", True)
+        app._start_player_inner.side_effect = lambda *a, **k: setattr(app, "running", True)
         am.MacroApp._sched_poll(app)
-        app._start_player.assert_called_once()
+        app._start_player_inner.assert_called_once()
         self.assertTrue(app._sched_q.empty())
 
 
@@ -3845,7 +3845,7 @@ class TestSchedProfilePoll(unittest.TestCase):
         app._sched = {"mode": "daily", "every": 10, "times": ["08:00"], "profile": "งานเช้า"}   # v2.7
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_called_once_with([{"button": "Beep", "secs": 1}])
-        app._start_player.assert_called_once_with(False, once=True)
+        app._start_player_inner.assert_called_once_with(False, once=True, auto=True)
 
     def test_poll_empty_profile_keeps_current_rows(self):
         import queue
@@ -3857,7 +3857,7 @@ class TestSchedProfilePoll(unittest.TestCase):
         app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}   # งานที่เปิดค้าง — ไม่แตะตาราง
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_not_called()
-        app._start_player.assert_called_once_with(False, once=True)
+        app._start_player_inner.assert_called_once_with(False, once=True, auto=True)
 
     def test_poll_unknown_profile_keeps_current_rows(self):
         import queue
@@ -3870,7 +3870,7 @@ class TestSchedProfilePoll(unittest.TestCase):
         app._sched = {"mode": "daily", "every": 10, "times": ["08:00"], "profile": "โปรไฟล์ถูกลบไปแล้ว"}   # v2.7
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_not_called()           # ทนได้ — เล่นงานที่เปิดค้างแทน
-        app._start_player.assert_called_once_with(False, once=True)
+        app._start_player_inner.assert_called_once_with(False, once=True, auto=True)
 
 
 class TestValidateRowsEngine(unittest.TestCase):
@@ -4771,7 +4771,7 @@ class TestSchedPerProfile(unittest.TestCase):
         app._sched = {"mode": "daily", "every": 10, "times": [], "profile": "งานดึก"}
         am.MacroApp._sched_poll(app)
         app._load_rows.assert_called_once_with([{"button": "Beep", "secs": 1}])   # โปรไฟล์ของเวลาชนะ
-        app._start_player.assert_called_once_with(False, once=True)
+        app._start_player_inner.assert_called_once_with(False, once=True, auto=True)
 
     def test_poll_str_item_uses_default_profile(self):
         import queue
@@ -5164,6 +5164,21 @@ class TestAhkBlocks(unittest.TestCase):
     def test_junk_brace_still_skipped(self):
         self.assertEqual(me_mod.ahk_to_rows("{\nif (((\nMsgBox hi"), [])
 
+    def test_example_13_demo_file(self):
+        """v2.9: ตัวอย่าง 13 ต้อง validate ผ่าน + บล็อก export .ahk แล้ว import กลับตรงเดิม"""
+        path = os.path.join(os.path.dirname(os.path.abspath(am.__file__)),
+                            "examples", "13_start_validate_ahk_blocks.json")
+        with open(path, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual(
+            me_mod.validate_rows(rows, plugin_names=[n for n, _ in me_mod.load_plugins()]), [])
+        back = me_mod.ahk_to_rows(me_mod.rows_to_ahk(rows))
+        core = [(r["button"], r["additional"]) for r in back
+                if r["button"] in (me_mod.BLOCK_START, me_mod.BLOCK_END)]
+        orig = [(r["button"], r["additional"]) for r in rows
+                if r["button"] in (me_mod.BLOCK_START, me_mod.BLOCK_END)]
+        self.assertEqual(core, orig)          # if/until/max roundtrip ตรงเป๊ะ
+
 
 class TestCollapseAll(unittest.TestCase):
     """v2.9: เมนูขวา ย่อทั้งหมด/ขยายทั้งหมด — ครอบ Section + บล็อกพร้อมกัน"""
@@ -5260,7 +5275,7 @@ class TestUnifiedPlayValidation(unittest.TestCase):
              mock.patch.object(am.threading, "Thread",
                                side_effect=lambda *a, **k:
                                threads.append(k) or mock.MagicMock()):
-            am.MacroApp._start_player(app, False)
+            am.MacroApp._start_player_inner(app, False)
         ask.assert_called_once()
         self.assertIn("1 จุด", ask.call_args[0][1])
         self.assertEqual(len(threads), 1)
@@ -5271,7 +5286,7 @@ class TestUnifiedPlayValidation(unittest.TestCase):
         app = self._app([{"button": "Tap Key", "additional": ""}], ["i1"])
         with mock.patch.object(am.messagebox, "askyesno", return_value=False) as ask, \
              mock.patch.object(am.threading, "Thread") as th:
-            am.MacroApp._start_player(app, False)
+            am.MacroApp._start_player_inner(app, False)
         ask.assert_called_once()
         th.assert_not_called()
 
@@ -5282,7 +5297,7 @@ class TestUnifiedPlayValidation(unittest.TestCase):
              mock.patch.object(am.messagebox, "showinfo",
                                side_effect=lambda *a, **k: infos.append(a)), \
              mock.patch.object(am.threading, "Thread") as th:
-            am.MacroApp._start_player(app, False)
+            am.MacroApp._start_player_inner(app, False)
         self.assertTrue(infos)      # ไม่มีอะไรให้เล่น
         th.assert_not_called()
 

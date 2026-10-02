@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.9.0"
+__version__ = "2.9.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -3988,16 +3988,22 @@ class MacroApp:
     def _start_player(self, loop, once=False):
         """เริ่มเล่น — loop=True = วนไม่จำกัดจนกด STOP (REPEAT/F10)
         once=True = เล่นครั้งเดียวจบรอบเดียว (ใช้โดย schedule — ไม่สนช่อง รอบ:/forever)"""
+        self._start_player_inner(loop, once=once, auto=False)
+
+    def _start_player_inner(self, loop, once=False, auto=False):
+        """v2.9.1: แยก inner เพื่อรับ auto=True จาก schedule — แถวพังถูกข้ามอัตโนมัติ
+        โดยไม่เด้ง askyesno ค้างรอคนกด (นัดหมายตอนตี 3 ต้องเล่นต่อได้เอง + log [SKIP] ทุกแถว)"""
         rows, iids = self._rows_and_iids_for_play()
         items = list(zip(rows, iids))     # คู่ (แถว, iid) — เล่น/ไฮไลต์ตามกันเสมอ (v1.19)
         if not items:
-            messagebox.showinfo(APP_TITLE, self._t("no_rows"))
+            if not auto:
+                messagebox.showinfo(APP_TITLE, self._t("no_rows"))
             return
         # v2.9: ตรวจด้วย engine เดียวกับเมนู 🔍 Validate / CLI --validate —
         # แถวที่ตรวจไม่ผ่าน "ถูกข้ามจริง" (เดิมแจ้งเตือนแต่ยังเล่นทุกแถว)
         issues = validate_rows(rows, plugin_names=[n for n, _ in self._plugins])
         if issues:
-            if not messagebox.askyesno(APP_TITLE,
+            if not auto and not messagebox.askyesno(APP_TITLE,
                     "มีแถวที่ตรวจไม่ผ่าน %d จุด (คีย์ว่าง/ภาพหาย/บล็อกไม่ปิด ฯลฯ)\n"
                     "แถวเหล่านั้นจะถูกข้าม — ต้องการเล่นต่อหรือไม่?\n"
                     "(ดูรายละเอียดแถวที่มีปัญหา: เมนู 🔍 Validate)" % len(issues)):
@@ -4005,17 +4011,32 @@ class MacroApp:
             bad = {num - 1 for num, _ in issues}      # index 0-based ของแถวที่ข้าม
             items = [it for i, it in enumerate(items) if i not in bad]
             if not items:
-                messagebox.showinfo(APP_TITLE,
-                                    "ทุกแถวตรวจไม่ผ่าน — ไม่มีอะไรให้เล่น\n"
-                                    "แก้ตามรายงานในเมนู 🔍 Validate ก่อน")
+                if self._log_enabled:                 # v2.9.1: auto/งานค้างคืนต้องมีหลักฐานใน log
+                    self._log_src = self._loaded_file or "ตารางในโปรแกรม"
+                    for num, reason in issues:
+                        log_write("SKIP", "แถว %d ถูกข้าม (%s)" % (num, reason), self._log_src)
+                    log_write("SKIP", "ทุกแถวตรวจไม่ผ่าน — ไม่ได้เล่นสักแถว", self._log_src)
+                if not auto:
+                    messagebox.showinfo(APP_TITLE,
+                                        "ทุกแถวตรวจไม่ผ่าน — ไม่มีอะไรให้เล่น\n"
+                                        "แก้ตามรายงานในเมนู 🔍 Validate ก่อน")
                 return
             self._ui_state["msg"] = ("ข้ามแถวที่ตรวจไม่ผ่าน %d จุด — รายละเอียดที่เมนู 🔍 Validate"
                                      % len(issues), "#a60")
+            # v2.9.1: บันทึก log เตือนแถวที่ถูกข้าม — งานค้างคืน/นัดหมายต้องอ่านย้อนได้ว่า
+            # เล่นจริงกี่แถว ข้ามกี่แถว เหตุผลอะไร (mode [SKIP] — parse_log_stats ไม่นับเป็น STEP)
+            if self._log_enabled:
+                self._log_src = self._loaded_file or "ตารางในโปรแกรม"
+                for num, reason in issues:
+                    log_write("SKIP", "แถว %d ถูกข้าม (%s)" % (num, reason), self._log_src)
+                log_write("SKIP", "เล่นเฉพาะแถวที่ผ่าน %d/%d แถว" % (len(items), len(rows)),
+                          self._log_src)
         self.stop_all(silent=True)          # หยุดเธรดเดิม + ปล่อยคีย์ค้างก่อน
         self._play_gen += 1                 # เธรดใหม่รุ่นใหม่ — เธรดเก่าที่ sleep ค้างจะหยุดเอง
         self.running = True
         gen = self._play_gen
         loop = loop or self.chk_forever.get()          # อ่านค่าฝั่ง UI ก่อนสร้างเธรด
+        self._auto_confirmed = not auto                # v2.9.1: True = ผู้ใช้ตอบเองแล้ว (เกณฑ์ auto-skip ของ schedule)
         try:
             speed = float(self.cmb_speed.get())
         except ValueError:
@@ -4401,7 +4422,7 @@ class MacroApp:
                         if self._log_enabled:
                             log_write("SCHED", "schedule เริ่มเล่นโปรไฟล์: " + prof,
                                       self._log_src)
-                    self._start_player(False, once=True)   # เล่น 1 รอบจบทุกครั้งที่ถึงเวลา (F8 หยุดได้)
+                    self._start_player_inner(False, once=True, auto=True)   # เล่น 1 รอบจบทุกครั้งที่ถึงเวลา (F8 หยุดได้)
         except Exception:
             pass
         if not self._sched_stop.is_set():
@@ -5691,8 +5712,8 @@ def cli_main(argv):
         variables=cli_vars,
         plugin_lookup=lambda name: cli_plugins.get(name),
         log_src=args.script,
-        unsupported_cb=lambda btn: print(
-            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn),
+        unsupported_cb=lambda btn: (skipped.__setitem__(0, skipped[0] + 1), print(
+            "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn))[1],
         find_image_cb=find_image_pos_from_row,       # v2.2: CLI ค้นภาพได้จริง (Image Click/If Image)
         wait_image_cb=lambda row: wait_image_until(  # v2.2: รอภาพจริง + หยุดได้กลางทาง
             row, timeout_hint=lambda t: print(
@@ -5758,6 +5779,27 @@ def cli_main(argv):
 
         threading.Thread(target=_stopfile_watcher, daemon=True).start()
 
+    # v2.9.1: ตรวจด้วย engine เดียวกับ --validate ตั้งแต่หัวโปรแกรม — แถวพังถูกตัดออกตั้งแต่
+    # ต้น (งานค้างคืนไม่ต้องเจอเตือนทีละแถวระหว่างเล่น) — ทุกแถวพัง = จบด้วย exit code 1
+    cli_issue_rows = set()
+    if not args.validate:
+        plugin_names = [n for n, _ in load_plugins()]
+        cli_issues = validate_rows(rows, plugin_names=plugin_names)
+        if cli_issues:
+            cli_issue_rows = {num for num, _ in cli_issues}
+            print("⚠ พบปัญหา %d จุด — แถวต่อไปนี้จะถูกข้าม:" % len(cli_issues))
+            for num, reason in cli_issues:
+                print("  แถว %d: %s" % (num, reason))
+            if log_enabled:
+                for num, reason in cli_issues:
+                    log_write("SKIP", "แถว %d ถูกข้าม (%s)" % (num, reason), args.script)
+            if cli_issue_rows >= {i + 1 for i in range(len(rows))
+                                  if rows[i].get("enabled", True) is not False}:
+                print("ทุกแถวตรวจไม่ผ่าน — ไม่มีอะไรให้เล่น (แก้ตามรายงานด้านบน หรือรัน --validate)")
+                if log_enabled:
+                    log_write("SKIP", "ทุกแถวตรวจไม่ผ่าน — ไม่ได้เล่นสักแถว", args.script)
+                return 1
+
     print("เล่นสคริปต์: %s (%d แถว)%s%s" % (
         os.path.basename(args.script), len(rows),
         "  •  วนไม่จำกัด" if (args.loop or args.loops == 0) else "",
@@ -5769,9 +5811,11 @@ def cli_main(argv):
     if args.watchdog > 0:
         print("  •  watchdog: จบแล้วเริ่มใหม่อัตโนมัติหลังพัก %.0f วิ" % args.watchdog)
     if log_enabled:
-        log_write("START", "เริ่มเล่น (CLI) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d" %
+        log_write("START", "เริ่มเล่น (CLI) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d%s" %
                   (speed, "ไม่จำกัด" if (args.loop or args.loops == 0) else args.loops,
-                   len([r for r in rows if r.get("enabled", True) is not False])),
+                   len([r for i, r in enumerate(rows, 1)
+                        if r.get("enabled", True) is not False and i not in cli_issue_rows]),
+                   (" ข้าม=%s" % ",".join(map(str, sorted(cli_issue_rows)))) if cli_issue_rows else ""),
                   args.script)
     if gk_ok:
         print("หยุด: กด F8 หรือ Esc (ทุกที่), Esc/q ในหน้าต่างนี้, หรือ Ctrl+C")
@@ -5796,18 +5840,23 @@ def cli_main(argv):
             print("  Wait for Pixel Color: สีไม่ตรง (%d,%d) — ข้ามการรอ" % (x, y))
         return okc
 
+    skipped = [0]                     # v2.9.1: นับแถวที่ถูกข้ามระหว่างเล่น (อ้างใน cli_main ได้)
+
     def play_once():
         """เล่นสคริปต์ 1 ครั้ง — คืน True = จบครบเอง, False = ถูกหยุดกลางคัน"""
         try:
             loops = 0 if args.loop else max(0, args.loops)
             run_t0 = time.time()            # v2.4: Safety timeout (--max-minutes)
             mx = max(0.0, float(getattr(args, "max_minutes", 0.0) or 0.0))
-            active = [r for r in rows if r.get("enabled", True) is not False]
+            # v2.9.1: แถวที่ --validate ตรวจไม่ผ่านถูกตัดตั้งแต่หัวโปรแกรม — เล่นเฉพาะแถวที่ผ่าน
+            active = [r for i, r in enumerate(rows, 1)
+                      if r.get("enabled", True) is not False and i not in cli_issue_rows]
             cli_vars.clear()                 # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
             skip_n = 0                       # ตัวนับข้ามแถวจาก If Loop/If Time (v1.21)
             n_loop = 0
             while True:
                 n_loop += 1
+                sk0 = skipped[0]             # v2.9.1: จุดตั้งต้นนับข้ามของรอบนี้ (สรุปท้ายรอบใช้ delta)
                 play_rows = pick_play_order(active, pct=pct, shuffle=args.shuffle)
                 print("— รอบที่ %d —" % n_loop)
                 block_rounds = {}             # v2.6 (ชุด N2): ตัวนับรอบลูปย่อยรีเซ็ตทุกรอบสคริปต์
@@ -5909,6 +5958,9 @@ def cli_main(argv):
                                               r.get("additional", "")))
                 if not running[0]:
                     return False
+                if skipped[0] > sk0 and log_enabled:   # v2.9.1: สรุปแถวที่ถูกข้ามในรอบนี้
+                    log_write("SKIP", "รอบ %d ข้ามแถวที่ไม่รองรับ %d แถว (สรุปท้ายรอบ)"
+                              % (n_loop, skipped[0] - sk0), args.script)
                 if loops == 0:
                     continue
                 loops -= 1
@@ -5928,13 +5980,15 @@ def cli_main(argv):
             if log_enabled:
                 log_write("STOP" if not ok else "END",
                           "หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)" if not ok
-                          else "เล่นจบเองครบ", args.script)
+                          else "เล่นจบเองครบ%s" % (" (ข้ามแถวไม่รองรับ %d)" % skipped[0]
+                                                 if skipped[0] else ""), args.script)
                 prune_log()
             if not ok:
                 print("\nถูกหยุดโดยผู้ใช้")
                 return 130
             if args.watchdog <= 0:
-                print("จบแล้ว ✔")
+                print("จบแล้ว ✔%s" % (" (ข้ามแถวไม่รองรับ %d แถว)" % skipped[0]
+                                       if skipped[0] else ""))
                 return 0
             # watchdog: จบแล้วเริ่มใหม่อัตโนมัติ (หยุดถาวรได้ทุกช่องทางหยุด)
             n_restart += 1

@@ -1,0 +1,182 @@
+[
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Message Box",
+  "additional": "เดโม่ v2.9: START ตรวจก่อนเล่น + .ahk บล็อกสองทิศ — ลองกด START (ตรวจอัตโนมัติ) แล้วเมนู 🔀 Export .ahk / นำเข้ากลับ",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "⬛ หัวข้อ",
+  "additional": "กลุ่ม A — บล็อก if ตัวแปร (export .ahk ได้เป็น if (n > 0) { … })",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Set Variable",
+  "additional": "n = 1",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block Start",
+  "additional": "if n > 0",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "บล็อก A: n > 0 จริง → เล่น (ถ้าเปลี่ยนเงื่อนไขเป็น n > 99 บล็อกนี้ถูกข้าม)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Set Variable",
+  "additional": "n += 4",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block End",
+  "additional": "",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "⬛ หัวข้อ",
+  "additional": "กลุ่ม B — ลูปย่อย until + max (export .ahk ได้เป็น Loop { … } Until, n >= 5)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block Start",
+  "additional": "until n >= 5 max 20",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "ลูปย่อย: รอบที่ {n} — วนจน n >= 5 (สูงสุด 20 รอบ)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Set Variable",
+  "additional": "n += 1",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block End",
+  "additional": "",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "ออกจากลูปย่อยแล้ว (n = {n}) — เล่นต่อ",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "⬛ หัวข้อ",
+  "additional": "กลุ่ม C — บล็อก max (export .ahk ได้เป็น Loop, 2 { … })",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block Start",
+  "additional": "max 2",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "บล็อก C: เล่น 2 รอบ (Loop, 2 ใน .ahk)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block End",
+  "additional": "",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Message Box",
+  "additional": "จบเดโม่ v2.9 (n = {n}) — ลองต่อ: 🔍 Validate · คลิกขวา ย่อทั้งหมด/ขยายทั้งหมด · 🔀 Export .ahk แล้วนำเข้ากลับ",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ }
+]

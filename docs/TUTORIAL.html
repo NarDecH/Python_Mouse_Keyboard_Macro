@@ -439,7 +439,17 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.9.0 ·
+  <div class="chapter">
+    <h2>15. v2.9.1 — log แจ้งแถวที่ถูกข้าม</h2>
+    <ul>
+      <li><b>mode [SKIP] ใน log</b> — แถวที่ตรวจไม่ผ่านถูกบันทึก "แถว N ถูกข้าม (เหตุผล)" +
+        สรุปเล่นผ่าน/ข้าม · START line ระบุ <code>ข้าม=1,3</code> — งานค้างคืนอ่านย้อนรู้ทันที</li>
+      <li><b>CLI ตรวจตั้งแต่หัว</b> — แถวพังถูกรายงาน + ตัดออกก่อนเล่น · ทุกแถวพัง = exit code 1</li>
+      <li><b>schedule auto-skip</b> — นัดหมายถึงเวลาแถวพัง: ข้ามเอง + log ทุกแถว ไม่เด้งถาม</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.9.1 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

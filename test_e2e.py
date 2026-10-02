@@ -494,5 +494,93 @@ class TestE2EBlocks(unittest.TestCase):
             ch.close()
 
 
+class TestE2EStartValidateSkip(unittest.TestCase):
+    """v2.9.1: CLI ตรวจสคริปต์ตั้งแต่หัวโปรแกรม — แถวพังถูกข้ามพร้อมรายงาน + log [SKIP]
+    (สคริปต์ Beep/Tap Key ล้วน — ปลอดภัยไม่แตะเมาส์/คีย์)"""
+
+    def _script(self, rows):
+        d = tempfile.mkdtemp(prefix="macro_e2e_skip_")
+        p = os.path.join(d, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        return p
+
+    def test_invalid_rows_skipped_with_report(self):
+        # แถวคีย์ว่าง 2 แถวถูกข้าม — เล่นเฉพาะ Beep 2 แถว + รายงานหัวโปรแกรม
+        script = self._script([
+            {"enabled": True, "button": "Tap Key", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "ok1",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Tap Key", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "ok2",
+             "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0)
+            self.assertIn("แถวต่อไปนี้จะถูกข้าม", out)
+            self.assertEqual(out.count("[1/2] Beep ok1"), 1)
+            self.assertEqual(out.count("[2/2] Beep ok2"), 1)
+            self.assertNotIn("[3/", out)          # แถวพังไม่ถูกเล่นและไม่นับเลข
+        finally:
+            ch.close()
+
+    def test_skip_logged_to_log_file(self):
+        # log เปิด (ไม่ใส่ --no-log) → ต้องมี [SKIP] แถว 1 พร้อมเหตุผล + START ระบุ ข้าม=1
+        # (log_path เขียนข้างไฟล์แอป — รัน in-process แล้ว patch log_path ลง tempdir กันเขียน log จริง)
+        script = self._script([
+            {"enabled": True, "button": "Tap Key", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "ok",
+             "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        d = os.path.dirname(script)
+        boot = (
+            "import sys; sys.path.insert(0, r'%s'); import auto_macro; "
+            "auto_macro.log_path = lambda: sys.argv[1] + r'\\macro_log_test.txt'; "
+            "sys.exit(auto_macro.cli_main(sys.argv[2:]))" % HERE.replace("\\", "\\\\")
+        )
+        p = subprocess.Popen(
+            [sys.executable, "-X", "utf8", "-c", boot, d, script],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace")
+        try:
+            out, _ = p.communicate(timeout=60)
+            rc = p.returncode
+            self.assertEqual(rc, 0, out)
+            with open(os.path.join(d, "macro_log_test.txt"), encoding="utf-8") as fh:
+                content = fh.read()
+            self.assertIn("[SKIP]", content)
+            self.assertIn("แถว 1 ถูกข้าม", content)
+            self.assertIn("ข้าม=1", content)
+        finally:
+            if p.poll() is None:
+                p.kill()
+
+    def test_all_invalid_exits_1_without_playing(self):
+        # ทุกแถวพัง → รายงาน + จบด้วย exit code 1 ไม่เล่นสักแถว
+        script = self._script([
+            {"enabled": True, "button": "Tap Key", "additional": "",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Image Click", "additional": "no_such_file.png",
+             "mins": 0, "secs": 0, "repeat": 1},
+        ])
+        ch = _Child([script, "--no-log"])
+        try:
+            ch.collect(deadline_s=30)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 1)
+            self.assertIn("ทุกแถวตรวจไม่ผ่าน", out)
+            self.assertNotIn("— รอบที่", out)     # ไม่มีการเล่นเกิดขึ้นเลย
+        finally:
+            ch.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
