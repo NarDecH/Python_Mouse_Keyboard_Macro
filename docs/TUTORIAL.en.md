@@ -316,11 +316,20 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
   comment for the whole block — no stray braces, the .ahk always runs · import converts all
   three forms back to Block Start/End rows.
 
+- **Dry-run (v2.10)** — 🧪 menu or `--dry-run`: walks the whole script like a real run
+  (conditions/blocks/delays/variables follow every path) but real input rows are replaced
+  with "DRY-RUN: would click…" reports — rehearse before an overnight job with zero risk.
+- **Condition results as variables (v2.10)** — append `>name` to any condition row
+  (`img.png >found`, `n > 3 >res`): the result ("1"/"0") is stored in that variable and
+  later rows use `{found}` or chain If Variable — condition chaining, no new actions.
+- **Batch runner (v2.10)** — `py auto_macro.py --queue list.txt`: one script path per line,
+  every file validated before anything plays (a broken file cancels the whole queue), files
+  run back-to-back without keypresses, per-file summary at the end + [QUEUE] log entries.
 - **Log notes skipped rows (v2.9.1)** — rows that fail START pre-validation (or CLI up-front
   validation) are written to the log as [SKIP] lines "row N skipped (reason)" plus a
   played/skipped summary — overnight jobs can be reviewed to see exactly what ran ·
   scheduled sessions skip broken rows automatically without a dialog (previously the
   3 a.m. run sat waiting for someone to click OK).
 
-*Guide for code v2.9.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.10.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

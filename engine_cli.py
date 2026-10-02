@@ -43,6 +43,8 @@ def build_parser():
     ap.add_argument("--no-log", action="store_true", help="ไม่บันทึก log การเล่น")
     ap.add_argument("--json-lines", action="store_true",
                     help="อ่านสคริปต์แบบ JSON Lines (1 แถวต่อบรรทัด — v2.2)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="ซ้อมเดินสคริปต์โดยไม่แตะเมาส์/คีย์ (v2.10 — รายงานแทนทำจริง)")
     return ap
 
 
@@ -138,6 +140,7 @@ def main(argv=None):
         else print("  ⚠ Set Clipboard: ตั้งคลิปบอร์ดไม่สำเร็จบนระบบนี้"),
         on_clipboard_read=me.clip_get,
         variables=vars_,
+        dry_run=bool(getattr(args, "dry_run", False)),
         plugin_lookup=lambda name: plugins.get(name),
         log_src=args.script,
         unsupported_cb=lambda btn: print(

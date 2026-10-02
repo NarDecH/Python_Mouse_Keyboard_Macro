@@ -1,0 +1,5 @@
+# examples/queue_sample.txt — ตัวอย่างลิสต์คิวสำหรับ CLI --queue (v2.10)
+# ใช้: py auto_macro.py --queue examples/queue_sample.txt
+# บรรทัดละพาธสคริปต์ · ข้าม #comment และบรรทัดว่าง · พาธสัมพัทธ์อิงโฟลเดอร์ของไฟล์ลิสต์นี้
+14_dry_run_cond_vars.json
+13_start_validate_ahk_blocks.json

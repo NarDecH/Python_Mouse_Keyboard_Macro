@@ -449,7 +449,20 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.9.1 ·
+  <div class="chapter">
+    <h2>16. v2.10 — Dry-run + ผลเงื่อนไขเป็นตัวแปร + รันหลายไฟล์ต่อกัน</h2>
+    <ul>
+      <li><b>Dry-run (เมนู 🧪 / CLI <code>--dry-run</code>)</b> — ซ้อมเดินสคริปต์ครบทุกเส้นทาง
+        (เงื่อนไข/บล็อก/ดีเลย์/ตัวแปร) โดยไม่แตะเมาส์/คีย์ — แถว input จริงถูกแทนด้วย
+        "DRY-RUN: จะ…" — เหมาะตรวจก่อนปล่อยงานค้างคืน</li>
+      <li><b>ผลเงื่อนไขเป็นตัวแปร</b> — เติม <code>&gt;ชื่อ</code> ท้าย Additional ของเงื่อนไขทุกชนิด
+        เช่น <code>img.png &gt;เจอ</code> — เก็บ "1"/"0" แล้วแถวถัดไปใช้ <code>{เจอ}</code> ต่อได้เลย</li>
+      <li><b>Batch runner</b> — <code>py auto_macro.py --queue list.txt</code> รันหลายไฟล์ต่อกัน ·
+        ตรวจทุกไฟล์ก่อนเริ่ม (พัง = ยกเลิกทั้งคิว) · สรุปรายไฟล์ท้ายโปรแกรม + log [QUEUE]</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.10.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

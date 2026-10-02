@@ -13,6 +13,7 @@ import os
 import random
 import re
 import sys
+import tempfile
 import time
 import unittest
 from unittest import mock
@@ -5179,6 +5180,21 @@ class TestAhkBlocks(unittest.TestCase):
                 if r["button"] in (me_mod.BLOCK_START, me_mod.BLOCK_END)]
         self.assertEqual(core, orig)          # if/until/max roundtrip ตรงเป๊ะ
 
+    def test_example_14_dry_run_cond_vars(self):
+        """v2.10: ตัวอย่าง 14 ต้อง validate ผ่าน + บล็อก export .ahk กลับตรงเดิม"""
+        path = os.path.join(os.path.dirname(os.path.abspath(am.__file__)),
+                            "examples", "14_dry_run_cond_vars.json")
+        with open(path, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual(
+            me_mod.validate_rows(rows, plugin_names=[n for n, _ in me_mod.load_plugins()]), [])
+        back = me_mod.ahk_to_rows(me_mod.rows_to_ahk(rows))
+        core = [(r["button"], r["additional"]) for r in back
+                if r["button"] in (me_mod.BLOCK_START, me_mod.BLOCK_END)]
+        orig = [(r["button"], r["additional"]) for r in rows
+                if r["button"] in (me_mod.BLOCK_START, me_mod.BLOCK_END)]
+        self.assertEqual(core, orig)
+
 
 class TestCollapseAll(unittest.TestCase):
     """v2.9: เมนูขวา ย่อทั้งหมด/ขยายทั้งหมด — ครอบ Section + บล็อกพร้อมกัน"""
@@ -5300,6 +5316,189 @@ class TestUnifiedPlayValidation(unittest.TestCase):
             am.MacroApp._start_player_inner(app, False)
         self.assertTrue(infos)      # ไม่มีอะไรให้เล่น
         th.assert_not_called()
+
+
+class TestDryRunEngine(unittest.TestCase):
+    """v2.10: โหมด Dry-run — เดินสคริปต์ครบแต่ไม่แตะเมาส์/คีย์ (รายงานแทนทำจริง)"""
+
+    def _runner(self, dry=True, **kw):
+        mouse = mock.MagicMock()
+        mouse.position = (10, 20)
+        kb = mock.MagicMock()
+        msgs = []
+        r = me_mod.ActionRunner(mouse, kb, dry_run=dry,
+                                on_message=lambda t, c="#080": msgs.append((t, c)), **kw)
+        return r, mouse, kb, msgs
+
+    def test_dry_run_reports_instead_of_input(self):
+        r, mouse, kb, msgs = self._runner()
+        r.execute({"button": "Left Click", "x": "11", "y": "22", "additional": ""})
+        r.execute({"button": "Tap Key", "additional": "a"})
+        mouse.click.assert_not_called()      # ไม่แตะเมาส์จริง
+        kb.tap.assert_not_called()           # ไม่แตะคีย์จริง
+        text = " ".join(t for t, _c in msgs)
+        self.assertIn("DRY-RUN", text)
+        self.assertIn("คลิก", text)
+
+    def test_dry_run_variables_and_conditions_still_run(self):
+        r, mouse, kb, msgs = self._runner()
+        r.execute({"button": "Set Variable", "additional": "n = 7"})
+        r.execute({"button": "Read Pixel Color", "additional": "c 5,5"})
+        self.assertEqual(r.variables.get("n"), "7")      # ตัวแปรเดินจริง
+        self.assertIn("c", r.variables)                  # อ่านสี (ไม่แตะ input) ยังทำงาน
+        skip, msg = me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_VAR, "n > 5", 1, 1, variables=r.variables)
+        self.assertEqual((skip, msg is not None), (0, True))
+
+    def test_dry_run_off_by_default(self):
+        r, mouse, kb, msgs = self._runner(dry=False)
+        r.execute({"button": "Left Click", "x": "11", "y": "22", "additional": ""})
+        mouse.click.assert_called_once()     # โหมดปกติยังคลิกจริง
+        self.assertFalse(any("DRY-RUN" in t for t, _c in msgs))
+
+
+class TestCondStore(unittest.TestCase):
+    """v2.10: เก็บผลเงื่อนไขเป็นตัวแปร — โทเคน '>ชื่อ' ท้าย Additional"""
+
+    def test_parse_cond_store(self):
+        rest, name = me_mod.parse_cond_store("img.png >img_ok")
+        self.assertEqual((rest, name), ("img.png", "img_ok"))
+        rest, name = me_mod.parse_cond_store("300,300 #ffffff")
+        self.assertEqual((rest, name), ("300,300 #ffffff", None))
+        # กันคำอังกฤษติดท้ายเงื่อนไข (on/of/and) ไม่ถูกตีเป็นชื่อตัวแปร
+        rest, name = me_mod.parse_cond_store("Turn on")
+        self.assertIsNone(name)
+
+    def test_if_var_stores_result_true(self):
+        vars_ = {"n": "5"}
+        skip, _msg = me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_VAR, "n > 3 >ผล", 1, 1, variables=vars_)
+        self.assertEqual(skip, 0)
+        self.assertEqual(vars_.get("ผล"), "1")
+
+    def test_if_var_stores_result_false(self):
+        vars_ = {"n": "1"}
+        skip, _msg = me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_VAR, "n > 3 >ผล", 1, 1, variables=vars_)
+        self.assertGreater(skip, 0)          # ไม่จริง → ข้ามตาม Repeat
+        self.assertEqual(vars_.get("ผล"), "0")
+
+    def test_if_loop_and_time_store(self):
+        vars_ = {}
+        me_mod.ActionRunner.evaluate_condition(me_mod.IF_LOOP, "3 >ถึงรอบ", 1, 5,
+                                               variables=vars_)
+        self.assertEqual(vars_.get("ถึงรอบ"), "1")   # รอบ 5 >= 3
+        vars2 = {}
+        me_mod.ActionRunner.evaluate_condition(
+            me_mod.IF_TIME, "23:59 >ผ่าน", 1, 1,
+            now=time.struct_time((2026, 10, 2, 8, 0, 0, 0, 0, 0)), variables=vars2)
+        self.assertEqual(vars2.get("ผ่าน"), "0")     # 08:00 ยังไม่ถึง 23:59
+
+    def test_if_image_store_hit_and_miss(self):
+        calls = [True, False]
+        runner, _mouse, _kb, _msgs = self._runner_cond()
+        runner.find_image_cb = lambda r: (10, 10) if calls.pop(0) else None
+        runner.execute({"button": me_mod.IF_IMAGE, "additional": "img.png >เจอ",
+                        "repeat": 2})
+        self.assertEqual(runner.variables.get("เจอ"), "1")
+        self.assertEqual(runner.skip_n, 0)
+        runner.execute({"button": me_mod.IF_IMAGE, "additional": "img.png >เจอ",
+                        "repeat": 2})
+        self.assertEqual(runner.variables.get("เจอ"), "0")
+        self.assertEqual(runner.skip_n, 2)
+
+    def test_if_pixel_store(self):
+        runner, _mouse, _kb, _msgs = self._runner_cond()
+        with mock.patch.object(me_mod, "pixel_color_at", return_value=(255, 255, 255)), \
+             mock.patch.object(me_mod, "color_close", return_value=True):
+            runner.execute({"button": me_mod.IF_PIXEL,
+                            "additional": "1,1 #ffffff >สีตรง", "repeat": 1})
+        self.assertEqual(runner.variables.get("สีตรง"), "1")
+
+    def _runner_cond(self, **kw):
+        """runner สำหรับเทสต์เงื่อนไข (ยังไม่ dry — อยากทดสอบเส้นเงื่อนไขล้วน)"""
+        mouse = mock.MagicMock()
+        mouse.position = (10, 20)
+        kb = mock.MagicMock()
+        msgs = []
+        r = me_mod.ActionRunner(mouse, kb, find_image_cb=lambda r: None,
+                                on_message=lambda t, c="#080": msgs.append((t, c)), **kw)
+        return r, mouse, kb, msgs
+
+
+class TestQueueCli(unittest.TestCase):
+    """v2.10: --queue — รันสคริปต์หลายไฟล์ตามลิสต์ (in-process cli_main — Beep ล้วนปลอดภัย)"""
+
+    def _write(self, d, name, obj):
+        p = os.path.join(d, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            if isinstance(obj, str):
+                fh.write(obj)
+            else:
+                json.dump(obj, fh, ensure_ascii=False)
+        return p
+
+    def _beep(self, text="ปลอดภัย"):
+        return {"enabled": True, "button": "Beep", "additional": text,
+                "mins": 0, "secs": 0, "repeat": 1}
+
+    def test_queue_runs_all_and_summarizes(self):
+        d = tempfile.mkdtemp(prefix="macro_queue_")
+        self._write(d, "a.json", [self._beep("A")])
+        self._write(d, "b.json", [self._beep("B")])
+        lst = self._write(d, "list.txt", "# คอมเมนต์\na.json\nb.json\n\n")
+        out = io.StringIO()
+        with mock.patch("sys.stdout", out):
+            rc = am.cli_main(["--queue", lst, "--no-log"])
+        self.assertEqual(rc, 0)
+        text = out.getvalue()
+        self.assertIn("ผ่านการตรวจ: a.json", text)
+        self.assertIn("คิวที่ 1/2", text)
+        self.assertIn("คิวที่ 2/2", text)
+        self.assertIn("สรุปคิว (2 ไฟล์)", text)
+        self.assertIn("จบครบ ✔", text)
+
+    def test_queue_all_broken_cancels_before_playing(self):
+        d = tempfile.mkdtemp(prefix="macro_queue_")
+        bad = {"enabled": True, "button": "Tap Key", "additional": "",
+               "mins": 0, "secs": 0, "repeat": 1}
+        self._write(d, "ok.json", [self._beep("x")])
+        self._write(d, "bad.json", [bad])
+        lst = self._write(d, "list.txt", "ok.json\nbad.json\n")
+        out = io.StringIO()
+        with mock.patch("sys.stdout", out):
+            rc = am.cli_main(["--queue", lst, "--no-log"])
+        self.assertEqual(rc, 1)
+        text = out.getvalue()
+        self.assertIn("ยกเลิกทั้งคิว", text)
+        self.assertNotIn("— รอบที่", text)      # ไม่มีการเล่นเกิดขึ้นเลย (ตรวจก่อนเริ่ม)
+
+    def test_queue_missing_file_exits_1(self):
+        d = tempfile.mkdtemp(prefix="macro_queue_")
+        self._write(d, "list.txt", "no_such.json\n")
+        out = io.StringIO()
+        with mock.patch("sys.stdout", out):
+            rc = am.cli_main(["--queue", os.path.join(d, "list.txt"), "--no-log"])
+        self.assertEqual(rc, 1)
+        self.assertIn("ไม่พบ", out.getvalue())
+
+
+class TestCliDryRun(unittest.TestCase):
+    """v2.10: CLI --dry-run — แถว input จริงถูกรายงาน ไม่แตะเมาส์/คีย์"""
+
+    def test_cli_dry_run_reports(self):
+        d = tempfile.mkdtemp(prefix="macro_dry_")
+        p = os.path.join(d, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{ "enabled": True, "button": "Beep", "additional": "ok",
+                         "mins": 0, "secs": 0, "repeat": 1}], fh, ensure_ascii=False)
+        out = io.StringIO()
+        with mock.patch("sys.stdout", out):
+            rc = am.cli_main([p, "--dry-run", "--no-log"])
+        self.assertEqual(rc, 0)
+        text = out.getvalue()
+        self.assertIn("DRY-RUN", text)
+        self.assertIn("DRY-RUN: จะส่งเสียง Beep", text)
 
 
 if __name__ == "__main__":

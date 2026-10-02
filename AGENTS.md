@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.9.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.10.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -217,6 +217,19 @@
   once, auto=False)` — auto=True ไม่เด้งถาม ทุกแถวพัง log แล้วออกเงียบ — ⚠️ เทสต์ที่เคยชี้
   `_start_player` ต้องชี้ inner ให้ครบ) · CHANGELOG.en.md (check_docs บังคับหัวข้อเวอร์ชัน) ·
   ตัวอย่าง examples/13 — เทสต์ TestE2EStartValidateSkip
+- **ฟีเจอร์เสริม v2.10:** **Dry-run** (เมนู 🧪 `dry_run_menu` + CLI `--dry-run` — ActionRunner
+  รับ `dry_run=True`: แถวใน `_DRY_ACTIONS` ถูกแทนด้วย "DRY-RUN: จะ…" — เงื่อนไข/บล็อก/ตัวแปร
+  เดินจริง · GUI: `_start_player_inner(…, dry=)` → `_player(…, dry=)` ตั้ง `runner.dry_run`
+  แล้วรีเซ็ตใน finally) · **ผลเงื่อนไขเป็นตัวแปร** (โทเคน `>ชื่อ` ท้าย Additional ของเงื่อนไข
+  ทุกชนิด — parse ผ่าน `parse_cond_store` แหล่งเดียว · runner.execute ตัดโทเคนก่อนแตก &&
+  แล้วเก็บผ่าน `_save_cond_result` (self.cond_store — เคลียร์ทุกครั้ง) · If Loop/If Time
+  เก็บผ่าน dict `variables` ที่ evaluate_condition รับเข้ามา — เมธอดเป็น staticmethod ไม่มี self)
+  · **Batch runner** (CLI `--queue LIST.txt` → `cli_queue_run` — ลิสต์บรรทัดละพาธ ข้าม # ·
+  ตรวจทุกไฟล์ด้วย validate_rows ก่อนเริ่มเล่น พัง = ยกเลิกทั้งคิว exit 1 · เรียก cli_main ต่อ
+  ไฟล์โดยตัด --queue ออกจาก argv (⚠️ ไม่ตัด = วนเรียกตัวเองไม่รู้จบ) · สรุปรายไฟล์ + log
+  [QUEUE] · exit code 130 = หยุดโดยผู้ใช้ ไม่นับพัง) · `script` positional เป็น optional
+  (nargs="?") — เทสต์ TestDryRunEngine/TestCondStore/TestQueueCli/TestCliDryRun +
+  TestQueueDryRunE2E (E2E) + ตัวอย่าง 14/queue_sample.txt เข้า TestAhkBlocks
 
 ## เทคโนโลยี
 

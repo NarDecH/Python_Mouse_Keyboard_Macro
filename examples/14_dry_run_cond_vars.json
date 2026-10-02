@@ -1,0 +1,142 @@
+[
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Message Box",
+  "additional": "เดโม่ v2.10: Dry-run + ผลเงื่อนไขเป็นตัวแปร + --queue — ลองเมนู 🧪 Dry-run ซ้อมเดินสคริปต์ หรือ CLI: py auto_macro.py --queue examples/queue_sample.txt",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "⬛ หัวข้อ",
+  "additional": "ผลเงื่อนไขเป็นตัวแปร — โทเคน >ชื่อ ท้าย Additional เก็บผล '1'/'0' (v2.10)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Set Variable",
+  "additional": "n = 5",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "If Variable",
+  "additional": "n > 3 >ผล",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "ผลเงื่อนไข ผล={ผล} (1 = จริง, 0 = ไม่จริง)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Message Box",
+  "additional": "ผล If Variable เก็บไว้ {ผล} — แถวถัดไปใช้ {ผล} หรือ If Variable ต่อได้เลย",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "⬛ หัวข้อ",
+  "additional": "Dry-run — เมนู 🧪 (GUI) หรือ --dry-run (CLI): เดินครบแต่ไม่แตะเมาส์/คีย์",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "แถวนี้ในโหมด Dry-run จะถูกรายงานว่า 'จะส่งเสียง' แทนบี๊บจริง",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Message Box",
+  "additional": "แถวนี้ในโหมด Dry-run จะถูกรายงานแทนเปิดหน้าต่างจริง — เงื่อนไข/ตัวแปร/ดีเลย์เดินครบ",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "⬛ หัวข้อ",
+  "additional": "Block ทำงานร่วมกับตัวแปรผลเงื่อนไขได้ (v2.6 + v2.10)",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block Start",
+  "additional": "if ผล > 0",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Beep",
+  "additional": "อยู่ในบล็อก — เข้าเพราะผลเงื่อนไขก่อนหน้าเป็น 1",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "🔷 Block End",
+  "additional": "",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ },
+ {
+  "enabled": true,
+  "x": "",
+  "y": "",
+  "button": "Message Box",
+  "additional": "จบเดโม่ v2.10 — รันคิวหลายไฟล์: py auto_macro.py --queue examples/queue_sample.txt",
+  "mins": 0,
+  "secs": 0,
+  "repeat": 1
+ }
+]

@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.9.1"
+__version__ = "2.10.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -317,6 +317,21 @@ ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, W
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
                + VAR_ACTIONS + CLIP_ACTIONS + LOOP_ACTIONS + TIME_ACTIONS
                + PIXEL_COND + READ_PIXEL_ACTIONS + VAR_COND + BLOCK_ACTIONS + [SECTION_HEADER])
+
+# v2.10: แถวที่โหมด Dry-run "ไม่ทำจริง" — ทุกแถว input จริง (เมาส์/คีย์/เปิดแอป/คลิปบอร์ด)
+# ถูกแทนด้วยข้อความรายงาน — แถวเงื่อนไข/ตัวแปร/บล็อก/อ่านสี (ไม่แตะ input) เล่นปกติเพื่อเดินเส้นทางจริง
+_DRY_ACTIONS = tuple(
+    a for a in ACTIONS_ALL
+    if a not in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR,
+                 READ_PIXEL, BLOCK_START, BLOCK_END, SECTION_HEADER,
+                 "Set Variable", "Read Pixel Color"))
+_DRY_VERB = {"Left Click": "คลิก", "Right Click": "คลิก", "Middle Click": "คลิก",
+             "Left Down": "กด", "Right Down": "กด", "Middle Down": "กด",
+             "Left Up": "ปล่อย", "Right Up": "ปล่อย", "Middle Up": "ปล่อย",
+             "Press Key": "กด", "Tap Key": "กด", "Release Key": "ปล่อย",
+             "Type Text": "พิมพ์", "Launch App": "เปิด", "Beep": "ส่งเสียง",
+             "Set Clipboard": "ตั้งคลิปบอร์ด", "Read Clipboard": "อ่านคลิปบอร์ด",
+             "Move Mouse": "ย้ายเมาส์", "Save Cursor": "จำตำแหน่งเมาส์"}
 BLOCK_MAX_DEPTH = 8          # v2.6: จำกัดความลึกบล็อกซ้อน (กันสคริปต์ผิดโครงสร้าง)
 BLOCK_MAX_ROUNDS = 1000      # v2.6: ลูปย่อยไม่ใส่ max = วนได้สูงสุดเท่านี้ (กันอนันต์)
 
@@ -361,6 +376,18 @@ def parse_if_var(txt):
     if op != "=" and not val.strip():      # เปรียบเทียบ/contains ต้องมีค่า
         return None
     return m.group(1), op, val
+
+
+def parse_cond_store(txt):
+    """อ่านโทเคน '>ชื่อ' ท้าย Additional ของแถวเงื่อนไข (v2.10 — ผลเงื่อนไขเป็นตัวแปร)
+    เช่น 'img.png >img_ok' / '300,300 #ffffff && n > 5 >ok' — คืน (ข้อความที่เหลือ, ชื่อตัวแปร/None)
+    ชื่อตัวแปรใช้กฎเดียวกับ Set Variable (_VAR_NAME — ไทย/อังกฤษได้) และห้ามชนคำสงวน
+    on/of/and (กันพิมพ์เผลอติดกับเงื่อนไขภาษาอังกฤษ)"""
+    s = str(txt or "")
+    m = re.search(r"\s*>(%s)\s*$" % _VAR_NAME, s, re.UNICODE)
+    if not m or m.group(1).lower() in ("on", "of", "and"):
+        return s, None
+    return s[:m.start()].rstrip(), m.group(1)
 
 
 # ------------------------------------------------ เงื่อนไขรวม AND (v2.5.4) ----
@@ -1810,9 +1837,13 @@ class ActionRunner:
                  on_clipboard_set=lambda t: None, on_clipboard_read=lambda: None,
                  variables=None, plugin_lookup=lambda name: None,
                  log_src=None, unsupported_cb=lambda btn: None,
-                 find_image_cb=None, wait_image_cb=None):
+                 find_image_cb=None, wait_image_cb=None, dry_run=False):
+        """dry_run=True (v2.10): เดินทุกแถว/เงื่อนไข/ตัวแปร/บล็อกครบ — แต่ input จริงทุกชนิด
+        (เมาส์/คีย์/เปิดแอป/คลิปบอร์ด/บี๊บ/plugin) ถูกแทนด้วยข้อความรายงานผ่าน on_message
+        — ใช้ซ้อมสคริปต์ก่อนปล่อยค้างคืน ไม่แตะเมาส์/คีย์สักครั้ง"""
         self.mouse_ctl = mouse_ctl
         self.kb_ctl = kb_ctl
+        self.dry_run = bool(dry_run)
         self.stop_check = stop_check
         self.on_beep = on_beep
         self.on_message = on_message
@@ -1829,6 +1860,17 @@ class ActionRunner:
         self.saved_pos = None
         self.last_if_found = None
         self.skip_n = 0                           # v2.2: แถวที่ If Image/Else สั่งข้าม
+
+    def _save_cond_result(self, hit):
+        """v2.10: แถวเงื่อนไขระบุ '>ชื่อ' = เก็บผล '1'/'0' ลงตัวแปร — แถวถัดไปอ่านต่อด้วย
+        {ชื่อ} หรือ If Variable ได้ (ถูกแทนค่าก่อนเล่นทุกแถวอยู่แล้ว — ห่วงโซ่เงื่อนไขได้เลย)
+        เคลียร์ self.cond_store ทุกครั้ง — แถวเงื่อนไขถัดไปที่ไม่ระบุโทเคนต้องไม่เก็บค้าง"""
+        name = getattr(self, "cond_store", None)
+        self.cond_store = None
+        if name:
+            self.variables[name] = "1" if hit else "0"
+            self.on_message("→ เก็บผลเงื่อนไข %s = %s"
+                            % (name, self.variables[name]))
 
     def release_all(self):
         """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้าง (เรียกตอนหยุด — กัน Ctrl ติด)"""
@@ -1987,7 +2029,17 @@ class ActionRunner:
           ไม่ใช่เงื่อนไขที่รองรับ → (0, None)
           ยังไม่ถึงรอบ/เวลา → (0, ข้อความ "เล่นต่อ")
           ถึงรอบ/ผ่านเวลา → (จำนวนแถวที่ข้าม = Repeat, ข้อความ "ข้าม N แถว")
-          Additional ไม่ถูก → (0, ข้อความเตือน)"""
+          Additional ไม่ถูก → (0, ข้อความเตือน)
+        v2.10: โทเคน '>ชื่อ' ท้าย Additional = เก็บผลเงื่อนไข "1"/"0" ลงตัวแปรชื่อนั้น
+        (ผ่าน dict variables ที่ส่งเข้ามา — เมธอดนี้เป็น staticmethod ไม่มี self)"""
+        variables = variables if variables is not None else {}
+        # v2.10: ดึงโทเคนเก็บผลออกก่อน parse (เช่น "3 >รอบเก็บ" → เงื่อนไข "3")
+        additional, cond_store = parse_cond_store(additional)
+
+        def _store(hit):
+            if cond_store:
+                variables[cond_store] = "1" if hit else "0"
+
         if btn == IF_LOOP:
             # v2.5.4 (ชุด N1): รองรับ && เช่น "3 && 10" — ถึงรอบตามทุกเลขจึงข้าม
             parts = split_condition_and(additional) or [additional]
@@ -2000,9 +2052,11 @@ class ActionRunner:
                 nums.append(n)
             not_yet = [n for n in nums if n_loop < n]
             if not_yet:
+                _store(False)
                 return 0, "If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ" % (
                     additional, n_loop, max(not_yet))
             skip = parse_int(repeat, 1)
+            _store(True)
             return skip, "If Loop %s → รอบที่ %d >= %d ข้าม %d แถว" % (
                 additional, n_loop, min(nums), skip)
         if btn == IF_TIME:
@@ -2019,10 +2073,12 @@ class ActionRunner:
             pending = [s for s in specs if (lt.tm_hour, lt.tm_min) < s]
             if pending:
                 s = min(pending)
+                _store(False)
                 return 0, "If Time %02d:%02d → ยังไม่ถึง %02d:%02d เล่นต่อ" % (
                     lt.tm_hour, lt.tm_min, s[0], s[1])
             skip = parse_int(repeat, 1)
             s = max(specs)
+            _store(True)
             return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
                 s[0], s[1], skip)
         if btn == IF_VAR:
@@ -2036,13 +2092,23 @@ class ActionRunner:
                 details.append(detail)
                 if not hit:
                     skip = parse_int(repeat, 1)
+                    _store(False)
                     return skip, " ".join(details) + " ข้าม %d แถว" % skip
+            _store(True)
             return 0, " ".join(details) + " เล่นต่อ"
         return 0, None
 
     def execute(self, r):
-        """ทำ action ตามแถว r — คืน False เฉพาะเมื่อ Type Text ถูกสั่งหยุดกลางคัน"""
+        """ทำ action ตามแถว r — คืน False เฉพาะเมื่อ Type Text ถูกสั่งหยุดกลางคัน
+        v2.10: dry_run=True → แถว input จริงถูกแทนด้วยข้อความรายงาน (ไม่แตะเมาส์/คีย์)"""
         btn = r.get("button", "")
+        if self.dry_run and btn in _DRY_ACTIONS:
+            add = str(r.get("additional") or "")
+            self.on_message("DRY-RUN: จะ%s %s%s" % (
+                _DRY_VERB.get(btn, "ทำ"), btn, (" " + add) if add else ""))
+            if str(r.get("x", "")) != "" or str(r.get("y", "")) != "":
+                self.on_message("DRY-RUN: ที่พิกัด %s,%s" % (r.get("x"), r.get("y")))
+            return True
         if btn in BTN_TH:                                            # เมาส์ทั่วไป
             b, act = BTN_TH[btn]
             btn_obj = getattr(Button, b.lower())
@@ -2102,7 +2168,10 @@ class ActionRunner:
         elif btn == IF_IMAGE:                                        # เงื่อนไขค้นภาพ (v2.2 — runner จัดการเอง)
             # v2.4: Additional ต่อท้ายด้วย "Ns" (เช่น "img.png 5s") = ตรวจซ้ำจนครบ 5 วิ
             # v2.5.4 (ชุด N1): รองรับเงื่อนไขรวม && เช่น "img.png && 300,300 #ffffff"
-            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            # v2.10: โทเคน '>ชื่อ' ท้ายแถว = เก็บผลเงื่อนไข (ตัดออกก่อนแตก/ค้นภาพ)
+            add0, _store_name = parse_cond_store(r.get("additional"))
+            self.cond_store = _store_name
+            raw, wait = parse_wait_timeout(add0, 0)
             parts = split_condition_and(raw)
             rr = dict(r, additional=(parts[0] if parts else raw))
             extra_parts = parts[1:] if parts else []
@@ -2126,6 +2195,7 @@ class ActionRunner:
                     _h, _d2 = self.evaluate_if_pixel(_pix, self.variables)
                     hit = (_h is True)
             self.last_if_found = hit
+            self._save_cond_result(hit)           # v2.10: '>ชื่อ' เก็บผลลงตัวแปร
             if hit:
                 self.on_message("If Image เจอ → เล่นต่อ")
                 if pos is not None:               # ภาพที่เจอ (เฉพาะสายหลัก) ตั้ง {img_x}/{img_y}
@@ -2145,7 +2215,10 @@ class ActionRunner:
                 self.on_message("If ไม่เจอ → เล่นกลุ่ม B ต่อ")
         elif btn == IF_PIXEL:                                        # เงื่อนไขสีจุด (v2.5)
             # v2.5.4 (ชุด N1): รองรับ && เช่น "300,300 #ffffff && 400,400 #000000"
-            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            # v2.10: โทเคน '>ชื่อ' ท้ายแถว = เก็บผลเงื่อนไข (ตัดออกก่อนแตก)
+            add0, _store_name = parse_cond_store(r.get("additional"))
+            self.cond_store = _store_name
+            raw, wait = parse_wait_timeout(add0, 0)
             parts = split_condition_and(raw) or [raw]
             if not parse_pixel_spec(parts[0]):
                 self.on_message("If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)", "#c00")
@@ -2158,6 +2231,7 @@ class ActionRunner:
             if hit is None:                       # รูปแบบไม่ถูก → เตือนแล้วเล่นต่อ (เดิม)
                 self.on_message(det, "#c00")
                 return
+            self._save_cond_result(bool(hit))     # v2.10: '>ชื่อ' เก็บผลลงตัวแปร
             if hit:
                 self.on_message(det + " → เล่นต่อ")
             else:
@@ -2246,6 +2320,8 @@ class ActionRunner:
                     self.on_message("⚠ Read Clipboard: อ่านคลิปบอร์ดไม่สำเร็จบนระบบนี้", "#a60")
                 else:
                     self.variables[m.group(0)] = got
+        elif self.dry_run:                     # plugin ในโหมด dry-run (v2.10) — ไม่รันจริง
+            self.on_message("DRY-RUN: จะรัน plugin %s" % btn)
         else:                                                        # Custom Action (v1.16)
             mod = self.plugin_lookup(btn)
             if mod is not None:
@@ -2675,6 +2751,7 @@ class MacroApp:
                 ("📋", "Paste", "_paste_rows_clipboard", "#333"),
                 ("📤", "Export Bat", "export_batch_files", "#333"),
                 ("🔍", "Validate", "validate_dialog", "#333"),
+                ("🧪", "Dry-run", "dry_run_menu", "#333"),
                 ("🔀", "AHK", "ahk_dialog", "#333"),
                 ("🧙", "Wizard", "record_wizard", "#333"),
                 ("📝", "Log", "view_log", "#333"),
@@ -3635,6 +3712,15 @@ class MacroApp:
         self.refresh_nums()
 
     # -------------------------------------------- ตรวจสคริปต์ (v2.8.1) -------
+    def dry_run_menu(self):
+        """🧪 Dry-run (v2.10) — ซ้อมเล่นทั้งสคริปต์โดยไม่แตะเมาส์/คีย์:
+        เงื่อนไข/บล็อก/ดีเลย์/ตัวแปรเดินจริง — แถว input จริงถูกแทนด้วยข้อความรายงาน"""
+        if messagebox.askyesno(APP_TITLE,
+                "ซ้อมเล่นทั้งสคริปต์โดยไม่แตะเมาส์/คีย์จริง\n"
+                "(เงื่อนไข/บล็อก/ดีเลย์/ตัวแปรเดินครบ — เหมาะตรวจก่อนปล่อยงานค้างคืน)\n\n"
+                "เริ่ม Dry-run หรือไม่?"):
+            self._start_player_inner(False, dry=True)
+
     def validate_dialog(self):
         """🔍 ตรวจสคริปต์ทั้งหมดโดยไม่เล่น — engine เดียวกับ CLI --validate:
         คีย์ไม่ถูก/ภาพหาย/ตัวแปรผิดรูปแบบ/Block Start ไม่ปิด ฯลฯ → รายงานทีละแถว"""
@@ -3990,9 +4076,10 @@ class MacroApp:
         once=True = เล่นครั้งเดียวจบรอบเดียว (ใช้โดย schedule — ไม่สนช่อง รอบ:/forever)"""
         self._start_player_inner(loop, once=once, auto=False)
 
-    def _start_player_inner(self, loop, once=False, auto=False):
+    def _start_player_inner(self, loop, once=False, auto=False, dry=False):
         """v2.9.1: แยก inner เพื่อรับ auto=True จาก schedule — แถวพังถูกข้ามอัตโนมัติ
-        โดยไม่เด้ง askyesno ค้างรอคนกด (นัดหมายตอนตี 3 ต้องเล่นต่อได้เอง + log [SKIP] ทุกแถว)"""
+        โดยไม่เด้ง askyesno ค้างรอคนกด (นัดหมายตอนตี 3 ต้องเล่นต่อได้เอง + log [SKIP] ทุกแถว)
+        v2.10: dry=True = โหมด Dry-run — เดินสคริปต์ครบแต่ไม่แตะเมาส์/คีย์ (ซ้อมก่อนงานจริง)"""
         rows, iids = self._rows_and_iids_for_play()
         items = list(zip(rows, iids))     # คู่ (แถว, iid) — เล่น/ไฮไลต์ตามกันเสมอ (v1.19)
         if not items:
@@ -4060,6 +4147,8 @@ class MacroApp:
             extra = " สุ่มลำดับ" if self._shuffle else ""
             if self._pct < 100:
                 extra += " %d%%" % self._pct
+            if dry:
+                extra += " (dry-run)"
             log_write("START", "เริ่มเล่น (%s) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d%s" %
                       ("วนซ้ำ" if loop else "ครั้งเดียว", self._speed_mult,
                        self._script_loops if self._script_loops else "ไม่จำกัด",
@@ -4067,9 +4156,10 @@ class MacroApp:
         self.btn_start.config(state="disabled", bg="#cfcfcf")
         self.btn_repeat.config(state="disabled", bg="#2e7d32")
         mode = self._t("mode_loop") if loop else self._t("mode_once")
-        self.root.title(APP_TITLE + "   [ RUNNING ]")
+        self.root.title(APP_TITLE + ("   [ DRY-RUN ]" if dry else "   [ RUNNING ]"))
         self._ui_state["msg"] = (self._t("playing") % mode, "#080")
-        threading.Thread(target=self._player, args=(items, loop, gen), daemon=True).start()
+        threading.Thread(target=self._player, args=(items, loop, gen),
+                         kwargs={"dry": dry}, daemon=True).start()
 
     def _reset_ui(self):
         self.btn_start.config(state="normal", bg="#e8e8e8")
@@ -4116,14 +4206,16 @@ class MacroApp:
                 log_write("STOP", "หยุดโดยผู้ใช้ (F8/ปุ่ม STOP) — ปล่อยคีย์/ปุ่มที่ค้างแล้ว",
                           self._log_src)
 
-    def _player(self, items, loop, gen=0):
+    def _player(self, items, loop, gen=0, dry=False):
         """เธรดผู้เล่น — เช็ค self._gen_ok(gen) ทุกจุด: STOP หรือ START ใหม่ = หยุดทันที
-        items = คู่ (แถว, iid ในตาราง) — player ไม่เรียก Tk เอง สื่อสารผ่าน _ui_state เท่านั้น"""
+        items = คู่ (แถว, iid ในตาราง) — player ไม่เรียก Tk เอง สื่อสารผ่าน _ui_state เท่านั้น
+        v2.10: dry=True = โหมด Dry-run — runner รายงานแทนทำจริง (ไม่แตะเมาส์/คีย์)"""
         # v2.1 (phase 2): กลไก "ทำ 1 แถว" ย้ายไป macro_engine.ActionRunner —
         # GUI ผูก callbacks เข้ากับ _ui_state ตามรูปแบบ thread-safe เดิม (ห้ามเรียก Tk ข้ามเธรด)
         runner = self._action_runner
         runner.stop_check = lambda: self._gen_ok(gen)
         runner.log_src = self._log_src
+        runner.dry_run = bool(dry)
 
         def do_step(r):
             # v2.1: ดึง controller สดจาก self ทุกแถว — เทสต์/รหัสอื่นเปลี่ยน
@@ -4241,6 +4333,7 @@ class MacroApp:
                               self._log_src)
         finally:
             # เธรดจบเอง (จบสคริปต์ หรือถูก STOP/START ใหม่แทนที่) — ถ้าเป็นรุ่นปัจจุบันค่อยเคลียร์
+            runner.dry_run = False              # v2.10: จบ dry-run — คืนโหมดเล่นจริงเสมอ
             if gen == self._play_gen:
                 self.running = False
                 self._release_stuck()          # กันคีย์/ปุ่มค้างกรณีแถวสุดท้ายคือ Press/Down
@@ -5620,6 +5713,112 @@ def wait_image_until(r, timeout_hint, is_running=lambda: True):
         timeout_hint(timeout)
 
 
+def cli_queue_run(args, argv):
+    """v2.10: --queue LIST.txt — รันสคริปต์หลายไฟล์ต่อกันโดยไม่เปิด GUI
+    รูปแบบลิสต์: บรรทัดละพาธสคริปต์ (.json) · ข้าม #comment และบรรทัดว่าง · พาธสัมพัทธ์
+    อิงโฟลเดอร์ของไฟล์ลิสต์ · ทุกไฟล์ต้องผ่าน engine validate_rows ก่อน "เริ่มเล่นไฟล์แรก"
+    (validate ล้วน ไม่กระตุ้นเมาส์/คีย์ — แถวพังถูกตัดตั้งแต่หัวเหมือนโหมดไฟล์เดียว v2.9.1) ·
+    จบไฟล์ → ไฟล์ถัดไปทันที · หยุดกลางคัน = หยุดทั้งคิว · ไฟล์ที่ 2+ เริ่มเล่นอัตโนมัติ
+    ไม่รอกดคีย์ (กันค้างรอคนกด — แนวคิดเดียวกับ schedule auto-skip v2.9.1)"""
+    import io
+    import sys as _sys
+    # คอนโซล cp1252 — ตั้ง UTF-8 ก่อนพิมพ์ไทย (กลไกเดียวกับ cli_main)
+    try:
+        "ก".encode(_sys.stdout.encoding or "ascii")
+    except (UnicodeEncodeError, AttributeError):
+        buf = getattr(_sys.stdout, "buffer", None)
+        if buf is not None:
+            _sys.stdout = io.TextIOWrapper(buf, encoding="utf-8", errors="replace")
+    log_enabled = (not args.no_log) and LOG_ENABLED_DEFAULT
+
+    list_path = args.queue
+    if not os.path.isfile(list_path):
+        print("ไม่พบไฟล์ลิสต์:", list_path)
+        return 1
+    try:
+        with open(list_path, encoding="utf-8-sig") as fh:
+            raw_lines = fh.read().splitlines()
+    except OSError as exc:
+        print("อ่านไฟล์ลิสต์ไม่สำเร็จ:", exc)
+        return 1
+    base_dir = os.path.dirname(os.path.abspath(list_path))
+    scripts = []
+    for line_no, ln in enumerate(raw_lines, 1):
+        s = ln.strip()
+        if not s or s.startswith("#"):
+            continue
+        p = s if os.path.isabs(s) else os.path.join(base_dir, s)
+        scripts.append((os.path.normpath(p), line_no))
+    if not scripts:
+        print("ไฟล์ลิสต์ว่าง — ไม่มีสคริปต์ให้เล่น")
+        return 1
+
+    # ตรวจทุกไฟล์ก่อนเริ่มเล่น (engine validate_rows เดียวกับ --validate — ไม่เล่นสักแถว)
+    plugin_names = [n for n, _ in load_plugins()]
+    all_bad = False
+    for path, ln in scripts:
+        if not os.path.isfile(path):
+            print("[QUEUE] ไฟล์ที่ %d ไม่พบ: %s" % (ln, path))
+            return 1
+        try:
+            with open(path, encoding="utf-8") as fh:
+                qrows = json.load(fh)
+            if not isinstance(qrows, list):
+                raise ValueError("ไฟล์ต้องเป็นรายการแถว JSON")
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print("[QUEUE] อ่านไฟล์ไม่สำเร็จ: %s (%s)" % (path, exc))
+            return 1
+        issues = validate_rows(qrows, plugin_names=plugin_names)
+        if issues:
+            print("[QUEUE] %s ตรวจไม่ผ่าน %d จุด — ยกเลิกทั้งคิว (แก้ตามรายงาน หรือรัน --validate):"
+                  % (os.path.basename(path), len(issues)))
+            for num, reason in issues:
+                print("  แถว %d: %s" % (num, reason))
+            if log_enabled:
+                log_write("QUEUE", "ยกเลิกคิว — %s ตรวจไม่ผ่าน %d จุด"
+                          % (path, len(issues)), list_path)
+            return 1
+        print("[QUEUE] ผ่านการตรวจ: %s (%d แถว)" % (os.path.basename(path), len(qrows)))
+
+    t0 = time.time()
+    results = []
+    for idx, (path, _ln) in enumerate(scripts, 1):
+        print("\n=== คิวที่ %d/%d: %s ===" % (idx, len(scripts), os.path.basename(path)))
+        if log_enabled:
+            log_write("QUEUE", "เริ่มคิวที่ %d/%d: %s" % (idx, len(scripts), path), list_path)
+        # ตัด --queue ออกจาก argv ก่อนส่งต่อ — ไม่งั้น cli_main เรียกคิวซ้ำไม่รู้จบ
+        qargv, skip_next = [], False
+        for tok in list(argv):
+            if skip_next:
+                skip_next = False
+                continue
+            if tok == "--queue":
+                skip_next = True          # รูปแบบ "--queue ไฟล์" — ตัดค่าถัดไปด้วย
+                continue
+            if tok.startswith("--queue="):
+                continue
+            qargv.append(tok)
+        rc = cli_main(qargv + [path])
+        results.append((os.path.basename(path), rc))
+        if log_enabled:
+            log_write("QUEUE", "จบคิวที่ %d/%d: %s (exit code %s)"
+                      % (idx, len(scripts), path, rc), list_path)
+        if rc == 130:
+            break
+    print("\nสรุปคิว (%d ไฟล์):" % len(scripts))
+    for name, rc in results:
+        print("  %s — %s" % (name, "จบครบ ✔" if rc == 0 else
+                              ("ถูกหยุด" if rc == 130 else "พบปัญหา (exit %s)" % rc)))
+    if len(results) < len(scripts):
+        print("  (ยกเลิกไฟล์ที่เหลือ %d ไฟล์)" % (len(scripts) - len(results)))
+    if log_enabled:
+        log_write("QUEUE", "จบคิวทั้งหมด %d ไฟล์ ใช้เวลา %.1f วิ — %s"
+                  % (len(scripts), time.time() - t0,
+                     ", ".join("%s=%s" % (n, r) for n, r in results)), list_path)
+    all_bad = all(rc not in (0, 130) for _n, rc in results)
+    return 1 if all_bad else 0
+
+
 def cli_main(argv):
     """เล่นสคริปต์จาก command line โดยไม่เปิด GUI
     ตัวอย่าง:
@@ -5632,7 +5831,8 @@ def cli_main(argv):
     ap = argparse.ArgumentParser(
         prog="AutoMouseMacro",
         description="เล่นสคริปต์เมาส์/คีย์บอร์ด .json โดยไม่เปิดหน้าต่าง (Ctrl+C หยุด)")
-    ap.add_argument("script", help="ไฟล์สคริปต์ .json ที่บันทึกจากโปรแกรม")
+    ap.add_argument("script", nargs="?", default=None,
+                    help="ไฟล์สคริปต์ .json ที่บันทึกจากโปรแกรม (ไม่ต้องใส่เมื่อใช้ --queue)")
     ap.add_argument("--version", action="version", version=APP_TITLE,
                     help="แสดงเวอร์ชันโปรแกรมแล้วจบ")
     ap.add_argument("--loop", action="store_true", help="เล่นวนซ้ำไม่จำกัด")
@@ -5654,10 +5854,22 @@ def cli_main(argv):
                     metavar="วินาที",
                     help="โหมดเฝ้ารีสตาร์ต (v1.10): จบแล้วเริ่มใหม่อัตโนมัติหลังพัก N วิ "
                          "(ค่าเริ่มต้น 3) — หยุดถาวรด้วย F8/Esc/Ctrl+C/stop-file")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="ซ้อมเดินสคริปต์โดยไม่แตะเมาส์/คีย์ (v2.10 — รายงานแทนทำจริง)")
+    ap.add_argument("--queue", default=None, metavar="LIST.txt",
+                    help="รันสคริปต์หลายไฟล์ต่อกันตามลิสต์ (v2.10 — บรรทัดละพาธ "
+                         "ข้าม # และบรรทัดว่าง) ต้องผ่านตรวจทุกไฟล์ก่อนเริ่มเล่น")
     args = ap.parse_args(argv)
 
     # --no-log เป็นตัวตัดสิน (ไม่ได้ใส่ = ตามค่าเริ่มต้นของโปรแกรม)
     log_enabled = (not args.no_log) and LOG_ENABLED_DEFAULT
+
+    # v2.10: --queue — รันสคริปต์หลายไฟล์ตามลิสต์ (เลือกเส้นทางเล่นเอง — อย่าล้ำเข้าเส้นทางเดิม)
+    if getattr(args, "queue", None):
+        return cli_queue_run(args, argv)
+    if not args.script:
+        print("ต้องระบุไฟล์สคริปต์ .json (หรือใช้ --queue LIST.txt เพื่อเล่นหลายไฟล์)")
+        return 1
 
     # คอนโซล Windows บางเครื่องเป็น cp1252 — พิมพ์ไทยไม่ได้ ให้ fallback อัตโนมัติ
     # (ถ้า stdout ไม่มี buffer เช่น StringIO ในเทสต์ ก็ข้ามไป ไม่ต้องแทนที่)
@@ -5712,6 +5924,7 @@ def cli_main(argv):
         variables=cli_vars,
         plugin_lookup=lambda name: cli_plugins.get(name),
         log_src=args.script,
+        dry_run=bool(getattr(args, "dry_run", False)),   # v2.10: Dry-run
         unsupported_cb=lambda btn: (skipped.__setitem__(0, skipped[0] + 1), print(
             "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn))[1],
         find_image_cb=find_image_pos_from_row,       # v2.2: CLI ค้นภาพได้จริง (Image Click/If Image)
@@ -5810,6 +6023,8 @@ def cli_main(argv):
         print("  •  สัดส่วนแถว %d%% (สุ่มชุดใหม่ทุกรอบ)" % max(5, min(100, args.rows_pct)))
     if args.watchdog > 0:
         print("  •  watchdog: จบแล้วเริ่มใหม่อัตโนมัติหลังพัก %.0f วิ" % args.watchdog)
+    if getattr(args, "dry_run", False):
+        print("  •  DRY-RUN: ซ้อมเดินสคริปต์ — ไม่แตะเมาส์/คีย์ (รายงานแทนทำจริง)")
     if log_enabled:
         log_write("START", "เริ่มเล่น (CLI) ความเร็ว %gx รอบ=%s แถวที่เล่น=%d%s" %
                   (speed, "ไม่จำกัด" if (args.loop or args.loops == 0) else args.loops,

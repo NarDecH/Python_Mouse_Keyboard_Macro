@@ -65,6 +65,44 @@
 
   <div class="card">
     <div class="version">
+      <h2>เวอร์ชัน 2.10.0</h2>
+      <span class="tag latest">ล่าสุด</span>
+      <span class="date">2 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🧪 Dry-run — ซ้อมเล่นทั้งสคริปต์โดยไม่แตะเมาส์/คีย์</h3>
+    <ul>
+      <li><b>เมนู 🧪 Dry-run (GUI)</b> — เงื่อนไข/บล็อก/ดีเลย์/ตัวแปรเดินจริงครบทุกเส้นทาง
+        แต่แถว input จริงทุกชนิดถูกแทนด้วยข้อความ "DRY-RUN: จะคลิก…" — หัวข้อหน้าต่าง
+        [ DRY-RUN ] จนจบแล้วคืนโหมดเล่นจริงเอง · จุดเดียวใน <code>ActionRunner</code></li>
+      <li><b>CLI <code>--dry-run</code></b> — เหมือนกันทุกอย่างผ่าน command line</li>
+    </ul>
+
+    <h3>🔗 ผลเงื่อนไขเป็นตัวแปร — โทเคน <code>&gt;ชื่อ</code> ท้าย Additional</h3>
+    <ul>
+      <li><b>If Image / If Pixel Color / If Variable / If Loop / If Time รองรับ <code>&gt;ชื่อ</code></b>
+        — เก็บผลเงื่อนไข "1"/"0" ลงตัวแปร เช่น <code>img.png &gt;เจอ</code> ·
+        <code>n &gt; 3 &gt;ผล</code> — แถวถัดไปใช้ <code>{เจอ}</code> หรือ If Variable ต่อได้เลย
+        (ห่วงโซ่เงื่อนไขโดยไม่เพิ่ม action ใหม่)</li>
+    </ul>
+
+    <h3>📦 Batch runner — CLI <code>--queue LIST.txt</code></h3>
+    <ul>
+      <li><b>รันสคริปต์หลายไฟล์ต่อกัน</b> — บรรทัดละพาธ ข้าม #comment · <b>ตรวจทุกไฟล์ก่อนเริ่มเล่น</b>
+        (ไฟล์พัง = ยกเลิกทั้งคิว ไม่เล่นสักแถว) · จบไฟล์ → ไฟล์ถัดไปทันที <b>ไม่รอกดคีย์</b> ·
+        ท้ายโปรแกรมสรุปผลรายไฟล์ + log [QUEUE] · ครบ = exit 0, มีไฟล์พัง = exit 1</li>
+    </ul>
+
+    <h3>🧰 อื่น ๆ</h3>
+    <ul>
+      <li><code>script</code> ใน CLI เป็น optional — ใช้ <code>--queue</code> ได้โดยไม่ต้องใส่ไฟล์หลอก ·
+        เทสต์เพิ่ม 16 ตัว → <b>443 unit + 20 E2E = 463</b> · ตัวอย่างใหม่
+        <code>examples/14_dry_run_cond_vars.json</code> + <code>queue_sample.txt</code></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
       <h2>เวอร์ชัน 2.9.1</h2>
       <span class="tag latest">ล่าสุด</span>
       <span class="date">1 ตุลาคม 2026</span>

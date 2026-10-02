@@ -583,5 +583,58 @@ class TestE2EStartValidateSkip(unittest.TestCase):
             ch.close()
 
 
+class TestQueueDryRunE2E(unittest.TestCase):
+    """v2.10: E2E จริง --queue + --dry-run (สคริปต์ Beep ล้วนปลอดภัย)"""
+
+    def _script(self, d, name, rows):
+        p = os.path.join(d, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        return p
+
+    def test_queue_end_to_end(self):
+        # ลิสต์ 2 ไฟล์ — เล่นต่อกันอัตโนมัติ + สรุปคิวท้ายโปรแกรม
+        d = tempfile.mkdtemp(prefix="macro_e2e_q_")
+        beep = {"enabled": True, "button": "Beep", "additional": "คิว",
+                "mins": 0, "secs": 0, "repeat": 1}
+        self._script(d, "a.json", [beep])
+        self._script(d, "b.json", [beep])
+        lst = os.path.join(d, "list.txt")
+        with open(lst, "w", encoding="utf-8") as fh:
+            fh.write("# คิวทดสอบ\na.json\nb.json\n")
+        ch = _Child(["--queue", lst, "--no-log"])
+        try:
+            ch.collect(deadline_s=60)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("[QUEUE] ผ่านการตรวจ: a.json", out)
+            self.assertIn("คิวที่ 1/2", out)
+            self.assertIn("คิวที่ 2/2", out)
+            self.assertIn("สรุปคิว (2 ไฟล์)", out)
+            self.assertIn("จบครบ ✔", out)
+        finally:
+            ch.close()
+
+    def test_dry_run_end_to_end(self):
+        # --dry-run: เดินสคริปต์จบครบแต่รายงานแทนทำจริง
+        d = tempfile.mkdtemp(prefix="macro_e2e_dry_")
+        script = self._script(d, "s.json", [
+            {"enabled": True, "button": "Tap Key", "additional": "a",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "dry",
+             "mins": 0, "secs": 0, "repeat": 1}])
+        ch = _Child([script, "--dry-run", "--no-log"])
+        try:
+            ch.collect(deadline_s=60)
+            rc = ch.wait(timeout=15)
+            out = "\n".join(ch.lines)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("DRY-RUN", out)
+            self.assertIn("จบแล้ว ✔", out)
+        finally:
+            ch.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

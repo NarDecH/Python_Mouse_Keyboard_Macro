@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.9.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.10.0
 
 <div align="center">
 
@@ -105,6 +105,9 @@
 | 🚦 **START pre-validates** (v2.9.0) | pressing START runs the same validate_rows engine — on issues it asks to skip broken rows (they are really skipped), if every row is broken it refuses to play |
 | 🗜️ **Collapse/expand all** (v2.9.0) | right-menu "Collapse all" folds every Section + block at once, "Expand all" restores the full table in the exact original order |
 | 🔀 **.ahk blocks both ways** (v2.9.0) | export Block Start → `if (…) {` / `Loop, N {` / `} Until,` · import them back as Block Start/End rows — untranslatable image/color conditions become comments for the whole block, no stray braces |
+| 🧪 **Dry-run (v2.10)** | 🧪 menu / CLI `--dry-run` — rehearse the whole script (conditions/blocks/delays/variables walk every path) without touching mouse/keys — real input rows are replaced with report lines |
+| 🔗 **Condition results as variables (v2.10)** | a trailing `>name` token on any condition row stores the result "1"/"0" — later rows use `{name}` or chain If Variable |
+| 📦 **Batch runner (v2.10)** | CLI `--queue LIST.txt` plays many scripts back-to-back — validates every file first (one broken = whole queue cancelled) + per-file summary + [QUEUE] log |
 
 ---
 

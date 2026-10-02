@@ -319,5 +319,5 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   テキスト検索 `~` → `InStr()`）；画像・色の条件は翻訳不可ならブロック全体がコメントに —
   迷子の波括弧なし。インポートは 3 形式すべて Block Start/End 行に戻せます。
 
-*コード v2.9.1 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
+*コード v2.10.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
 プロジェクト文書：[README.md](README.md) · プラグインマーケット：[PLUGINS.md](PLUGINS.md)*

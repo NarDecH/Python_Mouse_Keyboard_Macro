@@ -3,6 +3,44 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.10.0] — 2026-10-02
+
+### 🧪 Dry-run — rehearse the whole script without touching mouse/keyboard
+- **🧪 Dry-run menu (GUI)** — after a confirmation the script plays with a `dry_run` flag:
+  conditions/blocks/delays/variables walk every real path, but every real input row
+  (mouse/keys/typing/launch app/clipboard/beep/wait for image or pixel/plugins) is replaced
+  with a "DRY-RUN: would click…" report — the window title shows [ DRY-RUN ] until done,
+  then normal mode returns automatically · single implementation point in `ActionRunner`
+  (GUI/CLI/engine_cli all behave identically)
+- **CLI `--dry-run`** — the same thing from the command line, with a banner line up front
+
+### 🔗 Condition results as variables — the `>name` token
+- **If Image / If Pixel Color / If Variable / If Loop / If Time accept a trailing `>name`** —
+  stores the condition result "1" (true) / "0" (false) into a variable: `img.png >found`,
+  `300,300 #ffffff >colorok`, `n > 3 >res` — later rows use `{found}` or chain another
+  `If Variable ผล = 1` (condition chaining with zero new actions) · parsed by the single
+  `parse_cond_store` helper (guards on/of/and from being taken as variable names) · the
+  token is stripped before `&&` splitting / image lookup so images still resolve
+
+### 📦 Batch runner — CLI `--queue LIST.txt`
+- **Play many scripts back-to-back** — one path per line (skips #comments/blank lines,
+  relative paths resolve against the list file's folder) · **every file is validated before
+  the first one plays** with the same engine `validate_rows` as --validate — one broken file
+  cancels the whole queue, nothing plays (same idea as START-validate v2.9.0) · files run
+  one after another **without waiting for a keypress** (same idea as schedule auto-skip
+  v2.9.1) · stopping mid-file stops the whole queue · a per-file summary prints at the end
+  plus [QUEUE] log entries (start/end/cancel/summary) · all-good = exit 0, any broken file
+  = exit 1 · exit code 130 (stopped by user) does not count as a queue failure
+
+### 🧰 Other
+- CLI `script` argument is now optional — `--queue` needs no placeholder file · 16 new tests
+  (TestDryRunEngine/TestCondStore/TestQueueCli/TestCliDryRun + E2E TestQueueDryRunE2E +
+  example 14 wired into TestAhkBlocks) → **443 unit + 20 E2E = 463** ·
+  new examples `14_dry_run_cond_vars.json` + `queue_sample.txt` ·
+  ROADMAP: the three finished v2.10 proposals are checked off
+
+---
+
 ## [2.9.1] — 2026-10-01
 
 ### 📝 Log makes skipped rows obvious (extends the START validation of v2.9.0)

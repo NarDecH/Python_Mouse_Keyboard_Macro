@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.9.1"
+__version__ = "2.10.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -225,6 +225,21 @@ ACTIONS_ALL = (MOUSE_BTNS + KEY_ACTIONS + [IMAGE_ACTION, IF_IMAGE, ELSE_IMAGE, W
                + SCROLL_ACTIONS + DBL_ACTIONS + MOD_CLICKS + MOVE_ACTIONS + EXTRA_ACTIONS
                + VAR_ACTIONS + CLIP_ACTIONS + LOOP_ACTIONS + TIME_ACTIONS
                + PIXEL_COND + READ_PIXEL_ACTIONS + VAR_COND + BLOCK_ACTIONS + [SECTION_HEADER])
+
+# v2.10: แถวที่โหมด Dry-run "ไม่ทำจริง" — ทุกแถว input จริง (เมาส์/คีย์/เปิดแอป/คลิปบอร์ด)
+# ถูกแทนด้วยข้อความรายงาน — แถวเงื่อนไข/ตัวแปร/บล็อก/อ่านสี (ไม่แตะ input) เล่นปกติเพื่อเดินเส้นทางจริง
+_DRY_ACTIONS = tuple(
+    a for a in ACTIONS_ALL
+    if a not in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR,
+                 READ_PIXEL, BLOCK_START, BLOCK_END, SECTION_HEADER,
+                 "Set Variable", "Read Pixel Color"))
+_DRY_VERB = {"Left Click": "คลิก", "Right Click": "คลิก", "Middle Click": "คลิก",
+             "Left Down": "กด", "Right Down": "กด", "Middle Down": "กด",
+             "Left Up": "ปล่อย", "Right Up": "ปล่อย", "Middle Up": "ปล่อย",
+             "Press Key": "กด", "Tap Key": "กด", "Release Key": "ปล่อย",
+             "Type Text": "พิมพ์", "Launch App": "เปิด", "Beep": "ส่งเสียง",
+             "Set Clipboard": "ตั้งคลิปบอร์ด", "Read Clipboard": "อ่านคลิปบอร์ด",
+             "Move Mouse": "ย้ายเมาส์", "Save Cursor": "จำตำแหน่งเมาส์"}
 BLOCK_MAX_DEPTH = 8          # v2.6: จำกัดความลึกบล็อกซ้อน (กันสคริปต์ผิดโครงสร้าง)
 BLOCK_MAX_ROUNDS = 1000      # v2.6: ลูปย่อยไม่ใส่ max = วนได้สูงสุดเท่านี้ (กันอนันต์)
 
@@ -269,6 +284,18 @@ def parse_if_var(txt):
     if op != "=" and not val.strip():      # เปรียบเทียบ/contains ต้องมีค่า
         return None
     return m.group(1), op, val
+
+
+def parse_cond_store(txt):
+    """อ่านโทเคน '>ชื่อ' ท้าย Additional ของแถวเงื่อนไข (v2.10 — ผลเงื่อนไขเป็นตัวแปร)
+    เช่น 'img.png >img_ok' / '300,300 #ffffff && n > 5 >ok' — คืน (ข้อความที่เหลือ, ชื่อตัวแปร/None)
+    ชื่อตัวแปรใช้กฎเดียวกับ Set Variable (_VAR_NAME — ไทย/อังกฤษได้) และห้ามชนคำสงวน
+    on/of/and (กันพิมพ์เผลอติดกับเงื่อนไขภาษาอังกฤษ)"""
+    s = str(txt or "")
+    m = re.search(r"\s*>(%s)\s*$" % _VAR_NAME, s, re.UNICODE)
+    if not m or m.group(1).lower() in ("on", "of", "and"):
+        return s, None
+    return s[:m.start()].rstrip(), m.group(1)
 
 
 # ------------------------------------------------ เงื่อนไขรวม AND (v2.5.4) ----
@@ -1718,9 +1745,13 @@ class ActionRunner:
                  on_clipboard_set=lambda t: None, on_clipboard_read=lambda: None,
                  variables=None, plugin_lookup=lambda name: None,
                  log_src=None, unsupported_cb=lambda btn: None,
-                 find_image_cb=None, wait_image_cb=None):
+                 find_image_cb=None, wait_image_cb=None, dry_run=False):
+        """dry_run=True (v2.10): เดินทุกแถว/เงื่อนไข/ตัวแปร/บล็อกครบ — แต่ input จริงทุกชนิด
+        (เมาส์/คีย์/เปิดแอป/คลิปบอร์ด/บี๊บ/plugin) ถูกแทนด้วยข้อความรายงานผ่าน on_message
+        — ใช้ซ้อมสคริปต์ก่อนปล่อยค้างคืน ไม่แตะเมาส์/คีย์สักครั้ง"""
         self.mouse_ctl = mouse_ctl
         self.kb_ctl = kb_ctl
+        self.dry_run = bool(dry_run)
         self.stop_check = stop_check
         self.on_beep = on_beep
         self.on_message = on_message
@@ -1737,6 +1768,17 @@ class ActionRunner:
         self.saved_pos = None
         self.last_if_found = None
         self.skip_n = 0                           # v2.2: แถวที่ If Image/Else สั่งข้าม
+
+    def _save_cond_result(self, hit):
+        """v2.10: แถวเงื่อนไขระบุ '>ชื่อ' = เก็บผล '1'/'0' ลงตัวแปร — แถวถัดไปอ่านต่อด้วย
+        {ชื่อ} หรือ If Variable ได้ (ถูกแทนค่าก่อนเล่นทุกแถวอยู่แล้ว — ห่วงโซ่เงื่อนไขได้เลย)
+        เคลียร์ self.cond_store ทุกครั้ง — แถวเงื่อนไขถัดไปที่ไม่ระบุโทเคนต้องไม่เก็บค้าง"""
+        name = getattr(self, "cond_store", None)
+        self.cond_store = None
+        if name:
+            self.variables[name] = "1" if hit else "0"
+            self.on_message("→ เก็บผลเงื่อนไข %s = %s"
+                            % (name, self.variables[name]))
 
     def release_all(self):
         """ปล่อยคีย์/ปุ่มเมาส์ที่กดค้าง (เรียกตอนหยุด — กัน Ctrl ติด)"""
@@ -1895,7 +1937,17 @@ class ActionRunner:
           ไม่ใช่เงื่อนไขที่รองรับ → (0, None)
           ยังไม่ถึงรอบ/เวลา → (0, ข้อความ "เล่นต่อ")
           ถึงรอบ/ผ่านเวลา → (จำนวนแถวที่ข้าม = Repeat, ข้อความ "ข้าม N แถว")
-          Additional ไม่ถูก → (0, ข้อความเตือน)"""
+          Additional ไม่ถูก → (0, ข้อความเตือน)
+        v2.10: โทเคน '>ชื่อ' ท้าย Additional = เก็บผลเงื่อนไข "1"/"0" ลงตัวแปรชื่อนั้น
+        (ผ่าน dict variables ที่ส่งเข้ามา — เมธอดนี้เป็น staticmethod ไม่มี self)"""
+        variables = variables if variables is not None else {}
+        # v2.10: ดึงโทเคนเก็บผลออกก่อน parse (เช่น "3 >รอบเก็บ" → เงื่อนไข "3")
+        additional, cond_store = parse_cond_store(additional)
+
+        def _store(hit):
+            if cond_store:
+                variables[cond_store] = "1" if hit else "0"
+
         if btn == IF_LOOP:
             # v2.5.4 (ชุด N1): รองรับ && เช่น "3 && 10" — ถึงรอบตามทุกเลขจึงข้าม
             parts = split_condition_and(additional) or [additional]
@@ -1908,9 +1960,11 @@ class ActionRunner:
                 nums.append(n)
             not_yet = [n for n in nums if n_loop < n]
             if not_yet:
+                _store(False)
                 return 0, "If Loop %s → รอบที่ %d ยังไม่ถึง %d เล่นต่อ" % (
                     additional, n_loop, max(not_yet))
             skip = parse_int(repeat, 1)
+            _store(True)
             return skip, "If Loop %s → รอบที่ %d >= %d ข้าม %d แถว" % (
                 additional, n_loop, min(nums), skip)
         if btn == IF_TIME:
@@ -1927,10 +1981,12 @@ class ActionRunner:
             pending = [s for s in specs if (lt.tm_hour, lt.tm_min) < s]
             if pending:
                 s = min(pending)
+                _store(False)
                 return 0, "If Time %02d:%02d → ยังไม่ถึง %02d:%02d เล่นต่อ" % (
                     lt.tm_hour, lt.tm_min, s[0], s[1])
             skip = parse_int(repeat, 1)
             s = max(specs)
+            _store(True)
             return skip, "If Time %02d:%02d → ผ่านกำหนดแล้ว ข้าม %d แถว" % (
                 s[0], s[1], skip)
         if btn == IF_VAR:
@@ -1944,13 +2000,23 @@ class ActionRunner:
                 details.append(detail)
                 if not hit:
                     skip = parse_int(repeat, 1)
+                    _store(False)
                     return skip, " ".join(details) + " ข้าม %d แถว" % skip
+            _store(True)
             return 0, " ".join(details) + " เล่นต่อ"
         return 0, None
 
     def execute(self, r):
-        """ทำ action ตามแถว r — คืน False เฉพาะเมื่อ Type Text ถูกสั่งหยุดกลางคัน"""
+        """ทำ action ตามแถว r — คืน False เฉพาะเมื่อ Type Text ถูกสั่งหยุดกลางคัน
+        v2.10: dry_run=True → แถว input จริงถูกแทนด้วยข้อความรายงาน (ไม่แตะเมาส์/คีย์)"""
         btn = r.get("button", "")
+        if self.dry_run and btn in _DRY_ACTIONS:
+            add = str(r.get("additional") or "")
+            self.on_message("DRY-RUN: จะ%s %s%s" % (
+                _DRY_VERB.get(btn, "ทำ"), btn, (" " + add) if add else ""))
+            if str(r.get("x", "")) != "" or str(r.get("y", "")) != "":
+                self.on_message("DRY-RUN: ที่พิกัด %s,%s" % (r.get("x"), r.get("y")))
+            return True
         if btn in BTN_TH:                                            # เมาส์ทั่วไป
             b, act = BTN_TH[btn]
             btn_obj = getattr(Button, b.lower())
@@ -2010,7 +2076,10 @@ class ActionRunner:
         elif btn == IF_IMAGE:                                        # เงื่อนไขค้นภาพ (v2.2 — runner จัดการเอง)
             # v2.4: Additional ต่อท้ายด้วย "Ns" (เช่น "img.png 5s") = ตรวจซ้ำจนครบ 5 วิ
             # v2.5.4 (ชุด N1): รองรับเงื่อนไขรวม && เช่น "img.png && 300,300 #ffffff"
-            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            # v2.10: โทเคน '>ชื่อ' ท้ายแถว = เก็บผลเงื่อนไข (ตัดออกก่อนแตก/ค้นภาพ)
+            add0, _store_name = parse_cond_store(r.get("additional"))
+            self.cond_store = _store_name
+            raw, wait = parse_wait_timeout(add0, 0)
             parts = split_condition_and(raw)
             rr = dict(r, additional=(parts[0] if parts else raw))
             extra_parts = parts[1:] if parts else []
@@ -2034,6 +2103,7 @@ class ActionRunner:
                     _h, _d2 = self.evaluate_if_pixel(_pix, self.variables)
                     hit = (_h is True)
             self.last_if_found = hit
+            self._save_cond_result(hit)           # v2.10: '>ชื่อ' เก็บผลลงตัวแปร
             if hit:
                 self.on_message("If Image เจอ → เล่นต่อ")
                 if pos is not None:               # ภาพที่เจอ (เฉพาะสายหลัก) ตั้ง {img_x}/{img_y}
@@ -2053,7 +2123,10 @@ class ActionRunner:
                 self.on_message("If ไม่เจอ → เล่นกลุ่ม B ต่อ")
         elif btn == IF_PIXEL:                                        # เงื่อนไขสีจุด (v2.5)
             # v2.5.4 (ชุด N1): รองรับ && เช่น "300,300 #ffffff && 400,400 #000000"
-            raw, wait = parse_wait_timeout(r.get("additional"), 0)
+            # v2.10: โทเคน '>ชื่อ' ท้ายแถว = เก็บผลเงื่อนไข (ตัดออกก่อนแตก)
+            add0, _store_name = parse_cond_store(r.get("additional"))
+            self.cond_store = _store_name
+            raw, wait = parse_wait_timeout(add0, 0)
             parts = split_condition_and(raw) or [raw]
             if not parse_pixel_spec(parts[0]):
                 self.on_message("If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)", "#c00")
@@ -2066,6 +2139,7 @@ class ActionRunner:
             if hit is None:                       # รูปแบบไม่ถูก → เตือนแล้วเล่นต่อ (เดิม)
                 self.on_message(det, "#c00")
                 return
+            self._save_cond_result(bool(hit))     # v2.10: '>ชื่อ' เก็บผลลงตัวแปร
             if hit:
                 self.on_message(det + " → เล่นต่อ")
             else:
@@ -2154,6 +2228,8 @@ class ActionRunner:
                     self.on_message("⚠ Read Clipboard: อ่านคลิปบอร์ดไม่สำเร็จบนระบบนี้", "#a60")
                 else:
                     self.variables[m.group(0)] = got
+        elif self.dry_run:                     # plugin ในโหมด dry-run (v2.10) — ไม่รันจริง
+            self.on_message("DRY-RUN: จะรัน plugin %s" % btn)
         else:                                                        # Custom Action (v1.16)
             mod = self.plugin_lookup(btn)
             if mod is not None:

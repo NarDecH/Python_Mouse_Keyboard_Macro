@@ -101,6 +101,8 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `11_and_conditions.json` | **เงื่อนไขรวม AND (v2.5.4)**: `&&` ผสมภาพ+สีจุด+ตัวแปร+รอบ+เวลา | ✅ ไม่คลิก |
 | `12_blocks.json` | **Block Start/End (v2.6.0)**: บล็อกเงื่อนไข + ลูปย่อย until/max + ซ้อน 2 ชั้น | ✅ ไม่คลิก |
 | `13_start_validate_ahk_blocks.json` | **v2.9**: START ตรวจก่อนเล่น + บล็อก if/until/max ที่ export .ahk ได้ครบ — ลอง 🔀 Export แล้วนำเข้ากลับ | ✅ ไม่คลิก |
+| `14_dry_run_cond_vars.json` | **v2.10**: เก็บผลเงื่อนไขเป็นตัวแปร (โทเคน `>ชื่อ`) + ลอง 🧪 Dry-run ซ้อมเดินสคริปต์ไม่แตะเมาส์/คีย์ | ✅ ไม่คลิก |
+| `queue_sample.txt` | ลิสต์ตัวอย่าง `--queue` — `py auto_macro.py --queue examples/queue_sample.txt` เล่น 13+14 ต่อกัน | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 
 ทุกสคริปต์แถวแรกคือ `Save Cursor` และแถวสุดท้าย `Restore Cursor` เสมอ
