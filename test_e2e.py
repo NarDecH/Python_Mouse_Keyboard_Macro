@@ -541,8 +541,9 @@ class TestE2EStartValidateSkip(unittest.TestCase):
         ])
         d = os.path.dirname(script)
         boot = (
-            "import sys; sys.path.insert(0, r'%s'); import auto_macro; "
-            "auto_macro.log_path = lambda: sys.argv[1] + r'\\macro_log_test.txt'; "
+            "import os, sys; sys.path.insert(0, r'%s'); import auto_macro; "
+            # os.path.join = ข้ามแพลตฟอร์ม (แบ็กสแลชเดี่ยวทำงานเฉพาะ Windows — CI ubuntu/macos พัง)
+            "auto_macro.log_path = lambda: os.path.join(sys.argv[1], 'macro_log_test.txt'); "
             "sys.exit(auto_macro.cli_main(sys.argv[2:]))" % HERE.replace("\\", "\\\\")
         )
         p = subprocess.Popen(
