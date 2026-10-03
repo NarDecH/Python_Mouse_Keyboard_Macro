@@ -632,6 +632,14 @@ class TestQueueDryRunE2E(unittest.TestCase):
             self.assertEqual(rc, 0, out)
             self.assertIn("DRY-RUN", out)
             self.assertIn("จบแล้ว ✔", out)
+            # v2.10.1: จบ dry-run ต้องพิมพ์พาธรายงาน + ไฟล์รายงานมีเส้นทางจริง
+            self.assertIn("รายงาน Dry-run:", out)
+            report = os.path.join(HERE, am.dry_report_filename())
+            self.assertTrue(os.path.isfile(report), out)
+            with open(report, encoding="utf-8") as fh:
+                rep = fh.read()
+            self.assertIn("DRY-RUN: จะกด Tap Key a", rep)
+            self.assertIn("สรุปจะทำจริง", rep)
         finally:
             ch.close()
 

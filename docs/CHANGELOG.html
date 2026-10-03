@@ -65,6 +65,42 @@
 
   <div class="card">
     <div class="version">
+      <h2>เวอร์ชัน 2.10.1</h2>
+      <span class="tag latest">ล่าสุด</span>
+      <span class="date">3 ตุลาคม 2026</span>
+    </div>
+
+    <h3>📝 รายงาน Dry-run เป็นไฟล์ (ต่อยอด Dry-run v2.10)</h3>
+    <ul>
+      <li><b>จบ dry-run แล้วเขียน <code>dry_report_วันที่.txt</code> ข้างโปรแกรม</b> — สำเนาทั้งเส้นทาง
+        ที่เดินผ่าน + สรุปหัวไฟล์ (สคริปต์/แถวที่จะเล่น/จำนวนรอบ) + ท้ายไฟล์นับรายการที่
+        "จะทำจริง" เรียงมาก→น้อย — งานยาว/จอเล็กอ่านย้อนหลังได้ · <b>GUI:</b> จับข้อความ DRY-RUN
+        ตอนเล่น เขียนที่ finally · <b>CLI:</b> พิมพ์พาธรายงานหลังจบแต่ละรอบ (watchdog ได้ทุกรอบ) ·
+        ถูกหยุดกลางคัน = บันทึกส่วนที่เดินผ่าน + ระบุ "ถูกหยุดกลางคัน" · เล่นจริงไม่เขียน ·
+        เขียนทน error ทุกจุด (เหมือน log_write) · mode [DRY] ไม่นับเป็น STEP ในสถิติ</li>
+    </ul>
+
+    <h3>🗂️ Queue Bat — export แบตช์รันคิวจาก GUI</h3>
+    <ul>
+      <li><b>เมนู 🗂️ Queue Bat ใหม่</b> — เลือกไฟล์ลิสต์คิว .txt → เขียน <code>list.bat</code> +
+        <code>list.sh</code> ข้างลิสต์ ดับเบิลคลิกเล่นคิวทั้งชุดผ่าน <code>--queue</code> ไม่ต้องพิมพ์คำสั่ง ·
+        engine helpers ใหม่ <code>batch_queue_export_bat</code>/<code>batch_queue_export_sh</code> ·
+        ยกเลิกหน้าต่างเลือกไฟล์ = จบเงียบ ไม่มีไฟล์ถูกเขียน</li>
+    </ul>
+
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>TUTORIAL บทที่ 14 ใหม่ (ไทย/อังกฤษ) + บทที่ 17 ใน HTML</b> — บทเรียนเชิงลึก v2.10
+        ครบ 3 ฟีเจอร์ พร้อมแบบฝึกหัด 3 ข้อ · zh/ja สรุปสั้น · แก้บั๊กเทสต์ date-dependent
+        (TestBackup hardcode วันที่ — พังเองเมื่อวันจริงเลย 7 วัน) · เทสต์ใหม่ 10 ตัว →
+        <b>453 unit + 20 E2E = 474</b></li>
+      <li><b>ROADMAP ข้อเสนอ v2.11</b> — Plugin เป็นเงื่อนไขได้ (Plugin API v3) /
+        เครื่องมือ log เพิ่ม / ผู้เล่นคิวแบบ GUI ติดตามผล</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
       <h2>เวอร์ชัน 2.10.0</h2>
       <span class="tag latest">ล่าสุด</span>
       <span class="date">2 ตุลาคม 2026</span>

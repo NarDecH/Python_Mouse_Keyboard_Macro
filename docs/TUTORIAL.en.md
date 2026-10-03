@@ -331,5 +331,68 @@ formats before playing. Try the demo: `py auto_macro.py examples/12_blocks.json`
   scheduled sessions skip broken rows automatically without a dialog (previously the
   3 a.m. run sat waiting for someone to click OK).
 
-*Guide for code v2.10.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+---
+
+## Chapter 14 — Deep dive: Dry-run · condition results as variables · batch runner (v2.10)
+
+### 14.1 Dry-run — rehearse before the real run (v2.10.1 adds a report file)
+
+Principle: walk the script doing *everything except real input* — conditions, blocks, delays
+and variables run for real along every path, but real input rows (clicks/keys/typing/launch
+app/clipboard) are replaced with a "DRY-RUN: would …" report — mouse/keyboard never move.
+
+When to use it: complex nested conditions where you want to know which path will fire, and
+before releasing overnight jobs (schedule/watchdog) — rehearse first, no risk while asleep.
+
+How: **🧪 Dry-run** menu (GUI) or `py auto_macro.py script.json --dry-run` (CLI).
+
+**New in v2.10.1 — a report file:** when the dry run ends the program writes a copy of the
+whole path to `dry_report_<date>.txt` next to the program, with a summary of what would run
+— great for long jobs on small screens (a mid-run stop still saves the path walked so far,
+marked as stopped). Wait for Image/Pixel report instantly instead of waiting (dry runs stay
+fast); plugins are reported instead of executed; the report never crashes the program.
+
+### 14.2 Condition results as variables — the `>name` token
+
+Any condition row (If Image / If Pixel / If Variable / If Loop / If Time) accepts a trailing
+`>name` in Additional — the result "1" (true) / "0" (false) is stored in that variable:
+
+| Condition row | Additional | Result |
+|---|---|---|
+| If Image | `green.png >found` | found → `{found}`=1, missing → `{found}`=0 |
+| If Pixel Color | `300,300 #ffffff >colorok` | `{colorok}`=1 when it matches |
+| If Variable | `n > 3 >past` | `{past}`=1 when n>3 |
+| If Loop | `10 >ten` | loop ≥ 10 → `{ten}`=1 |
+
+Then chain: another **If Variable** (`found = 1`) to branch, a **Block Start** condition
+(`if found = 1`) to wrap a whole section, or quote it in text (`Result: {found}`).
+Names must not be `on`/`of`/`and`; the token is stripped before image lookup; variables
+reset every time a play starts.
+
+### 14.3 Batch runner — `--queue` + the 🗂️ Queue Bat button (v2.10.1)
+
+Create `list.txt` (one script path per line, `#` comments skipped) and run
+`py auto_macro.py --queue list.txt` — every file is validated first (a broken file cancels
+the whole queue), files run back-to-back with no keypress, and a per-file summary prints at
+the end.
+
+**New in v2.10.1:** the **🗂️ Queue Bat** menu picks a list file and writes `list.bat` +
+`list.sh` next to it — double-click plays the whole queue, no commands to type (relative
+paths resolve against the list's folder, so move the folder together and it still works).
+
+### Exercises (safe — nothing clicks on screen)
+
+1. **Rehearse:** open `examples/14_dry_run_cond_vars.json` → 🧪 Dry-run → Beep/Message Box
+   rows report "DRY-RUN: would…" while If Loop/variables run for real → afterwards open
+   `dry_report_<date>.txt` and compare the "summary" line against the table.
+2. **Store a condition result:** build 4 rows — If Loop `3 >done` (Repeat=1) · Beep ·
+   If Variable `done = 1` (Repeat=1) · Beep — loops: 3 → rounds 1–2 skip the last Beep
+   ({done}=0); round 3 skips the first Beep but plays the last one ({done}=1).
+   Use a dry-run to check the path before pressing START.
+3. **First queue:** 💾 Save two scripts → create `list.txt` with both names →
+   🗂️ Queue Bat → double-click `list.bat` and read the per-file summary.
+
+---
+
+*Guide for code v2.10.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

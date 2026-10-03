@@ -462,7 +462,51 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.10.0 ·
+  <div class="chapter">
+    <h2>17. เชิงลึก v2.10 — บทเรียนครบ + แบบฝึกหัด (v2.10.1)</h2>
+    <h3>17.1 Dry-run — ซ้อมก่อนเล่นจริง</h3>
+    <p>หลักการ: เดินสคริปต์ "จริงทุกอย่างยกเว้น input" — เงื่อนไข/บล็อก/ดีเลย์/ตัวแปรคำนวณจริง
+      ทุกเส้นทาง แต่แถว input จริงถูกแทนด้วยข้อความ "DRY-RUN: จะ…" แทนทำจริง —
+      ใช้ก่อนปล่อยงานค้างคืน (schedule/watchdog) ไม่เสี่ยงคลิกผิดตอนหลับ</p>
+    <p><b>ใหม่ v2.10.1 — รายงานเป็นไฟล์:</b> จบ dry-run แล้วโปรแกรมเขียนสำเนาทั้งเส้นทางลง
+      <code>dry_report_วันที่.txt</code> ข้างโปรแกรม พร้อมสรุปนับรายการที่จะทำจริง
+      (เช่น <code>สรุปจะทำจริง: Left Click ×2, Type Text ×1</code>) — ถูกหยุดกลางคันก็บันทึก
+      ส่วนที่เดินผ่าน + ระบุ "ถูกหยุดกลางคัน" · Wait for Image/Pixel รายงานทันทีไม่รอจริง
+      (dry-run จบเร็วเสมอ) · รายงานเขียนทน error ทุกจุด เขียนไม่ได้โปรแกรมไม่พัง</p>
+    <h3>17.2 ผลเงื่อนไขเป็นตัวแปร — โทเคน <code>&gt;ชื่อ</code></h3>
+    <p>ทุกแถวเงื่อนไขเติม <code>&gt;ชื่อ</code> ท้าย Additional ได้ — ผลเงื่อนไข "1" (จริง) /
+      "0" (ไม่จริง) ถูกเก็บลงตัวแปร แถวถัดไปใช้ต่อทันที:</p>
+    <table>
+      <tr><th>แถวเงื่อนไข</th><th>Additional</th><th>ผลที่ได้</th></tr>
+      <tr><td>If Image</td><td><code>ปุ่มเขียว.png &gt;เจอ</code></td><td>เจอ → <code>{เจอ}</code>=1, ไม่เจอ → <code>{เจอ}</code>=0</td></tr>
+      <tr><td>If Pixel Color</td><td><code>300,300 #ffffff &gt;สีตรง</code></td><td>สีตรง → <code>{สีตรง}</code>=1</td></tr>
+      <tr><td>If Variable</td><td><code>n &gt; 3 &gt;พ้นเกณฑ์</code></td><td>n&gt;3 → <code>{พ้นเกณฑ์}</code>=1</td></tr>
+      <tr><td>If Loop</td><td><code>10 &gt;ครบ 10 รอบ</code></td><td>รอบ ≥ 10 → <code>{ครบ 10 รอบ}</code>=1</td></tr>
+    </table>
+    <p>ต่อยอด: If Variable แยกเส้นทางต่อ (<code>เจอ = 1</code>) · Block Start ครอบทั้งก้อน
+      (<code>if เจอ = 1</code>) · ข้อความอ้างผลได้ (Type Text <code>ผลตรวจ: {เจอ}</code>) ·
+      ชื่อห้ามเป็นคำ on/of/and · โทเคนถูกตัดออกก่อนค้นภาพ · ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น</p>
+    <h3>17.3 Batch runner — <code>--queue</code> + ปุ่ม 🗂️ Queue Bat (v2.10.1)</h3>
+    <p>ไฟล์ลิสต์ <code>list.txt</code> (บรรทัดละพาธสคริปต์ ข้าม #comment) รันด้วย
+      <code>py auto_macro.py --queue list.txt</code> — ตรวจทุกไฟล์ก่อนเริ่ม (พัง = ยกเลิกทั้งคิว) ·
+      จบไฟล์ไปไฟล์ถัดไปทันที · ท้ายโปรแกรมสรุปรายไฟล์</p>
+    <p><b>ใหม่ v2.10.1:</b> เมนู <b>🗂️ Queue Bat</b> เลือกไฟล์ลิสต์ → ได้ <code>list.bat</code> +
+      <code>list.sh</code> ข้างลิสต์ ดับเบิลคลิกเล่นคิวทั้งชุดได้เลย — แจกงานเพื่อนร่วมกะ
+      ไม่ต้องพิมพ์คำสั่ง (พาธสัมพัทธ์อิงโฟลเดอร์ลิสต์ ย้ายโฟลเดอร์ทั้งชุดยังใช้ได้)</p>
+    <h3>แบบฝึกหัด (ทำตามได้จริง — ปลอดภัย ไม่คลิกอะไรบนจอ)</h3>
+    <ol>
+      <li><b>ซ้อม dry-run:</b> เปิด <code>examples/14_dry_run_cond_vars.json</code> → เมนู 🧪 Dry-run →
+        แถว Beep/Message Box ขึ้น "DRY-RUN: จะ…" แต่ If Loop/ตัวแปรเดินจริง →
+        จบแล้วเปิด <code>dry_report_วันที่.txt</code> หา "สรุปจะทำจริง" นับเทียบตาราง</li>
+      <li><b>เก็บผลเงื่อนไข:</b> 4 แถว — If Loop <code>3 &gt;ครบ</code> (Repeat=1) · Beep ·
+        If Variable <code>ครบ = 1</code> (Repeat=1) · Beep — ช่อง รอบ: 3 →
+        รอบ 1–2 บี๊บหลังโดนข้าม ({ครบ}=0) · รอบ 3 บี๊บแรกโดนข้ามแต่บี๊บหลังเล่น ({ครบ}=1)</li>
+      <li><b>คิวแรก:</b> 💾 Save สองสคริปต์ → สร้าง <code>list.txt</code> → เมนู 🗂️ Queue Bat →
+        ดับเบิลคลิก <code>list.bat</code> อ่านสรุปรายไฟล์ท้ายคอนโซล</li>
+    </ol>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.10.1 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

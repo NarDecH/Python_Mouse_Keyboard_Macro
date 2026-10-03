@@ -310,5 +310,14 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.10.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.10.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
+
+## v2.10.1 — 新增
+
+- **Dry-run 报告文件** — 试运行结束后将整条路径写入 `dry_report_日期.txt`（包含
+  "实际会执行" 计数汇总）；中途停止也会保存已走过的部分并标注。等待图像/像素颜色
+  立即报告而不再等待，试运行始终很快。
+- **🗂️ Queue Bat 按钮** — 选择队列列表文件 → 在其旁边生成 `list.bat` + `list.sh`，
+  双击即可运行整批脚本（相对路径基于列表文件所在文件夹）。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 14 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。

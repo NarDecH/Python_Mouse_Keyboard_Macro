@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.10.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.10.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -230,6 +230,19 @@
   [QUEUE] · exit code 130 = หยุดโดยผู้ใช้ ไม่นับพัง) · `script` positional เป็น optional
   (nargs="?") — เทสต์ TestDryRunEngine/TestCondStore/TestQueueCli/TestCliDryRun +
   TestQueueDryRunE2E (E2E) + ตัวอย่าง 14/queue_sample.txt เข้า TestAhkBlocks
+- **ฟีเจอร์เสริม v2.10.1 (ต่อยอด v2.10):** **รายงาน Dry-run เป็นไฟล์** (`dry_report_path()`
+  ข้างโปรแกรมเหมือน log_path — ต้อง patch ในเทสต์เสมอ · `dry_report_block()` pure +
+  `dry_report_summary()` นับจาก _DRY_ACTIONS เรียงยาว→สั้น · `dry_report_write()` ทน error
+  ทุกจุด คั่นบล็อกบรรทัดว่าง, log mode "DRY" — parse_log_stats ไม่นับเป็น STEP ·
+  GUI: `_player` ครอบ `runner.on_message` ตอน dry แล้ว**คืน callback เดิมใน finally เสมอ** ·
+  CLI: `_cli_message` ดักบรรทัด DRY-RUN + พิมพ์พาธรายงานหลังแต่ละรอบ) ·
+  **เมนู 🗂️ Queue Bat** (`export_queue_batch_files` — เลือกลิสต์ .txt แล้วเขียน .bat/.sh
+  ข้างลิสต์ผ่าน `batch_queue_export_bat/sh` · ⚠️ เมธอดสำเร็จต้องแจ้งผ่าน statusbar
+  เท่านั้น (เหมือน 📤 Export Bat) — ห้าม showinfo เพราะเทสต์ GUI จะค้างรอ dialog ·
+  ยกเลิก = จบเงียบ) · แก้บั๊กเทสต์ date-dependent: TestBackup hardcode วันที่ 2026-09-25
+  พังเองเมื่อวันจริงเลย 7 วัน — **วันที่ในเทสต์ต้องคำนวณจาก now เสมอ** · เทสต์
+  TestDryReport/TestQueueBatchExport + dry-report GUI ใน TestPlayLoopGui →
+  453 unit + 20 E2E = 474
 
 ## เทคโนโลยี
 

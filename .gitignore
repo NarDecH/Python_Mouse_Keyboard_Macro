@@ -32,6 +32,7 @@ Thumbs.db
 # อื่น ๆ
 *.log
 macro_log_*.txt
+dry_report_*.txt
 stop_now.flg
 
 # Codebuff workspace

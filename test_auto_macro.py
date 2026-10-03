@@ -798,8 +798,9 @@ class TestBackup(unittest.TestCase):
 
     def test_snapshot_writes_and_prunes(self):
         import datetime
-        # เก่า 3 วัน (ควรถูกลบเมื่อเขียนวันนี้ เพราะเก่ากว่า 7 วันไม่ใช่... 3 < 7 จึงเหลือ)
-        old = datetime.datetime(2026, 9, 25, 8, 0, 0)
+        # เก่า 3 วันจาก "วันนี้จริง" — เดิม hardcode วันที่ลงไป พอวันจริงเลย 7 วัน
+        # ไฟล์เก่าถูก prune เทสต์พังเอง (1 != 2) — คำนวณจาก now เสมอ
+        old = datetime.datetime.now() - datetime.timedelta(days=3)
         am.backup_snapshot(self._tmp.name, {"a": 1}, now=old)
         p = am.backup_snapshot(self._tmp.name, {"b": 2})   # วันนี้
         files = sorted(os.listdir(self._bk()))
@@ -810,14 +811,14 @@ class TestBackup(unittest.TestCase):
 
     def test_prune_deletes_over_7_days(self):
         import datetime
-        d10 = datetime.datetime(2026, 9, 18, 8, 0, 0)      # เก่ากว่า 10 วิ นับจากวันนี้
-        d1 = datetime.datetime(2026, 9, 27, 8, 0, 0)
+        d10 = datetime.datetime.now() - datetime.timedelta(days=10)   # เก่ากว่า 7 วิ = ถูกลบ
+        d1 = datetime.datetime.now() - datetime.timedelta(days=1)     # ยังไม่เกิน = เก็บ
         am.backup_snapshot(self._tmp.name, {"old": 1}, now=d10)
         am.backup_snapshot(self._tmp.name, {"new": 2}, now=d1)
         am.backup_snapshot(self._tmp.name, {"today": 3})   # จะเรียก prune ให้เอง
         files = os.listdir(self._bk())
         self.assertEqual(len(files), 2)                    # ตัวเก่า 10 วันถูกลบ
-        self.assertFalse(any("20260918" in f for f in files))
+        self.assertFalse(any(d10.strftime("%Y%m%d") in f for f in files))
 
     def test_snapshot_never_raises(self):
         # base_dir ที่สร้างไม่ได้ (มีอยู่เป็นไฟล์) = ต้องคืน None ไม่ raise
@@ -1900,6 +1901,36 @@ class TestPlayLoopGui(unittest.TestCase):
         self.assertIs(captured["stop"], True)          # ระหว่างเล่น stop_check() = True
         self.assertEqual(captured["msg_now"], ("ปลั๊กอินทำงาน", "#080"))
         self.assertIs(captured["beep_now"], True)
+
+    def test_dry_run_writes_report_file(self):
+        """v2.10.1: Dry-run จบแล้วเขียนรายงาน dry_report_วันที่.txt — เส้นทางครบ +
+        สรุปจำนวนแถวที่จะทำจริง + ไม่เขียนเมื่อไม่มีบรรทัดรายงาน"""
+        d = tempfile.mkdtemp(prefix="macro_dryrep_")
+        target = os.path.join(d, "dry_report_test.txt")
+        self._clean_table(2)
+        try:
+            with mock.patch.object(am, "dry_report_path", return_value=target):
+                ok = self._run_until(
+                    lambda: self.app._start_player_inner(False, dry=True),
+                    lambda: not self.app.running)
+            self.assertTrue(ok)
+            self.assertTrue(os.path.isfile(target))
+            with open(target, encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertIn("===== DRY-RUN", text)
+            self.assertIn("DRY-RUN: จะส่งเสียง Beep", text)
+            self.assertIn("แถวที่จะเล่น: 2", text)
+            self.assertIn("Beep ×2", text)             # สรุปจะทำจริง
+            self.assertIn("===== จบรายงาน Dry-run =====", text)
+            self.assertNotIn("ถูกหยุดกลางคัน", text)      # จบครบเอง
+
+            # เล่นจริง (ไม่ dry) — ห้ามเขียนรายงานเพิ่ม
+            before = os.path.getsize(target)
+            self._clean_table(1)
+            self._run_until(self.app.start_play, lambda: not self.app.running)
+            self.assertEqual(os.path.getsize(target), before)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
 
 class TestWaitTimeout(unittest.TestCase):
@@ -5493,12 +5524,139 @@ class TestCliDryRun(unittest.TestCase):
             json.dump([{ "enabled": True, "button": "Beep", "additional": "ok",
                          "mins": 0, "secs": 0, "repeat": 1}], fh, ensure_ascii=False)
         out = io.StringIO()
-        with mock.patch("sys.stdout", out):
+        # v2.10.1: cli_main เขียนรายงาน dry-run จริง — patch พาธไปที่ชั่วคราว
+        # กันเทสต์เขียนไฟล์ทิ้งข้างโค้ด (เหมือน log_path เดิม)
+        with mock.patch("sys.stdout", out), \
+             mock.patch.object(am, "dry_report_path",
+                               return_value=os.path.join(d, "dry_report_test.txt")):
             rc = am.cli_main([p, "--dry-run", "--no-log"])
         self.assertEqual(rc, 0)
         text = out.getvalue()
         self.assertIn("DRY-RUN", text)
         self.assertIn("DRY-RUN: จะส่งเสียง Beep", text)
+
+
+class TestDryReport(unittest.TestCase):
+    """v2.10.1: รายงาน Dry-run เป็นไฟล์ — engine helpers + GUI/CLI เขียนจริง
+    (patch dry_report_path เสมอ — ห้ามเขียนไฟล์ข้างโค้ดจริง)"""
+
+    def test_summary_counts_by_action(self):
+        lines = ["DRY-RUN: จะคลิก Left Click 100,200",
+                 "DRY-RUN: จะคลิก Double Left Click 5,5",
+                 "DRY-RUN: จะคลิก Left Click 300,300",
+                 "DRY-RUN: จะส่งเสียง Beep",
+                 "DRY-RUN: ที่พิกัด 100,200"]      # บรรทัดพิกัด — ไม่มี action ไม่นับ
+        sums = me_mod.dry_report_summary(lines)
+        self.assertEqual(sums[0], "Left Click ×2")
+        self.assertIn("Double Left Click ×1", sums)
+        self.assertIn("Beep ×1", sums)
+        self.assertEqual(me_mod.dry_report_summary([]), [])
+
+    def test_block_structure_and_stopped_marker(self):
+        lines = me_mod.dry_report_block("job.json", 3, "2",
+                                        ["DRY-RUN: จะส่งเสียง Beep"], finished=True)
+        self.assertIn("job.json", lines[0])
+        self.assertTrue(any("แถวที่จะเล่น: 3" in x for x in lines))
+        self.assertTrue(any("รอบ: 2" in x for x in lines))
+        self.assertIn("DRY-RUN: จะส่งเสียง Beep", lines)
+        self.assertTrue(any(x.startswith("สรุปจะทำจริง: Beep ×1") for x in lines))
+        self.assertNotIn("ถูกหยุดกลางคัน", "\n".join(lines))
+        lines2 = me_mod.dry_report_block("job.json", 3, "ไม่จำกัด", [], finished=False)
+        self.assertIn("ถูกหยุดกลางคัน", "\n".join(lines2))
+        self.assertIn("===== จบรายงาน Dry-run =====", lines2)
+
+    def test_write_appends_to_patched_path(self):
+        d = tempfile.mkdtemp(prefix="macro_drywr_")
+        target = os.path.join(d, "dry_report_x.txt")
+        try:
+            with mock.patch.object(me_mod, "dry_report_path", return_value=target):
+                me_mod.dry_report_write(["บรรทัด 1", "บรรทัด 2"], src="s.json")
+                me_mod.dry_report_write(["บรรทัด 3"])
+            with open(target, encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertIn("บรรทัด 1\nบรรทัด 2\n", text)      # เขียนครั้งแรก
+            self.assertIn("บรรทัด 3", text)                # ครั้งที่สองต่อท้าย
+            self.assertNotIn("บรรทัด 1\nบรรทัด 2\nบรรทัด 3", text)  # แยกบล็อกกัน
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_cli_dry_run_writes_report(self):
+        """CLI --dry-run จบรอบแล้วเขียนรายงานไฟล์ + พิมพ์พาธรายงานให้ผู้ใช้รู้"""
+        d = tempfile.mkdtemp(prefix="macro_drycli_")
+        target = os.path.join(d, "dry_report_cli.txt")
+        p = os.path.join(d, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{"enabled": True, "button": "Beep", "additional": "",
+                        "mins": 0, "secs": 0, "repeat": 1}], fh, ensure_ascii=False)
+        try:
+            out = io.StringIO()
+            with mock.patch.object(am, "dry_report_path", return_value=target), \
+                 mock.patch("sys.stdout", out):
+                rc = am.cli_main([p, "--dry-run", "--no-log"])
+            self.assertEqual(rc, 0)
+            self.assertTrue(os.path.isfile(target))
+            with open(target, encoding="utf-8") as fh:
+                text = fh.read()
+            self.assertIn("DRY-RUN: จะส่งเสียง Beep", text)
+            self.assertIn("Beep ×1", text)
+            self.assertIn(os.path.basename(target), out.getvalue())   # พิมพ์พาธรายงาน
+            # เล่นจริง (ไม่ใส่ --dry-run) — ห้ามเขียนรายงาน
+            before = os.path.getsize(target)
+            out2 = io.StringIO()
+            with mock.patch.object(am, "dry_report_path", return_value=target), \
+                 mock.patch("sys.stdout", out2):
+                am.cli_main([p, "--no-log"])
+            self.assertEqual(os.path.getsize(target), before)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+class TestQueueBatchExport(unittest.TestCase):
+    """v2.10.1: 🗂️ Queue Bat — export .bat/.sh สำหรับรันคิวหลายสคริปต์ผ่าน --queue"""
+
+    def test_bat_content(self):
+        s = me_mod.batch_queue_export_bat("mylist.txt")
+        self.assertTrue(s.startswith("@echo off"))
+        self.assertIn('py auto_macro.py --queue "mylist.txt" %*', s)
+        self.assertIn("pause", s)
+        self.assertIn('cd /d "%~dp0"', s)
+
+    def test_sh_content(self):
+        s = me_mod.batch_queue_export_sh("mylist.txt")
+        self.assertTrue(s.startswith("#!/bin/sh"))
+        self.assertIn('cd "$(dirname "$0")"', s)
+        self.assertIn('python3 auto_macro.py --queue "mylist.txt" "$@"', s)
+
+    def test_gui_method_exports_next_to_list(self):
+        app = mock.MagicMock()
+        app._loaded_file = None
+        with tempfile.TemporaryDirectory() as d:
+            lst = os.path.join(d, "mylist.txt")
+            with open(lst, "w", encoding="utf-8") as fh:
+                fh.write("# คิวตัวอย่าง\n")
+            with mock.patch.object(am.filedialog, "askopenfilename", return_value=lst):
+                am.MacroApp.export_queue_batch_files(app)   # เขียนไฟล์จริงข้างลิสต์
+            bat = os.path.join(d, "mylist.bat")
+            shp = os.path.join(d, "mylist.sh")
+            self.assertTrue(os.path.isfile(bat))
+            self.assertTrue(os.path.isfile(shp))
+            with open(bat, encoding="ascii") as fh:
+                self.assertIn('--queue "mylist.txt"', fh.read())
+            with open(shp, encoding="utf-8") as fh:
+                self.assertIn('--queue "mylist.txt"', fh.read())
+
+    def test_gui_cancelled_writes_nothing(self):
+        app = mock.MagicMock()
+        app._loaded_file = None
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.object(am.filedialog, "askopenfilename", return_value=""):
+                am.MacroApp.export_queue_batch_files(app)
+            self.assertEqual(os.listdir(d), [])
+
+    def test_menu_has_queue_entry(self):
+        names = [name for _, _, name, _ in am.MacroApp._menu_items()]
+        self.assertIn("export_queue_batch_files", names)
+        self.assertIn("export_batch_files", names)          # ของเดิมคงอยู่
 
 
 if __name__ == "__main__":

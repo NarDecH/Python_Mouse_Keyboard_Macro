@@ -120,7 +120,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.10.0"
+__version__ = "2.10.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -878,6 +878,30 @@ def batch_export_bat(script_name, py_cmd="py"):
         "cd /d \"%%~dp0\"\r\n"
         "%s auto_macro.py \"%s\" %%*\r\n"
         "pause\r\n" % (__version__, py_cmd, script_name))
+
+
+def batch_queue_export_bat(list_name, py_cmd="py"):
+    """เนื้อหาไฟล์ .bat สำหรับดับเบิลคลิกรันคิวหลายสคริปต์ผ่าน CLI --queue (v2.10.1)
+    list_name = ชื่อไฟล์ลิสต์ .txt (ไม่รวมพาธ) — ไฟล์ .bat ต้องอยู่โฟลเดอร์เดียวกับ
+    auto_macro.py และไฟล์ลิสต์ · %* ส่งต่ออาร์กิวเมนต์ เช่น --no-log --loop"""
+    return (
+        "@echo off\r\n"
+        "rem Auto Mouse & Keyboard Macro v%s - queue runner (many scripts)\r\n"
+        "rem Add CLI args if needed, e.g. --no-log  (see: py auto_macro.py --help)\r\n"
+        "cd /d \"%%~dp0\"\r\n"
+        "%s auto_macro.py --queue \"%s\" %%*\r\n"
+        "pause\r\n" % (__version__, py_cmd, list_name))
+
+
+def batch_queue_export_sh(list_name, py_cmd="python3"):
+    """เนื้อหาไฟล์ .sh สำหรับรันคิวหลายสคริปต์ผ่าน CLI --queue บน Linux/macOS (v2.10.1)
+    list_name = ชื่อไฟล์ลิสต์ .txt (ไม่รวมพาธ) · \"$@\" ส่งต่ออาร์กิวเมนต์"""
+    return (
+        "#!/bin/sh\n"
+        "# Auto Mouse & Keyboard Macro v%s — รันคิวหลายสคริปต์ผ่าน CLI --queue\n"
+        "# เพิ่มอาร์กิวเมนต์ได้ เช่น --no-log (ดูทั้งหมด: python3 auto_macro.py --help)\n"
+        "cd \"$(dirname \"$0\")\" || exit 1\n"
+        "%s auto_macro.py --queue \"%s\" \"$@\"\n" % (__version__, py_cmd, list_name))
 
 
 def batch_export_sh(script_name, py_cmd="python3"):
@@ -1819,6 +1843,78 @@ def prune_log(keep=MAX_LOG_LINES):
         pass
 
 
+# ---------------------------- รายงาน Dry-run เป็นไฟล์ (v2.10.1) ----
+# Dry-run (v2.10) รายงานแต่ละแถวขึ้นจอ/คอนโซลแบบสด — งานยาว/ค้างคืนอยากอ่านย้อน
+# จึงเก็บสำเนาลง dry_report_วันที่.txt เรียงเส้นทางเงื่อนไข + สรุปจำนวนแถวที่ "จะทำจริง"
+_DRY_SUMMARY_MAX = 12          # จำนวน action สูงสุดที่แสดงในสรุปท้ายรายงาน
+
+
+def dry_report_filename():
+    """ชื่อไฟล์รายงาน Dry-run ของ "วันนี้" (หมุนรายวัน) เช่น dry_report_2026-10-03.txt"""
+    return "dry_report_%s.txt" % datetime.date.today().isoformat()
+
+
+def dry_report_path():
+    """พาธไฟล์รายงาน Dry-run ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)"""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), dry_report_filename())
+
+
+def dry_report_summary(dry_lines):
+    """สรุปจำนวนแถวที่จะทำจริงจากบรรทัด "DRY-RUN: …" — คืน list ของข้อความ
+    "Left Click ×4" เรียงจากมากไปน้อย (นับจากชื่อ action ที่ปรากฏในบรรทัด)
+    อ่านจาก _DRY_ACTIONS เท่านั้น — เรียงยาว→สั้นกันชนกัน (Double Left Click ก่อน Left Click)"""
+    acts = sorted(_DRY_ACTIONS, key=len, reverse=True)
+    counts = {}
+    for line in dry_lines:
+        s = str(line)
+        for a in acts:
+            if a in s:
+                counts[a] = counts.get(a, 0) + 1
+                break
+    return ["%s ×%d" % (a, n) for a, n in
+            sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def dry_report_block(script, n_rows, n_loops, dry_lines, finished=True, extra=""):
+    """สร้างบล็อกรายงาน Dry-run (pure — คืน list ของบรรทัด ไม่เขียนไฟล์ เทสต์ง่าย)
+    script = ชื่อ/พาธสคริปต์ · n_rows = แถวที่จะเล่น · n_loops = จำนวนรอบ ("ไม่จำกัด" ได้)
+    finished=False = ถูกหยุดกลางคัน (รายงานเส้นทางที่เดินผ่านถึงจุดหยุด)"""
+    now = datetime.datetime.now().strftime("%H:%M:%S")
+    out = ["===== DRY-RUN %s — %s =====" % (now, os.path.basename(str(script or "")))]
+    head = "สคริปต์: %s · แถวที่จะเล่น: %s · รอบ: %s" % (script or "-", n_rows, n_loops)
+    if extra:
+        head += " · " + extra
+    out.append(head)
+    if not dry_lines:
+        out.append("(ไม่มีบรรทัดรายงาน — สคริปต์ไม่มีแถว input จริง หรือถูกหยุดก่อนเดิน)")
+    else:
+        out.extend(str(x) for x in dry_lines)
+        sums = dry_report_summary(dry_lines)
+        if sums:
+            out.append("สรุปจะทำจริง: " + ", ".join(sums[:_DRY_SUMMARY_MAX])
+                       + (" …" if len(sums) > _DRY_SUMMARY_MAX else ""))
+    if not finished:
+        out.append("(ถูกหยุดกลางคัน — เส้นทางด้านบนคือส่วนที่เดินผ่านจนถึงจุดหยุด)")
+    out.append("===== จบรายงาน Dry-run =====")
+    return out
+
+
+def dry_report_write(lines, src=None):
+    """เขียนบล็อกรายงาน Dry-run ต่อท้ายไฟล์ dry_report_วันที่.txt (ทนต่อทุก error —
+    รายงานห้ามทำโปรแกรมพัง เหมือน log_write) — แต่ละบล็อกคั่นบรรทัดว่างอ่านง่าย"""
+    try:
+        p = dry_report_path()
+        sep = ""
+        if os.path.isfile(p) and os.path.getsize(p) > 0:
+            sep = "\n"                       # มีรายงานเดิมแล้ว — คั่นบล็อกใหม่
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(sep + "\n".join(str(x) for x in lines) + "\n")
+        if src:
+            log_write("DRY", "รายงาน Dry-run บันทึกแล้ว (%d บรรทัด)" % len(lines), src)
+    except Exception:
+        pass
+
+
 # ============================== ActionRunner (v2.1 — phase 2) =================
 # กลไก "ทำ 1 แถว" ของ player ทั้ง GUI และ CLI — เครื่องมือล้วน ไม่มี Tk
 # GUI/CLI ส่ง controller (mouse/kb) + callbacks เข้ามา แล้ว runner จัดการเอง
@@ -2743,6 +2839,34 @@ class MacroApp:
                                  "(อาร์กิวเมนต์เพิ่มได้ เช่น --loop)" %
                                  (os.path.basename(base), os.path.basename(base)), "#080")
 
+    def export_queue_batch_files(self):
+        """🗂️ ส่งออกแบตช์ .bat/.sh สำหรับรันคิวหลายสคริปต์ผ่าน --queue (v2.10.1) —
+        เลือกไฟล์ลิสต์ .txt (บรรทัดละพาธสคริปต์) แล้วเขียน .bat/.sh ข้างลิสต์
+        ดับเบิลคลิกเล่นคิวทั้งชุดได้เลย ไม่ต้องพิมพ์คำสั่ง"""
+        initial = (os.path.dirname(self._loaded_file)
+                   if self._loaded_file and os.path.isdir(os.path.dirname(self._loaded_file))
+                   else os.getcwd())
+        lst = filedialog.askopenfilename(
+            title="เลือกไฟล์ลิสต์คิว (.txt — บรรทัดละพาธสคริปต์)",
+            filetypes=[("Queue list", "*.txt"), ("ทุกไฟล์", "*.*")],
+            initialdir=initial)
+        if not lst:
+            return                                   # ผู้ใช้กดยกเลิก — เงียบ ๆ จบ
+        base = os.path.splitext(lst)[0]
+        name = os.path.basename(lst)
+        try:
+            with open(base + ".bat", "w", encoding="ascii", errors="replace",
+                      newline="") as fh:
+                fh.write(batch_queue_export_bat(name))
+            with open(base + ".sh", "w", encoding="utf-8", newline="") as fh:
+                fh.write(batch_queue_export_sh(name))
+        except OSError as exc:
+            messagebox.showerror(APP_TITLE, "ส่งออกแบตช์คิวไม่สำเร็จ:\n%s" % exc)
+            return
+        self._ui_state["msg"] = ("ส่งออกแบตช์คิวแล้ว: %s.bat + %s.sh — ดับเบิลคลิกเพื่อเล่น "
+                                 "ทั้งคิว (--queue)" % (os.path.basename(base),
+                                                        os.path.basename(base)), "#080")
+
     @classmethod
     def _menu_items(cls):
         """รายการเมนูไอคอน (icon, label, method_name, color) — แยกออกมาเพื่อทดสอบได้"""
@@ -2750,6 +2874,7 @@ class MacroApp:
                 ("📂", "Load", "load_script", "#333"),
                 ("📋", "Paste", "_paste_rows_clipboard", "#333"),
                 ("📤", "Export Bat", "export_batch_files", "#333"),
+                ("🗂️", "Queue Bat", "export_queue_batch_files", "#333"),
                 ("🔍", "Validate", "validate_dialog", "#333"),
                 ("🧪", "Dry-run", "dry_run_menu", "#333"),
                 ("🔀", "AHK", "ahk_dialog", "#333"),
@@ -4216,6 +4341,17 @@ class MacroApp:
         runner.stop_check = lambda: self._gen_ok(gen)
         runner.log_src = self._log_src
         runner.dry_run = bool(dry)
+        # v2.10.1: โหมด dry-run — ดักข้อความ "DRY-RUN: …" เพื่อเก็บสำเนาลงไฟล์รายงาน
+        # (จอเล็ก/งานยาว อ่านย้อนเส้นทางที่เดินผ่านได้ จบแล้วเขียนที่ finally — ทน error ทุกจุด)
+        dry_lines = []
+        old_msg = runner.on_message
+        if dry:
+            def _capturing_msg(text, color="#080"):
+                s = str(text)
+                if s.startswith("DRY-RUN:"):
+                    dry_lines.append(s)
+                old_msg(text, color)
+            runner.on_message = _capturing_msg
 
         def do_step(r):
             # v2.1: ดึง controller สดจาก self ทุกแถว — เทสต์/รหัสอื่นเปลี่ยน
@@ -4232,6 +4368,7 @@ class MacroApp:
             loop_no = 0
             outer = True
             play_started = time.time()
+            dry_finished = False             # v2.10.1: ถึงจุดจบปกติหรือถูกหยุดกลางคัน
             # v2.4: Safety timeout — เล่นนานเกินที่ตั้งให้หยุดเอง (กันวนไม่จำกัดลืมหยุด)
             limit = (max(1, int(self._time_limit_min)) * 60
                      if getattr(self, "_time_limit_enabled", False) else None)
@@ -4328,12 +4465,24 @@ class MacroApp:
                     outer = self._script_loops > 0 and self._gen_ok(gen)
             if self._gen_ok(gen):
                 self._ui_state["msg"] = (self._t("done"), "#080")
+                dry_finished = True          # v2.10.1: รายงาน dry-run ระบุ "จบครบ"
                 if self._log_enabled:
                     log_write("END", "เล่นจบเองครบ %.1f วิ" % (time.time() - play_started),
                               self._log_src)
         finally:
             # เธรดจบเอง (จบสคริปต์ หรือถูก STOP/START ใหม่แทนที่) — ถ้าเป็นรุ่นปัจจุบันค่อยเคลียร์
             runner.dry_run = False              # v2.10: จบ dry-run — คืนโหมดเล่นจริงเสมอ
+            if dry:
+                runner.on_message = old_msg     # v2.10.1: คืน callback เดิมเสมอ
+                if dry_lines:                   # เก็บรายงาน dry-run ลงไฟล์ (v2.10.1)
+                    try:
+                        loops_txt = ("ไม่จำกัด" if (loop or self._script_loops == 0)
+                                     else str(self._script_loops))
+                        dry_report_write(dry_report_block(
+                            self._log_src, len(items), loops_txt, dry_lines,
+                            finished=dry_finished), self._log_src)
+                    except Exception:
+                        pass
             if gen == self._play_gen:
                 self.running = False
                 self._release_stuck()          # กันคีย์/ปุ่มค้างกรณีแถวสุดท้ายคือ Press/Down
@@ -5910,6 +6059,8 @@ def cli_main(argv):
     # v2.1: คีย์/ปุ่มค้างถูกจัดการใน ActionRunner (pressed_keys/pressed_btns + release_all)
     cli_vars = {}                # ตัวแปรของการเล่น (v1.19) — เริ่มใหม่ทุกครั้งที่เริ่มเล่น
     speed = min(10.0, max(0.1, args.speed))
+    dry_run_on = bool(getattr(args, "dry_run", False))   # v2.10.1: เก็บรายงาน dry-run เป็นไฟล์
+    dry_lines = []
 
     # v2.1 (phase 2): CLI ใช้ ActionRunner จาก engine เป็นแหล่งเดียวกับ GUI —
     # พฤติกรรมทุก action ตรงกัน ไม่ต้องดูแล do_step สองชุดอีกต่อไป
@@ -5917,7 +6068,7 @@ def cli_main(argv):
         mouse_ctl, kb_ctl,
         stop_check=lambda: running[0],
         on_beep=lambda: print("\a", end="", flush=True),
-        on_message=lambda text, color="#080": print("  " + str(text)),
+        on_message=lambda text, color="#080": _cli_message(text),
         on_clipboard_set=lambda text: None if clip_set(text)
         else print("  ⚠ Set Clipboard: ตั้งคลิปบอร์ดไม่สำเร็จบนระบบนี้"),
         on_clipboard_read=clip_get,
@@ -5932,6 +6083,13 @@ def cli_main(argv):
             row, timeout_hint=lambda t: print(
                 "  Wait for Image: ไม่เจอภาพภายใน %d วิ" % t),
             is_running=lambda: running[0]))
+
+    def _cli_message(text):
+        """v2.10.1: พิมพ์ข้อความของ runner + สำเนาบรรทัด "DRY-RUN: …" ไว้เขียนรายงานไฟล์"""
+        s = str(text)
+        if dry_run_on and s.startswith("DRY-RUN:"):
+            dry_lines.append(s)
+        print("  " + s)
 
     def do_step(r):
         # v2.2: runner เดียวกับ GUI — ค้นภาพ/รอภาพ/If Image/Else รวมอยู่ใน execute แล้ว
@@ -6192,6 +6350,13 @@ def cli_main(argv):
             ok = play_once()
             # ปล่อยคีย์/ปุ่มเมาส์ที่กดค้างไว้ (กัน Ctrl/ปุ่มเมาส์ติดหลังหยุดกลางคัน) — v2.1: runner จัดการ
             cli_runner.release_all()
+            if dry_run_on and dry_lines:         # v2.10.1: รายงาน dry-run ต่อรอบเล่น (ทน error ทุกจุด)
+                dry_report_write(dry_report_block(
+                    args.script, len(rows),
+                    "ไม่จำกัด" if (args.loop or args.loops == 0) else str(max(0, args.loops)),
+                    dry_lines, finished=ok), args.script)
+                print("รายงาน Dry-run: %s" % dry_report_path())
+                dry_lines.clear()
             if log_enabled:
                 log_write("STOP" if not ok else "END",
                           "หยุดโดยผู้ใช้ (F8/Esc/Ctrl+C)" if not ok

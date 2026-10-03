@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.10.0"
+__version__ = "2.10.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -786,6 +786,30 @@ def batch_export_bat(script_name, py_cmd="py"):
         "cd /d \"%%~dp0\"\r\n"
         "%s auto_macro.py \"%s\" %%*\r\n"
         "pause\r\n" % (__version__, py_cmd, script_name))
+
+
+def batch_queue_export_bat(list_name, py_cmd="py"):
+    """เนื้อหาไฟล์ .bat สำหรับดับเบิลคลิกรันคิวหลายสคริปต์ผ่าน CLI --queue (v2.10.1)
+    list_name = ชื่อไฟล์ลิสต์ .txt (ไม่รวมพาธ) — ไฟล์ .bat ต้องอยู่โฟลเดอร์เดียวกับ
+    auto_macro.py และไฟล์ลิสต์ · %* ส่งต่ออาร์กิวเมนต์ เช่น --no-log --loop"""
+    return (
+        "@echo off\r\n"
+        "rem Auto Mouse & Keyboard Macro v%s - queue runner (many scripts)\r\n"
+        "rem Add CLI args if needed, e.g. --no-log  (see: py auto_macro.py --help)\r\n"
+        "cd /d \"%%~dp0\"\r\n"
+        "%s auto_macro.py --queue \"%s\" %%*\r\n"
+        "pause\r\n" % (__version__, py_cmd, list_name))
+
+
+def batch_queue_export_sh(list_name, py_cmd="python3"):
+    """เนื้อหาไฟล์ .sh สำหรับรันคิวหลายสคริปต์ผ่าน CLI --queue บน Linux/macOS (v2.10.1)
+    list_name = ชื่อไฟล์ลิสต์ .txt (ไม่รวมพาธ) · \"$@\" ส่งต่ออาร์กิวเมนต์"""
+    return (
+        "#!/bin/sh\n"
+        "# Auto Mouse & Keyboard Macro v%s — รันคิวหลายสคริปต์ผ่าน CLI --queue\n"
+        "# เพิ่มอาร์กิวเมนต์ได้ เช่น --no-log (ดูทั้งหมด: python3 auto_macro.py --help)\n"
+        "cd \"$(dirname \"$0\")\" || exit 1\n"
+        "%s auto_macro.py --queue \"%s\" \"$@\"\n" % (__version__, py_cmd, list_name))
 
 
 def batch_export_sh(script_name, py_cmd="python3"):
@@ -1723,6 +1747,78 @@ def prune_log(keep=MAX_LOG_LINES):
         if len(lines) > keep:
             with open(path, "w", encoding="utf-8") as fh:
                 fh.writelines(lines[-keep:])
+    except Exception:
+        pass
+
+
+# ---------------------------- รายงาน Dry-run เป็นไฟล์ (v2.10.1) ----
+# Dry-run (v2.10) รายงานแต่ละแถวขึ้นจอ/คอนโซลแบบสด — งานยาว/ค้างคืนอยากอ่านย้อน
+# จึงเก็บสำเนาลง dry_report_วันที่.txt เรียงเส้นทางเงื่อนไข + สรุปจำนวนแถวที่ "จะทำจริง"
+_DRY_SUMMARY_MAX = 12          # จำนวน action สูงสุดที่แสดงในสรุปท้ายรายงาน
+
+
+def dry_report_filename():
+    """ชื่อไฟล์รายงาน Dry-run ของ "วันนี้" (หมุนรายวัน) เช่น dry_report_2026-10-03.txt"""
+    return "dry_report_%s.txt" % datetime.date.today().isoformat()
+
+
+def dry_report_path():
+    """พาธไฟล์รายงาน Dry-run ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)"""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), dry_report_filename())
+
+
+def dry_report_summary(dry_lines):
+    """สรุปจำนวนแถวที่จะทำจริงจากบรรทัด "DRY-RUN: …" — คืน list ของข้อความ
+    "Left Click ×4" เรียงจากมากไปน้อย (นับจากชื่อ action ที่ปรากฏในบรรทัด)
+    อ่านจาก _DRY_ACTIONS เท่านั้น — เรียงยาว→สั้นกันชนกัน (Double Left Click ก่อน Left Click)"""
+    acts = sorted(_DRY_ACTIONS, key=len, reverse=True)
+    counts = {}
+    for line in dry_lines:
+        s = str(line)
+        for a in acts:
+            if a in s:
+                counts[a] = counts.get(a, 0) + 1
+                break
+    return ["%s ×%d" % (a, n) for a, n in
+            sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def dry_report_block(script, n_rows, n_loops, dry_lines, finished=True, extra=""):
+    """สร้างบล็อกรายงาน Dry-run (pure — คืน list ของบรรทัด ไม่เขียนไฟล์ เทสต์ง่าย)
+    script = ชื่อ/พาธสคริปต์ · n_rows = แถวที่จะเล่น · n_loops = จำนวนรอบ ("ไม่จำกัด" ได้)
+    finished=False = ถูกหยุดกลางคัน (รายงานเส้นทางที่เดินผ่านถึงจุดหยุด)"""
+    now = datetime.datetime.now().strftime("%H:%M:%S")
+    out = ["===== DRY-RUN %s — %s =====" % (now, os.path.basename(str(script or "")))]
+    head = "สคริปต์: %s · แถวที่จะเล่น: %s · รอบ: %s" % (script or "-", n_rows, n_loops)
+    if extra:
+        head += " · " + extra
+    out.append(head)
+    if not dry_lines:
+        out.append("(ไม่มีบรรทัดรายงาน — สคริปต์ไม่มีแถว input จริง หรือถูกหยุดก่อนเดิน)")
+    else:
+        out.extend(str(x) for x in dry_lines)
+        sums = dry_report_summary(dry_lines)
+        if sums:
+            out.append("สรุปจะทำจริง: " + ", ".join(sums[:_DRY_SUMMARY_MAX])
+                       + (" …" if len(sums) > _DRY_SUMMARY_MAX else ""))
+    if not finished:
+        out.append("(ถูกหยุดกลางคัน — เส้นทางด้านบนคือส่วนที่เดินผ่านจนถึงจุดหยุด)")
+    out.append("===== จบรายงาน Dry-run =====")
+    return out
+
+
+def dry_report_write(lines, src=None):
+    """เขียนบล็อกรายงาน Dry-run ต่อท้ายไฟล์ dry_report_วันที่.txt (ทนต่อทุก error —
+    รายงานห้ามทำโปรแกรมพัง เหมือน log_write) — แต่ละบล็อกคั่นบรรทัดว่างอ่านง่าย"""
+    try:
+        p = dry_report_path()
+        sep = ""
+        if os.path.isfile(p) and os.path.getsize(p) > 0:
+            sep = "\n"                       # มีรายงานเดิมแล้ว — คั่นบล็อกใหม่
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(sep + "\n".join(str(x) for x in lines) + "\n")
+        if src:
+            log_write("DRY", "รายงาน Dry-run บันทึกแล้ว (%d บรรทัด)" % len(lines), src)
     except Exception:
         pass
 

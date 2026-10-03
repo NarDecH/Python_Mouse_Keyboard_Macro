@@ -3,6 +3,40 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.10.1] — 2026-10-03
+
+### 📝 Dry-run report file (follow-up to v2.10's Dry-run)
+- **When a dry run ends it writes `dry_report_<date>.txt` next to the program** — a copy of
+  the whole path walked, one line per entry, with a header (script/rows/loops) and a
+  closing count of what would really run, sorted by frequency, e.g. "สรุปจะทำจริง: Left
+  Click ×4, Beep ×2" — great for long jobs on small screens · **GUI:** captures DRY-RUN
+  messages during play, writes in finally (always restores the original callback) ·
+  **CLI:** prints the report path after each round (watchdog gets a report every round) ·
+  a mid-run stop still saves the part walked, marked as stopped · real play never writes ·
+  every error swallowed — the report must never crash the program (like log_write) ·
+  new [DRY] log mode (parse_log_stats does not count it as STEP) · blocks separated by
+  a blank line
+
+### 🗂️ Queue Bat — export queue batch files from the GUI (follow-up to v2.10's --queue)
+- **New 🗂️ Queue Bat menu** — pick a queue list .txt → writes `list.bat` (Windows) +
+  `list.sh` (Linux/macOS) next to it; double-click plays the whole queue through `--queue`
+  with no commands to type — easy hand-off to shift-mates · new engine helpers
+  `batch_queue_export_bat`/`batch_queue_export_sh` (same style as v2.3) · cancelling the
+  file dialog writes nothing
+
+### 📚 Docs + tests
+- **New TUTORIAL chapter 14 (Thai/English) + chapter 17 in the HTML** — a deep dive into
+  all three v2.10 features (Dry-run / condition results as variables / batch runner) with
+  three follow-along exercises in the style of the existing chapters · zh/ja short
+  summaries · fixed a date-dependent test bug: TestBackup hardcoded 2026-09-25, so it
+  broke on its own once the real date passed 7 days (now computed from now) · 10 new
+  tests (TestDryReport 4 + TestQueueBatchExport 5 + a dry-report GUI test in
+  TestPlayLoopGui) → **453 unit + 20 E2E = 474**
+- **ROADMAP: v2.11 proposals** — plugin conditions (Plugin API v3) / more log tools /
+  a GUI queue runner with progress
+
+---
+
 ## [2.10.0] — 2026-10-02
 
 ### 🧪 Dry-run — rehearse the whole script without touching mouse/keyboard
