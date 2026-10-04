@@ -394,5 +394,29 @@ paths resolve against the list's folder, so move the folder together and it stil
 
 ---
 
-*Guide for code v2.10.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+## Chapter 15 — Log tools (v2.11): monthly archive · clear old days
+
+Play logs (`macro_log_<date>.txt`) and dry-run reports (`dry_report_<date>.txt`) rotate
+daily, and today's log is trimmed to its last 500 lines — jobs that need a longer history
+use the v2.11 log tools:
+
+### 15.1 From the 📝 Log window
+- **Archive old** — moves every log/dry-report except today's into `log_archive/`
+  monthly folders named from the date in the file, e.g.
+  `log_archive/2026-09/macro_log_2026-09-20.txt` — kept forever, never deleted
+- **Clear old...** — deletes old files (today's kept) — always asks first and cannot be
+  undone; when unsure, archive instead
+- The file dropdown now lists dry-run reports too (logs only before)
+
+### 15.2 Automate it (Settings)
+- ☑ "Clean old logs on exit" + days (1–365) — closing the program handles files older
+  than the limit (off by default, nothing touched until you enable it)
+- ☑ "Archive to log_archive/ instead of deleting" — checked = safe, old files move
+  instead of disappearing
+
+⚠️ Today's file is never touched by either mode — it is still being written.
+
+---
+
+*Guide for code v2.11.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

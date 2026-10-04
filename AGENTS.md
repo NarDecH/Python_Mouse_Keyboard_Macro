@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.10.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.11.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -242,7 +242,21 @@
   ยกเลิก = จบเงียบ) · แก้บั๊กเทสต์ date-dependent: TestBackup hardcode วันที่ 2026-09-25
   พังเองเมื่อวันจริงเลย 7 วัน — **วันที่ในเทสต์ต้องคำนวณจาก now เสมอ** · เทสต์
   TestDryReport/TestQueueBatchExport + dry-report GUI ใน TestPlayLoopGui →
-  453 unit + 20 E2E = 474
+  453 unit + 20 E2E = 473
+- **ฟีเจอร์เสริม v2.11.0:** **เครื่องมือ log** (engine `cleanup_old_logs(base_dir,
+  keep_days=None, archive=True, today=None)` — จัดการ log/dry-report วันเก่าแหล่งเดียว:
+  archive=True ย้ายลง `log_archive/YYYY-MM/` แยกโฟลเดอร์รายเดือนจากวันที่ในชื่อไฟล์,
+  False = ลบ · **ไฟล์วันนี้ไม่แตะเสมอ** · ชื่อไม่ตรง `_LOG_DAY_RE` ไม่แตะ · ปลายทางมีไฟล์
+  = ข้ามไม่ทับ · ทน error ทุกจุดเหมือน backup) · หน้าต่าง 📝 Log: ปุ่ม "เก็บถาวรวันเก่า"/
+  "ล้างวันเก่า..." (askyesno ก่อนลบ สำเร็จแจ้ง statusbar เท่านั้น) + dropdown รวม
+  `dry_report_*.txt` แล้ว (ของค้าง v2.10.1) · Settings: ☑ จัดการ log วันเก่าตอนปิดโปรแกรม
+  + วัน 1–365 + เก็บถาวร/ลบ — conf `log_keep_days` (0 = ปิด) / `log_archive` +
+  Export/Import · `_on_close` เรียก cleanup อัตโนมัติเมื่อเปิดฟีเจอร์ ·
+  **engine_cli --dry-run เขียนรายงานไฟล์แล้ว** (ของค้าง v2.10.1 — ดัก DRY-RUN เขียนตอน
+  finally + พิมพ์พาธ) · ⚠️ fixture เทสต์ที่ใช้ MagicMock แล้วโค้ดอ่าน attr ใหม่ ต้อง set
+  attr นั้นใน fixture เอง — `getattr(mock, "x", default)` คืน mock อัตโนมัติ ไม่ใช่ default
+  (ทำ json.dump พัง 6 เทสต์ตอนทำ v2.11) · เทสต์ TestLogTools/TestLogToolsGui +
+  engine_cli dry-report → 464 unit + 20 E2E = 484
 
 ## เทคโนโลยี
 

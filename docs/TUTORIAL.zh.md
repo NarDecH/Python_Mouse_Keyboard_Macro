@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.10.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.11.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -321,3 +321,13 @@ max 10              无条件 — 把块体重复 10 次
 - **🗂️ Queue Bat 按钮** — 选择队列列表文件 → 在其旁边生成 `list.bat` + `list.sh`，
   双击即可运行整批脚本（相对路径基于列表文件所在文件夹）。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 14 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.11.0 — 新增
+
+- **日志工具** — 📝 日志窗口新增"归档旧日志"（旧 log/dry-report 移入按月分类的
+  `log_archive/` 文件夹，永久保留）与"清理旧日志"按钮（删除前会确认），下拉列表
+  同时显示试运行报告；设置中可启用退出时自动清理（保留 1–365 天，归档或删除——
+  今天的文件永不改动，默认关闭）。
+- **engine_cli 试运行报告** — `py engine_cli.py script.json --dry-run` 现在也会写入
+  报告文件并显示路径（与主 CLI 相同）。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 15 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。

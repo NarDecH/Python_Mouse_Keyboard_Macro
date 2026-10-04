@@ -65,6 +65,42 @@
 
   <div class="card">
     <div class="version">
+      <h2>เวอร์ชัน 2.11.0</h2>
+      <span class="tag latest">ล่าสุด</span>
+      <span class="date">4 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🗃️ เครื่องมือ log — เก็บถาวรรายเดือน / เคลียร์วันเก่า</h3>
+    <ul>
+      <li><b>engine ใหม่ <code>cleanup_old_logs()</code></b> — แหล่งเดียวจัดการไฟล์ log/dry-report
+        วันเก่า: <code>archive=True</code> ย้ายลง <code>log_archive/YYYY-MM/</code> (แยกโฟลเดอร์รายเดือน
+        จากวันที่ในชื่อไฟล์ — เก็บถาวรตลอดไป แก้ปัญหา log หมุนตัด 500 บรรทัดทำของเก่าหาย) ·
+        <code>archive=False</code> ลบทิ้ง · <code>keep_days=N</code> เก็บย้อนหลัง N วัน · <b>ไฟล์ของวันนี้ไม่แตะเสมอ</b> ·
+        ปลายทางมีไฟล์อยู่แล้ว = ข้าม ไม่ทับ · ทน error ทุกจุดเหมือน backup</li>
+      <li><b>หน้าต่าง 📝 Log ปุ่มใหม่ 2 ปุ่ม</b> — "เก็บถาวรวันเก่า" (ย้ายทันที) + "ล้างวันเก่า..."
+        (ถามยืนยันก่อนลบ) — สำเร็จแจ้งผ่าน statusbar เท่านั้น · รายการไฟล์สร้างใหม่หลังจัดการ</li>
+      <li><b>หน้าต่าง 📝 Log เห็นรายงาน Dry-run ด้วย</b> — dropdown รวม <code>dry_report_วันที่.txt</code>
+        (ของค้างจาก v2.10.1)</li>
+      <li><b>จัดการอัตโนมัติตอนปิดโปรแกรม (Settings)</b> — checkbox + จำนวนวัน 1–365 + เก็บถาวร/ลบ —
+        จำใน conf ค่าเริ่มต้นปิดอยู่ · เดินทางไปกับ Export/Import settings ด้วย</li>
+    </ul>
+
+    <h3>🖥️ engine_cli รายงาน Dry-run (ของค้างจาก v2.10.1)</h3>
+    <ul>
+      <li><b><code>py engine_cli.py script.json --dry-run</code> เขียนรายงานไฟล์แล้ว</b> — เหมือน CLI หลัก:
+        ดักบรรทัด DRY-RUN + เขียนตอน finally (หยุดกลางคันก็บันทึกส่วนที่เดินผ่าน) + พิมพ์พาธรายงานท้ายรอบ</li>
+    </ul>
+
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>เทสต์ใหม่ 11 ตัว</b> (TestLogTools 6 + TestLogToolsGui 4 + engine_cli dry-report 1) →
+        <b>464 unit + 20 E2E = 484</b> ผ่านหมด · ROADMAP ปิดข้อ "เครื่องมือ log เพิ่ม"</li>
+    </ul>
+
+  </div>
+
+  <div class="card">
+    <div class="version">
       <h2>เวอร์ชัน 2.10.1</h2>
       <span class="tag latest">ล่าสุด</span>
       <span class="date">3 ตุลาคม 2026</span>

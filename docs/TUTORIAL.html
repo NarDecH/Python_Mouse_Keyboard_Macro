@@ -506,7 +506,25 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ol>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.10.1 ·
+  <div class="card">
+    <h2>18. เครื่องมือ log (v2.11) — เก็บถาวรรายเดือน · เคลียร์วันเก่า</h2>
+    <p>log การเล่น (<code>macro_log_วันที่.txt</code>) และรายงาน dry-run (<code>dry_report_วันที่.txt</code>)
+      หมุนรายวัน และ log ของวันนี้ถูกตัดเหลือ 500 บรรทัดล่าสุด — งานที่อยากเก็บย้อนนานกว่านั้น
+      ใช้เครื่องมือใหม่ในหน้าต่าง 📝 Log:</p>
+    <ul>
+      <li><b>เก็บถาวรวันเก่า</b> — ย้าย log/dry-report ทุกไฟล์ที่ไม่ใช่วันนี้ลง <code>log_archive/</code>
+        แยกโฟลเดอร์รายเดือนจากวันที่ในชื่อไฟล์ เช่น <code>log_archive/2026-09/macro_log_2026-09-20.txt</code>
+        — เก็บตลอดไป ไม่มีการลบ</li>
+      <li><b>ล้างวันเก่า...</b> — ลบไฟล์เก่าทั้งหมด (ยกเว้นของวันนี้) — ถามยืนยันก่อนเสมอ
+        ลบแล้วเรียกคืนไม่ได้ ถ้าไม่แน่ใจให้กดเก็บถาวรแทน</li>
+      <li>dropdown "ไฟล์:" เห็นทั้ง log และรายงาน dry-run แล้ว (เดิมมีแต่ log)</li>
+    </ul>
+    <p><b>ตั้งจัดการอัตโนมัติ (Settings):</b> ☑ "จัดการ log วันเก่าตอนปิดโปรแกรม" + จำนวนวัน 1–365
+      + ☑ เก็บถาวรแทนลบ — ค่าเริ่มต้นปิดอยู่ ไม่แตะไฟล์จนกว่าจะเปิด ·
+      <b>ไฟล์ของ "วันนี้" ไม่เคยถูกแตะทั้งสองวิธี</b> — เพราะยังเขียนอยู่</p>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.11.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

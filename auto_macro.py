@@ -101,6 +101,7 @@ import sys
 import time
 import datetime
 import glob
+import shutil
 
 try:
     from pynput import keyboard, mouse
@@ -120,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.10.1"
+__version__ = "2.11.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -163,6 +164,13 @@ TR = {
            "backup_label": "Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
            "days": "วัน — 1–90)", "log_label": "บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
            "open_log_folder": "เปิดโฟลเดอร์ log", "selftest_btn": "🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)",
+           "log_archive_btn": "เก็บถาวรวันเก่า", "log_clear_btn": "ล้างวันเก่า...",
+           "log_clear_ask": "ลบ log/dry-report วันเก่าทั้งหมด (ยกเว้นของวันนี้)?\nลบแล้วเรียกคืนไม่ได้ — ถ้าอยากเก็บไว้ ใช้ปุ่มเก็บถาวรแทน",
+           "log_archived": "เก็บถาวรแล้ว %d ไฟล์ (log_archive/ รายเดือน)",
+           "log_cleared": "ล้างแล้ว %d ไฟล์",
+           "logclean_label": "จัดการ log วันเก่าตอนปิดโปรแกรม — เก็บย้อนหลัง",
+           "logclean_days": "วัน (1–365)",
+           "logarchive_label": "เก็บถาวรใน log_archive/ (แยกโฟลเดอร์รายเดือน) แทนการลบ",
            "selftest_ok": "🧪 ทดสอบแล้ว: เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง — "
                           "ถ้าเมาส์ไม่ขยับหรือไม่ได้ยินเสียง แสดงว่าระบบมีปัญหาจริง",
            "export_btn": "⬆️ Export การตั้งค่า", "import_btn": "⬇️ Import การตั้งค่า",
@@ -206,6 +214,13 @@ TR = {
            "backup_label": "Auto backup on close (keep last",
            "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
            "open_log_folder": "Open log folder", "selftest_btn": "🧪 Real system test (move mouse + beep)",
+           "log_archive_btn": "Archive old", "log_clear_btn": "Clear old...",
+           "log_clear_ask": "Delete all old log/dry-report files (today's kept)?\nThis cannot be undone — use Archive instead to keep them.",
+           "log_archived": "Archived %d file(s) (log_archive/ monthly)",
+           "log_cleared": "Deleted %d file(s)",
+           "logclean_label": "Clean old logs on exit — keep last",
+           "logclean_days": "days (1–365)",
+           "logarchive_label": "Archive to log_archive/ (monthly folders) instead of deleting",
            "selftest_ok": "🧪 Tested: mouse moved in a triangle and returned + 2 beeps — "
                           "if nothing moved or you heard nothing, the system has a real problem",
            "export_btn": "⬆️ Export settings", "import_btn": "⬇️ Import settings",
@@ -1843,6 +1858,65 @@ def prune_log(keep=MAX_LOG_LINES):
         pass
 
 
+# ------------- เครื่องมือ log: เก็บถาวรรายเดือน / เคลียร์วันเก่า (v2.11) --
+# log ปกติหมุนตัด 500 บรรทัดรายวัน — งานที่อยากเก็บย้อนนานกว่านั้นย้ายลง log_archive/
+# แยกโฟลเดอร์รายเดือน (YYYY-MM มาจากวันที่ในชื่อไฟล์) เก็บไว้ตลอดไปได้
+LOG_ARCHIVE_DIR = "log_archive"
+_LOG_DAY_RE = re.compile(r"^(?:macro_log_|dry_report_)(\d{4}-\d{2}-\d{2})\.txt$")
+
+
+def log_archive_path(base_dir=None):
+    """โฟลเดอร์เก็บ log ถาวร <base_dir>/log_archive/ (patch ฟังก์ชันนี้ใน unit tests)"""
+    return os.path.join(base_dir or os.path.dirname(os.path.abspath(__file__)),
+                        LOG_ARCHIVE_DIR)
+
+
+def cleanup_old_logs(base_dir=None, keep_days=None, archive=True, today=None):
+    """จัดการไฟล์ log/dry-report วันเก่า (v2.11) — แหล่งเดียวที่ GUI/ปิดโปรแกรมใช้ร่วมกัน
+    keep_days = None จัดการทุกไฟล์ที่ไม่ใช่วันนี้ · ตัวเลข N = เก็บไว้ N วันล่าสุด
+    archive = True ย้ายลง log_archive/YYYY-MM/ (เก็บถาวร) · False = ลบทิ้ง
+    ไฟล์ของ "วันนี้" ไม่แตะเสมอ (ยังเขียนอยู่) · คืน (จำนวนไฟล์, โหมด)
+    ทน error ทุกจุด — ของรองห้ามทำโปรแกรมพัง (กฎเดียวกับ backup)"""
+    mode = "archive" if archive else "delete"
+    n = 0
+    try:
+        d = base_dir or os.path.dirname(os.path.abspath(__file__))
+        today = today or datetime.date.today()
+        if keep_days is None:
+            cutoff = today                          # ทุกไฟล์ที่ไม่ใช่วันนี้
+        else:
+            cutoff = today - datetime.timedelta(days=max(0, int(keep_days)))
+        files = sorted(glob.glob(os.path.join(d, "macro_log_*.txt"))) + \
+            sorted(glob.glob(os.path.join(d, "dry_report_*.txt")))
+        for f in files:
+            m = _LOG_DAY_RE.match(os.path.basename(f))
+            if not m:
+                continue                            # ชื่อไม่ตรงรูปแบบ — ไม่แตะ (กันไฟล์อื่น)
+            try:
+                day = datetime.date.fromisoformat(m.group(1))
+            except ValueError:
+                continue
+            if day >= cutoff:
+                continue                            # ยังไม่หมดอายุ (วันนี้อยู่ในเงื่อนไขนี้ด้วย)
+            try:
+                if archive:
+                    dest_dir = os.path.join(log_archive_path(d),
+                                            day.strftime("%Y-%m"))
+                    os.makedirs(dest_dir, exist_ok=True)
+                    dest = os.path.join(dest_dir, os.path.basename(f))
+                    if not os.path.isfile(dest):    # ปลายทางมีแล้ว = ข้าม ไม่ทับ
+                        shutil.move(f, dest)
+                        n += 1
+                else:
+                    os.remove(f)
+                    n += 1
+            except OSError:
+                pass
+    except Exception:
+        pass
+    return n, mode
+
+
 # ---------------------------- รายงาน Dry-run เป็นไฟล์ (v2.10.1) ----
 # Dry-run (v2.10) รายงานแต่ละแถวขึ้นจอ/คอนโซลแบบสด — งานยาว/ค้างคืนอยากอ่านย้อน
 # จึงเก็บสำเนาลง dry_report_วันที่.txt เรียงเส้นทางเงื่อนไข + สรุปจำนวนแถวที่ "จะทำจริง"
@@ -2768,6 +2842,8 @@ class MacroApp:
         self._hp_dir = None                # โฟลเดอร์ hot-profile (F1–F4 โหลดสคริปต์จากที่นี้)
         self._backup_enabled = True        # backup อัตโนมัติตอนปิดโปรแกรม (v1.14)
         self._backup_days = BACKUP_KEEP_DAYS  # เก็บ backup ย้อนหลังกี่วัน
+        self._log_keep_days = 0            # จัดการ log/dry-report วันเก่าตอนปิด (0 = ปิด, v2.11)
+        self._log_archive = True           # True = เก็บถาวรใน log_archive/ แทนลบ (v2.11)
         self._time_limit_enabled = False   # หยุดเองหลังเล่นนานเกิน (Safety timeout, v2.4)
         self._time_limit_min = 30          # จำนวนนาทีก่อนหยุดอัตโนมัติ (1–720)
         self._lang = "th"                  # ภาษา UI: 'th' / 'en' (v1.14)
@@ -4984,6 +5060,12 @@ class MacroApp:
                         self._backup_days = max(1, min(90, int(data.get("backup_days", BACKUP_KEEP_DAYS))))
                     except (TypeError, ValueError):
                         self._backup_days = BACKUP_KEEP_DAYS
+                    # เครื่องมือ log วันเก่า (v2.11)
+                    try:
+                        self._log_keep_days = max(0, min(365, int(data.get("log_keep_days", 0))))
+                    except (TypeError, ValueError):
+                        self._log_keep_days = 0
+                    self._log_archive = bool(data.get("log_archive", True))
                     if data.get("lang") in ("th", "en"):
                         self._lang = data["lang"]
                     # Safety timeout (v2.4)
@@ -5059,6 +5141,9 @@ class MacroApp:
                            "hot_profile_dir": self._hp_dir,
                            "backup_enabled": self._backup_enabled,
                            "backup_days": self._backup_days,
+                           # เครื่องมือ log วันเก่า (v2.11)
+                           "log_keep_days": getattr(self, "_log_keep_days", 0),
+                           "log_archive": getattr(self, "_log_archive", True),
                            "lang": self._lang,
                            # Safety timeout (v2.4)
                            "time_limit_enabled": getattr(self, "_time_limit_enabled", False),
@@ -5093,6 +5178,9 @@ class MacroApp:
                 "sched": dict(getattr(self, "_sched", None) or {}),
                 "active_profile": self._active_profile,
                 "log_enabled": self._log_enabled,
+                # เครื่องมือ log วันเก่า (v2.11) — เดินทางไปกับไฟล์ settings ด้วย
+                "log_keep_days": getattr(self, "_log_keep_days", 0),
+                "log_archive": getattr(self, "_log_archive", True),
                 "hot_profile_dir": self._hp_dir}
         try:
             with open(f, "w", encoding="utf-8") as fh:
@@ -5197,6 +5285,12 @@ class MacroApp:
                                     else next(iter(self._profiles)))
             self._load_rows(data.get("rows") or [])
             self._log_enabled = bool(data.get("log_enabled", True))
+            # เครื่องมือ log วันเก่า (v2.11)
+            try:
+                self._log_keep_days = max(0, min(365, int(data.get("log_keep_days", 0))))
+            except (TypeError, ValueError):
+                self._log_keep_days = 0
+            self._log_archive = bool(data.get("log_archive", True))
             hp = data.get("hot_profile_dir")
             self._hp_dir = hp if (isinstance(hp, str) and hp and os.path.isdir(hp)) else None
             self._refresh_profile_ui()
@@ -5485,9 +5579,15 @@ class MacroApp:
 
     # -------------------------------------------------- log viewer (v1.9) ----
     def view_log(self):
-        """เปิดหน้าต่างอ่าน log การเล่นย้อนหลัง — เลือกดูไฟล์รายวันได้"""
-        files = sorted(glob.glob(os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "macro_log_*.txt")), reverse=True)
+        """เปิดหน้าต่างอ่าน log การเล่นย้อนหลัง — เลือกดูไฟล์รายวันได้
+        v2.11: เห็นรายงาน dry-run ด้วย + ปุ่มเก็บถาวร/ล้างวันเก่า (เรียก engine เดียวกับปิดโปรแกรม)"""
+        d = os.path.dirname(os.path.abspath(__file__))
+
+        def list_files():
+            return sorted(glob.glob(os.path.join(d, "macro_log_*.txt")) +
+                          glob.glob(os.path.join(d, "dry_report_*.txt")), reverse=True)
+
+        files = list_files()
         win = tk.Toplevel(self.root)
         win.title("Log การเล่น")
         win.geometry("860x520")
@@ -5506,7 +5606,7 @@ class MacroApp:
 
         def refresh(_e=None):
             txt.delete("1.0", "end")
-            f = os.path.join(os.path.dirname(os.path.abspath(__file__)), cmb.get())
+            f = os.path.join(d, cmb.get())
             try:
                 with open(f, encoding="utf-8", errors="replace") as fh:
                     txt.insert("1.0", fh.read())
@@ -5515,13 +5615,32 @@ class MacroApp:
             txt.see("end")
 
         def open_folder():
-            d = os.path.dirname(os.path.abspath(__file__))
             if hasattr(os, "startfile"):
                 os.startfile(d)
+
+        def do_cleanup(archive):
+            """เก็บถาวร (archive=True) / ล้างวันเก่า — engine เดียวกับตอนปิดโปรแกรม
+            สำเร็จแจ้งผ่าน statusbar เท่านั้น (กฎเหล็ก: ห้าม showinfo ตอนสำเร็จ)"""
+            n, mode = cleanup_old_logs(base_dir=d, archive=archive)
+            key = "log_archived" if archive else "log_cleared"
+            self._ui_state["msg"] = (self._t(key) % n, "#080" if n else "#666")
+            files2 = list_files()                     # รายการเปลี่ยน — สร้างใหม่
+            cmb["values"] = [os.path.basename(f) for f in files2]
+            cmb.set(os.path.basename(files2[0]) if files2 else "")
+            refresh()
+
+        def clear_ask():
+            if messagebox.askyesno(APP_TITLE, self._t("log_clear_ask")):
+                do_cleanup(False)
 
         cmb.bind("<<ComboboxSelected>>", refresh)
         tk.Button(bar, text="รีเฟรช", command=refresh).pack(side="left", padx=2)
         tk.Button(bar, text="เปิดโฟลเดอร์", command=open_folder).pack(side="left", padx=2)
+        # เครื่องมือ log วันเก่า (v2.11)
+        tk.Button(bar, text=self._t("log_archive_btn"),
+                  command=lambda: do_cleanup(True)).pack(side="left", padx=(12, 2))
+        tk.Button(bar, text=self._t("log_clear_btn"),
+                  command=clear_ask).pack(side="left", padx=2)
         ysb.pack(side="right", fill="y")
         txt.pack(fill="both", expand=True, padx=(8, 0), pady=(2, 8))
         refresh()
@@ -5646,6 +5765,20 @@ class MacroApp:
         daybar.pack()
         self.spin_days.pack(side="left")
         tk.Label(daybar, text=self._t("days"), fg="#666").pack(side="left", padx=(4, 0))
+        # เครื่องมือ log วันเก่า (v2.11): จัดการตอนปิดโปรแกรม — เก็บถาวรหรือลบ
+        logbar = tk.Frame(win)
+        logbar.pack(pady=(10, 0))
+        self.var_logclean = tk.BooleanVar(value=getattr(self, "_log_keep_days", 0) > 0)
+        tk.Checkbutton(logbar, text=self._t("logclean_label"),
+                       variable=self.var_logclean).pack(side="left")
+        self.spin_logdays = tk.Spinbox(logbar, from_=1, to=365, width=4)
+        self.spin_logdays.delete(0, "end")
+        self.spin_logdays.insert(0, str(getattr(self, "_log_keep_days", 0) or 7))
+        self.spin_logdays.pack(side="left", padx=(4, 2))
+        tk.Label(logbar, text=self._t("logclean_days"), fg="#666").pack(side="left")
+        self.var_logarchive = tk.BooleanVar(value=getattr(self, "_log_archive", True))
+        tk.Checkbutton(win, text=self._t("logarchive_label"),
+                       variable=self.var_logarchive).pack(pady=(2, 0))
         # Safety timeout (v2.4): หยุดเองหลังเล่นนานเกิน — กันสคริปต์วนไม่จำกัดลืมหยุด
         tbar = tk.Frame(win)
         tbar.pack(pady=(10, 0))
@@ -5709,6 +5842,13 @@ class MacroApp:
             self._backup_days = max(1, min(90, int(self.spin_days.get())))
         except ValueError:
             self._backup_days = BACKUP_KEEP_DAYS
+        # เครื่องมือ log วันเก่า (v2.11)
+        try:
+            self._log_keep_days = (max(1, min(365, int(self.spin_logdays.get())))
+                                   if self.var_logclean.get() else 0)
+        except (TypeError, ValueError):
+            self._log_keep_days = 0
+        self._log_archive = self.var_logarchive.get()
         # Safety timeout (v2.4)
         self._time_limit_enabled = self.var_time_limit.get()
         try:
@@ -5813,6 +5953,14 @@ py auto_macro.py script.json [--loop] [--loops N] [--speed 2] [--shuffle] [--row
         self.recording = False
         # backup อัตโนมัติทุกครั้งที่ปิดโปรแกรม (v1.13) — ปิด/จำนวนวันตั้งได้ใน Settings (v1.14)
         self._on_close_backup(os.path.dirname(os.path.abspath(__file__)))
+        # จัดการ log/dry-report วันเก่าตามที่ตั้ง (v2.11) — เก็บถาวรหรือลบ, ทน error ทุกจุด
+        try:
+            if getattr(self, "_log_keep_days", 0) > 0:
+                cleanup_old_logs(os.path.dirname(os.path.abspath(__file__)),
+                                 keep_days=self._log_keep_days,
+                                 archive=getattr(self, "_log_archive", True))
+        except Exception:
+            pass
         if self._gk:
             try:
                 self._gk.stop()

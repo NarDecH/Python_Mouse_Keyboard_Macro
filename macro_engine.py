@@ -9,6 +9,7 @@ import sys
 import time
 import datetime
 import glob
+import shutil
 
 try:
     from pynput import keyboard, mouse
@@ -28,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.10.1"
+__version__ = "2.11.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -71,6 +72,13 @@ TR = {
            "backup_label": "Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
            "days": "วัน — 1–90)", "log_label": "บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
            "open_log_folder": "เปิดโฟลเดอร์ log", "selftest_btn": "🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)",
+           "log_archive_btn": "เก็บถาวรวันเก่า", "log_clear_btn": "ล้างวันเก่า...",
+           "log_clear_ask": "ลบ log/dry-report วันเก่าทั้งหมด (ยกเว้นของวันนี้)?\nลบแล้วเรียกคืนไม่ได้ — ถ้าอยากเก็บไว้ ใช้ปุ่มเก็บถาวรแทน",
+           "log_archived": "เก็บถาวรแล้ว %d ไฟล์ (log_archive/ รายเดือน)",
+           "log_cleared": "ล้างแล้ว %d ไฟล์",
+           "logclean_label": "จัดการ log วันเก่าตอนปิดโปรแกรม — เก็บย้อนหลัง",
+           "logclean_days": "วัน (1–365)",
+           "logarchive_label": "เก็บถาวรใน log_archive/ (แยกโฟลเดอร์รายเดือน) แทนการลบ",
            "selftest_ok": "🧪 ทดสอบแล้ว: เมาส์ขยับเป็นสามเหลี่ยมแล้วคืนจุดเดิม + บี๊บ 2 ครั้ง — "
                           "ถ้าเมาส์ไม่ขยับหรือไม่ได้ยินเสียง แสดงว่าระบบมีปัญหาจริง",
            "export_btn": "⬆️ Export การตั้งค่า", "import_btn": "⬇️ Import การตั้งค่า",
@@ -114,6 +122,13 @@ TR = {
            "backup_label": "Auto backup on close (keep last",
            "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
            "open_log_folder": "Open log folder", "selftest_btn": "🧪 Real system test (move mouse + beep)",
+           "log_archive_btn": "Archive old", "log_clear_btn": "Clear old...",
+           "log_clear_ask": "Delete all old log/dry-report files (today's kept)?\nThis cannot be undone — use Archive instead to keep them.",
+           "log_archived": "Archived %d file(s) (log_archive/ monthly)",
+           "log_cleared": "Deleted %d file(s)",
+           "logclean_label": "Clean old logs on exit — keep last",
+           "logclean_days": "days (1–365)",
+           "logarchive_label": "Archive to log_archive/ (monthly folders) instead of deleting",
            "selftest_ok": "🧪 Tested: mouse moved in a triangle and returned + 2 beeps — "
                           "if nothing moved or you heard nothing, the system has a real problem",
            "export_btn": "⬆️ Export settings", "import_btn": "⬇️ Import settings",
@@ -1749,6 +1764,65 @@ def prune_log(keep=MAX_LOG_LINES):
                 fh.writelines(lines[-keep:])
     except Exception:
         pass
+
+
+# ------------- เครื่องมือ log: เก็บถาวรรายเดือน / เคลียร์วันเก่า (v2.11) --
+# log ปกติหมุนตัด 500 บรรทัดรายวัน — งานที่อยากเก็บย้อนนานกว่านั้นย้ายลง log_archive/
+# แยกโฟลเดอร์รายเดือน (YYYY-MM มาจากวันที่ในชื่อไฟล์) เก็บไว้ตลอดไปได้
+LOG_ARCHIVE_DIR = "log_archive"
+_LOG_DAY_RE = re.compile(r"^(?:macro_log_|dry_report_)(\d{4}-\d{2}-\d{2})\.txt$")
+
+
+def log_archive_path(base_dir=None):
+    """โฟลเดอร์เก็บ log ถาวร <base_dir>/log_archive/ (patch ฟังก์ชันนี้ใน unit tests)"""
+    return os.path.join(base_dir or os.path.dirname(os.path.abspath(__file__)),
+                        LOG_ARCHIVE_DIR)
+
+
+def cleanup_old_logs(base_dir=None, keep_days=None, archive=True, today=None):
+    """จัดการไฟล์ log/dry-report วันเก่า (v2.11) — แหล่งเดียวที่ GUI/ปิดโปรแกรมใช้ร่วมกัน
+    keep_days = None จัดการทุกไฟล์ที่ไม่ใช่วันนี้ · ตัวเลข N = เก็บไว้ N วันล่าสุด
+    archive = True ย้ายลง log_archive/YYYY-MM/ (เก็บถาวร) · False = ลบทิ้ง
+    ไฟล์ของ "วันนี้" ไม่แตะเสมอ (ยังเขียนอยู่) · คืน (จำนวนไฟล์, โหมด)
+    ทน error ทุกจุด — ของรองห้ามทำโปรแกรมพัง (กฎเดียวกับ backup)"""
+    mode = "archive" if archive else "delete"
+    n = 0
+    try:
+        d = base_dir or os.path.dirname(os.path.abspath(__file__))
+        today = today or datetime.date.today()
+        if keep_days is None:
+            cutoff = today                          # ทุกไฟล์ที่ไม่ใช่วันนี้
+        else:
+            cutoff = today - datetime.timedelta(days=max(0, int(keep_days)))
+        files = sorted(glob.glob(os.path.join(d, "macro_log_*.txt"))) + \
+            sorted(glob.glob(os.path.join(d, "dry_report_*.txt")))
+        for f in files:
+            m = _LOG_DAY_RE.match(os.path.basename(f))
+            if not m:
+                continue                            # ชื่อไม่ตรงรูปแบบ — ไม่แตะ (กันไฟล์อื่น)
+            try:
+                day = datetime.date.fromisoformat(m.group(1))
+            except ValueError:
+                continue
+            if day >= cutoff:
+                continue                            # ยังไม่หมดอายุ (วันนี้อยู่ในเงื่อนไขนี้ด้วย)
+            try:
+                if archive:
+                    dest_dir = os.path.join(log_archive_path(d),
+                                            day.strftime("%Y-%m"))
+                    os.makedirs(dest_dir, exist_ok=True)
+                    dest = os.path.join(dest_dir, os.path.basename(f))
+                    if not os.path.isfile(dest):    # ปลายทางมีแล้ว = ข้าม ไม่ทับ
+                        shutil.move(f, dest)
+                        n += 1
+                else:
+                    os.remove(f)
+                    n += 1
+            except OSError:
+                pass
+    except Exception:
+        pass
+    return n, mode
 
 
 # ---------------------------- รายงาน Dry-run เป็นไฟล์ (v2.10.1) ----

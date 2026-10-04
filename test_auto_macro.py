@@ -627,6 +627,8 @@ class TestExportImport(unittest.TestCase):
         app._profiles = {"ค่าเริ่มต้น": [{"button": "Beep"}], "งาน B": []}
         app._active_profile = "ค่าเริ่มต้น"
         app._log_enabled = False
+        app._log_keep_days = 0                      # v2.11: export_settings อ่าน attr นี้
+        app._log_archive = True
         app._hp_dir = None
         app._ui_state = {"msg": None}
         return app
@@ -746,6 +748,8 @@ class TestBackupSettings(unittest.TestCase):
         app = mock.MagicMock()
         app._backup_enabled = True
         app._backup_days = 3
+        app._log_keep_days = 0
+        app._log_archive = True
         app._serialize.return_value = []
         app._profiles = {}
         app._active_profile = "x"
@@ -775,6 +779,8 @@ class TestBackupSettings(unittest.TestCase):
             app._load_rows = mock.MagicMock()
             app._backup_enabled = True
             app._backup_days = 7
+            app._log_keep_days = 0
+            app._log_archive = True
             app._lang = "th"
             with mock.patch.object(am, "CONF", conf):     # ชี้ conf ไปที่ไฟล์ทดสอบ
                 am.MacroApp._load_conf(app)
@@ -893,6 +899,8 @@ class TestUiDialogs(unittest.TestCase):
         self.app._log_enabled = True
         self.app._backup_enabled = True
         self.app._backup_days = 7
+        self.app._log_keep_days = 0                # v2.11: Settings อ่านตอนเปิด dialog
+        self.app._log_archive = True
         self.app._hp_dir = None
         self.app._gk = None
         self.app._gk_heal_at = 0.0        # v2.4: self-healing
@@ -2071,6 +2079,8 @@ class TestPersistSettings(unittest.TestCase):
         app._hp_dir = None
         app._backup_enabled = True
         app._backup_days = 7
+        app._log_keep_days = 0                     # v2.11: _save_conf/export อ่าน attr นี้
+        app._log_archive = True
         app._lang = "th"
         app.cmb_speed.get.return_value = "2"
         app.ent_loops.get.return_value = "3"
@@ -2994,6 +3004,29 @@ class TestEngineCli(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("จบแล้ว", out.getvalue())
 
+    def test_cli_dry_run_writes_report(self):
+        """v2.11: engine_cli --dry-run เขียนรายงานไฟล์เหมือน CLI หลัก (v2.10.1) —
+        patch me.dry_report_path เสมอ ห้ามเขียนไฟล์ข้างโค้ดจริง"""
+        import engine_cli
+        tmp = tempfile.mkdtemp(prefix="eclidry_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        p = os.path.join(tmp, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{"enabled": True, "button": "Beep", "additional": "",
+                        "mins": 0, "secs": 0, "repeat": 1}], fh, ensure_ascii=False)
+        target = os.path.join(tmp, "dry_report_ecli.txt")
+        out = io.StringIO()
+        with mock.patch.object(me_mod, "dry_report_path", return_value=target), \
+             mock.patch.object(am.sys, "stdout", out):
+            rc = engine_cli.main([p, "--dry-run", "--no-log"])
+        self.assertEqual(rc, 0)
+        self.assertTrue(os.path.isfile(target))
+        with open(target, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("DRY-RUN: จะส่งเสียง Beep", text)
+        self.assertIn("Beep ×1", text)
+        self.assertIn(os.path.basename(target), out.getvalue())   # พิมพ์พาธรายงานให้ผู้ใช้รู้
+
 
 class TestPluginMarket(unittest.TestCase):
     """v2.1: ปุ่มตลาด plugin — เปิดโฟลเดอร์ plugins/ ด้วยเมธอดเดิมที่ทดสอบแล้ว"""
@@ -3387,6 +3420,8 @@ class TestBackupPipeline(unittest.TestCase):
         app = mock.MagicMock()
         app._backup_enabled = True
         app._backup_days = 7
+        app._log_keep_days = 0                     # v2.11: _save_conf/export อ่าน attr นี้
+        app._log_archive = True
         app._serialize.return_value = [{"button": "Beep", "secs": 0}]
         app._profiles = {"ค่าเริ่มต้น": [{"button": "Beep"}]}
         app._active_profile = "ค่าเริ่มต้น"
@@ -3837,6 +3872,8 @@ class TestSafetyTimeout(unittest.TestCase):
         app._hp_dir = None                          # _save_conf อ่าน attr นี้ตรง ๆ
         app._backup_enabled = True
         app._backup_days = 7
+        app._log_keep_days = 0                     # v2.11: _save_conf/export อ่าน attr นี้
+        app._log_archive = True
         app._lang = "th"
         app._time_limit_enabled = True              # v2.4: keys ใหม่ใน conf
         app._time_limit_min = 45
@@ -4648,6 +4685,8 @@ class TestSchedMulti(unittest.TestCase):
         app._hp_dir = None
         app._backup_enabled = True
         app._backup_days = 7
+        app._log_keep_days = 0                     # v2.11: _save_conf/export อ่าน attr นี้
+        app._log_archive = True
         app._lang = "th"
         app.cmb_speed.get.return_value = "1"
         app.ent_loops.get.return_value = "1"
@@ -5657,6 +5696,210 @@ class TestQueueBatchExport(unittest.TestCase):
         names = [name for _, _, name, _ in am.MacroApp._menu_items()]
         self.assertIn("export_queue_batch_files", names)
         self.assertIn("export_batch_files", names)          # ของเดิมคงอยู่
+
+
+class TestLogTools(unittest.TestCase):
+    """v2.11: เครื่องมือ log — เก็บถาวรรายเดือน (log_archive/) / เคลียร์วันเก่า
+    (เทสต์ engine ผ่าน base_dir ชั่วคราวเสมอ — ห้ามแตะ log จริงข้างโค้ด)"""
+
+    @staticmethod
+    def _make(base_dir, name, text="x"):
+        p = os.path.join(base_dir, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return p
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="macro_logtool_")
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.today = datetime.date.today()          # กฎเหล็ก: ห้าม hardcode วันที่
+
+    def test_archive_moves_old_files_to_monthly_folders(self):
+        old1 = self._make(self.d, "macro_log_2026-08-15.txt")
+        old2 = self._make(self.d, "macro_log_2026-09-20.txt")
+        dry = self._make(self.d, "dry_report_2026-09-01.txt")
+        td = self._make(self.d, "macro_log_%s.txt" % self.today.isoformat())
+        junk = self._make(self.d, "macro_log_badname.txt")
+        n, mode = me_mod.cleanup_old_logs(base_dir=self.d, archive=True)
+        self.assertEqual((n, mode), (3, "archive"))
+        self.assertFalse(os.path.isfile(old1))      # ต้นทางถูกย้ายออก
+        arch = me_mod.log_archive_path(self.d)
+        self.assertTrue(os.path.isfile(
+            os.path.join(arch, "2026-08", "macro_log_2026-08-15.txt")))
+        self.assertTrue(os.path.isfile(
+            os.path.join(arch, "2026-09", "macro_log_2026-09-20.txt")))
+        self.assertTrue(os.path.isfile(
+            os.path.join(arch, "2026-09", "dry_report_2026-09-01.txt")))
+        self.assertTrue(os.path.isfile(td))         # ไฟล์วันนี้ไม่แตะเสมอ
+        self.assertTrue(os.path.isfile(junk))       # ชื่อไม่ตรงรูปแบบไม่แตะ
+
+    def test_clear_deletes_old_files(self):
+        old = self._make(self.d, "macro_log_2026-08-15.txt")
+        td = self._make(self.d, "macro_log_%s.txt" % self.today.isoformat())
+        n, mode = me_mod.cleanup_old_logs(base_dir=self.d, archive=False)
+        self.assertEqual((n, mode), (1, "delete"))
+        self.assertFalse(os.path.isfile(old))
+        self.assertTrue(os.path.isfile(td))         # วันนี้ไม่แตะเสมอ
+        self.assertFalse(os.path.isdir(me_mod.log_archive_path(self.d)))
+
+    def test_keep_days_window(self):
+        near = self._make(self.d, "macro_log_%s.txt"
+                          % (self.today - datetime.timedelta(days=3)).isoformat())
+        far = self._make(self.d, "macro_log_%s.txt"
+                         % (self.today - datetime.timedelta(days=10)).isoformat())
+        n, _ = me_mod.cleanup_old_logs(base_dir=self.d, keep_days=7, archive=False)
+        self.assertEqual(n, 1)
+        self.assertTrue(os.path.isfile(near))       # อายุ 3 วัน — ยังไม่เกินกำหนด
+        self.assertFalse(os.path.isfile(far))       # อายุ 10 วัน — หมดอายุ
+
+    def test_archive_never_overwrites_existing_destination(self):
+        past = self.today - datetime.timedelta(days=40)
+        day = past.isoformat()
+        dest_dir = os.path.join(me_mod.log_archive_path(self.d), past.strftime("%Y-%m"))
+        os.makedirs(dest_dir)
+        self._make(dest_dir, "macro_log_%s.txt" % day, "เดิม")
+        self._make(self.d, "macro_log_%s.txt" % day, "ใหม่")
+        n, _ = me_mod.cleanup_old_logs(base_dir=self.d, archive=True)
+        self.assertEqual(n, 0)                      # ปลายทางมีแล้ว = ข้าม
+        with open(os.path.join(dest_dir, "macro_log_%s.txt" % day),
+                  encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "เดิม")      # ไม่ทับของเดิม
+        self.assertTrue(os.path.isfile(os.path.join(self.d, "macro_log_%s.txt" % day)))
+
+    def test_gui_close_autoclean_calls_engine(self):
+        """ปิดโปรแกรม = จัดการ log วันเก่าตามที่ตั้ง (0 = ปิด ไม่เรียก)"""
+        app = mock.MagicMock()
+        app._log_keep_days = 7
+        app._log_archive = True
+        with mock.patch.object(am, "cleanup_old_logs") as m:
+            am.MacroApp._on_close(app)
+        self.assertTrue(m.called)
+        self.assertEqual(m.call_args.kwargs.get("keep_days"), 7)
+        self.assertEqual(m.call_args.kwargs.get("archive"), True)
+        app2 = mock.MagicMock()
+        app2._log_keep_days = 0
+        with mock.patch.object(am, "cleanup_old_logs") as m2:
+            am.MacroApp._on_close(app2)
+        self.assertFalse(m2.called)                 # ปิดฟีเจอร์ = ไม่แตะไฟล์
+
+    def test_settings_save_reads_log_tools(self):
+        app = mock.MagicMock()
+        app.var_log.get.return_value = True
+        app.var_backup.get.return_value = True
+        app.spin_days.get.return_value = "7"
+        app.var_logclean.get.return_value = True
+        app.spin_logdays.get.return_value = "30"
+        app.var_logarchive.get.return_value = False
+        app.var_time_limit.get.return_value = False
+        app.spin_limit.get.return_value = "30"
+        app.cmb_lang.get.return_value = "ไทย (Thai)"
+        app._lang = "th"
+        win = mock.MagicMock()
+        am.MacroApp._settings_save(app, win)
+        self.assertEqual(app._log_keep_days, 30)
+        self.assertEqual(app._log_archive, False)
+        app.spin_logdays.get.return_value = "999"   # เกินขอบ — หนีบ 365
+        am.MacroApp._settings_save(app, win)
+        self.assertEqual(app._log_keep_days, 365)
+
+
+class TestLogToolsGui(unittest.TestCase):
+    """v2.11: หน้าต่าง 📝 Log — เห็นรายงาน dry-run + ปุ่มเก็บถาวร/ล้างเรียก engine จริง
+    (patch พาธโปรแกรมไปโฟลเดอร์ชั่วคราว — ห้ามแตะ log จริงข้างโค้ด)"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+            cls.has_tk = True
+        except am.tk.TclError:
+            cls.has_tk = False
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.has_tk:
+            cls.root.destroy()
+
+    def setUp(self):
+        if not self.has_tk:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        self.d = tempfile.mkdtemp(prefix="macro_loggui_")
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.app = mock.MagicMock()
+        self.app.root = self.root
+        self.app._lang = "th"
+        self.app._t = lambda key: am.tr("th", key)
+        self.app._ui_state = {"msg": None}
+        self._make("macro_log_2099-01-01.txt", "log วันนี้ (จำลอง)")
+        self._make("dry_report_2099-01-01.txt", "รายงาน dry-run (จำลอง)")
+        self._patcher = mock.patch.object(
+            am.os.path, "abspath",
+            return_value=os.path.join(self.d, "auto_macro.py"))
+        self._patcher2 = mock.patch.object(am.os.path, "dirname", return_value=self.d)
+        self._patcher.start()
+        self._patcher2.start()
+        self.addCleanup(self._patcher.stop)
+        self.addCleanup(self._patcher2.stop)
+        n_win = len(self.root.winfo_children())
+        am.MacroApp.view_log(self.app)
+        self.win = self.root.winfo_children()[n_win]
+        self.addCleanup(self.win.destroy)
+
+    def _make(self, name, text):
+        with open(os.path.join(self.d, name), "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def _widgets(self, w, kinds):
+        out = []
+        for c in w.winfo_children():
+            if isinstance(c, kinds):
+                out.append(c)
+            out.extend(self._widgets(c, kinds))
+        return out
+
+    def _button_by_text(self, text):
+        for b in self._widgets(self.win, am.tk.Button):
+            if text in str(b.cget("text")):
+                return b
+        return None
+
+    def test_dry_report_listed_in_combobox(self):
+        cmb = self._widgets(self.win, am.ttk.Combobox)[0]
+        vals = list(cmb["values"])
+        self.assertIn("dry_report_2099-01-01.txt", vals)   # v2.11: เห็นรายงาน dry-run
+        self.assertIn("macro_log_2099-01-01.txt", vals)
+
+    def test_archive_button_calls_engine_and_statusbar(self):
+        with mock.patch.object(am, "cleanup_old_logs",
+                               return_value=(2, "archive")) as m:
+            self._button_by_text("เก็บถาวรวันเก่า").invoke()
+        self.assertTrue(m.called)
+        self.assertEqual(m.call_args.kwargs.get("archive"), True)
+        self.assertEqual(m.call_args.kwargs.get("base_dir"), self.d)  # โฟลเดอร์ชั่วคราว
+        self.assertIn("เก็บถาวรแล้ว 2 ไฟล์", self.app._ui_state["msg"][0])  # statusbar เท่านั้น
+
+    def test_clear_button_asks_then_deletes(self):
+        with mock.patch.object(am, "cleanup_old_logs",
+                               return_value=(1, "delete")) as m, \
+             mock.patch.object(am.messagebox, "askyesno", return_value=True):
+            self._button_by_text("ล้างวันเก่า").invoke()
+        self.assertTrue(m.called)
+        self.assertEqual(m.call_args.kwargs.get("archive"), False)
+        self.assertIn("ล้างแล้ว 1 ไฟล์", self.app._ui_state["msg"][0])
+        # ตอบปฏิเสธ = ไม่แตะไฟล์
+        with mock.patch.object(am, "cleanup_old_logs") as m2, \
+             mock.patch.object(am.messagebox, "askyesno", return_value=False):
+            self._button_by_text("ล้างวันเก่า").invoke()
+        self.assertFalse(m2.called)
+
+    def test_cleanup_rebuilds_file_list(self):
+        with mock.patch.object(am, "cleanup_old_logs",
+                               return_value=(1, "archive")):
+            self._button_by_text("เก็บถาวรวันเก่า").invoke()
+        cmb = self._widgets(self.win, am.ttk.Combobox)[0]
+        # เทสต์ไม่ได้ลบไฟล์จริง (cleanup ถูก patch) — รายการยังครบ แต่ต้องสร้างใหม่โดยไม่พัง
+        self.assertIn("macro_log_2099-01-01.txt", list(cmb["values"]))
 
 
 if __name__ == "__main__":

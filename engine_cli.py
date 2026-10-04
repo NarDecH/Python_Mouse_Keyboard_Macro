@@ -131,11 +131,21 @@ def main(argv=None):
 
     mouse_ctl = MouseController()
     kb_ctl = KbController()
+    # v2.11: โหมด dry-run เขียนรายงานไฟล์เหมือน CLI หลัก (v2.10.1) — ดักบรรทัด DRY-RUN
+    dry_on = bool(getattr(args, "dry_run", False))
+    dry_lines = []
+
+    def _message(text, color="#080"):
+        s = str(text)
+        if dry_on and s.startswith("DRY-RUN:"):
+            dry_lines.append(s)
+        print("  " + s)
+
     runner = ActionRunner(
         mouse_ctl, kb_ctl,
         stop_check=lambda: running[0],
         on_beep=lambda: print("\a", end="", flush=True),
-        on_message=lambda text, color="#080": print("  " + str(text)),
+        on_message=_message,
         on_clipboard_set=lambda text: None if me.clip_set(text)
         else print("  ⚠ Set Clipboard: ตั้งคลิปบอร์ดไม่สำเร็จบนระบบนี้"),
         on_clipboard_read=me.clip_get,
@@ -296,6 +306,13 @@ def main(argv=None):
             stopper.stop()
         except Exception:
             pass
+        # v2.11: รายงาน dry-run ลงไฟล์ — หยุดกลางคันก็บันทึกส่วนที่เดินผ่าน (ทน error ทุกจุด)
+        if dry_on and dry_lines:
+            me.dry_report_write(me.dry_report_block(
+                args.script, len(play_rows),
+                "ไม่จำกัด" if loops == 0 else loops, dry_lines,
+                finished=(rc == 0)), args.script)
+            print("รายงาน Dry-run: %s" % me.dry_report_path())
         if log_enabled:
             prune_log()
     return rc

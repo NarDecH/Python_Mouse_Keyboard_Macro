@@ -288,6 +288,8 @@ class TestE2EUtility(unittest.TestCase):
             app._profiles = {"งานเดิม": [{"button": "Beep"}], "งานใหม่": []}
             app._active_profile = "งานเดิม"
             app._log_enabled = True
+            app._log_keep_days = 0                # v2.11: export_settings อ่าน attr นี้
+            app._log_archive = True
             app._hp_dir = None
             app._ui_state = {"msg": None}
             # 1) export

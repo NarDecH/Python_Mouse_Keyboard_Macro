@@ -3,6 +3,39 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.11.0] — 2026-10-04
+
+### 🗃️ Log tools — monthly archive / clear old days
+- **New engine function `cleanup_old_logs()`** — one place to handle old log/dry-report
+  files: `archive=True` moves them into `log_archive/YYYY-MM/` (monthly folders from the
+  date in the file name — kept forever, fixing the 500-line daily rotation losing old
+  history) · `archive=False` deletes · `keep_days=N` keeps the last N days (omitted =
+  everything except today) · **today's file is never touched** (still being written) ·
+  files with unexpected names are skipped · existing destination file = skip, never
+  overwrite · error-tolerant everywhere like backup (secondary features must never crash
+  the program)
+- **📝 Log window: 2 new buttons** — "เก็บถาวรวันเก่า / Archive old" (moves now) +
+  "ล้างวันเก่า... / Clear old..." (asks before deleting) — success reports via statusbar
+  only · the file list is rebuilt after cleanup
+- **📝 Log window now shows Dry-run reports** — the dropdown includes
+  `dry_report_<date>.txt` (left over from v2.10.1 — previously you had to open the folder)
+- **Automatic cleanup on close (Settings)** — checkbox "clean old logs on exit" + days
+  1–365 + archive/delete choice — remembered in conf (`log_keep_days`/`log_archive`);
+  default 0 = off, nothing is touched until you enable it · travels with Export/Import
+  settings too
+
+### 🖥️ engine_cli dry-run report (left over from v2.10.1)
+- **`py engine_cli.py script.json --dry-run` now writes the report file** — like the main
+  CLI: captures DRY-RUN lines + writes in finally (a mid-run stop still saves the part
+  walked) + prints "รายงาน Dry-run: <path>" after the run
+
+### 📚 Docs + tests
+- **11 new tests** (TestLogTools 6 + TestLogToolsGui 4 + engine_cli dry-report 1) →
+  **464 unit + 20 E2E = 484** all passing
+- ROADMAP: closed the "log tools" item from the v2.11 proposal set
+
+---
+
 ## [2.10.1] — 2026-10-03
 
 ### 📝 Dry-run report file (follow-up to v2.10's Dry-run)
