@@ -472,5 +472,65 @@ it plays
 
 ---
 
-*Guide for code v2.12.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+## Chapter 17 — Plugin API v3: your own conditions (v2.13)
+
+This chapter extends Custom Actions (v1.16) — besides writing plugins as **actions**, you
+can now write them as **conditions**, covering spots where the built-in If Image/If Variable
+still fall short.
+
+### 17.1 Declare a condition in a plugin
+The old pair is `ACTION_NAME` + `run(ctx, row)` — a condition declares another pair:
+
+```python
+# plugins/file_exists.py (ships with the program — a real example)
+import os
+
+CONDITION_NAME = "File Exists"
+
+def check(ctx, row):
+    """Return True/False — never raise · never touch mouse/keys (dry-run calls check)"""
+    try:
+        path = str(row.get("additional") or "").strip()
+        return bool(path) and os.path.isfile(path)
+    except Exception:
+        return False
+```
+
+The single condition rule: **True = keep playing · False = skip N rows (N = Repeat)** ·
+one file may declare both ACTION_NAME and CONDITION_NAME (names must differ) · the name must
+not collide with built-in actions or other plugins (a colliding file is skipped with the
+reason recorded — see `load_plugins.last_failed`)
+
+### 17.2 Use it in a script, two ways
+1. **The Action column** — double-click the Action cell and pick the condition name (added
+   to the dropdown automatically); Additional = the condition's argument (`{variables}` are
+   substituted before `check` runs), and a trailing `>name` stores the result as "1"/"0"
+   like built-in conditions
+2. **Block Start/End** — write `if File Exists C:\\work\\done.flag` in the Block Start
+   Additional (mix with `&&`, e.g. `if File Exists f.txt && n > 3`) — a false condition
+   skips the whole block
+
+### 17.3 Good to know
+- **Validation covered** — 🔍 Validate / `--validate` / the START check all accept condition
+  plugin names
+- **Dry-run runs it for real** — conditions already walk for real (Chapter 14) → `check` is
+  really invoked, so write it read-only (files/screen colours/variables — no clicks/typing)
+- **.ahk** — condition rows and blocks referencing a condition plugin are exported as whole-
+  block comments (AHK can't express them — manage the block yourself there)
+- Full guide + community plugin criteria: [PLUGINS.md](PLUGINS.md) · example:
+  `examples/14_condition_plugin.json`
+
+### Exercises (safe — nothing clicks on screen)
+
+1. Open `examples/14_condition_plugin.json` and play it — the File Exists row pointing to
+   "ไม่มีจริง.txt" (a missing file) skips the next Beep row (Repeat = 1).
+2. Write your own condition plugin, e.g. `CONDITION_NAME = "After 6pm"` with a `check`
+   comparing `time.localtime()` — put it in a Block Start as `if After 6pm` and try it
+   morning vs evening.
+3. Create a file with a duplicate name (e.g. CONDITION_NAME = "Left Click") and restart —
+   confirm the program still opens fine and the colliding name never shows in the dropdown.
+
+---
+
+*Guide for code v2.13.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

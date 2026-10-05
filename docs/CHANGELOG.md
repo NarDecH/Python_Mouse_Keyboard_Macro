@@ -2,6 +2,35 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.13.0] — 2026-10-05
+
+### 🔌 Plugin API v3 — เงื่อนไข plugin (CONDITION_NAME + check) ใช้เป็นเงื่อนไขได้ทุกจุด
+- **ประกาศเงื่อนไขได้ใน plugin** — นอกจาก `ACTION_NAME`+`run` เดิม ไฟล์ plugin ประกาศ
+  `CONDITION_NAME = "ชื่อเงื่อนไข"` + `def check(ctx, row) -> bool` (ไฟล์เดียวมีทั้งคู่ได้
+  ชื่อต้องต่างกัน) — **จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (N = Repeat — กฎเดียวกับเงื่อนไขทุกชนิด)**
+- **ใช้ได้ 2 ทาง** — ① คอลัมน์ Action = ชื่อเงื่อนไข (dropdown เพิ่มให้อัตโนมัติ + สีแถวหมวดเงื่อนไข)
+  ② Block Start/End → `if ชื่อเงื่อนไข [อาร์กิวเมนต์]` (ผสม `&&` กับเงื่อนไขสีจุด/ตัวแปร/ภาพได้)
+- **โทเคน `>ชื่อ` ใช้ได้ด้วย** — เก็บผลเงื่อนไขลงตัวแปรเหมือนเงื่อนไขในตัว (กลไก v2.10)
+- **ครบทุกเส้นทาง** — `validate_rows` (--validate / 🔍 Validate / ตรวจตอน START / คิวทั้ง CLI และ GUI)
+  ยอมรับชื่อเงื่อนไข · ทั้ง GUI / CLI / engine_cli ประเมินผ่าน runner แหล่งเดียว (`evaluate_plugin_condition`)
+  เช็คก่อนดีเลย์และก่อนโดนเล่นเป็น action เสมอ · check พัง = เตือนแล้วเล่นต่อ ไม่ข้าม (กลไกเดียวกับ action plugin พัง)
+- **Dry-run เดินจริง** — เงื่อนไข/บล็อก/ตัวแปรเดินจริงอยู่แล้ว (v2.10) → `check` ของ plugin ก็ถูกเรียกจริง
+- **.ahk export** — แถวเงื่อนไขและบล็อกที่อ้างเงื่อนไข plugin = comment ทั้งบล็อก
+  (prescan กันปีกกาลลอย — กติกาเดียวกับภาพ/สีจุด)
+- **ชื่อซ้ำกันโดนกันทั้งสองทิศ** — `CONDITION_NAME` ห้ามชน Action เดิม/Action อื่น/เงื่อนไขอื่น
+  (กันแถว btn ตีความกำกวม) — ไฟล์ที่ชน = ข้ามพร้อมสาเหตุใน `load_plugins.last_failed` เหมือนไฟล์พัง
+- **plugin ตัวอย่างใหม่ `file_exists.py`** — เงื่อนไข "File Exists" (ไฟล์มีจริง = จริง ใช้ `{ตัวแปร}` ได้) +
+  ตัวอย่าง `examples/14_condition_plugin.json` + แม่แบบใน `plugins/_template.py` +
+  คู่มือ [docs/PLUGINS.md](PLUGINS.md) ส่วน Plugin API v3
+
+### 📚 เอกสาร + เทสต์
+- **เทสต์ใหม่ 16 ตัว** (TestConditionPlugins 10 + TestConditionPluginsGui 3 +
+  TestConditionPluginsCli 3 — ฝั่ง CLI รัน `cli_main` จริง) → **493 unit + 20 E2E = 513** ผ่านหมด
+- TUTORIAL บทที่ 17 (ไทย/อังกฤษ) + หัวข้อ 20 ใน HTML + zh/ja สรุปสั้น ·
+  ROADMAP ปิดข้อ "Plugin API v3" จากแผน v1.17→v2.0
+
+---
+
 ## [2.12.0] — 2026-10-05
 
 ### 📑 ผู้เล่นคิวแบบ GUI — เล่นคิวในโปรแกรม ติดตามผลสด (ข้อ 2 ของชุดข้อเสนอ v2.11)

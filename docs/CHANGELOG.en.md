@@ -3,6 +3,42 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.13.0] — 2026-10-05
+
+### 🔌 Plugin API v3 — condition plugins (CONDITION_NAME + check) usable everywhere a condition fits
+- **Declare conditions inside a plugin** — besides the original `ACTION_NAME`+`run`, a plugin
+  file can now declare `CONDITION_NAME = "name"` + `def check(ctx, row) -> bool` (one file may
+  declare both, with different names) — **True = keep playing · False = skip N rows (N = Repeat,
+  the single rule shared by every condition)**
+- **Two ways to use it** — ① the Action column = condition name (added to the dropdown
+  automatically, rows get the condition colour) ② Block Start/End → `if condition [argument]`
+  (mixable with `&&` with pixel/variable/image conditions)
+- **The `>name` token works too** — store the condition result into a variable exactly like
+  built-in conditions (v2.10 mechanism)
+- **Every path covered** — `validate_rows` (--validate / 🔍 Validate / the START check / queues
+  in both CLI and GUI) accepts condition names · GUI / CLI / engine_cli all evaluate through the
+  single runner (`evaluate_plugin_condition`), always checked before the delay and before the
+  row is mistakenly played as an action · a crashing `check` = warning + keep playing, no skip
+  (same policy as a crashing action plugin)
+- **Dry-run runs it for real** — conditions/blocks/variables already walk for real (v2.10) → the
+  plugin's `check` is invoked for real too
+- **.ahk export** — condition rows and blocks referencing a condition plugin are written as
+  comments for the whole block (prescan prevents stray braces — same rule as image/pixel)
+- **Duplicate names rejected both ways** — `CONDITION_NAME` must not collide with built-in
+  actions, other actions, or other conditions (so a row button is never ambiguous) — a colliding
+  file is skipped with the reason recorded in `load_plugins.last_failed`, like a broken file
+- **New example plugin `file_exists.py`** — the "File Exists" condition (True when the file
+  exists, `{variables}` supported) + example `examples/14_condition_plugin.json` +
+  scaffold in `plugins/_template.py` + the Plugin API v3 section in [docs/PLUGINS.md](PLUGINS.md)
+
+### 📚 Docs + tests
+- **16 new tests** (TestConditionPlugins 10 + TestConditionPluginsGui 3 +
+  TestConditionPluginsCli 3 — the CLI side runs the real `cli_main`) → **493 unit + 20 E2E = 513**, all green
+- TUTORIAL chapter 17 (Thai/English) + section 20 in the HTML + short zh/ja summaries ·
+  ROADMAP closes the "Plugin API v3" item
+
+---
+
 ## [2.12.0] — 2026-10-05
 
 ### 📑 GUI Queue Runner — play queues inside the app with a live monitor (item 2 of the v2.11 proposal set)

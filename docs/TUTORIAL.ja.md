@@ -319,7 +319,7 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   テキスト検索 `~` → `InStr()`）；画像・色の条件は翻訳不可ならブロック全体がコメントに —
   迷子の波括弧なし。インポートは 3 形式すべて Block Start/End 行に戻せます。
 
-*コード v2.12.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
+*コード v2.13.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
 プロジェクト文書：[README.md](README.md) · プラグインマーケット：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新機能
@@ -356,4 +356,19 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   F8/Esc はキュー全体を停止（元の CLI と同じ意味）。再生前に `validate_rows` で全
   ファイルを検証（壊れていればキュー全体を取り消し、CLI と同じ）；終了後は ▶ で再実行可。
 - 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第16章 ·
+  [TUTORIAL.en.md](TUTORIAL.en.md) を参照。
+
+## v2.13.0 — 新機能
+
+- **Plugin API v3（条件プラグイン）** — 従来の `ACTION_NAME` + `run` に加えて、
+  `CONDITION_NAME` + `check(ctx, row) -> bool` を宣言可能（1 ファイルに両方書けるが、
+  名前は別々に）：真 = 次へ進む、偽 = N 行スキップ（N = Repeat、全条件と同じルール）。
+- **2 つの使い方** — Action 列に条件名を直接入力（ドロップダウンに自動追加）または
+  Block Start/End に `if 条件名 [引数]`（`&&` でピクセル/変数/画像条件と混在可）。
+  行末の `>名前` トークンで結果を変数に保存することも可能。同梱プラグイン
+  `file_exists.py`（File Exists）と `examples/14_condition_plugin.json` を参照。
+- **全経路で対応** — validate（--validate / 🔍 / START 時の検査 / キュー）が条件プラグイン
+  名を受け付け、GUI / CLI / engine_cli が同じ runner で評価。ドライランでは `check` が
+  実行され、.ahk エクスポートではブロック全体がコメントになります。
+- 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第17章 ·
   [TUTORIAL.en.md](TUTORIAL.en.md) を参照。

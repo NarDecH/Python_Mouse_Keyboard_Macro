@@ -65,9 +65,9 @@
 
 ## 🧭 ข้อเสนอ v2.11 (โหวต/คอมเมนต์ได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1))
 
-- [ ] **Plugin เป็นเงื่อนไขได้ (Plugin API v3)** — plugin ประกาศ `CONDITION_NAME` +
-      `check(ctx, row) -> bool` ใช้ผสมใน Block Start/If ได้เหมือนเงื่อนไขในตัว —
-      ประตูรับชุมชน (v2.8.0) เปิดกว้างขึ้นอีกชั้น → ระดับ: ใหญ่
+- [x] ~~**Plugin เป็นเงื่อนไขได้ (Plugin API v3)**~~ ✅ v2.13.0 — plugin ประกาศ `CONDITION_NAME` +
+      `check(ctx, row) -> bool` ใช้แทน Action/ผสม `&&` ใน Block Start ได้ — ครอบคลุม
+      validate/dry-run/ค้นหา + `.ahk` export + ตัวอย่าง `file_exists.py` + TUTORIAL บทที่ 17
 - [x] ~~**เครื่องมือ log เพิ่ม**~~ ✅ v2.11.0 — ปุ่มเก็บถาวรวันเก่า (ย้ายลง `log_archive/YYYY-MM/`
       รายเดือน เก็บตลอดไป) / ล้างวันเก่า (ถามยืนยันก่อน) ในหน้าต่าง 📝 Log + เห็นรายงาน
       dry-run ใน dropdown · ตั้งจัดการอัตโนมัติตอนปิดโปรแกรมได้ใน Settings (เก็บย้อนหลัง
@@ -130,6 +130,5 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v2.12.0 — ถอดจาก CHANGELOG · เครื่องมือ log + ผู้เล่นคิวแบบ GUI (📑 Run
-Queue) ปิดครบชุดข้อเสนอ v2.11 แล้ว — ข้อเสนอถัดไป: Plugin API v3 (เงื่อนไขจาก plugin)
-+ flag `--dry-report PATH` รอโหวตจากชุมชน*
+*อัพเดตล่าสุด: v2.13.0 — ถอดจาก CHANGELOG · Plugin API v3 (เงื่อนไขจาก plugin) ปิดครบชุดข้อเสนอ
+v2.11 แล้ว — ข้อเสนอถัดไป: flag `--dry-report PATH` เลือกพาธรายงาน dry-run เอง รอโหวตจากชุมชน*

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # แม่แบบ plugin (ไฟล์ขึ้นต้น _ → โปรแกรมไม่โหลด) — ก๊อปเป็นชื่ออื่นแล้วแก้ได้เลย
-# ดูตัวอย่างจริงที่ sleep_seconds.py และ message_box.py
+# ดูตัวอย่างจริงที่ sleep_seconds.py, message_box.py และ file_exists.py (เงื่อนไข)
 
 import time
 
@@ -18,6 +18,26 @@ def run(ctx, row):
         ctx["log"]("my action: %r" % msg)
     # ... ทำงานของคุณที่นี่ เช่น ctx["mouse"].position, ctx["kb"].tap(...)
     time.sleep(0.1)
+
+
+# ---------------------------------------------------------------------------
+# Plugin API v3 (v2.13): เงื่อนไข plugin — ประกาศ CONDITION_NAME + check(ctx, row) -> bool
+# (ใช้แทนหรือคู่กับ ACTION_NAME ในไฟล์เดียวกันได้ — ชื่อต้องต่างกัน)
+# ใช้เป็นเงื่อนไขในคอลัมน์ Action และใน Block Start/End (if <ชื่อ> [อาร์กิวเมนต์]) ได้
+# กติกาเดียวกับเงื่อนไขทุกชนิด: จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (N = Repeat)
+#
+# CONDITION_NAME = "My Condition"       # ห้ามซ้ำกับ Action เดิม/plugin อื่น
+#
+# def check(ctx, row):
+#     """คืน True/False — ห้าม raise · อย่าแตะเมาส์/คีย์ (dry-run เรียก check จริง)"""
+#     try:
+#         arg = str(row.get("additional") or "").strip()
+#         return bool(arg) and arg.lower() == "on"     # ตรวจจริงของคุณที่นี่
+#     except Exception:
+#         return False
+#
+# ตัวอย่างจริง: plugins/file_exists.py (File Exists — เช็คว่าไฟล์มีอยู่จริง)
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -57,3 +77,9 @@ def run(ctx, row):
 #         ctx = self._ctx()
 #         my_action.run(ctx, {"additional": "ค่า 42"})
 #         self.assertEqual(ctx["vars"].get("ค่า"), "42")       # แถวถัดไปใช้ {ค่า} ได้
+#
+# เงื่อนไข plugin (v2.13) — เทสต์พื้นฐานเดียวกันแต่เรียก check:
+#     def test_check_true_false(self):
+#         import my_condition
+#         self.assertTrue(my_condition.check(self._ctx(), {"additional": "on"}))
+#         self.assertFalse(my_condition.check(self._ctx(), {"additional": "off"}))

@@ -1,0 +1,10 @@
+[
+  {"enabled": true,  "x": "", "y": "", "button": "Set Variable",    "additional": "ไฟล์ = auto_macro.py", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "File Exists",     "additional": "{ไฟล์}", "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",            "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "🔷 Block Start",  "additional": "if File Exists {ไฟล์}", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",            "additional": "เข้าบล็อก = ไฟล์มีจริง", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "🔷 Block End",    "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "File Exists",     "additional": "ไม่มีจริง.txt", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",            "additional": "แถวนี้ถูกข้าม (ไฟล์ไม่มีจริง)", "mins": 0, "secs": 0, "repeat": 1}
+]

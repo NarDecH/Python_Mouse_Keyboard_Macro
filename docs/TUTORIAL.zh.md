@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.12.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.13.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -343,3 +343,17 @@ max 10              无条件 — 把块体重复 10 次
   队列（与原 CLI 含义相同）。播放前先用 `validate_rows` 检查所有文件（损坏 = 取消
   整个队列，与 CLI 一致）；结束后可再次按 ▶ 重跑。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 16 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.13.0 — 新增
+
+- **Plugin API v3（条件插件）** — 插件除了 `ACTION_NAME` + `run` 外，还能声明
+  `CONDITION_NAME` + `check(ctx, row) -> bool`（同一文件可两者兼有，名称需不同）：
+  真 = 继续播放，假 = 跳过 N 行（N = Repeat，与所有条件同一规则）。
+- **两种用法** — Action 列直接填条件名（下拉列表自动加入）；Block Start/End 写
+  `if 条件名 [参数]`（可用 `&&` 与像素/变量/图片条件混合）。行尾 `>名称` 也可保存
+  结果到变量。随附示例插件 `file_exists.py`（File Exists）与
+  `examples/14_condition_plugin.json`。
+- **全覆盖** — validate（--validate / 🔍 / START 检查 / 队列）接受条件插件名；
+  GUI / CLI / engine_cli 通过同一个 runner 评估；试运行会真实调用 `check`；
+  .ahk 导出时整块写为注释。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 17 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。

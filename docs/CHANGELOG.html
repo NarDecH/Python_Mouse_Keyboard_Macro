@@ -65,8 +65,45 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.12.0</h2>
+      <h2>เวอร์ชัน 2.13.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">5 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🔌 Plugin API v3 — เงื่อนไข plugin (CONDITION_NAME + check) ใช้เป็นเงื่อนไขได้ทุกจุด</h3>
+    <ul>
+      <li><b>ประกาศเงื่อนไขได้ใน plugin</b> — นอกจาก <code>ACTION_NAME</code>+<code>run</code> เดิม ไฟล์ plugin ประกาศ
+        <code>CONDITION_NAME = "ชื่อเงื่อนไข"</code> + <code>def check(ctx, row) -&gt; bool</code> (ไฟล์เดียวมีทั้งคู่ได้
+        ชื่อต้องต่างกัน) — <b>จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (N = Repeat — กฎเดียวกับเงื่อนไขทุกชนิด)</b></li>
+      <li><b>ใช้ได้ 2 ทาง</b> — ① คอลัมน์ Action = ชื่อเงื่อนไข (dropdown เพิ่มให้อัตโนมัติ + สีแถวหมวดเงื่อนไข)
+        ② Block Start/End → <code>if ชื่อเงื่อนไข [อาร์กิวเมนต์]</code> (ผสม <code>&amp;&amp;</code> กับเงื่อนไขสีจุด/ตัวแปร/ภาพได้)</li>
+      <li><b>โทเคน <code>&gt;ชื่อ</code> ใช้ได้ด้วย</b> — เก็บผลเงื่อนไขลงตัวแปรเหมือนเงื่อนไขในตัว (กลไก v2.10)</li>
+      <li><b>ครบทุกเส้นทาง</b> — <code>validate_rows</code> (<code>--validate</code> / 🔍 Validate / ตรวจตอน START /
+        คิวทั้ง CLI และ GUI) ยอมรับชื่อเงื่อนไข · ทั้ง GUI / CLI / engine_cli ประเมินผ่าน runner แหล่งเดียว
+        (<code>evaluate_plugin_condition</code>) เช็คก่อนดีเลย์และก่อนโดนเล่นเป็น action เสมอ ·
+        check พัง = เตือนแล้วเล่นต่อ ไม่ข้าม (กลไกเดียวกับ action plugin พัง)</li>
+      <li><b>Dry-run เดินจริง</b> — เงื่อนไข/บล็อก/ตัวแปรเดินจริงอยู่แล้ว (v2.10) → <code>check</code> ของ plugin ก็ถูกเรียกจริง</li>
+      <li><b>.ahk export</b> — แถวเงื่อนไขและบล็อกที่อ้างเงื่อนไข plugin = comment ทั้งบล็อก
+        (prescan กันปีกกาลลอย — กติกาเดียวกับภาพ/สีจุด)</li>
+      <li><b>ชื่อซ้ำกันโดนกันทั้งสองทิศ</b> — <code>CONDITION_NAME</code> ห้ามชน Action เดิม/Action อื่น/เงื่อนไขอื่น
+        (กันแถว btn ตีความกำกวม) — ไฟล์ที่ชน = ข้ามพร้อมสาเหตุใน <code>load_plugins.last_failed</code> เหมือนไฟล์พัง</li>
+      <li><b>plugin ตัวอย่างใหม่ <code>file_exists.py</code></b> — เงื่อนไข "File Exists" (ไฟล์มีจริง = จริง ใช้
+        <code>{ตัวแปร}</code> ได้) + ตัวอย่าง <code>examples/14_condition_plugin.json</code> + แม่แบบใน
+        <code>plugins/_template.py</code> + คู่มือ <a href="PLUGINS.md">docs/PLUGINS.md</a> ส่วน Plugin API v3</li>
+    </ul>
+
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>เทสต์ใหม่ 16 ตัว</b> (TestConditionPlugins 10 + TestConditionPluginsGui 3 +
+        TestConditionPluginsCli 3 — ฝั่ง CLI รัน <code>cli_main</code> จริง) → <b>493 unit + 20 E2E = 513</b> ผ่านหมด ·
+        TUTORIAL บทที่ 17 + หัวข้อ 20 ใน HTML · ROADMAP ปิดข้อ "Plugin API v3"</li>
+    </ul>
+
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.12.0</h2>
       <span class="date">5 ตุลาคม 2026</span>
     </div>
 

@@ -1,7 +1,8 @@
-# 🔌 ตลาด Plugin — PLUGINS.md (v2.7)
+# 🔌 ตลาด Plugin — PLUGINS.md (v2.13)
 
-ขยายโปรแกรมด้วย **Custom Action** — เขียนไฟล์ Python สั้น ๆ วางใน `plugins/`
-โปรแกรมโหลดอัตโนมัติตอนเปิด แล้วชื่อจะโผล่ใน dropdown คอลัมน์ **Action** ทันที (ทั้ง GUI และ CLI)
+ขยายโปรแกรมด้วย **Custom Action** และ (ตั้งแต่ v2.13) **เงื่อนไข plugin (Condition)** —
+เขียนไฟล์ Python สั้น ๆ วางใน `plugins/` โปรแกรมโหลดอัตโนมัติตอนเปิด แล้วชื่อจะโผล่ใน dropdown
+คอลัมน์ **Action** ทันที (ทั้ง GUI และ CLI)
 
 > เปิดโฟลเดอร์นี้จากในโปรแกรมได้เลย: ปุ่ม **🔌 plugins** บนแถบเครื่องมือ (v2.1)
 > หลังเพิ่ม/แก้ไฟล์ รีสตาร์ตโปรแกรม 1 ครั้งเพื่อโหลดใหม่
@@ -22,6 +23,7 @@
 | `random_pause.py` | Random Pause | สุ่มพักช่วงเวลากันจังหวะเครื่องจักร — Additional `1.5-4` (วินาที) พักเป็นชิ้นสั้นเช็ค STOP ระหว่างทาง |
 | `counter.py` | Counter | นับ/ตั้งตัวแปร — `ชื่อ` = +1, `ชื่อ += 5`, `ชื่อ = rand 1-10` — คู่ If Variable เป็นลูปนับรอบได้ |
 | `open_url.py` | Open URL | เปิดลิงก์เว็บด้วย webbrowser ของ stdlib — แทน `{ตัวแปร}` ก่อนเปิด, ไม่มี scheme เติม https:// ให้ |
+| `file_exists.py` | **File Exists** (เงื่อนไข) | **Condition plugin ตัวอย่าง (v2.13)** — ไฟล์ใน Additional มีจริง = จริง, ไม่มี = ข้าม N แถว (N = Repeat) ใช้ `{ตัวแปร}` ได้ |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที
@@ -54,6 +56,37 @@ def run(ctx, row):
 `row` คือ dict ของแถวที่กำลังเล่น: `x, y, additional, mins, secs, repeat, enabled`
 (ค่า `{ตัวแปร}` ถูกแทนค่าให้ก่อนส่งเข้ามาแล้ว)
 
+## Plugin API v3 — เงื่อนไข plugin (v2.13)
+
+นอกจาก Action แล้ว plugin ประกาศ**เงื่อนไข**ได้ด้วย — ไฟล์เดียวมีทั้งคู่ได้ (ชื่อต้องต่างกัน):
+
+```python
+# plugins/file_exists.py — ตัวอย่างจริงที่แจกมากับโปรแกรม
+import os
+
+CONDITION_NAME = "File Exists"          # ห้ามซ้ำกับ Action เดิม/plugin อื่น
+
+def check(ctx, row) -> bool:
+    """คืน True/False — ห้าม raise · อย่าแตะเมาส์/คีย์ (dry-run เรียก check จริง)"""
+    try:
+        path = str(row.get("additional") or "").strip()
+        return bool(path) and os.path.isfile(path)
+    except Exception:
+        return False
+```
+
+| กติกา | รายละเอียด |
+|---|---|
+| จริง / ไม่จริง | จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (**N = Repeat** — กฎเดียวกับเงื่อนไขทุกชนิด) |
+| ใช้ 2 ทาง | ① คอลัมน์ Action = ชื่อเงื่อนไข (dropdown เพิ่มอัตโนมัติ) ② Block Start/End → `if File Exists C:\x.txt` (ผสม `&&` กับเงื่อนไขสีจุด/ตัวแปร/ภาพได้) |
+| อาร์กิวเมนต์ | Additional ของแถว (หรือข้อความหลังชื่อในบล็อก) — `{ตัวแปร}` ถูกแทนค่าก่อนส่งเข้า `check` |
+| เก็บผลเป็นตัวแปร | ใส่ `>ชื่อ` ท้ายแถว — ผล "1"/"0" เหมือนเงื่อนไขในตัว (v2.10) |
+| ชื่อซ้ำ | `CONDITION_NAME` ห้ามชน Action เดิม/Action อื่น/เงื่อนไขอื่น — ไฟล์ที่ชนถูกข้ามพร้อมสาเหตุ (`load_plugins.last_failed`) |
+| ตรวจสคริปต์ | 🔍 Validate / `--validate` / ตรวจตอน START / คิว รู้จักชื่อเงื่อนไข plugin ครบ |
+| Dry-run | เงื่อนไขเดินจริง (v2.10) → `check` ถูกเรียกจริง — **เขียนให้เป็นอ่านอย่างเดียว** (ห้ามคลิก/พิมพ์) |
+| .ahk | แถวเงื่อนไขและบล็อกที่อ้างเงื่อนไข plugin = comment ทั้งบล็อก (AHK แปลไม่ได้) |
+| check พัง | เตือนแล้ว**เล่นต่อ** ไม่ข้าม (กลไกเดียวกับ action plugin พัง) — แต่กติกา plugin คือทนเองไม่ raise |
+
 ## กฎของ plugin
 
 1. **ไฟล์ล้ม = โปรแกรมไม่พัง** — ไฟล์ที่ import ล้มเหลว / ไม่มี `ACTION_NAME` /
@@ -76,7 +109,8 @@ def run(ctx, row):
 PR plugin ใหม่ต้องผ่านครบทั้ง 6 ข้อ (ผู้รีวิวใช้ checklist นี้):
 
 1. **โครงไฟล์ถูก** — ไฟล์เดียวใน `plugins/`, ขึ้นต้นด้วยตัวอักษร (ขึ้นต้น `_` จะไม่ถูกโหลด),
-   ประกาศ `ACTION_NAME` (ไม่ซ้ำกับ Action เดิมและ plugin ที่มีอยู่) + `run(ctx, row)`
+   ประกาศ `ACTION_NAME` + `run(ctx, row)` หรือ `CONDITION_NAME` + `check(ctx, row)` (v2.13)
+   (ไม่ซ้ำกับ Action/เงื่อนไขเดิมและ plugin ที่มีอยู่)
 2. **dependency ตามหลักโปรเจกต์** — stdlib + pynput เท่านั้น (ต้องการ opencv/Pillow =
    ต้องกันกรณีไม่มีติดตั้งเอง ทนได้ไม่ crash)
 3. **ทน error ทุกจุด** — input พัง (`additional` เป็น None/ข้อความมั่ว/ติดลบ),

@@ -85,7 +85,9 @@ def main(argv=None):
     # v2.4: --validate — ตรวจสคริปต์อย่างเดียว ไม่เล่น
     if getattr(args, "validate", False):
         plugin_names = sorted(dict(load_plugins()))
-        issues = validate_rows(rows, plugin_names=plugin_names)
+        cond_names = [c for c, _ in getattr(load_plugins, "last_conditions", []) or []]
+        issues = validate_rows(rows, plugin_names=plugin_names,
+                               condition_names=cond_names)   # v2.13
         if issues:
             print("พบปัญหา %d แถว:" % len(issues))
             for num, reason in issues:
@@ -103,6 +105,9 @@ def main(argv=None):
     plugins = dict(load_plugins())
     if plugins:
         print("  •  plugins: %s" % ", ".join(sorted(plugins)))
+    conditions = dict(getattr(load_plugins, "last_conditions", []) or [])   # v2.13
+    if conditions:
+        print("  •  เงื่อนไข plugin: %s" % ", ".join(sorted(conditions)))
 
     def _find_image(r):
         """v2.2: ค้นภาพให้ runner (เหมือน find_image_cb ของ CLI หลัก)"""
@@ -152,6 +157,7 @@ def main(argv=None):
         variables=vars_,
         dry_run=bool(getattr(args, "dry_run", False)),
         plugin_lookup=lambda name: plugins.get(name),
+        conditions=conditions,            # v2.13: condition plugins
         log_src=args.script,
         unsupported_cb=lambda btn: print(
             "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน engine_cli — เปิดใน GUI เพื่อเล่น action นี้" % btn),
@@ -258,9 +264,12 @@ def main(argv=None):
                     pi += 1
                     continue
                 # เงื่อนไขนับรอบ/เวลา — กลไกเดียวกับ CLI หลัก (v2.1)
-                skip_n, cond_msg = ActionRunner.evaluate_condition(
-                    btn, r.get("additional", ""), r.get("repeat", 1), n_loop,
-                    variables=vars_)   # v2.5: If Variable
+                # v2.13: เงื่อนไข plugin (CONDITION_NAME + check) ตรวจก่อนเงื่อนไขในตัว
+                skip_n, cond_msg = runner.evaluate_plugin_condition(btn, r)
+                if cond_msg is None:
+                    skip_n, cond_msg = ActionRunner.evaluate_condition(
+                        btn, r.get("additional", ""), r.get("repeat", 1), n_loop,
+                        variables=vars_)   # v2.5: If Variable
                 if cond_msg:
                     print("  [%d/%d] %s" % (i, len(play_rows), cond_msg))
                     if log_enabled and skip_n:

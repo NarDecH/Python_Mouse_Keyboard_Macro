@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.12.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.13.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -273,6 +273,21 @@
   เล่น = สั่งหยุดทั้งคิวก่อนเสมอ (`_qr_close_when_done` รอเธรดจบค่อยปิดจริง) ·
   เทสต์ TestQueueListParse/TestQueueRunnerGui (app จริง + patch `am.cli_main` —
   รวม E2E ผ่าน cli_main จริงแบบ Beep ล้วน) → 477 unit + 20 E2E = 497
+- **ฟีเจอร์เสริม v2.13.0:** **Plugin API v3 — เงื่อนไขจาก plugin** (plugin ประกาศ
+  `CONDITION_NAME` + `check(ctx, row) -> bool` — โหลดผ่าน `load_plugins()` แหล่งเดิม,
+  เงื่อนไขเก็บ `load_plugins.last_conditions` = [(ชื่อ, module)], ชื่อซ้ำกันข้าม
+  Action/เงื่อนไขทั้งสองทิศ = ข้ามไฟล์เก็บ last_failed) · จับชื่อใน Action ผ่าน
+  `match_condition_name(text, names)` (จับ "ชื่อ [อาร์กิวเมนต์]" ชื่อยาวสุดมาก่อน) ·
+  `ActionRunner` รับ `conditions=` + เมธอดใหม่ `_plugin_ctx()` (refactor ctx แหล่งเดียว)/
+  `_match_cond()`/`_run_cond_check()` (check พัง = เตือน "#c00" คืน False)/
+  `evaluate_plugin_condition(btn, r)` คืน (skip_n, message) — ผ่านทุกจุดเล่น GUI/CLI
+  (เรียกก่อน fallback `evaluate_condition`), รองรับโทเคน `>ชื่อ` เก็บผลเงื่อนไขเหมือนเงื่อนไขในตัว ·
+  `evaluate_block_condition` ผสม `&&` กับเงื่อนไข plugin ได้ · validate/dry-run/ค้นหา/
+  สีแถว (`row_tag(button, cond_names=())` tag "cond")/`.ahk` export
+  (`rows_to_ahk(rows, condition_names=())` — บล็อกที่มีชิ้นเงื่อนไข plugin = comment ทั้งบล็อก)
+  รับชื่อเงื่อนไขครบ · ตัวอย่าง `plugins/file_exists.py` (File Exists) + `examples/14` +
+  เทสต์ TestConditionPlugins/TestConditionPluginsGui/TestConditionPluginsCli →
+  493 unit + 20 E2E = 513
 
 ## เทคโนโลยี
 

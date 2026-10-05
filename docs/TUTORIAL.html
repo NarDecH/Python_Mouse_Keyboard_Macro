@@ -546,7 +546,26 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
       คิวยังแก้ตาราง/โหลดสคริปต์อื่นได้ตามปกติ</p>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.12.0 ·
+  <div class="card">
+    <h2>20. Plugin API v3 (v2.13) — เงื่อนไขของคุณเอง: CONDITION_NAME + check</h2>
+    <p>หัวข้อ 11 ต่อยอด Custom Action (v1.16) — ตอนนี้ plugin เขียนเป็น <b>เงื่อนไข</b> ได้ด้วย:
+      ประกาศ <code>CONDITION_NAME = "ชื่อ"</code> + <code>def check(ctx, row) -&gt; bool</code>
+      (ตัวอย่างจริง: <code>plugins/file_exists.py</code> — เงื่อนไข "File Exists"):</p>
+    <ul>
+      <li><b>กติกาเดียวกับเงื่อนไขทุกชนิด</b> — จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (N = Repeat) ·
+        โทเคน <code>&gt;ชื่อ</code> ท้ายแถวเก็บผลลงตัวแปรได้ · ไฟล์เดียวมีทั้ง ACTION_NAME และ
+        CONDITION_NAME ได้ (ชื่อต้องต่างกัน) · ชื่อซ้ำ = ข้ามไฟล์พร้อมสาเหตุ</li>
+      <li><b>ใช้ 2 ทาง</b> — คอลัมน์ Action = ชื่อเงื่อนไข (dropdown เพิ่มอัตโนมัติ สีแถวหมวดเงื่อนไข)
+        หรือ Block Start เขียน <code>if File Exists C:\\work\\done.flag</code> (ผสม <code>&amp;&amp;</code>
+        กับเงื่อนไขสีจุด/ตัวแปร/ภาพได้)</li>
+      <li><b>ข้อควรรู้</b> — 🔍 Validate/<code>--validate</code>/ตรวจตอน START รู้จักชื่อเงื่อนไข plugin ·
+        Dry-run เรียก <code>check</code> จริง (เขียนให้เป็นอ่านอย่างเดียว — ห้ามคลิก/พิมพ์) ·
+        .ahk export เขียนเป็น comment ทั้งบล็อก · คู่มือเต็ม:
+        <a href="PLUGINS.md">PLUGINS.md</a> · ตัวอย่าง: <code>examples/14_condition_plugin.json</code></li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.13.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

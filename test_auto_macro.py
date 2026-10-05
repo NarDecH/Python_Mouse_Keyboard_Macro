@@ -6138,5 +6138,375 @@ class TestQueueRunnerGui(unittest.TestCase):
         self.assertIn("สำเร็จ 1/1", self.app._qr_sum_lbl.cget("text"))
 
 
+# ============================ Plugin API v3 (v2.13) ==========================
+class TestConditionPlugins(unittest.TestCase):
+    """v2.13: เงื่อนไข plugin — load_plugins (CONDITION_NAME + check) / validate_rows /
+    evaluate_plugin_condition (แถว) / evaluate_block_condition (Block Start/End) /
+    row_tags + .ahk export (แปลไม่ได้ = comment) + plugin ตัวอย่าง file_exists.py"""
+
+    COND_A = (
+        "CONDITION_NAME = 'Flag On'\n"
+        "def check(ctx, row):\n"
+        "    return str(row.get('additional') or '').strip() == 'on'\n")
+    MIXED = (
+        "ACTION_NAME = 'Echo (test)'\n"
+        "CONDITION_NAME = 'Flag Off'\n"
+        "def run(ctx, row):\n"
+        "    pass\n"
+        "def check(ctx, row):\n"
+        "    return False\n")
+    BROKEN = "CONDITION_NAME = 'No Check'\n"            # ไม่มี check → ข้ามไฟล์
+    COLLIDE_BUILTIN = (
+        "CONDITION_NAME = 'Left Click'\n"                # ชน Action เดิม
+        "def check(ctx, row):\n"
+        "    return True\n")
+    COLLIDE_DUP = (
+        "CONDITION_NAME = 'Flag On'\n"                   # ชนเงื่อนไขของไฟล์อื่น
+        "def check(ctx, row):\n"
+        "    return True\n")
+    COLLIDE_ACT_VS_COND = (
+        "ACTION_NAME = 'Flag Off'\n"                     # ชน CONDITION_NAME ของ mixed.py
+        "def run(ctx, row):\n"
+        "    pass\n")
+
+    def _plugins_dir(self, files):
+        import shutil
+        d = tempfile.mkdtemp(prefix="macro_cond_plug_")
+        os.makedirs(os.path.join(d, me_mod.PLUGINS_DIR), exist_ok=True)
+        for nm, src in files.items():
+            with open(os.path.join(d, me_mod.PLUGINS_DIR, nm), "w",
+                      encoding="utf-8") as fh:
+                fh.write(src)
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        return d
+
+    def _mk_runner(self, conditions, variables=None):
+        msgs = []
+        runner = me_mod.ActionRunner(
+            mock.MagicMock(), mock.MagicMock(),
+            stop_check=lambda: True,
+            on_message=lambda t, c="#080": msgs.append(str(t)),
+            variables=variables if variables is not None else {},
+            conditions=conditions)
+        return runner, msgs
+
+    # ------------------------- load_plugins -------------------------
+    def test_load_action_and_condition(self):
+        d = self._plugins_dir({"broken.py": self.BROKEN, "conda.py": self.COND_A,
+                               "mixed.py": self.MIXED})
+        acts = dict(me_mod.load_plugins(d))
+        conds = dict(getattr(me_mod.load_plugins, "last_conditions"))
+        self.assertIn("Echo (test)", acts)
+        self.assertIn("Flag On", conds)
+        self.assertIn("Flag Off", conds)
+        failed = getattr(me_mod.load_plugins, "last_failed")
+        self.assertTrue(any("broken" in f for f in failed), failed)
+
+    def test_name_collisions_rejected_both_ways(self):
+        d = self._plugins_dir({
+            "a_builtin.py": self.COLLIDE_BUILTIN, "a_conda.py": self.COND_A,
+            "a_dup.py": self.COLLIDE_DUP, "mixed.py": self.MIXED,
+            "z_act_vs_cond.py": self.COLLIDE_ACT_VS_COND})
+        acts = dict(me_mod.load_plugins(d))
+        conds = dict(getattr(me_mod.load_plugins, "last_conditions"))
+        self.assertIn("Echo (test)", acts)
+        self.assertEqual(sorted(conds), ["Flag Off", "Flag On"])
+        failed = "\n".join(getattr(me_mod.load_plugins, "last_failed"))
+        self.assertIn("a_builtin", failed)         # ชื่อชน Action เดิม
+        self.assertIn("a_dup", failed)             # ชื่อซ้ำกับเงื่อนไขอื่น
+        self.assertIn("z_act_vs_cond", failed)     # Action ชน CONDITION_NAME ของไฟล์อื่น
+
+    def test_match_condition_name(self):
+        names = ("File Exists", "Check Row")
+        self.assertEqual(me_mod.match_condition_name("File Exists", names),
+                         ("File Exists", ""))
+        self.assertEqual(me_mod.match_condition_name("File Exists  C:\\x", names),
+                         ("File Exists", "C:\\x"))
+        self.assertEqual(me_mod.match_condition_name("Check Row 7", names),
+                         ("Check Row", "7"))
+        self.assertIsNone(me_mod.match_condition_name("Unknown", names))
+        self.assertIsNone(me_mod.match_condition_name("", names))
+        # ชื่อยาวสุดมาก่อน — กันชื่อซ้อน (Check / Check Row)
+        self.assertEqual(me_mod.match_condition_name("Check Row", ("Check", "Check Row")),
+                         ("Check Row", ""))
+
+    # ------------------------- validate_rows -------------------------
+    def test_validate_rows_accepts_condition_names(self):
+        rows = [{"enabled": True, "button": "Flag On", "additional": "on", "repeat": 2},
+                {"enabled": True, "button": "Beep", "additional": "", "repeat": 1}]
+        self.assertEqual(me_mod.validate_rows(rows, condition_names=("Flag On",)), [])
+        issues = me_mod.validate_rows(rows)
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0][0], 1)          # เฉพาะแถวเงื่อนไข plugin โดนตรวจ
+
+    # --------------------- evaluate_plugin_condition ---------------------
+    def test_evaluate_plugin_condition(self):
+        import types
+        mod = types.SimpleNamespace(
+            CONDITION_NAME="Flag On",
+            check=lambda ctx, row: str(row.get("additional") or "").strip() == "on")
+        runner, msgs = self._mk_runner({"Flag On": mod})
+        # จริง → เล่นต่อ (ไม่ข้าม)
+        skip, msg = runner.evaluate_plugin_condition(
+            "Flag On", {"button": "Flag On", "additional": "on", "repeat": 3})
+        self.assertEqual(skip, 0)
+        self.assertIn("เงื่อนไขจริง", msg)
+        self.assertNotIn("ข้าม", msg)
+        # ไม่จริง → ข้าม N แถว (N = Repeat — กฎเดียวกับเงื่อนไขทุกชนิด)
+        skip, msg = runner.evaluate_plugin_condition(
+            "Flag On", {"button": "Flag On", "additional": "off", "repeat": 3})
+        self.assertEqual(skip, 3)
+        self.assertIn("ข้าม 3 แถว", msg)
+        # ไม่ใช่เงื่อนไข plugin → (0, None)
+        self.assertEqual(runner.evaluate_plugin_condition("Left Click", {}), (0, None))
+        # check พัง = เตือนแล้วเล่นต่อ (ไม่ข้าม — กลไกเดียวกับ action plugin พัง)
+        bad = types.SimpleNamespace(CONDITION_NAME="Boom", check=lambda ctx, row: 1 / 0)
+        runner2, msgs2 = self._mk_runner({"Boom": bad})
+        skip, msg = runner2.evaluate_plugin_condition(
+            "Boom", {"button": "Boom", "repeat": 5})
+        self.assertEqual((skip, msg), (0, None))
+        self.assertTrue(any("condition plugin error" in m for m in msgs2))
+
+    def test_condition_result_stored_in_var(self):
+        import types
+        mod = types.SimpleNamespace(CONDITION_NAME="Always", check=lambda ctx, row: True)
+        variables = {}
+        runner, _ = self._mk_runner({"Always": mod}, variables=variables)
+        skip, _msg = runner.evaluate_plugin_condition(
+            "Always", {"button": "Always", "additional": "x >สถานะ"})
+        self.assertEqual(skip, 0)
+        self.assertEqual(variables.get("สถานะ"), "1")     # โทเคน >ชื่อ = เก็บผล (v2.10)
+
+    # --------------------- evaluate_block_condition ---------------------
+    def test_block_condition_with_plugin(self):
+        import types
+        mod = types.SimpleNamespace(
+            CONDITION_NAME="Flag On",
+            check=lambda ctx, row: str(row.get("additional") or "") == "go")
+        runner, _ = self._mk_runner({"Flag On": mod}, variables={"n": "5"})
+        self.assertIs(runner.evaluate_block_condition("Flag On go"), True)
+        self.assertIs(runner.evaluate_block_condition("Flag On stop"), False)
+        # ผสม && กับเงื่อนไขในตัวได้ (ทุกชิ้นต้องจริง)
+        self.assertIs(runner.evaluate_block_condition("Flag On go && n > 3"), True)
+        self.assertIs(runner.evaluate_block_condition("Flag On go && n > 9"), False)
+        self.assertIs(runner.evaluate_block_condition(""), True)   # บล็อกว่าง = จริงเสมอ (เดิม)
+
+    # ------------------------- row_tags / .ahk -------------------------
+    def test_row_tags_condition_plugin(self):
+        self.assertEqual(me_mod.row_tags("Flag On", 1, ("Flag On",)), ("cond",))
+        self.assertEqual(me_mod.row_tags("Flag On", 1), ("even",))   # ไม่ส่งชื่อ = แถบเดิม
+        self.assertIsNone(me_mod.row_tag("Left Click", ("Flag On",)))
+
+    def test_ahk_export_condition_plugin_commented(self):
+        rows = [
+            {"enabled": True, "button": "Set Variable", "additional": "n = 5",
+             "secs": 0, "repeat": 1},
+            {"enabled": True, "button": me_mod.BLOCK_START, "additional": "if Flag On go",
+             "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "additional": "", "secs": 0, "repeat": 1},
+            {"enabled": True, "button": me_mod.BLOCK_END, "additional": "",
+             "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Flag On", "additional": "go",
+             "secs": 0, "repeat": 1},
+        ]
+        s = me_mod.rows_to_ahk(rows, condition_names=("Flag On",))
+        self.assertNotIn("{", s)                     # ทั้งคู่ Start/End เป็น comment — ไม่มีปีกกาลอย
+        self.assertIn("แปลไม่ได้ตรง ๆ", s)
+        self.assertIn("ไม่รองรับ: Flag On (go)", s)   # แถวเงื่อนไข = comment เหมือน action แปลกปลอม
+
+    # ------------------- plugin ตัวอย่างที่แจกมากับโปรเจกต์ -------------------
+    def test_real_file_exists_condition_plugin(self):
+        import shutil
+        me_mod.load_plugins()
+        conds = dict(getattr(me_mod.load_plugins, "last_conditions", []) or [])
+        self.assertIn("File Exists", conds)
+        mod = conds["File Exists"]
+        d = tempfile.mkdtemp(prefix="macro_fe_")
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        f = os.path.join(d, "flag.txt")
+        with open(f, "w", encoding="utf-8") as fh:
+            fh.write("x")
+        runner, _ = self._mk_runner({"File Exists": mod})
+        skip, _m = runner.evaluate_plugin_condition(
+            "File Exists", {"button": "File Exists", "additional": f, "repeat": 2})
+        self.assertEqual(skip, 0)
+        skip, _m = runner.evaluate_plugin_condition(
+            "File Exists", {"button": "File Exists",
+                            "additional": os.path.join(d, "missing.txt"), "repeat": 2})
+        self.assertEqual(skip, 2)
+
+
+class TestConditionPluginsGui(unittest.TestCase):
+    """v2.13: เงื่อนไข plugin ใน GUI — แถวเงื่อนไขเล่นต่อ/ข้ามตาม Repeat ถูกต้อง
+    ใช้ MacroApp จริง แถว Beep ล้วน (secs=0) — ไม่มีจอ skip อัตโนมัติ
+    (แพตเทิร์นเดียวกับ TestV21GuiPlay: นับ STEP ผ่าน am.log_write)"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._orig_log = am.log_write
+        cls.steps = []
+
+        def counting_log(mode, message, src=None):
+            if mode == "STEP":
+                cls.steps.append(message)
+            return cls._orig_log(mode, message, src)
+
+        am.log_write = counting_log
+        cls.app = None
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+        except am.tk.TclError:
+            cls.root = None
+            return
+        try:
+            cls.app = am.MacroApp(cls.root)
+            cls.app._log_enabled = True
+        except Exception:
+            cls.root.destroy()
+            cls.root = None
+            cls.app = None
+
+    @classmethod
+    def tearDownClass(cls):
+        am.log_write = cls._orig_log
+        if cls.app is not None:
+            try:
+                cls.app.stop_all(silent=True)
+            except Exception:
+                pass
+        if cls.root is not None:
+            cls.root.destroy()
+
+    def setUp(self):
+        if self.app is None:
+            self.skipTest("ไม่มีจอ/สร้าง MacroApp จริงไม่ได้")
+        self.app.stop_all(silent=True)
+        self.app.ent_loops.delete(0, "end")
+        self.app.ent_loops.insert(0, "1")          # กันค่าค้างจากเทสต์ก่อนหน้า
+        self.__class__.steps = []
+        import types
+        self.mod = types.SimpleNamespace(
+            CONDITION_NAME="Flag On",
+            check=lambda ctx, row: str(row.get("additional") or "").strip() == "on")
+        self.app._cond_plugins = [("Flag On", self.mod)]
+        self.app._cond_names = frozenset({"Flag On"})
+        self.app._action_runner.conditions = {"Flag On": self.mod}
+        self.addCleanup(self._restore_conds)
+
+    def _restore_conds(self):
+        self.app._cond_plugins = list(getattr(am.load_plugins, "last_conditions", []) or [])
+        self.app._cond_names = frozenset(n for n, _ in self.app._cond_plugins)
+        self.app._action_runner.conditions = dict(self.app._cond_plugins)
+
+    def _wait_done(self, timeout=5.0):
+        end = time.time() + timeout
+        while time.time() < end:
+            try:
+                self.root.update()
+            except Exception:
+                pass
+            if not self.app.running:
+                return True
+            time.sleep(0.03)
+        return False
+
+    def test_condition_true_plays_on(self):
+        app = self.app
+        app._load_rows([
+            {"enabled": True, "button": "Flag On", "additional": "on",
+             "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "secs": 0, "repeat": 1},
+        ])
+        app.start_play()
+        self.assertTrue(self._wait_done())
+        self.assertEqual(len([s for s in self.steps if "Beep" in s]), 1)
+        self.assertTrue(any("เงื่อนไขจริง" in s for s in self.steps))
+
+    def test_condition_false_skips_repeat_rows(self):
+        app = self.app
+        app._load_rows([
+            {"enabled": True, "button": "Flag On", "additional": "off",
+             "secs": 0, "repeat": 2},
+            {"enabled": True, "button": "Beep", "secs": 0, "repeat": 1},
+            {"enabled": True, "button": "Beep", "secs": 0, "repeat": 1},
+        ])
+        app.start_play()
+        self.assertTrue(self._wait_done())
+        self.assertEqual(len([s for s in self.steps if "Beep" in s]), 0)   # ข้ามทั้ง 2 แถว
+        self.assertTrue(any("ไม่จริง" in s and "ข้าม 2 แถว" in s for s in self.steps))
+
+    def test_validate_accepts_condition_rows(self):
+        rows = [{"enabled": True, "button": "Flag On", "additional": "on",
+                 "mins": 0, "secs": 0, "repeat": 1}]
+        issues = am.validate_rows(rows, plugin_names=[],
+                                  condition_names=sorted(self.app._cond_names))
+        self.assertEqual(issues, [])
+
+
+class TestConditionPluginsCli(unittest.TestCase):
+    """v2.13: เงื่อนไข plugin ใน CLI จริง (cli_main) — เล่นต่อ/ข้ามตาม Repeat
+    ใช้ plugin File Exists ที่แจกมากับโปรเจกต์ + สคริปต์ Beep ล้วนปลอดภัย"""
+
+    def _script(self, rows, name="cond_cli.json"):
+        import shutil
+        d = tempfile.mkdtemp(prefix="macro_cond_cli_")
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        p = os.path.join(d, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(rows, fh, ensure_ascii=False)
+        return p
+
+    def _run(self, argv):
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = am.cli_main(argv)
+        return rc, buf.getvalue()
+
+    def _flag_file(self):
+        import shutil
+        d = tempfile.mkdtemp(prefix="macro_flag_")
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        f = os.path.join(d, "flag.txt")
+        with open(f, "w", encoding="utf-8") as fh:
+            fh.write("x")
+        return f
+
+    def test_cli_plays_and_skips(self):
+        f = self._flag_file()
+        rows = [{"enabled": True, "button": "File Exists", "additional": f,
+                 "secs": 0, "repeat": 1},
+                {"enabled": True, "button": "Beep", "additional": "",
+                 "secs": 0, "repeat": 1}]
+        rc, out = self._run([self._script(rows), "--no-log"])
+        self.assertEqual(rc, 0)
+        self.assertIn("เงื่อนไขจริง", out)
+        self.assertIn("Beep", out)
+        rows2 = [{"enabled": True, "button": "File Exists", "additional": f + ".missing",
+                  "secs": 0, "repeat": 1},
+                 {"enabled": True, "button": "Beep", "additional": "",
+                  "secs": 0, "repeat": 1}]
+        rc2, out2 = self._run([self._script(rows2), "--no-log"])
+        self.assertEqual(rc2, 0)
+        self.assertIn("ไม่จริง", out2)
+        self.assertIn("ข้าม 1 แถว", out2)
+        self.assertNotIn("Beep", out2)             # แถวถูกข้าม — ไม่เล่น
+
+    def test_cli_validate_accepts_condition_rows(self):
+        rows = [{"enabled": True, "button": "File Exists", "additional": "x.txt",
+                 "secs": 0, "repeat": 1}]
+        rc, out = self._run([self._script(rows), "--no-log", "--validate"])
+        self.assertEqual(rc, 0)
+        self.assertIn("ผ่านการตรวจ", out)
+
+    def test_cli_example_file_validates(self):
+        # ตัวอย่างที่แจกมากับโปรเจกต์ต้องผ่าน --validate ของโค้ดจริง (เหมือน AGENTS.md)
+        ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "examples", "14_condition_plugin.json")
+        rc, out = self._run([ex, "--no-log", "--validate"])
+        self.assertEqual(rc, 0, out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.12.0"
+__version__ = "2.13.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -277,16 +277,18 @@ ROW_STYLE = {"run": {"background": "#c8e6c9"},
              "even": {"background": "#f2f6fb"}}
 
 
-def row_tag(button):
+def row_tag(button, cond_names=()):
     """คืนชื่อ tag ตามชนิด Action (v1.22) — แถวเงื่อนไข/คีย์/พิเศษได้สีของหมวด
-    แถวเมาส์ทั่วไปใช้แถบสลับ even/odd เหมือนเดิม"""
+    แถวเมาส์ทั่วไปใช้แถบสลับ even/odd เหมือนเดิม
+    v2.13: cond_names = ชื่อเงื่อนไข plugin (CONDITION_NAME) — แถวเหล่านั้นได้สีหมวด cond ด้วย"""
     if button == SECTION_HEADER:
         return "section"
     if button == BLOCK_START:
         return "block"
     if button == BLOCK_END:
         return "blockend"
-    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR):
+    if button in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME, IF_PIXEL, IF_VAR) \
+            or button in tuple(cond_names or ()):
         return "cond"
     if button in ("Tap Key", "Press Key", "Release Key", "Type Text"):
         return "key"
@@ -296,9 +298,9 @@ def row_tag(button):
     return None
 
 
-def row_tags(button, n):
+def row_tags(button, n, cond_names=()):
     """คืน tuple tags เต็ม (เรียกตอน insert/item) — แถวเมาส์ = แถบสลับเดิม, หมวดพิเศษ = สีหมวด"""
-    t = row_tag(button)
+    t = row_tag(button, cond_names)
     if t:
         return (t,)
     return ("even" if n % 2 else "odd",)
@@ -932,14 +934,16 @@ def batch_export_sh(script_name, py_cmd="python3"):
 
 
 # ----------------------------- ทำงานร่วม AutoHotkey .ahk (v2.7) ----------
-def rows_to_ahk(rows):
-    """แปลงแถวสคริปต์ → เนื้อหาไฟล์ .ahk (v2.7 — v2.9 รองรับบล็อก)
+def rows_to_ahk(rows, condition_names=()):
+    """แปลงแถวสคริปต์ → เนื้อหาไฟล์ .ahk (v2.7 — v2.9 รองรับบล็อก · v2.13 เงื่อนไข plugin)
+    condition_names = ชื่อเงื่อนไข plugin (CONDITION_NAME) — แถวเหล่านั้นและบล็อกที่อ้างถึง
+    แปลเป็น AHK ไม่ได้ = เขียนเป็น comment ทั้งบล็อก (prescan กันปีกกาลอย)
     รองรับ: Tap Key/Press Key/Release Key, Left/Right Click, Double Click, Scroll,
     Ctrl/Shift/Alt+Click, Move Mouse (+Offset), Save/Restore Cursor (CoordMode Mouse),
     Type Text (ครอบสัญลักษณ์พิเศษ), Launch App, Beep, Set Variable (AHK :=),
     If Variable (if), Block Start/End → บล็อก { } ของ AHK:
     "if n > 5" → if (n > 5) { … } · "max N" → Loop, N { … } · "until cond" → Loop { … } Until
-    (เงื่อนไขที่แปลไม่ได้ เช่น ภาพ/สีจุด = ทั้งคู่ Start/End เขียนเป็น comment)"""
+    (เงื่อนไขที่แปลไม่ได้ เช่น ภาพ/สีจุด/เงื่อนไข plugin = ทั้งคู่ Start/End เขียนเป็น comment)"""
     out = ["; Auto Mouse & Keyboard Macro v%s — exported .ahk" % __version__,
            "; แปลงคร่าว ๆ — ตรวจก่อนใช้จริง (รายละเอียด: docs/README.en.md)"]
     key_map = {"esc": "Esc", "enter": "Enter", "return": "Enter", "tab": "Tab",
@@ -987,12 +991,14 @@ def rows_to_ahk(rows):
         return '"' + s.replace('"', '""') + '"'
 
     def _ahk_block_cond(txt):
-        """เงื่อนไข Block Start → นิพจน์ AHK หรือ None (ภาพ/สีจุด/ผสม = แปลไม่ได้)
+        """เงื่อนไข Block Start → นิพจน์ AHK หรือ None (ภาพ/สีจุด/ผสม/เงื่อนไข plugin = แปลไม่ได้)
         คืน "" เมื่อไม่มีเงื่อนไข (บล็อกเปล่า) — รองรับ && หลายเงื่อนไข (v2.9)"""
         s = str(txt or "").strip()
         if not s:
             return ""
         parts = split_condition_and(s) or [s]
+        if any(match_condition_name(p, condition_names) for p in parts):
+            return None                        # v2.13: เงื่อนไข plugin → ทั้งบล็อกเป็น comment
         exprs = []
         for p in parts:
             fv = parse_if_var(p)
@@ -1374,15 +1380,19 @@ def parse_queue_list(list_path):
     return scripts, None
 
 
-def validate_rows(rows, plugin_names=()):
+def validate_rows(rows, plugin_names=(), condition_names=()):
     """ตรวจแถวสคริปต์โดยไม่เล่น (v2.4 — ใช้โดย CLI --validate)
+    v2.13: condition_names = ชื่อเงื่อนไข plugin (CONDITION_NAME) — แถว Action ที่ตรงชื่อนี้
+    ผ่านการตรวจได้ด้วย (รูปแบบ Additional ตรวจใน plugin เอง)
     คืน list ของ (ลำดับแถว 1-based, เหตุผล) — ว่าง = สคริปต์พร้อมเล่น"""
     issues = []
     plugin_names = set(plugin_names or ())
+    condition_names = set(condition_names or ())
     for i, r in enumerate(rows, 1):
         btn = str(r.get("button", ""))
         add = str(r.get("additional") or "")
-        if btn not in ACTIONS_ALL and btn not in plugin_names:
+        if (btn not in ACTIONS_ALL and btn not in plugin_names
+                and btn not in condition_names):
             issues.append((i, "ไม่รู้จัก action: %s" % (btn or "-")))
             continue
         if btn == BLOCK_END and add.strip():
@@ -1444,9 +1454,12 @@ def validate_rows(rows, plugin_names=()):
 
 # ------------------------------------------------ plugin actions (v1.16) ----
 def load_plugins(base_dir=None):
-    """โหลด Custom Action plugins จาก <base_dir>/plugins/*.py (v1.16)
-    แต่ละไฟล์ประกาศ:  ACTION_NAME = "ชื่อ Action"  และ  def run(ctx, row):
-    ctx = dict(mouse, kb, log(message), cfg) — คืน list ของ (name, module)
+    """โหลด plugins จาก <base_dir>/plugins/*.py (v1.16 · v2.13 รองรับเงื่อนไข)
+    Action plugin:    ACTION_NAME = "ชื่อ"      +  def run(ctx, row):
+    Condition plugin: CONDITION_NAME = "ชื่อ"  +  def check(ctx, row) -> bool  (v2.13)
+    ไฟล์เดียวประกาศทั้งคู่ได้ (ชื่อต้องต่างกัน) — คืน list ของ (ชื่อ Action, module) เหมือนเดิม
+    รายการเงื่อนไข plugin อยู่ที่ load_plugins.last_conditions = [(ชื่อเงื่อนไข, module)]
+    ชื่อซ้ำกันข้าม Action/เงื่อนไข (กันแถว btn ตีความกำกวม) = ข้ามไฟล์นั้นเหมือนไฟล์พัง
     โหลดล้มเหลวไฟล์ไหนก็ข้ามไฟล์นั้น (พร้อมชื่อ) ไม่ทำโปรแกรมพัง"""
     if base_dir is None:
         if getattr(sys, "frozen", False):      # รันจาก .exe — ใช้โฟลเดอร์ของไฟล์ exe
@@ -1457,7 +1470,7 @@ def load_plugins(base_dir=None):
     if not os.path.isdir(d):
         return []
     import importlib.util
-    out, failed = [], []
+    out, conds, failed = [], [], []
     for path in sorted(glob.glob(os.path.join(d, "*.py"))):
         name = os.path.basename(path)[:-3]
         if name.startswith("_"):
@@ -1467,18 +1480,48 @@ def load_plugins(base_dir=None):
             mod = importlib.util.module_from_spec(sp)
             sp.loader.exec_module(mod)
             aname = str(getattr(mod, "ACTION_NAME", "")).strip()
-            if not aname or not callable(getattr(mod, "run", None)):
-                raise ValueError("ต้องมี ACTION_NAME และ run(ctx, row)")
-            if aname in ACTIONS_ALL or any(a == aname for a, _ in out):
-                raise ValueError("ชื่อ Action ซ้ำ: " + aname)
-            out.append((aname, mod))
+            cname = str(getattr(mod, "CONDITION_NAME", "")).strip()
+            if not aname and not cname:
+                raise ValueError("ต้องมี ACTION_NAME+run(ctx, row) หรือ "
+                                 "CONDITION_NAME+check(ctx, row) (v2.13)")
+            if aname:
+                if not callable(getattr(mod, "run", None)):
+                    raise ValueError("มี ACTION_NAME แต่ไม่มี run(ctx, row): " + aname)
+                if (aname in ACTIONS_ALL or any(a == aname for a, _ in out)
+                        or any(c == aname for c, _ in conds)):
+                    raise ValueError("ชื่อ Action ซ้ำ: " + aname)
+                out.append((aname, mod))
+            if cname:
+                if not callable(getattr(mod, "check", None)):
+                    raise ValueError("มี CONDITION_NAME แต่ไม่มี check(ctx, row): " + cname)
+                if (cname in ACTIONS_ALL or any(a == cname for a, _ in out)
+                        or any(c == cname for c, _ in conds)):
+                    raise ValueError("ชื่อเงื่อนไขซ้ำ: " + cname)
+                conds.append((cname, mod))
         except Exception as exc:
             failed.append("%s: %s" % (name, exc))
     load_plugins.last_failed = failed
+    load_plugins.last_conditions = conds
     return out
 
 
 load_plugins.last_failed = []
+load_plugins.last_conditions = []            # v2.13: [(ชื่อเงื่อนไข, module)] ล่าสุดที่โหลด
+
+
+def match_condition_name(text, names):
+    """จับชื่อเงื่อนไข plugin จากข้อความเงื่อนไข (v2.13) — คืน (ชื่อ, Additional) หรือ None
+    รองรับทั้งชื่อเปล่า ("File Exists") และ "ชื่อ อาร์กิวเมนต์" ("File Exists C:\\tmp\\x")
+    ชื่อยาวสุดมาก่อนกันชนชื่อซ้อนกัน (เช่น Check / Check Row)"""
+    s = str(text or "").strip()
+    if not s:
+        return None
+    for n in sorted(set(names or ()), key=len, reverse=True):
+        if s == n:
+            return (n, "")
+        if s.startswith(n + " "):
+            return (n, s[len(n) + 1:].strip())
+    return None
 MOD_KEYS = ["", "Ctrl", "Alt", "Shift", "Win"]
 EDIT_COLS = ["Action", "Additional", "Mins", "Secs", "Repeat", "Note"]
 COLS = ["chk", "num", "x", "y", "button", "additional", "mins", "secs", "repeat", "note"]
@@ -2033,13 +2076,17 @@ class ActionRunner:
                  on_clipboard_set=lambda t: None, on_clipboard_read=lambda: None,
                  variables=None, plugin_lookup=lambda name: None,
                  log_src=None, unsupported_cb=lambda btn: None,
-                 find_image_cb=None, wait_image_cb=None, dry_run=False):
+                 find_image_cb=None, wait_image_cb=None, dry_run=False,
+                 conditions=None):
         """dry_run=True (v2.10): เดินทุกแถว/เงื่อนไข/ตัวแปร/บล็อกครบ — แต่ input จริงทุกชนิด
         (เมาส์/คีย์/เปิดแอป/คลิปบอร์ด/บี๊บ/plugin) ถูกแทนด้วยข้อความรายงานผ่าน on_message
-        — ใช้ซ้อมสคริปต์ก่อนปล่อยค้างคืน ไม่แตะเมาส์/คีย์สักครั้ง"""
+        — ใช้ซ้อมสคริปต์ก่อนปล่อยค้างคืน ไม่แตะเมาส์/คีย์สักครั้ง
+        conditions (v2.13): dict {ชื่อเงื่อนไข → module} ของ condition plugins
+        (CONDITION_NAME + check(ctx, row)) — ใช้ทั้งแถวเงื่อนไขและ Block Start/End"""
         self.mouse_ctl = mouse_ctl
         self.kb_ctl = kb_ctl
         self.dry_run = bool(dry_run)
+        self.conditions = conditions if conditions is not None else {}   # v2.13
         self.stop_check = stop_check
         self.on_beep = on_beep
         self.on_message = on_message
@@ -2123,6 +2170,64 @@ class ActionRunner:
             self.on_message("Wait for Pixel Color: สีไม่ตรง (%d,%d) — ข้ามการรอ" % (x, y))
         return okc
 
+    def _plugin_ctx(self):
+        """ctx ของ plugin (v1.16/v1.20/v2.5) — แหล่งเดียว ใช้ทั้ง Action และเงื่อนไข (v2.13)"""
+        return {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
+                "log": lambda m: log_write("PLUGIN", m, self.log_src),
+                "cfg": {"lang": "th"},
+                "vars": self.variables,                        # v2.5: ตัวแปรแชร์กับสคริปต์
+                "stop_check": self.stop_check,                  # v1.20
+                "ui": {"msg": lambda text, color="#080":
+                           self.on_message(str(text), color),      # v1.20
+                       "beep": self.on_beep}}
+
+    def _match_cond(self, text):
+        """หา condition plugin จากข้อความ (v2.13) — คืน (module, ชื่อ, Additional) หรือ None"""
+        m = match_condition_name(text, (self.conditions or {}).keys())
+        if m is None:
+            return None
+        mod = (self.conditions or {}).get(m[0])
+        if mod is None or not callable(getattr(mod, "check", None)):
+            return None
+        return (mod, m[0], m[1])
+
+    def _run_cond_check(self, mod, name, additional):
+        """เรียก check(ctx, row) ของ condition plugin (v2.13) — คืน True/False
+        check พัง = เตือนแล้วถือว่าไม่จริง (ใช้โดย Block Start/End — ตามกติกาบล็อก
+        ที่รูปแบบ/การประเมินพัง = ไม่จริง; ฝั่งแถวเงื่อนไขใช้ evaluate_plugin_condition
+        ซึ่งทนเองแล้วเล่นต่อ)"""
+        ctx = self._plugin_ctx()
+        row = {"button": name, "additional": additional,
+               "x": "", "y": "", "mins": 0, "secs": 0, "repeat": 1}
+        try:
+            return bool(mod.check(ctx, row))
+        except Exception as exc:
+            self.on_message("condition plugin error (%s): %s" % (name, exc), "#c00")
+            return False
+
+    def evaluate_plugin_condition(self, btn, r):
+        """ประเมินแถวเงื่อนไขของ condition plugin (v2.13) — กติกาเดียวกับเงื่อนไขทุกชนิด:
+        จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (N = Repeat) · โทเคน '>ชื่อ' ท้าย Additional
+        = เก็บผลเงื่อนไขลงตัวแปร (เหมือนเงื่อนไขในตัว v2.10)
+        คืน (skip_n, message) — ไม่ใช่เงื่อนไข plugin → (0, None)
+        check พัง = เตือนแล้วเล่นต่อ ไม่ข้าม (กลไกเดียวกับ action plugin พัง)
+        Dry-run: เงื่อนไขเดินจริงอยู่แล้ว — check ของ plugin ก็ถูกเรียกจริง (v2.10)"""
+        mod = (self.conditions or {}).get(str(btn))
+        if mod is None or not callable(getattr(mod, "check", None)):
+            return 0, None
+        _add, store = parse_cond_store(str(r.get("additional") or ""))
+        try:
+            hit = bool(mod.check(self._plugin_ctx(), dict(r, button=btn)))
+        except Exception as exc:
+            self.on_message("condition plugin error (%s): %s" % (btn, exc), "#c00")
+            return 0, None
+        self.cond_store = store
+        self._save_cond_result(hit)
+        if hit:
+            return 0, "%s → เงื่อนไขจริง เล่นต่อ" % btn
+        skip = parse_int(r.get("repeat"), 1)
+        return skip, "%s → เงื่อนไขไม่จริง ข้าม %d แถว" % (btn, skip)
+
     @staticmethod
     def evaluate_if_var(txt, variables=None):
         """ตัดสินเงื่อนไข If Variable เป็นค่าความจริง (v2.5.4 — ชุด N1 ใช้ร่วมกับ AND)
@@ -2201,6 +2306,19 @@ class ActionRunner:
                 _h, _d = self.evaluate_if_var(p, self.variables)
                 if _h is not True:
                     return _h if _h is None else False
+            return True
+        head_m = self._match_cond(head)                # สายเงื่อนไข plugin (v2.13)
+        if head_m is not None:                         # ชิ้นแรกตรงชื่อ CONDITION_NAME
+            for p in parts:
+                mm = self._match_cond(p)
+                if mm is not None:
+                    hit = self._run_cond_check(mm[0], mm[1], mm[2])
+                elif parse_pixel_spec(p):
+                    hit, _d = self.evaluate_if_pixel([p], self.variables)
+                else:
+                    hit, _d = self.evaluate_if_var(p, self.variables)
+                if hit is not True:                    # ไม่จริง/รูปแบบพัง = ตามกติกาเดิม
+                    return hit if hit is None else False
             return True
         # สายภาพ (default): ชิ้นแรกคือไฟล์ภาพ — เจอก่อนแล้วค่อยตรวจชิ้นถัดไป
         rr = {"button": IF_IMAGE, "additional": head}
@@ -2521,14 +2639,7 @@ class ActionRunner:
         else:                                                        # Custom Action (v1.16)
             mod = self.plugin_lookup(btn)
             if mod is not None:
-                ctx = {"mouse": self.mouse_ctl, "kb": self.kb_ctl,
-                       "log": lambda m: log_write("PLUGIN", m, self.log_src),
-                       "cfg": {"lang": "th"},
-                       "vars": self.variables,                        # v2.5: ตัวแปรแชร์กับสคริปต์
-                       "stop_check": self.stop_check,                  # v1.20
-                       "ui": {"msg": lambda text, color="#080":
-                                  self.on_message(str(text), color),      # v1.20
-                              "beep": self.on_beep}}
+                ctx = self._plugin_ctx()
                 try:
                     mod.run(ctx, dict(r))
                 except Exception as exc:
@@ -2907,6 +3018,8 @@ class MacroApp:
         self._time_limit_min = 30          # จำนวนนาทีก่อนหยุดอัตโนมัติ (1–720)
         self._lang = "th"                  # ภาษา UI: 'th' / 'en' (v1.14)
         self._plugins = []                 # Custom Action plugins (v1.16): [(name, module)]
+        self._cond_plugins = []            # Condition plugins (v2.13): [(name, module)]
+        self._cond_names = frozenset()     # ชื่อเงื่อนไข plugin — ตาราง/ลูปเล่น/สีแถวใช้
         # ผู้เล่นคิวแบบ GUI (v2.12) — ค่าเริ่มต้น; หน้าต่าง 📑 Run Queue เป็นผู้จัดการจริง
         self._qr_win = None
         self._qr_q = None
@@ -2939,10 +3052,16 @@ class MacroApp:
         self._load_profiles()
         self._refresh_profile_ui()
         self._plugins = load_plugins()     # โหลด Custom Actions (v1.16)
-        if self._plugins:
+        # v2.13: Condition plugins (CONDITION_NAME + check) — โหลดมาพร้อมกันในครั้งเดียว
+        self._cond_plugins = list(getattr(load_plugins, "last_conditions", []) or [])
+        self._cond_names = frozenset(n for n, _ in self._cond_plugins)
+        self._action_runner.conditions = dict(self._cond_plugins)
+        if self._plugins or self._cond_plugins:
             # ส่งผ่าน root.after — อย่าเขียน _ui_state ตอน __init__ (poller ใช้ pop("msg"))
-            self.root.after(0, lambda: self._ui_state.__setitem__(
-                "msg", ("โหลด plugins: " + ", ".join(n for n, _ in self._plugins), "#080")))
+            _pl_msg = "โหลด plugins: " + ", ".join(n for n, _ in self._plugins)
+            if self._cond_plugins:
+                _pl_msg += " · เงื่อนไข: " + ", ".join(n for n, _ in self._cond_plugins)
+            self.root.after(0, lambda m=_pl_msg: self._ui_state.__setitem__("msg", (m, "#080")))
         self._load_conf()  # โหลดงานล่าสุดของโปรไฟล์ที่ใช้อยู่ (ถ้ามี)
         self._self_check()  # ตรวจสุขภาพระบบ (v1.11) — ผลแสดงใน Settings
         if not (self._checks.get("mouse") and self._checks.get("hotkey")):
@@ -3346,6 +3465,7 @@ class MacroApp:
         try:
             # ---- ตรวจทุกไฟล์ก่อนเริ่มเล่น (engine validate_rows เดียวกับ CLI) ----
             plugin_names = [nm for nm, _ in (getattr(self, "_plugins", []) or [])]
+            cond_names = sorted(getattr(self, "_cond_names", ()) or ())    # v2.13
             for idx, (path, _ln) in enumerate(scripts, 1):
                 if self._qr_stop_all:
                     break
@@ -3364,7 +3484,8 @@ class MacroApp:
                     q.put(("done", "ยกเลิกทั้งคิว — อ่านไฟล์ที่ %d ไม่สำเร็จ (%s)"
                            % (idx, exc), time.time() - t0))
                     return
-                issues = validate_rows(qrows, plugin_names=plugin_names)
+                issues = validate_rows(qrows, plugin_names=plugin_names,
+                                       condition_names=cond_names)
                 if issues:
                     q.put(("invalid", idx))
                     if self._log_enabled:
@@ -3781,8 +3902,9 @@ class MacroApp:
 
     # ------------------------------------------- เงื่อนไขทั้ง 4 (v2.2) --------
     def _execute_condition_row(self, r, loop_no, i, total, step_t0):
-        """ทำแถวเงื่อนไข (If Image/Else If Image/If Loop/If Time) — คืน True เมื่อแถวนี้
-        ทำหน้าที่เสร็จ (ลูปต้อง break ออกจาก for-repeat — เงื่อนไขทำงานรอบเดียว)
+        """ทำแถวเงื่อนไข (If Image/Else If Image/If Loop/If Time/If Pixel/If Variable/
+        เงื่อนไข plugin v2.13) — คืน True เมื่อแถวนี้ทำหน้าที่เสร็จ (ลูปต้อง break ออกจาก
+        for-repeat — เงื่อนไขทำงานรอบเดียว)
         If Image/Else ผ่าน ActionRunner (แหล่งเดียวกับ CLI), ผลผลักเข้า _ui_state ตามรูปแบบเดิม"""
         btn = r["button"]
         det = ""
@@ -3804,9 +3926,12 @@ class MacroApp:
                 det = captured[-1]
                 self._ui_state["msg"] = (det, "#a60" if "ข้าม" in det else "#080")
         else:
-            skip, msg = macro_engine.ActionRunner.evaluate_condition(
-                btn, r.get("additional", ""), r.get("repeat", 1), loop_no,
-                variables=self._vars)   # v2.5: If Variable
+            # v2.13: เงื่อนไข plugin (CONDITION_NAME + check) — กติกาเดียวกับเงื่อนไขในตัว
+            skip, msg = self._action_runner.evaluate_plugin_condition(btn, r)
+            if msg is None:                         # ไม่ใช่เงื่อนไข plugin → เงื่อนไขในตัว
+                skip, msg = macro_engine.ActionRunner.evaluate_condition(
+                    btn, r.get("additional", ""), r.get("repeat", 1), loop_no,
+                    variables=self._vars)   # v2.5: If Variable
             if msg:
                 det = msg
                 self._ui_state["msg"] = (msg, "#a60" if skip else "#080")
@@ -3949,7 +4074,8 @@ class MacroApp:
                 fmt_num(0 if kw.get("button") == SECTION_HEADER else kw.get("secs", 1)),
                 fmt_num(kw.get("repeat", 1)), kw.get("note", "")]
         n = len(self.tree.get_children())
-        self.tree.insert("", "end", values=vals, tags=row_tags(str(vals[4]), n))   # v1.22: สีหมวด
+        self.tree.insert("", "end", values=vals,
+                         tags=row_tags(str(vals[4]), n, self._cond_names))   # v1.22/v2.13: สีหมวด
         self.tree.see(self.tree.get_children()[-1])
 
     def add_row(self):
@@ -3965,7 +4091,8 @@ class MacroApp:
                 continue
             n += 1
             vals[1] = n
-            self.tree.item(iid, values=vals, tags=row_tags(str(vals[4]), n))   # v1.22: สีหมวด
+            self.tree.item(iid, values=vals,
+                           tags=row_tags(str(vals[4]), n, self._cond_names))   # v1.22/v2.13
 
     def _on_click(self, event):
         if self.tree.identify("region", event.x, event.y) != "cell":
@@ -4412,7 +4539,8 @@ class MacroApp:
         คีย์ไม่ถูก/ภาพหาย/ตัวแปรผิดรูปแบบ/Block Start ไม่ปิด ฯลฯ → รายงานทีละแถว"""
         rows = self._serialize()
         plugin_names = [n for n, _ in self._plugins]
-        issues = validate_rows(rows, plugin_names=plugin_names)
+        issues = validate_rows(rows, plugin_names=plugin_names,
+                               condition_names=sorted(self._cond_names))   # v2.13
         win = tk.Toplevel(self.root)
         win.title("ตรวจสคริปต์ (Validate)")
         if not issues:
@@ -4621,7 +4749,8 @@ class MacroApp:
         vals = list(self.tree.item(row_id, "values"))
         ei = ci - 4                                    # ดัชนีใน EDIT_COLS
         label = EDIT_COLS[ei]
-        choices = {"Action": list(ACTIONS_ALL) + [n for n, _ in self._plugins],
+        choices = {"Action": (list(ACTIONS_ALL) + [n for n, _ in self._plugins]
+                              + sorted(self._cond_names)),   # v2.13: เงื่อนไข plugin ลง dropdown ด้วย
                    "Additional": [""] + MOD_KEYS[1:] + sorted(SPECIAL_KEYS)}.get(label)
         if key == "additional":
             hint = {"Type Text": "พิมพ์ข้อความที่จะส่ง (เช่น สวัสดี)",
@@ -4774,7 +4903,8 @@ class MacroApp:
             return
         # v2.9: ตรวจด้วย engine เดียวกับเมนู 🔍 Validate / CLI --validate —
         # แถวที่ตรวจไม่ผ่าน "ถูกข้ามจริง" (เดิมแจ้งเตือนแต่ยังเล่นทุกแถว)
-        issues = validate_rows(rows, plugin_names=[n for n, _ in self._plugins])
+        issues = validate_rows(rows, plugin_names=[n for n, _ in self._plugins],
+                               condition_names=sorted(self._cond_names))
         if issues:
             if not auto and not messagebox.askyesno(APP_TITLE,
                     "มีแถวที่ตรวจไม่ผ่าน %d จุด (คีย์ว่าง/ภาพหาย/บล็อกไม่ปิด ฯลฯ)\n"
@@ -5001,8 +5131,10 @@ class MacroApp:
                         step_t0 = time.time()
                         # v2.2: เงื่อนไขทั้ง 4 ชนิดอยู่ที่ _execute_condition_row (If Image/Else
                         # ผ่าน runner เดียวกับ CLI แล้ว — If Loop/If Time ผ่าน evaluate_condition)
-                        if r["button"] in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME,
-                                           IF_PIXEL, IF_VAR):
+                        # v2.13: แถวเงื่อนไข plugin (CONDITION_NAME) เข้าทางเดียวกัน
+                        if (r["button"] in (IF_IMAGE, ELSE_IMAGE, IF_LOOP, IF_TIME,
+                                            IF_PIXEL, IF_VAR)
+                                or r["button"] in self._cond_names):
                             if self._execute_condition_row(r, loop_no, i, total, step_t0):
                                 break                   # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
                         do_step(r)
@@ -5345,7 +5477,7 @@ class MacroApp:
             if _COLLAPSED_RE.search(str(vals[5]).strip()):
                 return                             # คงสไตล์ marker กลุ่มย่อไว้ (v1.22)
             i = self.tree.index(iid)
-            self.tree.item(iid, tags=row_tags(str(vals[4]), i))   # v1.22: สีตามหมวด Action
+            self.tree.item(iid, tags=row_tags(str(vals[4]), i, self._cond_names))   # v1.22/v2.13
         except tk.TclError:
             pass
 
@@ -5710,7 +5842,8 @@ class MacroApp:
         base = os.path.splitext(self._loaded_file)[0]
         try:
             with open(base + ".ahk", "w", encoding="utf-8", newline="\r\n") as fh:
-                fh.write(rows_to_ahk(self._serialize()))
+                fh.write(rows_to_ahk(self._serialize(),
+                                     condition_names=sorted(self._cond_names)))   # v2.13
         except OSError as exc:
             messagebox.showerror(APP_TITLE, "ส่งออก .ahk ไม่สำเร็จ:\n%s" % exc)
             return
@@ -6531,6 +6664,7 @@ def cli_queue_run(args, argv):
 
     # ตรวจทุกไฟล์ก่อนเริ่มเล่น (engine validate_rows เดียวกับ --validate — ไม่เล่นสักแถว)
     plugin_names = [n for n, _ in load_plugins()]
+    cond_names_q = [c for c, _ in getattr(load_plugins, "last_conditions", []) or []]
     all_bad = False
     for path, ln in scripts:
         if not os.path.isfile(path):
@@ -6544,7 +6678,8 @@ def cli_queue_run(args, argv):
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             print("[QUEUE] อ่านไฟล์ไม่สำเร็จ: %s (%s)" % (path, exc))
             return 1
-        issues = validate_rows(qrows, plugin_names=plugin_names)
+        issues = validate_rows(qrows, plugin_names=plugin_names,
+                               condition_names=cond_names_q)   # v2.13
         if issues:
             print("[QUEUE] %s ตรวจไม่ผ่าน %d จุด — ยกเลิกทั้งคิว (แก้ตามรายงาน หรือรัน --validate):"
                   % (os.path.basename(path), len(issues)))
@@ -6671,7 +6806,9 @@ def cli_main(argv):
     # v2.4: --validate — ตรวจสคริปต์อย่างเดียว ไม่เล่น (คู่หูของงานปล่อย watchdog ค้างคืน)
     if getattr(args, "validate", False):
         plugin_names = [n for n, _ in load_plugins()]
-        issues = validate_rows(rows, plugin_names=plugin_names)
+        cond_names = [c for c, _ in getattr(load_plugins, "last_conditions", []) or []]
+        issues = validate_rows(rows, plugin_names=plugin_names,
+                               condition_names=cond_names)   # v2.13
         if issues:
             print("พบปัญหา %d แถว:" % len(issues))
             for num, reason in issues:
@@ -6685,6 +6822,7 @@ def cli_main(argv):
     running = [True]
     # v2.1: คีย์/ปุ่มค้างถูกจัดการใน ActionRunner (pressed_keys/pressed_btns + release_all)
     cli_vars = {}                # ตัวแปรของการเล่น (v1.19) — เริ่มใหม่ทุกครั้งที่เริ่มเล่น
+    cli_conditions = {}          # v2.13: condition plugins (เติมหลังโหลด plugins ด้านล่าง)
     speed = min(10.0, max(0.1, args.speed))
     dry_run_on = bool(getattr(args, "dry_run", False))   # v2.10.1: เก็บรายงาน dry-run เป็นไฟล์
     dry_lines = []
@@ -6703,6 +6841,7 @@ def cli_main(argv):
         plugin_lookup=lambda name: cli_plugins.get(name),
         log_src=args.script,
         dry_run=bool(getattr(args, "dry_run", False)),   # v2.10: Dry-run
+        conditions=cli_conditions,                     # v2.13: condition plugins
         unsupported_cb=lambda btn: (skipped.__setitem__(0, skipped[0] + 1), print(
             "  ⚠ ข้ามแถว: action '%s' ยังไม่รองรับใน CLI — เปิดใน GUI เพื่อเล่น action นี้" % btn))[1],
         find_image_cb=find_image_pos_from_row,       # v2.2: CLI ค้นภาพได้จริง (Image Click/If Image)
@@ -6782,7 +6921,9 @@ def cli_main(argv):
     cli_issue_rows = set()
     if not args.validate:
         plugin_names = [n for n, _ in load_plugins()]
-        cli_issues = validate_rows(rows, plugin_names=plugin_names)
+        cond_names = [c for c, _ in getattr(load_plugins, "last_conditions", []) or []]
+        cli_issues = validate_rows(rows, plugin_names=plugin_names,
+                                   condition_names=cond_names)   # v2.13
         if cli_issues:
             cli_issue_rows = {num for num, _ in cli_issues}
             print("⚠ พบปัญหา %d จุด — แถวต่อไปนี้จะถูกข้าม:" % len(cli_issues))
@@ -6823,8 +6964,12 @@ def cli_main(argv):
         print("หยุด: Esc/q ในหน้าต่างนี้ หรือ Ctrl+C")
     pct = max(5, min(100, args.rows_pct))
     cli_plugins = {n: m for n, m in load_plugins()}    # Custom Actions สำหรับ CLI (v1.16)
+    # v2.13: เงื่อนไข plugin โหลดมาพร้อมกัน (load_plugins.last_conditions สดจากบรรทัดบน)
+    cli_conditions.update(dict(getattr(load_plugins, "last_conditions", []) or []))
     if cli_plugins:
         print("  •  plugins: " + ", ".join(cli_plugins))
+    if cli_conditions:
+        print("  •  เงื่อนไข plugin: " + ", ".join(sorted(cli_conditions)))
 
     def cli_pixel_ready(r):
         """เช็คสีจุด (x,y) ว่าใกล้เคียงสีเป้าหมาย (ใช้โดย Wait for Pixel Color ใน CLI)"""
@@ -6915,9 +7060,12 @@ def cli_main(argv):
                     step_t0 = time.time()
                     btn = r.get("button", "")
                     # v2.5: เงื่อนไข If Loop/If Time/If Variable — กลไกเดียวกับ GUI/engine_cli
-                    skip2, cond_msg = ActionRunner.evaluate_condition(
-                        btn, r.get("additional", ""), r.get("repeat", 1), n_loop,
-                        variables=cli_vars)
+                    # v2.13: เงื่อนไข plugin (CONDITION_NAME + check) ตรวจก่อนเงื่อนไขในตัว
+                    skip2, cond_msg = cli_runner.evaluate_plugin_condition(btn, r)
+                    if cond_msg is None:
+                        skip2, cond_msg = ActionRunner.evaluate_condition(
+                            btn, r.get("additional", ""), r.get("repeat", 1), n_loop,
+                            variables=cli_vars)
                     if cond_msg is not None:   # เป็นแถวเงื่อนไขจริง — ไม่ถูกเล่นซ้ำเป็น action
                         print("  [%d/%d] %s" % (i, len(play_rows), cond_msg))
                         if log_enabled and skip2:

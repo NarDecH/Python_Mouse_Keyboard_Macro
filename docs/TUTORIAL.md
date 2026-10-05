@@ -644,4 +644,56 @@ log การเล่น (`macro_log_วันที่.txt`) และรา�
 
 ---
 
-*คู่มือฉบับนี้ตรงกับโค้ด v2.12.0 — ดูประวัติการเปลี่ยนแปลงที่ [CHANGELOG](CHANGELOG.html)*
+## บทที่ 17 — Plugin API v3: เงื่อนไขของคุณเอง (v2.13)
+
+บทนี้ต่อจาก Custom Action (v1.16) — นอกจากเขียน plugin เป็น **Action** ได้แล้ว ตอนนี้
+เขียนเป็น **เงื่อนไข** ได้ด้วย ใช้แทน/คู่กับ If Image/If Variable ในจุดที่เงื่อนไขในตัวยังทำไม่ได้
+
+### 17.1 ประกาศเงื่อนไขใน plugin
+ไฟล์เดิมประกาศ `ACTION_NAME` + `run(ctx, row)` — ตัวเงื่อนไขประกาศอีกคู่:
+
+```python
+# plugins/file_exists.py (แจกมากับโปรแกรม — ตัวอย่างจริง)
+import os
+
+CONDITION_NAME = "File Exists"
+
+def check(ctx, row):
+    """คืน True/False — ห้าม raise · อย่าแตะเมาส์/คีย์ (dry-run เรียก check จริง)"""
+    try:
+        path = str(row.get("additional") or "").strip()
+        return bool(path) and os.path.isfile(path)
+    except Exception:
+        return False
+```
+
+กติกาเดียวกับเงื่อนไขทุกชนิด: **จริง = เล่นต่อ · ไม่จริง = ข้าม N แถว (N = คอลัมน์ Repeat)** ·
+ไฟล์เดียวมีทั้ง ACTION_NAME และ CONDITION_NAME ได้ (ชื่อต้องต่างกัน) · ชื่อห้ามชน Action เดิม
+และ plugin อื่น (ไฟล์ที่ชนถูกข้ามพร้อมสาเหตุ — ดูได้จาก `load_plugins.last_failed`)
+
+### 17.2 ใช้ในสคริปต์ 2 ทาง
+1. **คอลัมน์ Action** — ดับเบิลคลิกช่อง Action เลือกชื่อเงื่อนไข (dropdown เพิ่มให้อัตโนมัติ)
+   ช่อง Additional = อาร์กิวเมนต์ของเงื่อนไข (ใช้ `{ตัวแปร}` ได้ — ถูกแทนค่าก่อนส่งเข้า `check`)
+   และใส่ `>ชื่อ` ท้ายแถวเพื่อเก็บผล "1"/"0" ลงตัวแปรเหมือนเงื่อนไขในตัว
+2. **Block Start/End** — Additional ของ Block Start เขียน `if File Exists C:\\work\\done.flag`
+   (ผสม `&&` กับเงื่อนไขอื่นได้ เช่น `if File Exists f.txt && n > 3`) — เงื่อนไขไม่จริง = ข้ามทั้งบล็อก
+
+### 17.3 ข้อควรรู้
+- **ตรวจสคริปต์ครบ** — 🔍 Validate / `--validate` / ตรวจตอน START รู้จักชื่อเงื่อนไข plugin แล้ว
+- **Dry-run เดินจริง** — เงื่อนไขเดินจริงอยู่แล้ว (บทที่ 14) → `check` ถูกเรียกจริง จึงควรเขียน
+  ให้เป็น "อ่านอย่างเดียว" (อ่านไฟล์/สีจอ/ตัวแปร — ห้ามคลิก/พิมพ์)
+- **.ahk** — แถวเงื่อนไขและบล็อกที่อ้างเงื่อนไข plugin ถูก export เป็น comment ทั้งบล็อก
+  (AHK แปลไม่ได้ — จัดบล็อกเองใน .ahk)
+- คู่มือเต็ม + เกณฑ์ส่ง plugin ชุมชน: [PLUGINS.md](PLUGINS.md) · ตัวอย่าง: `examples/14_condition_plugin.json`
+
+### แบบฝึกหัด 17
+1. เปิด `examples/14_condition_plugin.json` แล้วเล่น — สังเกตว่าแถว File Exists ที่ชี้ไฟล์
+   "ไม่มีจริง.txt" ข้าม Beep แถวถัดไปไป 1 แถว (Repeat = 1)
+2. เขียน plugin เงื่อนไขของคุณ เช่น `CONDITION_NAME = "After 6pm"` + `check` ที่เทียบ
+   `time.localtime()` — ใส่ใน Block Start เป็น `if After 6pm` แล้วลองทั้งตอนเช้า/ค่ำ
+3. สร้างไฟล์ที่ชื่อซ้ำ (เช่น CONDITION_NAME = "Left Click") แล้วรีสตาร์ต — ตรวจว่าโปรแกรม
+   ยังเปิดได้ปกติ และชื่อที่ชนไม่โผล่ใน dropdown
+
+---
+
+*คู่มือฉบับนี้ตรงกับโค้ด v2.13.0 — ดูประวัติการเปลี่ยนแปลงที่ [CHANGELOG](CHANGELOG.html)*
