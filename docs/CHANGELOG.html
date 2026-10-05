@@ -89,9 +89,10 @@
         ข่าวใน <a href="ANNOUNCE.md">ANNOUNCE.md</a> พร้อมโพสต์ v2.14</li>
       <li><b>เทสต์ใหม่ 13 ตัว</b> (TestDryReportPath 5 + TestPluginsV14 5 + TestInsertCondPluginGui 3) →
         <b>506 unit + 20 E2E = 526</b></li>
-      <li><b>ก่อน release: ตัวอย่าง 15 + เทสต์เป็นกลาง platform</b> — ย้ายแถว Window Exists ไปท้าย
-        (ออกจากแนว skip ของ Process Running ที่ผลต่างกันตาม OS) + ใช้ชื่อหน้าต่างที่ไม่มีจริงทุก OS แทน
-        <code>Notepad</code> · เทสต์ GUI ทุกคลาสยกเลิก timer <code>after</code> ค้างก่อน destroy root —
+      <li><b>ก่อน release: ตัวอย่าง 15 + เทสต์เป็นกลาง platform</b> — เช็ค Process Running เปลี่ยนเป็น
+        <code>python</code> (มีจริงทุกที่ — เดิม <code>explorer</code> เจอเฉพาะ Windows แล้ว skip ค้างกลืนแถวเงื่อนไขหลัง)
+        + ย้ายแถว Window Exists ไปท้าย + ใช้ชื่อหน้าต่างที่ไม่มีจริงทุก OS แทน <code>Notepad</code> ·
+        เทสต์ GUI ทุกคลาสยกเลิก timer <code>after</code> ค้างก่อน destroy root —
         กัน spam "invalid command name" และ crash SIGTRAP บน macOS (CI)</li>
     </ul>
 

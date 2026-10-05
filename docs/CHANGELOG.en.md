@@ -24,9 +24,10 @@
   v2.14 post in `docs/ANNOUNCE.md`
 - **13 new tests** (TestDryReportPath 5 + TestPluginsV14 5 + TestInsertCondPluginGui 3) →
   **506 unit + 20 E2E = 526**
-- **Pre-release: example 15 + tests made platform-neutral** — the Window Exists row moved to the
-  end (out of Process Running's skip range, whose result differs per OS — on Linux `explorer`
-  doesn't exist and pending skips used to swallow the condition row) + a window name that exists
+- **Pre-release: example 15 + tests made platform-neutral** — the Process Running check now uses
+  `python` (present wherever this program can run — the old `explorer` only exists on Windows,
+  and its pending skips swallowed the following condition rows both in straight lines and across
+  Block Start jumps) + the Window Exists row moved to the end + a window name that exists
   on no OS instead of `Notepad` · every GUI test class now cancels pending `after` timers before
   destroying root (via `_Tk` in the test file) — prevents "invalid command name" spam and a
   macOS SIGTRAP crash (CI)

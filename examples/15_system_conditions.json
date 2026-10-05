@@ -1,7 +1,7 @@
 [
   {"enabled": true,  "x": "", "y": "", "button": "Internet Up",      "additional": "", "mins": 0, "secs": 0, "repeat": 1},
   {"enabled": true,  "x": "", "y": "", "button": "Beep",             "additional": "เน็ตใช้ได้", "mins": 0, "secs": 0, "repeat": 1},
-  {"enabled": true,  "x": "", "y": "", "button": "Set Variable",     "additional": "proc = explorer", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Set Variable",     "additional": "proc = python", "mins": 0, "secs": 0, "repeat": 1},
   {"enabled": true,  "x": "", "y": "", "button": "Process Running",  "additional": "{proc}", "mins": 0, "secs": 0, "repeat": 2},
   {"enabled": true,  "x": "", "y": "", "button": "Beep",             "additional": "โปรเซสรันอยู่", "mins": 0, "secs": 0, "repeat": 1},
   {"enabled": true,  "x": "", "y": "", "button": "🔷 Block Start",  "additional": "if Internet Up && Process Running {proc}", "mins": 0, "secs": 0, "repeat": 1},

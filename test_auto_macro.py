@@ -6662,9 +6662,12 @@ class TestPluginsV14(unittest.TestCase):
             self.assertIn(n, conds)
 
     def test_example_15_validates_and_skips(self):
-        """ตัวอย่าง 15: validate ผ่าน + เล่น CLI จริง — ตรวจสาขาที่ deterministic ทุก OS
-        (เกณฑ์ตาม OS ที่เปลี่ยนผล: Internet Up/Process Running — บทบาทเงื่อนไข+skip+บล็อก
-        ต้องเห็นครบเหมือนเดิม; Window Exists ใช้ชื่อหน้าต่างที่ไม่มีจริง = ไม่จริงเสมอ → ข้าม 1)"""
+        """ตัวอย่าง 15: validate ผ่าน + เล่น CLI จริง — ตรวจเฉพาะสาขา deterministic ทุก OS
+        ⚠️ บทเรียน CI (2 รอบ): เงื่อนไขที่ผลต่างตาม OS ห้ามอยู่หน้าแถวที่ต้องตัดสินเอง —
+        skip ค้าง (จากเงื่อนไขเท็จ) ทะลุทั้งแนวแถวตรงและการกระโดดของ Block Start
+        → ตัวอย่างใช้ Process Running `python` (มีจริงทุกที่ที่รันโปรแกรมนี้ได้)
+        = จริงเสมอ ไม่เกิด skip cascade · สาขาเท็จสาธิตด้วย Window Exists ท้ายสคริปต์
+        (ชื่อหน้าต่างที่ไม่มีจริงบนทุก OS → ข้าม 1) — skip นั้นไร้แถวต่อท้าย ไม่มีทางกลืนใคร"""
         import contextlib
         ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           "examples", "15_system_conditions.json")
@@ -6680,9 +6683,8 @@ class TestPluginsV14(unittest.TestCase):
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         self.assertIn("เงื่อนไข plugin", out)             # หัวโปรแกรมแสดงรายชื่อเงื่อนไข
-        # ⚠️ regression (CI Linux): skip ค้างจาก Process Running ห้ามกลืนแถว Window Exists —
-        # แถวเงื่อนไขต้องตัดสินเองเสมอ (ชื่อหน้าต่างนี้ไม่มีจริงบนทุก OS = ไม่จริง → ข้าม 1)
-        self.assertIn("Window Exists → เงื่อนไขไม่จริง ข้าม 1 แถว", out)
+        self.assertIn("Process Running → เงื่อนไขจริง เล่นต่อ", out)  # `python` มีจริงทุก OS
+        self.assertIn("Window Exists → เงื่อนไขไม่จริง ข้าม 1 แถว", out)  # ชื่อนี้ไม่มีจริงทุก OS
         self.assertIn("จบแล้ว ✔", out)                    # ครบทุกแถว — skip ไม่กลืนเกิน
 
 

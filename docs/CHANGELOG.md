@@ -21,9 +21,10 @@
   ข่าวใน `docs/ANNOUNCE.md` พร้อมโพสต์ v2.14
 - **เทสต์ใหม่ 13 ตัว** (TestDryReportPath 5 + TestPluginsV14 5 + TestInsertCondPluginGui 3) →
   **506 unit + 20 E2E = 526**
-- **ก่อน release: ตัวอย่าง 15 + เทสต์เป็นกลาง platform** — ย้ายแถว Window Exists ไปท้าย
-  (ออกจากแนว skip ของ Process Running ที่ผลต่างกันตาม OS — บน Linux `explorer` ไม่มี
-  skip ค้างเคยกลืนแถวเงื่อนไข) + ใช้ชื่อหน้าต่างที่ไม่มีจริงทุก OS แทน `Notepad` ·
+- **ก่อน release: ตัวอย่าง 15 + เทสต์เป็นกลาง platform** — เช็ค Process Running เปลี่ยนเป็น
+  `python` (มีจริงทุกที่ที่รันโปรแกรมนี้ได้ — เดิม `explorer` เจอเฉพาะ Windows แล้ว skip
+  ค้างกลืนแถวเงื่อนไขหลังทั้งแนวตรงและหลังการกระโดดของ Block Start) + ย้ายแถว Window Exists
+  ไปท้าย + ใช้ชื่อหน้าต่างที่ไม่มีจริงทุก OS แทน `Notepad` ·
   เทสต์ GUI ทุกคลาสยกเลิก timer `after` ค้างก่อน destroy root (ผ่าน `_Tk` ในไฟล์เทสต์) —
   กัน spam "invalid command name" และ crash SIGTRAP บน macOS (CI)
 
