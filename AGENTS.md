@@ -299,7 +299,12 @@
   src=None, path=)` — path= ทับ `dry_report_path()`, `{date}` แทนวันที่วันนี้ใน engine
   เสมอ; ทั้ง CLI หลักและ engine_cli — ใช้ลำพังไม่มี --dry-run = เตือนและไม่มีผล) ·
   ตัวอย่าง `examples/15_system_conditions.json` + เทสต์ 13 ตัว (TestDryReportPath 5 +
-  TestPluginsV14 5 + TestInsertCondPluginGui 3) → 506 unit + 20 E2E = 526
+  TestPluginsV14 5 + TestInsertCondPluginGui 3) → 506 unit + 20 E2E = 526 ·
+  ⚠️ ตัวอย่างที่เล่นจริงในเทสต์ต้องเป็นกลาง platform — เงื่อนไขที่ผลต่างตาม OS
+  (Process Running `explorer` เจอเฉพาะ Windows) ห้ามอยู่หน้าแถวที่ต้องตัดสินเอง
+  (skip ค้างกลืน) และห้ามอ้างชื่อหน้าต่าง/โปรเซสที่มีเฉพาะบาง OS ·
+  ⚠️ เทสต์ GUI ต้องยกเลิก timer `after` ค้างก่อน destroy root (คลาส `_Tk` ในไฟล์เทสต์ —
+  spam "invalid command name" และบน macOS แตก SIGTRAP exit 133)
 
 ## เทคโนโลยี
 

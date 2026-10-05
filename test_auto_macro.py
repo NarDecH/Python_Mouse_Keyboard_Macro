@@ -24,6 +24,35 @@ import auto_macro as am  # noqa: E402
 import macro_engine as me_mod  # noqa: E402  (v2.1: engine ล้วน — เทสต์แยกได้)
 
 
+def _cancel_tk_afters(root):
+    """v2.14.1: ยกเลิก timer `after` ค้างทั้งหมดก่อน destroy root — เทสต์ที่เล่นจริง
+    (เธรดผู้เล่น/schedule) มักเหลือ timer ที่จะยิงหลัง root ตาย → "invalid command name
+    …_poller_tick" spam ระหว่าง pump ของเทสต์ถัด ๆ ไป และบน macOS บางครั้งทำ Tk แตก
+    SIGTRAP (exit 133) · destroy แบบเดิมจะยกเลิก timer ให้เองก็จริง แต่ปิดท้ายหลัง
+    callback ที่อ้าง widget ถูกทำลายไปแล้ว — เลิกที่ timer ก่อนจึงสะอาดกว่า"""
+    if root is None:
+        return
+    try:
+        for aid in root.tk.call("after", "info"):
+            try:
+                root.after_cancel(aid)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+class _Tk(am.tk.Tk):
+    """Tk ของเทสต์ — destroy() ยกเลิก timer `after` ทั้งหมดก่อน (ดู _cancel_tk_afters)"""
+
+    def destroy(self):
+        _cancel_tk_afters(self)
+        try:
+            super().destroy()
+        except am.tk.TclError:
+            pass
+
+
 class TestParseKey(unittest.TestCase):
     """parse_key: ข้อความ → ออบเจ็กต์คีย์ pynput"""
 
@@ -874,7 +903,7 @@ class TestUiDialogs(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
             cls.has_tk = True
         except am.tk.TclError:
@@ -1520,7 +1549,7 @@ class TestPlayLoopGui(unittest.TestCase):
         am.log_write = counting_log
         cls.app = None
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
         except am.tk.TclError:
             cls.root = None
@@ -2229,7 +2258,7 @@ class TestHotkeyEdit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
             cls.has_tk = True
         except am.tk.TclError:
@@ -2313,7 +2342,7 @@ class TestAdditionalEditor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
             cls.has_tk = True
         except am.tk.TclError:
@@ -2520,7 +2549,7 @@ class TestV21GuiPlay(unittest.TestCase):
         am.log_write = counting_log
         cls.app = None
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
         except am.tk.TclError:
             cls.root = None
@@ -4600,7 +4629,7 @@ class TestN2Blocks(unittest.TestCase):
     def test_gui_block_until_loop(self):
         """เล่นจริงใน GUI: ลูปย่อย until นับ 1→3 แล้วออก (n = 4)"""
         try:
-            root = am.tk.Tk()
+            root = _Tk()
             root.withdraw()
         except am.tk.TclError:
             self.skipTest("ไม่มี display")
@@ -4754,7 +4783,7 @@ class TestAhkRoundTrip(unittest.TestCase):
     def test_ahk_dialog_real_tk(self):
         """เปิด dialog 🔀 จริงด้วย Tk จำลอง — ต้องสร้างได้ไม่ crash (มาตรฐาน v1.20.1)"""
         try:
-            root = am.tk.Tk()
+            root = _Tk()
             root.withdraw()
         except am.tk.TclError:
             self.skipTest("ไม่มี display สำหรับ Tk")
@@ -4859,7 +4888,7 @@ class TestSchedPerProfile(unittest.TestCase):
     def test_dialog_real_tk_per_time_profile(self):
         """เปิด dialog ตั้งเวลาจริง — ใส่ 08:00=งานเช้า, 22:00 แล้วกดตกลง → times เก็บครบ"""
         try:
-            root = am.tk.Tk()
+            root = _Tk()
             root.withdraw()
         except am.tk.TclError:
             self.skipTest("ไม่มี display สำหรับ Tk")
@@ -5143,7 +5172,7 @@ class TestGuiValidate(unittest.TestCase):
 
     def test_dialog_lists_issues_real_tk(self):
         try:
-            root = am.tk.Tk()
+            root = _Tk()
             root.withdraw()
         except am.tk.TclError:
             self.skipTest("ไม่มี display สำหรับ Tk")
@@ -5168,7 +5197,7 @@ class TestGuiValidate(unittest.TestCase):
 
     def test_dialog_clean_shows_pass(self):
         try:
-            root = am.tk.Tk()
+            root = _Tk()
             root.withdraw()
         except am.tk.TclError:
             self.skipTest("ไม่มี display สำหรับ Tk")
@@ -5810,7 +5839,7 @@ class TestLogToolsGui(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
             cls.has_tk = True
         except am.tk.TclError:
@@ -5947,7 +5976,7 @@ class TestQueueRunnerGui(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
         except am.tk.TclError:
             cls.root = None
@@ -5968,6 +5997,8 @@ class TestQueueRunnerGui(unittest.TestCase):
             except Exception:
                 pass
         if cls.root is not None:
+            # v2.14.1: _Tk.destroy() ยกเลิก timer ทั้งหมดก่อนเอง — กัน spam "invalid command name"
+            # และ SIGTRAP บน macOS
             cls.root.destroy()
 
     def setUp(self):
@@ -5978,6 +6009,7 @@ class TestQueueRunnerGui(unittest.TestCase):
         self.app._log_enabled = False               # เทสต์ไม่แตะ log จริง
         self.app._queue_destroy_window()            # เคลียร์คิวจากเทสต์ก่อนหน้า
         self.addCleanup(self.app._queue_destroy_window)
+        self.addCleanup(_cancel_tk_afters, self.root)
 
     def _beep(self, text="ปลอดภัย"):
         return {"enabled": True, "button": "Beep", "additional": text,
@@ -6354,7 +6386,7 @@ class TestConditionPluginsGui(unittest.TestCase):
         am.log_write = counting_log
         cls.app = None
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
         except am.tk.TclError:
             cls.root = None
@@ -6630,9 +6662,10 @@ class TestPluginsV14(unittest.TestCase):
             self.assertIn(n, conds)
 
     def test_example_15_validates_and_skips(self):
-        """ตัวอย่าง 15: validate ผ่าน + เล่น CLI จริง (แถว Window Exists ไม่เจอ = ข้าม)"""
+        """ตัวอย่าง 15: validate ผ่าน + เล่น CLI จริง — ตรวจสาขาที่ deterministic ทุก OS
+        (เกณฑ์ตาม OS ที่เปลี่ยนผล: Internet Up/Process Running — บทบาทเงื่อนไข+skip+บล็อก
+        ต้องเห็นครบเหมือนเดิม; Window Exists ใช้ชื่อหน้าต่างที่ไม่มีจริง = ไม่จริงเสมอ → ข้าม 1)"""
         import contextlib
-        import shutil as _sh
         ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           "examples", "15_system_conditions.json")
         with open(ex, encoding="utf-8") as fh:
@@ -6647,7 +6680,10 @@ class TestPluginsV14(unittest.TestCase):
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         self.assertIn("เงื่อนไข plugin", out)             # หัวโปรแกรมแสดงรายชื่อเงื่อนไข
-        self.assertIn("ข้าม 1 แถว", out)                   # Window Exists ไม่เจอ Notepad → ข้าม
+        # ⚠️ regression (CI Linux): skip ค้างจาก Process Running ห้ามกลืนแถว Window Exists —
+        # แถวเงื่อนไขต้องตัดสินเองเสมอ (ชื่อหน้าต่างนี้ไม่มีจริงบนทุก OS = ไม่จริง → ข้าม 1)
+        self.assertIn("Window Exists → เงื่อนไขไม่จริง ข้าม 1 แถว", out)
+        self.assertIn("จบแล้ว ✔", out)                    # ครบทุกแถว — skip ไม่กลืนเกิน
 
 
 class TestInsertCondPluginGui(unittest.TestCase):
@@ -6657,7 +6693,7 @@ class TestInsertCondPluginGui(unittest.TestCase):
     def setUpClass(cls):
         cls.app = None
         try:
-            cls.root = am.tk.Tk()
+            cls.root = _Tk()
             cls.root.withdraw()
         except am.tk.TclError:
             cls.root = None
