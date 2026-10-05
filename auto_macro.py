@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.11.0"
+__version__ = "2.12.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -1346,6 +1346,32 @@ def ahk_cond_to_macro(cond):
             val = val[1:-1].replace('""', '"')
         return "%s ~ %s" % (m.group(1), val)
     return s
+
+
+def parse_queue_list(list_path):
+    """แยกไฟล์ลิสต์คิว .txt → รายการ (พาธสคริปต์เต็ม, เลขบรรทัด) (v2.12 — แหล่งเดียว
+    ใช้ทั้ง CLI --queue และหน้าต่าง ▶️ Run Queue): บรรทัดละพาธ · ข้าม #comment และ
+    บรรทัดว่าง · พาธสัมพัทธ์อิงโฟลเดอร์ของไฟล์ลิสต์
+    คืน (scripts, error) — scripts = [(normpath, line_no)] · error = ข้อความเมื่อ
+    ไม่พบไฟล์ลิสต์/อ่านไม่สำเร็จ/ลิสต์ว่าง (None = สำเร็จ)"""
+    if not os.path.isfile(list_path):
+        return [], "ไม่พบไฟล์ลิสต์: %s" % list_path
+    try:
+        with open(list_path, encoding="utf-8-sig") as fh:
+            raw_lines = fh.read().splitlines()
+    except OSError as exc:
+        return [], "อ่านไฟล์ลิสต์ไม่สำเร็จ: %s" % exc
+    base_dir = os.path.dirname(os.path.abspath(list_path))
+    scripts = []
+    for line_no, ln in enumerate(raw_lines, 1):
+        s = ln.strip()
+        if not s or s.startswith("#"):
+            continue
+        p = s if os.path.isabs(s) else os.path.join(base_dir, s)
+        scripts.append((os.path.normpath(p), line_no))
+    if not scripts:
+        return [], "ไฟล์ลิสต์ว่าง — ไม่มีสคริปต์ให้เล่น"
+    return scripts, None
 
 
 def validate_rows(rows, plugin_names=()):
@@ -2771,6 +2797,39 @@ class HotkeyEdit(tk.Toplevel):
         cb(val)
 
 
+class _QueueOutCapture:
+    """stdout แทนที่ชั่วคราวของเธรดเล่นคิว (v2.12) — ดัก print ของ cli_main แล้วผลัก
+    ("out", บรรทัด) เข้า queue ให้ poller แสดงในหน้าต่างคิว (กัน stdout=None บน .exe
+    โหมด windowed ด้วย) — เธรดปลอดภัยด้วย lock · ทน error ทุกจุด"""
+    encoding = "utf-8"                      # กัน cli_main แทนที่ stdout ด้วย TextIOWrapper
+
+    def __init__(self, q):
+        self._q = q
+        self._buf = ""
+        self._lock = threading.Lock()
+
+    def write(self, s):
+        try:
+            with self._lock:
+                self._buf += str(s)
+                while "\n" in self._buf:
+                    line, self._buf = self._buf.split("\n", 1)
+                    if line:
+                        self._q.put(("out", line))
+        except Exception:
+            pass
+        return len(s)
+
+    def flush(self):
+        try:
+            with self._lock:
+                if self._buf:
+                    self._q.put(("out", self._buf))
+                    self._buf = ""
+        except Exception:
+            pass
+
+
 # ---------------------------------------------------------------- main app ---
 class MacroApp:
     def __init__(self, root):
@@ -2848,6 +2907,17 @@ class MacroApp:
         self._time_limit_min = 30          # จำนวนนาทีก่อนหยุดอัตโนมัติ (1–720)
         self._lang = "th"                  # ภาษา UI: 'th' / 'en' (v1.14)
         self._plugins = []                 # Custom Action plugins (v1.16): [(name, module)]
+        # ผู้เล่นคิวแบบ GUI (v2.12) — ค่าเริ่มต้น; หน้าต่าง 📑 Run Queue เป็นผู้จัดการจริง
+        self._qr_win = None
+        self._qr_q = None
+        self._qr_running = False
+        self._qr_stop_all = False
+        self._qr_stop_file = False
+        self._qr_current = 0
+        self._qr_scripts = []
+        self._qr_iids = []
+        self._qr_stopfiles = {}
+        self._qr_close_when_done = False
 
         # การหยุดที่แม่นยำ (v1.7.1)
         self._play_gen = 0                 # รุ่นของการเล่น — เธรดเก่าหยุดเองเมื่อรุ่นเปลี่ยน
@@ -2943,6 +3013,420 @@ class MacroApp:
                                  "ทั้งคิว (--queue)" % (os.path.basename(base),
                                                         os.path.basename(base)), "#080")
 
+    # ------------------------------------------ ผู้เล่นคิวแบบ GUI (v2.12) ----
+    def queue_run_dialog(self):
+        """📑 Run Queue (v2.12) — เลือกไฟล์ลิสต์ .txt (บรรทัดละพาธสคริปต์) แล้วเล่น
+        ทีละไฟล์เหมือน CLI --queue แต่ติดตามผลสดในหน้าต่างนี้: ไฟล์ปัจจุบัน /
+        ผลรายไฟล์ / ผลลัพธ์ CLI แบบทันที + ปุ่มหยุดไฟล์นี้ / หยุดทั้งคิว
+        (เล่นในเธรดแยกผ่าน cli_main — ผลักสถานะเข้า queue.Queue ให้ poller อัพเดต
+        หน้าจอแบบเดียวกับ _sched_poll — ห้ามเรียก Tk จากเธรด)"""
+        import queue
+        if getattr(self, "_qr_running", False):
+            win = getattr(self, "_qr_win", None)
+            if win is not None:
+                try:
+                    win.lift()
+                    win.focus_force()
+                except tk.TclError:
+                    pass
+            return
+        initial = (os.path.dirname(self._loaded_file)
+                   if self._loaded_file and os.path.isdir(os.path.dirname(self._loaded_file))
+                   else os.getcwd())
+        lst = filedialog.askopenfilename(
+            title="เลือกไฟล์ลิสต์คิว (.txt — บรรทัดละพาธสคริปต์)",
+            filetypes=[("Queue list", "*.txt"), ("ทุกไฟล์", "*.*")],
+            initialdir=initial)
+        if not lst:
+            return                                   # ผู้ใช้กดยกเลิก — เงียบ ๆ จบ
+        scripts, qerr = parse_queue_list(lst)
+        if qerr:
+            messagebox.showerror(APP_TITLE, qerr)
+            return
+        # ---- สถานะคิว: เธรดเล่นแตะเฉพาะ _qr_q/_qr_current/_qr_stop_* เท่านั้น ----
+        self._qr_scripts = scripts
+        self._qr_list_path = lst
+        self._qr_q = queue.Queue()
+        self._qr_running = False
+        self._qr_stop_all = False
+        self._qr_stop_file = False
+        self._qr_current = 0
+        self._qr_iids = []
+        self._qr_stopfiles = {}
+        self._qr_close_when_done = False
+
+        win = tk.Toplevel(self.root)
+        self._qr_win = win
+        win.title("ผู้เล่นคิว (Run Queue)")
+        win.geometry("660x500")
+        tk.Label(win, text="คิว: %s — %d ไฟล์ (เล่นตามลำดับ เหมือน CLI --queue)"
+                 % (os.path.basename(lst), len(scripts)),
+                 font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        self._qr_cur_lbl = tk.Label(win, text="ยังไม่เริ่มเล่น", fg="#555")
+        self._qr_cur_lbl.pack(anchor="w", padx=12)
+        wrap = tk.Frame(win)
+        wrap.pack(fill="both", expand=True, padx=12, pady=(6, 2))
+        tv = ttk.Treeview(wrap, columns=("num", "file", "status"),
+                          show="headings", height=6)
+        tv.heading("num", text="#")
+        tv.column("num", width=34, stretch=False, anchor="center")
+        tv.heading("file", text="ไฟล์สคริปต์")
+        tv.column("file", width=350, anchor="w")
+        tv.heading("status", text="สถานะ")
+        tv.column("status", width=180, anchor="w")
+        tv.pack(side="left", fill="both", expand=True)
+        sb = tk.Scrollbar(wrap, orient="vertical", command=tv.yview)
+        sb.pack(side="right", fill="y")
+        tv.configure(yscrollcommand=sb.set)
+        for tag, color in (("qrun", "#06c"), ("qok", "#080"), ("qstop", "#a60"),
+                           ("qbad", "#c00"), ("qskip", "#888")):
+            tv.tag_configure(tag, foreground=color)
+        for i, (path, _ln) in enumerate(scripts, 1):
+            self._qr_iids.append(tv.insert("", "end", values=(i, path, "รอเล่น")))
+        self._qr_tree = tv
+
+        # ผลลัพธ์ CLI แบบทันที (ดัก stdout ของ cli_main — เก็บไม่เกิน 200 บรรทัดล่าสุด)
+        out = tk.Text(win, height=8, wrap="word", state="disabled")
+        out.pack(fill="both", expand=True, padx=12, pady=(2, 2))
+        self._qr_out_txt = out
+        self._qr_sum_lbl = tk.Label(win, text="", fg="#333")
+        self._qr_sum_lbl.pack(anchor="w", padx=12)
+
+        btns = tk.Frame(win)
+        btns.pack(fill="x", padx=12, pady=(2, 2))
+        self._qr_btn_play = tk.Button(btns, text="▶ เริ่มเล่นคิว", width=14,
+                                      command=self._queue_start)
+        self._qr_btn_play.pack(side="left")
+        self._qr_btn_stop1 = tk.Button(btns, text="⏹ หยุดไฟล์นี้", width=14,
+                                       state="disabled", command=self._queue_stop_file)
+        self._qr_btn_stop1.pack(side="left", padx=(8, 0))
+        self._qr_btn_stopall = tk.Button(btns, text="⏹⏹ หยุดทั้งคิว", width=14,
+                                         state="disabled", command=self._queue_stop_all)
+        self._qr_btn_stopall.pack(side="left", padx=(8, 0))
+        tk.Button(btns, text="ปิด", width=10,
+                  command=self._queue_close_window).pack(side="right")
+        tk.Label(win, text="หมายเหตุ: F8/Esc ระหว่างเล่น = หยุดทั้งคิว (เหมือน CLI --queue) · "
+                           "หยุดไฟล์นี้ = ข้ามไปไฟล์ถัดไป · --no-log ตามการตั้งค่า log",
+                 fg="#888").pack(anchor="w", padx=12, pady=(2, 8))
+        win.protocol("WM_DELETE_WINDOW", self._queue_close_window)
+        self.root.after(500, self._queue_run_poll)   # เริ่ม poller ของหน้าต่างนี้
+
+    def _queue_run_poll(self):
+        """ฝั่ง UI: ดึงสถานะคิวจากเธรดเล่นมาแสดง (thread-safe — แพตเทิร์น _sched_poll, v2.12)"""
+        q = getattr(self, "_qr_q", None)
+        if q is not None:
+            try:
+                while True:
+                    ev = q.get_nowait()
+                    try:
+                        self._queue_apply_event(ev)
+                    except (tk.TclError, AttributeError, KeyError, IndexError):
+                        pass                        # หน้าต่างถูกปิดไปแล้ว — ไม่พัง
+            except Exception:
+                pass                                # queue.Empty — จบรอบนี้
+        win = getattr(self, "_qr_win", None)
+        if win is not None:
+            try:
+                if win.winfo_exists():
+                    self.root.after(500, self._queue_run_poll)
+                    return
+            except tk.TclError:
+                pass
+            self._qr_win = None                     # หน้าต่างปิดจริง — เลิกผูกกับมัน
+        if getattr(self, "_qr_running", False):     # คิวยังเล่น — ขยาย poll ต่อจนจบ
+            self.root.after(500, self._queue_run_poll)
+
+    def _queue_apply_event(self, ev):
+        """อัพเดตหน้าต่างคิวจากเหตุการณ์ 1 ชิ้นของเธรดเล่น (เรียกบน main thread เท่านั้น)"""
+        kind = ev[0]
+        if kind == "start":
+            _k, idx, n, path = ev
+            self._qr_tree.set(self._qr_iids[idx - 1], "status", "กำลังเล่น…")
+            self._qr_tree.item(self._qr_iids[idx - 1], tags=("qrun",))
+            self._qr_tree.see(self._qr_iids[idx - 1])
+            self._qr_cur_lbl.config(
+                text="ไฟล์ปัจจุบัน %d/%d — %s" % (idx, n, os.path.basename(path)),
+                fg="#06c")
+        elif kind == "validate_ok":
+            self._qr_btn_stop1.config(state="normal")
+            self._qr_btn_stopall.config(state="normal")
+            self._qr_cur_lbl.config(text="ผ่านการตรวจทุกไฟล์ — เริ่มเล่น", fg="#555")
+        elif kind == "result":
+            _k, idx, _n, _path, rc = ev
+            if rc == 0:
+                txt, tag = "จบครบ ✔", "qok"
+            elif rc == 130:
+                txt, tag = "ถูกหยุด", "qstop"
+            else:
+                txt, tag = "พบปัญหา (exit %s)" % rc, "qbad"
+            self._qr_tree.set(self._qr_iids[idx - 1], "status", txt)
+            self._qr_tree.item(self._qr_iids[idx - 1], tags=(tag,))
+        elif kind == "invalid":
+            self._qr_tree.set(self._qr_iids[ev[1] - 1], "status", "ตรวจไม่ผ่าน")
+            self._qr_tree.item(self._qr_iids[ev[1] - 1], tags=("qbad",))
+        elif kind == "missing":
+            self._qr_tree.set(self._qr_iids[ev[1] - 1], "status", "ไม่พบไฟล์")
+            self._qr_tree.item(self._qr_iids[ev[1] - 1], tags=("qbad",))
+        elif kind == "cancel":
+            self._qr_tree.set(self._qr_iids[ev[1] - 1], "status", "— (ยกเลิก)")
+            self._qr_tree.item(self._qr_iids[ev[1] - 1], tags=("qskip",))
+        elif kind == "out":
+            line = ev[1]
+            if not line or not getattr(self, "_qr_out_txt", None):
+                return
+            out = self._qr_out_txt
+            out.config(state="normal")
+            out.insert("end", line + "\n")
+            try:                                    # เก็บไม่เกิน 200 บรรทัดล่าสุด
+                if int(out.index("end-1c").split(".")[0]) > 200:
+                    out.delete("1.0", "2.0")
+            except (ValueError, tk.TclError):
+                pass
+            out.see("end")
+            out.config(state="disabled")
+        elif kind == "done":
+            _k, summary, elapsed = ev
+            self._qr_running = False
+            self._qr_current = 0
+            self._qr_sum_lbl.config(text=summary,
+                                    fg="#080" if summary.startswith("สำเร็จ") else "#a60")
+            self._qr_cur_lbl.config(text="จบคิวแล้ว", fg="#555")
+            self._qr_btn_play.config(state="normal")
+            self._qr_btn_stop1.config(state="disabled")
+            self._qr_btn_stopall.config(state="disabled")
+            self._ui_state["msg"] = ("คิวจบ: %s (%.1f วิ)" % (summary, elapsed), "#080")
+            if self._log_enabled:
+                log_write("QUEUE", "จบคิว (GUI): %s ใช้เวลา %.1f วิ" % (summary, elapsed),
+                          self._qr_list_path)
+            if getattr(self, "_qr_close_when_done", False):
+                self._queue_destroy_window()
+
+    def _queue_start(self):
+        """▶ เริ่มเล่นคิว — ตรวจทุกไฟล์ก่อน (เหมือน CLI --queue) แล้วเล่นทีละไฟล์ในเธรดแยก
+        (กดซ้ำตอนกำลังเล่น = ไม่ทำอะไร)"""
+        if getattr(self, "_qr_running", False):
+            return
+        n = len(getattr(self, "_qr_scripts", []) or [])
+        if not n:
+            return
+        self._qr_running = True
+        self._qr_stop_all = False
+        self._qr_stop_file = False
+        self._qr_current = 0
+        self._qr_close_when_done = False
+        for iid in self._qr_iids:
+            try:
+                self._qr_tree.set(iid, "status", "รอเล่น")
+                self._qr_tree.item(iid, tags=())
+            except tk.TclError:
+                pass
+        try:
+            self._qr_out_txt.config(state="normal")
+            self._qr_out_txt.delete("1.0", "end")
+            self._qr_out_txt.config(state="disabled")
+        except tk.TclError:
+            pass
+        self._qr_sum_lbl.config(text="")
+        self._qr_cur_lbl.config(text="กำลังตรวจไฟล์…", fg="#555")
+        self._qr_btn_play.config(state="disabled")
+        self._qr_btn_stop1.config(state="disabled")    # เปิดเมื่อผ่านการตรวจแล้ว
+        self._qr_btn_stopall.config(state="disabled")
+        self._ui_state["msg"] = ("เริ่มเล่นคิว %d ไฟล์: %s"
+                                 % (n, os.path.basename(self._qr_list_path)), "#080")
+        threading.Thread(target=self._queue_worker, args=(self._qr_q,),
+                         daemon=True).start()
+
+    def _queue_stop_file(self):
+        """⏹ หยุดไฟล์นี้ — สร้าง stop-file ของไฟล์ปัจจุบัน (CLI หยุดเอง) แล้วเล่นไฟล์ถัดไปต่อ"""
+        if not getattr(self, "_qr_running", False) or self._qr_current <= 0:
+            return
+        self._qr_stop_file = True
+        self._queue_make_stopfile(self._qr_current)
+        idx = self._qr_current
+        if 0 < idx <= len(self._qr_iids):
+            try:
+                self._qr_tree.set(self._qr_iids[idx - 1], "status", "กำลังหยุด…")
+            except tk.TclError:
+                pass
+        self._ui_state["msg"] = ("สั่งหยุดไฟล์ที่ %d — เล่นไฟล์ถัดไปต่อ" % idx, "#a60")
+
+    def _queue_stop_all(self):
+        """⏹⏹ หยุดทั้งคิว — หยุดไฟล์ปัจจุบัน + ยกเลิกไฟล์ที่เหลือทั้งหมด"""
+        if not getattr(self, "_qr_running", False):
+            return
+        self._qr_stop_all = True
+        self._qr_stop_file = True        # ให้ rc 130 ถูกตีความเป็น "ถูกหยุด" ไม่ใช่ปัญหา
+        if self._qr_current > 0:
+            self._queue_make_stopfile(self._qr_current)
+        self._ui_state["msg"] = ("สั่งหยุดทั้งคิวแล้ว — รอไฟล์ปัจจุบันจบ", "#a60")
+
+    def _queue_close_window(self):
+        """ปิดหน้าต่างคิว — ถ้ายังเล่นอยู่ถามก่อน แล้วสั่งหยุดทั้งคิว ปิดเมื่อเล่นจบ"""
+        if getattr(self, "_qr_running", False):
+            if not messagebox.askyesno(APP_TITLE,
+                                       "คิวกำลังเล่นอยู่ — หยุดทั้งคิวแล้วปิดหน้าต่าง?"):
+                return
+            self._qr_stop_all = True
+            self._qr_stop_file = True
+            if self._qr_current > 0:
+                self._queue_make_stopfile(self._qr_current)
+            self._qr_close_when_done = True
+            return                                # รอเธรดจบ — poller จะปิดให้เอง
+        self._queue_destroy_window()
+
+    def _queue_destroy_window(self):
+        """ปิดหน้าต่างคิว + เคลียร์สถานะทั้งหมด (เรียกบน main thread เท่านั้น)"""
+        win = getattr(self, "_qr_win", None)
+        if win is not None:
+            try:
+                win.destroy()
+            except tk.TclError:
+                pass
+        self._qr_win = None
+        self._qr_q = None
+        self._qr_scripts = []
+        self._qr_iids = []
+        self._queue_clear_stopfiles()
+        self._qr_running = False
+        self._qr_current = 0
+        self._qr_close_when_done = False
+
+    # ---- stop-file ของคิว (ช่องทางหยุดของ CLI --stop-file — ทน error ทุกจุด) ----
+    def _queue_stopfile_path(self, idx):
+        """คืนพาธ stop-file ของไฟล์คิวที่ idx (ยังไม่สร้าง — สร้างเมื่อผู้ใช้สั่งหยุด)"""
+        try:
+            import tempfile
+            return os.path.join(tempfile.gettempdir(),
+                                "amm_queue_stop_%d_%d.stop" % (os.getpid(), idx))
+        except Exception:
+            return None
+
+    def _queue_make_stopfile(self, idx):
+        """สร้าง stop-file ของไฟล์ที่ idx — CLI เห็นไฟล์นี้แล้วหยุดเอง (ทน error)"""
+        p = self._queue_stopfile_path(idx)
+        if not p:
+            return None
+        try:
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("stop")
+            self._qr_stopfiles[idx] = p
+        except OSError:
+            pass
+        return p
+
+    def _queue_remove_stopfile(self, idx):
+        """ลบ stop-file ของไฟล์ที่ idx (ไฟล์ชั่วคราว — ลบไม่ได้ก็ไม่เป็นไร)"""
+        p = self._qr_stopfiles.pop(idx, None)
+        if p:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+
+    def _queue_clear_stopfiles(self):
+        for idx in list(self._qr_stopfiles.keys()):
+            self._queue_remove_stopfile(idx)
+
+    def _queue_worker(self, q):
+        """เธรดเล่นคิว (v2.12) — ตรวจทุกไฟล์ก่อนเหมือน CLI --queue (validate_rows) แล้ว
+        เรียก cli_main ทีละไฟล์ (โลจิกเดิมทุกอย่าง: ข้ามแถวพัง/log/dry-run) โดยใช้
+        --stop-file เป็นช่องทางหยุด · ผลักสถานะเข้า q ให้ poller — ห้ามแตะ Tk ที่นี่
+        rc: 0 = จบครบ, 130 = ถูกหยุด (หยุดไฟล์นี้ → เล่นต่อ, F8/Esc → หยุดทั้งคิว),
+        อื่น ๆ = พบปัญหา (เล่นไฟล์ถัดไปต่อ เหมือน CLI)"""
+        scripts = list(getattr(self, "_qr_scripts", []) or [])
+        n = len(scripts)
+        t0 = time.time()
+        out_cap = _QueueOutCapture(q)      # ดัก print ของ CLI → หน้าต่าง (กัน stdout=None ด้วย)
+        old_out, old_err = sys.stdout, sys.stderr
+        sys.stdout = out_cap
+        sys.stderr = out_cap
+        if self._log_enabled:
+            log_write("QUEUE", "เริ่มคิว (GUI) %d ไฟล์: %s" % (n, self._qr_list_path),
+                      self._qr_list_path)
+        try:
+            # ---- ตรวจทุกไฟล์ก่อนเริ่มเล่น (engine validate_rows เดียวกับ CLI) ----
+            plugin_names = [nm for nm, _ in (getattr(self, "_plugins", []) or [])]
+            for idx, (path, _ln) in enumerate(scripts, 1):
+                if self._qr_stop_all:
+                    break
+                if not os.path.isfile(path):
+                    q.put(("missing", idx))
+                    q.put(("done", "ยกเลิกทั้งคิว — ไฟล์ที่ %d ไม่พบ" % idx,
+                           time.time() - t0))
+                    return
+                try:
+                    with open(path, encoding="utf-8") as fh:
+                        qrows = json.load(fh)
+                    if not isinstance(qrows, list):
+                        raise ValueError("ไฟล์ต้องเป็นรายการแถว JSON")
+                except (OSError, ValueError, json.JSONDecodeError) as exc:
+                    q.put(("invalid", idx))
+                    q.put(("done", "ยกเลิกทั้งคิว — อ่านไฟล์ที่ %d ไม่สำเร็จ (%s)"
+                           % (idx, exc), time.time() - t0))
+                    return
+                issues = validate_rows(qrows, plugin_names=plugin_names)
+                if issues:
+                    q.put(("invalid", idx))
+                    if self._log_enabled:
+                        log_write("QUEUE", "ยกเลิกทั้งคิว (GUI) — %s ตรวจไม่ผ่าน %d จุด"
+                                  % (path, len(issues)), self._qr_list_path)
+                    q.put(("done", "ยกเลิกทั้งคิว — ไฟล์ที่ %d ตรวจไม่ผ่าน %d จุด (แก้แล้วกด ▶ อีกครั้ง)"
+                           % (idx, len(issues)), time.time() - t0))
+                    return
+            if self._qr_stop_all:
+                q.put(("done", "ยกเลิกก่อนเริ่มเล่น", time.time() - t0))
+                return
+            q.put(("validate_ok",))
+            # ---- เล่นทีละไฟล์ ----
+            results = []
+            for idx, (path, _ln) in enumerate(scripts, 1):
+                if self._qr_stop_all:
+                    q.put(("cancel", idx))
+                    continue
+                self._qr_current = idx
+                self._qr_stop_file = False            # แฟลกหยุดไฟล์นี้รีเซ็ตทุกไฟล์ (F8 ไฟล์ถัดไป = หยุดทั้งคิว)
+                self._queue_remove_stopfile(idx)      # เศษเก่าของรอบก่อน — กันหยุดทันที
+                sf = self._queue_stopfile_path(idx)
+                q.put(("start", idx, n, path))
+                qargv = []
+                if not self._log_enabled:
+                    qargv.append("--no-log")
+                if sf:
+                    qargv += ["--stop-file", sf]
+                try:
+                    rc = cli_main(qargv + [path])
+                except SystemExit:                    # argparse — argv คุมเอง ไม่ควรเกิด
+                    rc = 1
+                except KeyboardInterrupt:
+                    rc = 130
+                except Exception:
+                    rc = 1
+                results.append((idx, rc))
+                q.put(("result", idx, n, path, rc))
+                self._queue_remove_stopfile(idx)
+                if rc == 130 and not self._qr_stop_file:
+                    self._qr_stop_all = True          # F8/Esc = หยุดทั้งคิว (เหมือน CLI)
+                if self._qr_stop_all:
+                    for j in range(idx + 1, n + 1):
+                        q.put(("cancel", j))
+                    break
+            ok = sum(1 for _i, rc in results if rc == 0)
+            stop = sum(1 for _i, rc in results if rc == 130)
+            bad = sum(1 for _i, rc in results if rc not in (0, 130))
+            summary = "สำเร็จ %d/%d ไฟล์" % (ok, n)
+            if stop:
+                summary += " (ถูกหยุด %d)" % stop
+            if bad:
+                summary += " (พบปัญหา %d)" % bad
+            if self._log_enabled:
+                log_write("QUEUE", "จบคิว (GUI) %d/%d ไฟล์ — %s"
+                          % (ok, n, ", ".join("%d=%s" % (i, r) for i, r in results)),
+                          self._qr_list_path)
+            q.put(("done", summary, time.time() - t0))
+        finally:
+            sys.stdout = old_out
+            sys.stderr = old_err
+
     @classmethod
     def _menu_items(cls):
         """รายการเมนูไอคอน (icon, label, method_name, color) — แยกออกมาเพื่อทดสอบได้"""
@@ -2951,6 +3435,7 @@ class MacroApp:
                 ("📋", "Paste", "_paste_rows_clipboard", "#333"),
                 ("📤", "Export Bat", "export_batch_files", "#333"),
                 ("🗂️", "Queue Bat", "export_queue_batch_files", "#333"),
+                ("📑", "Run Queue", "queue_run_dialog", "#333"),
                 ("🔍", "Validate", "validate_dialog", "#333"),
                 ("🧪", "Dry-run", "dry_run_menu", "#333"),
                 ("🔀", "AHK", "ahk_dialog", "#333"),
@@ -5970,6 +6455,15 @@ py auto_macro.py script.json [--loop] [--loops N] [--speed 2] [--shuffle] [--row
             self._sched_stop.set()
         except Exception:
             pass
+        # คิวกำลังเล่น (v2.12) — สั่งหยุดทั้งคิวก่อนปิด (best-effort, ทน error)
+        try:
+            if getattr(self, "_qr_running", False):
+                self._qr_stop_all = True
+                self._qr_stop_file = True
+                if getattr(self, "_qr_current", 0) > 0:
+                    self._queue_make_stopfile(self._qr_current)
+        except Exception:
+            pass
         self._save_conf()
         self._save_profiles()
         try:
@@ -6028,26 +6522,11 @@ def cli_queue_run(args, argv):
             _sys.stdout = io.TextIOWrapper(buf, encoding="utf-8", errors="replace")
     log_enabled = (not args.no_log) and LOG_ENABLED_DEFAULT
 
+    # v2.12: แยกไฟล์ลิสต์ผ่าน engine parse_queue_list — แหล่งเดียวกับหน้าต่าง ▶️ Run Queue
     list_path = args.queue
-    if not os.path.isfile(list_path):
-        print("ไม่พบไฟล์ลิสต์:", list_path)
-        return 1
-    try:
-        with open(list_path, encoding="utf-8-sig") as fh:
-            raw_lines = fh.read().splitlines()
-    except OSError as exc:
-        print("อ่านไฟล์ลิสต์ไม่สำเร็จ:", exc)
-        return 1
-    base_dir = os.path.dirname(os.path.abspath(list_path))
-    scripts = []
-    for line_no, ln in enumerate(raw_lines, 1):
-        s = ln.strip()
-        if not s or s.startswith("#"):
-            continue
-        p = s if os.path.isabs(s) else os.path.join(base_dir, s)
-        scripts.append((os.path.normpath(p), line_no))
-    if not scripts:
-        print("ไฟล์ลิสต์ว่าง — ไม่มีสคริปต์ให้เล่น")
+    scripts, qerr = parse_queue_list(args.queue)
+    if qerr:
+        print(qerr)
         return 1
 
     # ตรวจทุกไฟล์ก่อนเริ่มเล่น (engine validate_rows เดียวกับ --validate — ไม่เล่นสักแถว)

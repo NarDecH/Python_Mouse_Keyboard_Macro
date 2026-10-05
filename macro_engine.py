@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.11.0"
+__version__ = "2.12.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -1254,6 +1254,32 @@ def ahk_cond_to_macro(cond):
             val = val[1:-1].replace('""', '"')
         return "%s ~ %s" % (m.group(1), val)
     return s
+
+
+def parse_queue_list(list_path):
+    """แยกไฟล์ลิสต์คิว .txt → รายการ (พาธสคริปต์เต็ม, เลขบรรทัด) (v2.12 — แหล่งเดียว
+    ใช้ทั้ง CLI --queue และหน้าต่าง ▶️ Run Queue): บรรทัดละพาธ · ข้าม #comment และ
+    บรรทัดว่าง · พาธสัมพัทธ์อิงโฟลเดอร์ของไฟล์ลิสต์
+    คืน (scripts, error) — scripts = [(normpath, line_no)] · error = ข้อความเมื่อ
+    ไม่พบไฟล์ลิสต์/อ่านไม่สำเร็จ/ลิสต์ว่าง (None = สำเร็จ)"""
+    if not os.path.isfile(list_path):
+        return [], "ไม่พบไฟล์ลิสต์: %s" % list_path
+    try:
+        with open(list_path, encoding="utf-8-sig") as fh:
+            raw_lines = fh.read().splitlines()
+    except OSError as exc:
+        return [], "อ่านไฟล์ลิสต์ไม่สำเร็จ: %s" % exc
+    base_dir = os.path.dirname(os.path.abspath(list_path))
+    scripts = []
+    for line_no, ln in enumerate(raw_lines, 1):
+        s = ln.strip()
+        if not s or s.startswith("#"):
+            continue
+        p = s if os.path.isabs(s) else os.path.join(base_dir, s)
+        scripts.append((os.path.normpath(p), line_no))
+    if not scripts:
+        return [], "ไฟล์ลิสต์ว่าง — ไม่มีสคริปต์ให้เล่น"
+    return scripts, None
 
 
 def validate_rows(rows, plugin_names=()):

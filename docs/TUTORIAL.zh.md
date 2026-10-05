@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.11.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.12.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -331,3 +331,15 @@ max 10              无条件 — 把块体重复 10 次
 - **engine_cli 试运行报告** — `py engine_cli.py script.json --dry-run` 现在也会写入
   报告文件并显示路径（与主 CLI 相同）。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 15 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.12.0 — 新增
+
+- **📑 Run Queue（GUI 队列播放器）** — 选择队列列表 .txt（与 `--queue` / Queue Bat
+  同格式）后在程序内逐个播放脚本，无需打开控制台：文件表格实时显示每个文件的状态
+  （播放中 / 完成 ✔ / 已停止 / 出错 / 已取消）+ 当前文件标签 + CLI 输出实时滚动
+  （保留最近 200 行）+ 结束汇总。
+- **两级停止** — "⏹ 停止当前文件"（之后继续播放下一个文件，基于 CLI 的
+  `--stop-file`，每个队列项独立）与 "⏹⏹ 停止整个队列"；播放中按 F8/Esc = 停止整个
+  队列（与原 CLI 含义相同）。播放前先用 `validate_rows` 检查所有文件（损坏 = 取消
+  整个队列，与 CLI 一致）；结束后可再次按 ▶ 重跑。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 16 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。

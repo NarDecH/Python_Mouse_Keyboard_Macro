@@ -418,5 +418,59 @@ use the v2.11 log tools:
 
 ---
 
-*Guide for code v2.11.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+## Chapter 16 — GUI Queue Runner (v2.12): play many files inside the app, live monitor
+
+Chapter 14 played queues through the CLI `--queue` / the 🗂️ Queue Bat button in a
+console — v2.12 adds the **📑 Run Queue** menu so the queue runs inside the program
+with a live view of every file, no console needed.
+
+### 16.1 Start a queue
+1. Prepare a `.txt` list in the same format (one script path per line, skip `#` and
+   blank lines, relative paths resolved against the list's folder) — the same list you
+   would feed to `--queue`/Queue Bat works as-is
+2. Press 📑 Run Queue → pick the list → the window lists every file with status
+   "รอเล่น (waiting)"
+3. Press **▶ เริ่มเล่นคิว (Play queue)** — every file is validated first (a broken file
+   cancels the whole queue without playing a single row, exactly like the CLI), then
+   files play one by one: the current row turns blue, the label above shows the current
+   file, and the box below streams the CLI output live (last 200 lines kept)
+
+### 16.2 Per-file status
+| Status | Meaning |
+|---|---|
+| กำลังเล่น… (blue) | this file is running |
+| จบครบ ✔ (green) | finished every row on its own |
+| ถูกหยุด (orange) | stopped mid-file |
+| พบปัญหา (exit N) (red) | ended with a problem — the queue still continues to the next file |
+| ตรวจไม่ผ่าน / ไม่พบไฟล์ (red) | pre-play validation failed — whole queue cancelled |
+| — (ยกเลิก) (grey) | skipped because the whole queue was stopped |
+
+### 16.3 Two stop levels
+- **⏹ หยุดไฟล์นี้ (Stop this file)** — stops the current file and **continues with the
+  next one** (built on the CLI's `--stop-file`, with a dedicated stop file per queue
+  entry so other files are never affected)
+- **⏹⏹ หยุดทั้งคิว (Stop everything)** — stops the current file and cancels all
+  remaining ones
+- **F8/Esc while playing = stop the whole queue** — same meaning as the original CLI
+  `--queue`; don't confuse it with "stop this file"
+
+Tip: when the queue ends you can press ▶ again (all statuses reset) · closing the
+window while playing asks first, then stops the whole queue for you · closing the
+program while playing stops the queue automatically · the queue runs on its own thread
+through the real CLI logic — you can still edit the table or load other scripts while
+it plays
+
+### Exercises (safe — nothing clicks on screen)
+
+1. Build two scripts (Beep rows are enough) + a `list.txt` and play them through
+   📑 Run Queue — watch each status go "รอเล่น" → "กำลังเล่น…" → "จบครบ ✔".
+2. While the queue plays, press **⏹ หยุดไฟล์นี้** — confirm the first file shows
+   "ถูกหยุด" but the second still finishes "จบครบ ✔", and the summary reads
+   "สำเร็จ 1/2 (ถูกหยุด 1)".
+3. Make a list that references a missing script and press ▶ — confirm nothing plays at
+   all (validation first) and the missing file is marked "ไม่พบไฟล์".
+
+---
+
+*Guide for code v2.12.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

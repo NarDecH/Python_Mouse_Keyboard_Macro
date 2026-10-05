@@ -5902,5 +5902,241 @@ class TestLogToolsGui(unittest.TestCase):
         self.assertIn("macro_log_2099-01-01.txt", list(cmb["values"]))
 
 
+class TestQueueListParse(unittest.TestCase):
+    """v2.12: engine parse_queue_list — แหล่งเดียวของไฟล์ลิสต์คิว (CLI --queue + 📑 Run Queue)"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="macro_qlist_")
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+
+    def _write(self, name, text):
+        p = os.path.join(self.d, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return p
+
+    def test_relative_paths_resolved_against_list_dir(self):
+        a = self._write("a.json", "[]")
+        sub = os.path.join(self.d, "sub")
+        os.makedirs(sub, exist_ok=True)
+        lst = self._write("list.txt", "# คอมเมนต์\na.json\n\n%s\n"
+                          % os.path.join(sub, "x.json"))
+        scripts, err = me_mod.parse_queue_list(lst)
+        self.assertIsNone(err)
+        self.assertEqual([p for p, _ln in scripts],
+                         [a, os.path.join(sub, "x.json")])
+        self.assertEqual([ln for _p, ln in scripts], [2, 4])
+
+    def test_missing_list_file(self):
+        scripts, err = me_mod.parse_queue_list(os.path.join(self.d, "nope.txt"))
+        self.assertEqual(scripts, [])
+        self.assertIn("ไม่พบไฟล์ลิสต์", err)
+
+    def test_empty_list(self):
+        lst = self._write("empty.txt", "# เฉพาะคอมเมนต์\n\n")
+        scripts, err = me_mod.parse_queue_list(lst)
+        self.assertEqual(scripts, [])
+        self.assertIn("ว่าง", err)
+
+
+class TestQueueRunnerGui(unittest.TestCase):
+    """v2.12: ผู้เล่นคิวแบบ GUI — หน้าต่าง 📑 Run Queue + เธรดเล่น
+    ใช้ MacroApp จริง · patch am.cli_main (สคริปต์ Beep ล้วนปลอดภัยอยู่แล้ว
+    แต่จำลอง rc เพื่อทดสอบสาขาหยุดโดยไม่เล่นจริง) — ไม่มี display จะ skip อัตโนมัติ"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+        except am.tk.TclError:
+            cls.root = None
+            cls.app = None
+            return
+        try:
+            cls.app = am.MacroApp(cls.root)
+        except Exception:
+            cls.root.destroy()
+            cls.root = None
+            cls.app = None
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.app is not None:
+            try:
+                cls.app._queue_destroy_window()
+            except Exception:
+                pass
+        if cls.root is not None:
+            cls.root.destroy()
+
+    def setUp(self):
+        if self.app is None:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        self.d = tempfile.mkdtemp(prefix="macro_qrun_")
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.app._log_enabled = False               # เทสต์ไม่แตะ log จริง
+        self.app._queue_destroy_window()            # เคลียร์คิวจากเทสต์ก่อนหน้า
+        self.addCleanup(self.app._queue_destroy_window)
+
+    def _beep(self, text="ปลอดภัย"):
+        return {"enabled": True, "button": "Beep", "additional": text,
+                "mins": 0, "secs": 0, "repeat": 1}
+
+    def _setup(self, names=("a.json", "b.json")):
+        for nm in names:
+            with open(os.path.join(self.d, nm), "w", encoding="utf-8") as fh:
+                json.dump([self._beep(nm)], fh, ensure_ascii=False)
+        lst = os.path.join(self.d, "list.txt")
+        with open(lst, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(names) + "\n")
+        return lst
+
+    def _open(self, lst):
+        with mock.patch.object(am.filedialog, "askopenfilename", return_value=lst):
+            self.app.queue_run_dialog()
+        self.assertIsNotNone(getattr(self.app, "_qr_win", None))
+
+    def _pump_until(self, cond, timeout=8.0):
+        """เข้า event loop จำลอง — ปั่น update() ให้ poller (after 500ms) ทำงานจน cond จริง"""
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            try:
+                self.root.update()
+            except Exception:
+                pass
+            if cond():
+                return True
+            time.sleep(0.05)
+        return False
+
+    def _status(self, i):
+        return str(self.app._qr_tree.item(self.app._qr_iids[i], "values")[2])
+
+    def test_menu_has_run_queue(self):
+        names = [name for _, _, name, _ in am.MacroApp._menu_items()]
+        self.assertIn("queue_run_dialog", names)
+
+    def test_dialog_lists_files(self):
+        lst = self._setup()
+        self._open(lst)
+        vals = [self.app._qr_tree.item(iid, "values")
+                for iid in self.app._qr_tree.get_children()]
+        self.assertEqual(len(vals), 2)
+        self.assertEqual(str(vals[0][2]), "รอเล่น")
+        self.assertIn("a.json", str(vals[0][1]))
+
+    def test_dialog_cancel_silent(self):
+        n0 = len(self.root.winfo_children())
+        with mock.patch.object(am.filedialog, "askopenfilename", return_value=""):
+            self.app.queue_run_dialog()
+        self.assertIsNone(getattr(self.app, "_qr_win", None))
+        self.assertEqual(len(self.root.winfo_children()), n0)
+
+    def test_dialog_bad_list_shows_error(self):
+        with mock.patch.object(am.filedialog, "askopenfilename",
+                               return_value=os.path.join(self.d, "nope.txt")), \
+             mock.patch.object(am.messagebox, "showerror") as merr:
+            self.app.queue_run_dialog()
+        self.assertTrue(merr.called)
+        self.assertIsNone(getattr(self.app, "_qr_win", None))
+
+    def test_worker_runs_all_files(self):
+        lst = self._setup()
+        self._open(lst)
+        calls = []
+
+        def fake_cli(argv):
+            calls.append(list(argv))
+            return 0
+
+        with mock.patch.object(am, "cli_main", side_effect=fake_cli):
+            self.app._queue_start()
+            ok = self._pump_until(lambda: not self.app._qr_running)
+        self.assertTrue(ok, "คิวไม่จบภายในเวลา")
+        self.assertEqual(len(calls), 2)
+        self.assertIn("--no-log", calls[0])          # log ปิดอยู่ = ส่ง --no-log ให้ CLI
+        self.assertIn("--stop-file", calls[0])       # ช่องทางหยุดของปุ่มในหน้าต่าง
+        self.assertTrue(calls[0][-1].endswith("a.json"))
+        self.assertEqual(self._status(0), "จบครบ ✔")
+        self.assertEqual(self._status(1), "จบครบ ✔")
+        self.assertIn("สำเร็จ 2/2", self.app._qr_sum_lbl.cget("text"))
+        self.assertEqual(str(self.app._qr_btn_play.cget("state")), "normal")
+        self.assertEqual(str(self.app._qr_btn_stop1.cget("state")), "disabled")
+
+    def test_worker_stop_all_cancels_rest(self):
+        lst = self._setup()
+        self._open(lst)
+
+        def fake_cli(argv):                          # จำลอง F8/Esc — ผู้ใช้สั่งหยุดเอง
+            self.app._qr_stop_all = True
+            return 130
+
+        with mock.patch.object(am, "cli_main", side_effect=fake_cli):
+            self.app._queue_start()
+            ok = self._pump_until(lambda: not self.app._qr_running)
+        self.assertTrue(ok)
+        self.assertEqual(self._status(0), "ถูกหยุด")
+        self.assertEqual(self._status(1), "— (ยกเลิก)")
+        self.assertIn("สำเร็จ 0/2", self.app._qr_sum_lbl.cget("text"))
+        self.assertIn("ถูกหยุด 1", self.app._qr_sum_lbl.cget("text"))
+
+    def test_worker_stop_file_continues_queue(self):
+        lst = self._setup()
+        self._open(lst)
+        state = {"stopped": False}
+
+        def fake_cli(argv):                          # จำลองกด ⏹ หยุดไฟล์นี้ → เล่นไฟล์ถัดไป
+            if not state["stopped"]:
+                state["stopped"] = True
+                self.app._qr_stop_file = True
+                return 130
+            return 0
+
+        with mock.patch.object(am, "cli_main", side_effect=fake_cli):
+            self.app._queue_start()
+            ok = self._pump_until(lambda: not self.app._qr_running)
+        self.assertTrue(ok)
+        self.assertEqual(self._status(0), "ถูกหยุด")
+        self.assertEqual(self._status(1), "จบครบ ✔")
+        self.assertIn("สำเร็จ 1/2", self.app._qr_sum_lbl.cget("text"))
+
+    def test_worker_invalid_file_cancels_before_playing(self):
+        lst = self._setup()
+        with open(os.path.join(self.d, "b.json"), "w", encoding="utf-8") as fh:
+            fh.write('{"broken": true}')
+        self._open(lst)
+        with mock.patch.object(am, "cli_main") as mcli:
+            self.app._queue_start()
+            ok = self._pump_until(lambda: not self.app._qr_running)
+        self.assertTrue(ok)
+        self.assertFalse(mcli.called)                # ตรวจก่อนเล่น — ไม่เล่นสักแถว (เหมือน CLI)
+        self.assertEqual(self._status(1), "ตรวจไม่ผ่าน")
+        self.assertIn("ยกเลิกทั้งคิว", self.app._qr_sum_lbl.cget("text"))
+
+    def test_stop_all_button_creates_stopfile_and_flags(self):
+        lst = self._setup()
+        self._open(lst)
+        self.app._qr_running = True
+        self.app._qr_current = 1
+        self.app._queue_stop_all()
+        self.assertTrue(self.app._qr_stop_all)
+        self.assertTrue(self.app._qr_stop_file)
+        p = self.app._qr_stopfiles.get(1)
+        self.assertTrue(p and os.path.isfile(p))     # CLI --stop-file จะเห็นไฟล์นี้แล้วหยุดเอง
+        self.app._queue_clear_stopfiles()
+        self.assertFalse(os.path.isfile(p))
+
+    def test_worker_real_cli_end_to_end(self):
+        """คิวผ่าน cli_main จริง (สคริปต์ Beep ล้วน — เหมือน TestQueueCli) — จบครบ"""
+        lst = self._setup(("solo.json",))
+        self._open(lst)
+        self.app._queue_start()
+        ok = self._pump_until(lambda: not self.app._qr_running, timeout=15.0)
+        self.assertTrue(ok)
+        self.assertEqual(self._status(0), "จบครบ ✔")
+        self.assertIn("สำเร็จ 1/1", self.app._qr_sum_lbl.cget("text"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

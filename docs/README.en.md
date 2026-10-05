@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.11.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.12.0
 
 <div align="center">
 
@@ -111,6 +111,7 @@
 | 📦 **Batch runner (v2.10)** | CLI `--queue LIST.txt` plays many scripts back-to-back — validates every file first (one broken = whole queue cancelled) + per-file summary + [QUEUE] log |
 | 🗂️ **Queue Bat** (v2.10.1) | 🗂️ menu picks a queue list file → writes .bat/.sh next to it — double-click plays the whole queue, no commands to type |
 | 🗃️ **Log tools** (v2.11) | 📝 window adds "Archive old" (moves old logs/dry-reports into monthly `log_archive/` folders) / "Clear old" buttons and lists dry-run reports · automatic cleanup on close is configurable in Settings (keep 1–365 days, archive or delete) |
+| 📑 **Run Queue** (v2.12) | 📑 menu picks a queue list file → plays each script inside the program with a live monitor (per-file status + real-time CLI output) and two stop levels — stop this file / stop the whole queue — no console needed |
 
 ---
 

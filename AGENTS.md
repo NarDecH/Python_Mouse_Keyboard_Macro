@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.11.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.12.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -257,6 +257,22 @@
   attr นั้นใน fixture เอง — `getattr(mock, "x", default)` คืน mock อัตโนมัติ ไม่ใช่ default
   (ทำ json.dump พัง 6 เทสต์ตอนทำ v2.11) · เทสต์ TestLogTools/TestLogToolsGui +
   engine_cli dry-report → 464 unit + 20 E2E = 484
+- **ฟีเจอร์เสริม v2.12.0:** **ผู้เล่นคิวแบบ GUI** (เมนู 📑 Run Queue = `queue_run_dialog` —
+  เลือกไฟล์ลิสต์ .txt รูปแบบเดียวกับ `--queue` แล้วเล่นทีละไฟล์ในโปรแกรมเลย) ·
+  engine `parse_queue_list(list_path)` แหล่งเดียวของไฟล์ลิสต์ (CLI `--queue` refactor
+  มาใช้ — ข้อความ/พฤติกรรมเดิมทุกอย่าง) · หน้าต่างสด: ตารางไฟล์ (#/ไฟล์/สถานะ สีตามผล
+  tag qrun/qok/qstop/qbad/qskip) + ป้ายไฟล์ปัจจุบัน + กล่องผลลัพธ์ CLI ทันที (เก็บ
+  200 บรรทัดล่าสุด) + สรุปท้ายคิว · **เธรดเล่นเรียก `cli_main` จริง** (โลจิก CLI ทุกอย่าง)
+  ผลักเหตุการณ์เข้า `self._qr_q` (queue.Queue) ให้ `_queue_run_poll` (after 500ms,
+  แพตเทิร์น `_sched_poll`) อัพเดตบน main thread — ⚠️ เธรดแตะเฉพาะ `_qr_q`/
+  `_qr_current`/`_qr_stop_*` เท่านั้น · หยุด 2 ระดับ: "หยุดไฟล์นี้" = สร้าง stop-file
+  รายไฟล์ (`--stop-file` ของ CLI — `_queue_make_stopfile` ตาม idx กันชนขอบเขตไฟล์)
+  เล่นถัดไปต่อ / "หยุดทั้งคิว" + F8/Esc = หยุดทุกไฟล์ที่เหลือ (rc 130 โดยไม่มี flag
+  `_qr_stop_file` = ตั้ง `_qr_stop_all` เอง) · stdout ของ CLI ถูกดักด้วย
+  `_QueueOutCapture` (ทน stdout=None บน .exe windowed) · ปิดหน้าต่าง/ปิดโปรแกรมขณะ
+  เล่น = สั่งหยุดทั้งคิวก่อนเสมอ (`_qr_close_when_done` รอเธรดจบค่อยปิดจริง) ·
+  เทสต์ TestQueueListParse/TestQueueRunnerGui (app จริง + patch `am.cli_main` —
+  รวม E2E ผ่าน cli_main จริงแบบ Beep ล้วน) → 477 unit + 20 E2E = 497
 
 ## เทคโนโลยี
 

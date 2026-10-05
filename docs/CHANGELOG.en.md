@@ -3,6 +3,45 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.12.0] — 2026-10-05
+
+### 📑 GUI Queue Runner — play queues inside the app with a live monitor (item 2 of the v2.11 proposal set)
+- **New 📑 Run Queue menu** — pick a queue list .txt (same format as CLI `--queue` and
+  🗂️ Queue Bat) and play the files one by one **inside the program, no console needed**
+  · the live window shows: a file table (# / file / status), a current-file label, a
+  real-time CLI output box (last 200 lines kept) and an end-of-queue summary
+  (succeeded x/N, elapsed time)
+- **Per-file status colours** — playing (blue) / finished ✔ (green) / stopped (orange) /
+  problem exit N (red) / failed validation–missing file (red) / cancelled (grey)
+- **Two stop levels** — "⏹ หยุดไฟล์นี้ / Stop this file" stops the current file and
+  **continues with the next one** (implemented through the CLI's `--stop-file`, with one
+  stop file per queue entry so file boundaries never collide) · "⏹⏹ หยุดทั้งคิว / Stop
+  everything" stops the current file and cancels all remaining ones · F8/Esc while
+  playing = stop the whole queue (same meaning as the original CLI `--queue`)
+- **Same rules as the CLI** — every file is validated with the engine `validate_rows`
+  before the first file plays (a broken file cancels the whole queue, exactly like
+  v2.10) · a finished file is followed by the next immediately · `--no-log` follows the
+  program's log setting · when the queue ends you can press ▶ to run it again
+- **Thread-safe per project rules** — the worker thread calls `cli_main` (the real CLI
+  logic) and pushes status into a `queue.Queue`; a poller (500 ms, the existing
+  `_sched_poll` pattern) updates the UI on the main thread only · CLI stdout is captured
+  by `_QueueOutCapture` (also survives a windowed .exe where stdout is None) · closing
+  the window while playing asks first, then stops the whole queue and closes when the
+  thread ends · closing the program while playing stops the queue automatically
+- **New engine helper `parse_queue_list()`** — parses the list .txt (one path per line,
+  skips # and blank lines, relative paths resolved against the list's folder) — one
+  source for both CLI `--queue` (refactored to use it, behaviour/messages unchanged) and
+  the Run Queue window
+
+### 📚 Docs + tests
+- **13 new tests** (TestQueueListParse 3 + TestQueueRunnerGui 10 — including an end-to-end
+  through the real `cli_main` with Beep-only scripts) → **477 unit + 20 E2E = 497** all
+  passing
+- TUTORIAL Chapter 16 (Thai/English) + topic 19 in the HTML + short zh/ja notes ·
+  ROADMAP: closed the "GUI queue player" item from the v2.11 proposal set
+
+---
+
 ## [2.11.0] — 2026-10-04
 
 ### 🗃️ Log tools — monthly archive / clear old days
