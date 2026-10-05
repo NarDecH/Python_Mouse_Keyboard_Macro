@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.14.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.14.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -305,6 +305,17 @@
   (skip ค้างกลืน) และห้ามอ้างชื่อหน้าต่าง/โปรเซสที่มีเฉพาะบาง OS ·
   ⚠️ เทสต์ GUI ต้องยกเลิก timer `after` ค้างก่อน destroy root (คลาส `_Tk` ในไฟล์เทสต์ —
   spam "invalid command name" และบน macOS แตก SIGTRAP exit 133)
+- **แก้บั๊ก + กติกา v2.14.1:** **กติกา skip×Block เป็นทางการ (สัญญาเดียวทั้ง 3 ตัวเล่น)** —
+  skip ของเงื่อนไข (If Image/If Loop/If Time/If Variable/plugin) กินเฉพาะแถวลำดับตรง:
+  หัวข้อ/Block Start/End **ไม่กิน skip** + การกระโดด (เงื่อนไขไม่จริง) หรือวนกลับ (ลูปย่อย)
+  ของบล็อก **ยกเลิก skip ค้างเสมอ** — GUI เดิมกิน skip ก่อนตรวจแถวบล็อก/หัวข้อ = ต่างจาก CLI
+  (CI Linux พิสูจน์: skip ทะลุ Block Start กลืนแถวเงื่อนไข) · **แก้บั๊ก engine_cli v2.1:**
+  สาขา consume skip ไม่มี `pi += 1` = "ข้าม N แถว" กดค้างแถวเดิมแล้ว**เล่นมันเอง**
+  (แถวถัดไปไม่ถูกข้าม) — เทสต์ TestSkipBlockRule (CLI+engine_cli) + เทสต์ GUI ใหม่ ·
+  **ปุ่ม "รายงาน Dry-run ล่าสุด"** ในหน้าต่าง 📝 Log (`open_dry_report` — combobox ชี้ไฟล์
+  dry_report ล่าสุด + แสดงเนื้อหา; ไม่มีรายงาน = เตือน statusbar — กฎเหล็ก; เทสต์ invoke ปุ่มจริง) ·
+  **แผน v2.15** ลง ROADMAP (กลุ่มเล่นตามลำดับ/bat คู่สคริปต์/ไทม์ไลน์เหตุการณ์/plugin ชุมชน) ·
+  เทสต์เพิ่ม 5 ตัว → 511 unit + 20 E2E = 531
 
 ## เทคโนโลยี
 

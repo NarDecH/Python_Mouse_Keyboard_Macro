@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.14.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.14.1
 
 <div align="center">
 

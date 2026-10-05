@@ -231,6 +231,8 @@ folder for you.
 
 Append `&&` to any main condition's Additional — **every part must be true** to continue,
 otherwise the next N rows (Repeat) are skipped, same single rule as before:
+(v2.14.1: a skip consumes only straight-line rows — Section/Block Start/End never eat one,
+and a block jump/loop-back always cancels any pending skip)
 
 ```text
 If Image        img.png && 300,300 #ffffff && n > 5
@@ -576,5 +578,5 @@ Full example: `examples/15_system_conditions.json`
 
 ---
 
-*Guide for code v2.14.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.14.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

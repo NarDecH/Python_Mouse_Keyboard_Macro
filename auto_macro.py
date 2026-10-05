@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.14.0"
+__version__ = "2.14.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -163,8 +163,8 @@ TR = {
            "save": "บันทึก", "close": "ปิด", "language": "ภาษา (Language):",
            "backup_label": "Backup อัตโนมัติตอนปิดโปรแกรม (เก็บย้อนหลัง",
            "days": "วัน — 1–90)", "log_label": "บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt",
-           "open_log_folder": "เปิดโฟลเดอร์ log", "selftest_btn": "🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)",
-           "log_archive_btn": "เก็บถาวรวันเก่า", "log_clear_btn": "ล้างวันเก่า...",
+           "open_log_folder": "เปิดโฟลเดอร์ log", "selftest_btn": "🧪 ทดสอบระบบจริง (ขยับเมาส์+บี๊บ)",            "log_archive_btn": "เก็บถาวรวันเก่า", "log_clear_btn": "ล้างวันเก่า...",
+            "dry_report_btn": "รายงาน Dry-run ล่าสุด", "no_dry_report": "ยังไม่มีรายงาน Dry-run — เล่นสคริปต์แบบ Dry-run ก่อน (เมนู 🧪)",
            "log_clear_ask": "ลบ log/dry-report วันเก่าทั้งหมด (ยกเว้นของวันนี้)?\nลบแล้วเรียกคืนไม่ได้ — ถ้าอยากเก็บไว้ ใช้ปุ่มเก็บถาวรแทน",
            "log_archived": "เก็บถาวรแล้ว %d ไฟล์ (log_archive/ รายเดือน)",
            "log_cleared": "ล้างแล้ว %d ไฟล์",
@@ -213,8 +213,8 @@ TR = {
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",
            "backup_label": "Auto backup on close (keep last",
            "days": "days — 1–90)", "log_label": "Write play log to macro_log_<date>.txt",
-           "open_log_folder": "Open log folder", "selftest_btn": "🧪 Real system test (move mouse + beep)",
-           "log_archive_btn": "Archive old", "log_clear_btn": "Clear old...",
+           "open_log_folder": "Open log folder", "selftest_btn": "🧪 Real system test (move mouse + beep)",            "log_archive_btn": "Archive old", "log_clear_btn": "Clear old...",
+            "dry_report_btn": "Latest dry-run report", "no_dry_report": "No dry-run report yet — run a Dry-run first (🧪 menu)",
            "log_clear_ask": "Delete all old log/dry-report files (today's kept)?\nThis cannot be undone — use Archive instead to keep them.",
            "log_archived": "Archived %d file(s) (log_archive/ monthly)",
            "log_cleared": "Deleted %d file(s)",
@@ -5139,11 +5139,8 @@ class MacroApp:
                                       % self._time_limit_min, self._log_src)
                         self.stop_all(silent=True)
                         return
-                    # If Image (v1.17): แถวที่ถูกสั่งข้ามจาก If Image ก่อนหน้า → ข้ามเงียบ ๆ
-                    if self._ifimg_skip > 0:
-                        self._ifimg_skip -= 1
-                        pi += 1
-                        continue
+                    # v2.14.1: skip ของเงื่อนไขกินเฉพาะแถวลำดับตรง — เช็ค"หลัง"แถวบล็อก/หัวข้อเสมอ
+                    # (เดิมเช็คก่อนตรวจแถวบล็อก/หัวข้อ = หัวข้อ/บล็อกกิน skip เปล่า ต่างจาก CLI)
                     self._loop_no = loop_no          # v1.21: เลขรอบปัจจุบัน (ให้ If Loop ใช้)
                     r = subst_row(r, self._vars)     # v1.19: แทน {ตัวแปร} ทุกคอลัมน์
                     if r["button"] == SECTION_HEADER:  # v1.21: แถวจัดระเบียบ — ไม่ทำอะไร
@@ -5160,6 +5157,7 @@ class MacroApp:
                                                      "#c00" if "ไม่ถูก" in bmsg else "#080")
                         if goto is not None and goto > pi:
                             pi = goto                # เงื่อนไขไม่จริง → กระโดดหลัง Block End
+                            self._ifimg_skip = 0     # v2.14.1: การกระโดดของบล็อกยกเลิก skip ค้าง (กติกา: skip กินเฉพาะแถวลำดับตรง)
                             continue
                         pi += 1
                         continue
@@ -5173,7 +5171,14 @@ class MacroApp:
                                                      "#c00" if "ไม่ถูก" in bmsg else "#080")
                         if goto is not None and 0 < goto < pi:
                             pi = goto                # ลูปย่อย → วนกลับแถวหลัง Block Start
+                            self._ifimg_skip = 0     # v2.14.1: การวนกลับของบล็อกยกเลิก skip ค้าง
                             continue
+                        pi += 1
+                        continue
+                    # If Image (v1.17): แถวที่ถูกสั่งข้ามจากเงื่อนไขก่อนหน้า → ข้ามเงียบ ๆ
+                    # (v2.14.1: ย้ายมาไว้หลังแถวบล็อก — skip ไม่กินหัวข้อ/บล็อก และไม่ทะลุการกระโดด)
+                    if self._ifimg_skip > 0:
+                        self._ifimg_skip -= 1
                         pi += 1
                         continue
                     self._ui_state["row"] = iid      # ไฮไลต์ตรงแถวที่เล่นจริง (v1.19)
@@ -6308,9 +6313,20 @@ class MacroApp:
             if messagebox.askyesno(APP_TITLE, self._t("log_clear_ask")):
                 do_cleanup(False)
 
+        def open_dry_report():
+            """v2.14.1: เลือกรายงาน Dry-run ล่าสุดขึ้นแสดงทันที — ไม่มีรายงาน = เตือน statusbar (กฎเหล็ก)"""
+            reps = sorted(glob.glob(os.path.join(d, "dry_report_*.txt")), reverse=True)
+            if not reps:
+                self._ui_state["msg"] = (self._t("no_dry_report"), "#a60")
+                return
+            cmb.set(os.path.basename(reps[0]))
+            refresh()
+
         cmb.bind("<<ComboboxSelected>>", refresh)
         tk.Button(bar, text="รีเฟรช", command=refresh).pack(side="left", padx=2)
         tk.Button(bar, text="เปิดโฟลเดอร์", command=open_folder).pack(side="left", padx=2)
+        tk.Button(bar, text=self._t("dry_report_btn"),
+                  command=open_dry_report).pack(side="left", padx=2)
         # เครื่องมือ log วันเก่า (v2.11)
         tk.Button(bar, text=self._t("log_archive_btn"),
                   command=lambda: do_cleanup(True)).pack(side="left", padx=(12, 2))
@@ -7091,6 +7107,7 @@ def cli_main(argv):
                             print("  [%d/%d] %s" % (i, len(play_rows), bmsg))
                         if goto is not None and goto > pi:
                             pi = goto
+                            skip_n = 0               # v2.14.1: การกระโดดของบล็อกยกเลิก skip ค้าง (กติกา: skip กินเฉพาะแถวลำดับตรง)
                             continue
                         pi += 1
                         continue
@@ -7102,6 +7119,7 @@ def cli_main(argv):
                             print("  [%d/%d] %s" % (i, len(play_rows), bmsg))
                         if goto is not None and 0 < goto < pi:
                             pi = goto
+                            skip_n = 0               # v2.14.1: การวนกลับของบล็อกยกเลิก skip ค้าง
                             continue
                         pi += 1
                         continue

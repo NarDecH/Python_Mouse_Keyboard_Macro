@@ -3,6 +3,25 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.14.1] — 2026-10-06
+
+### Formal skip×Block rule + Latest dry-run report button
+- **The skip×Block rule is now official (one contract across all three runners: GUI / CLI / engine_cli)** —
+  a condition's skip (If Image/If Loop/If Time/If Variable/plugin) consumes only straight-line rows:
+  Section/Block Start/End **never eat one**, and a block jump (false condition) or loop-back
+  **always cancels any pending skip** · the GUI used to consume skips before checking block/section
+  rows, unlike the CLI (proven on CI Linux: a skip crossed a Block Start and swallowed a condition
+  row) — covered by TestSkipBlockRule (CLI + engine_cli) + a new GUI test
+- **Fixed a latent engine_cli bug (since v2.1)** — the skip-consuming branch had no `pi += 1`:
+  "skip N rows" stalled on the same row and then **played it**, never skipping the following rows
+- **"Latest dry-run report" button in the 📝 Log window** — selects the newest dry_report file
+  instantly (no report yet = statusbar warning only — the iron rule) · tests press the real button
+  via invoke
+- **v2.15 plan** added to ROADMAP — group-based play order / per-script .bat / event timeline from
+  logs / next round of community condition plugins
+- **5 new tests** (TestSkipBlockRule 2 + TestLatestDryReportBtn 2 + GUI 1) →
+  **511 unit + 20 E2E = 531**
+
 ## [2.14.0] — 2026-10-05
 
 ### 🧩 Ready-to-use condition plugins + custom dry-run report path

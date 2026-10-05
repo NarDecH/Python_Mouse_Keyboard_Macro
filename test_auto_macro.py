@@ -7,11 +7,13 @@ Unit tests สำหรับฟังก์ชันล้วน ๆ ของ 
 """
 
 import datetime
+import glob
 import io
 import json
 import os
 import random
 import re
+import shutil
 import sys
 import tempfile
 import time
@@ -2636,6 +2638,29 @@ class TestV21GuiPlay(unittest.TestCase):
         self.assertEqual(len([s for s in self.steps if "Beep" in s]), 2)
         self.assertEqual(len(self.steps), 2)               # Section ไม่เขียน log STEP เลย
 
+    def test_skip_not_eaten_by_section_and_block(self):
+        """v2.14.1: กติกา skip×Block — skip ของเงื่อนไขกินเฉพาะแถวลำดับตรง
+        หัวข้อ/Block Start/End ไม่กิน skip (GUI เดิมกินก่อนตรวจบล็อก = ต่างจาก CLI)
+        รอบ 2: ข้าม 2 = Beep#ตรง + Beep#ในบล็อก (หัวข้อ/Block Start ไม่กิน)
+        เดิม: หัวข้อ+Block Start กิน skip → Beep#ในบล็อกเล่น (นับ 2) ต่างจาก CLI"""
+        app = self.app
+        app._load_rows([
+            {"enabled": True, "button": am.IF_LOOP, "additional": "2", "secs": 0, "repeat": 2},
+            {"enabled": True, "button": "Beep", "additional": "ตรงหน้าบล็อก", "secs": 0},
+            {"enabled": True, "button": am.SECTION_HEADER, "additional": "หัวข้อ"},
+            {"enabled": True, "button": am.BLOCK_START, "additional": ""},
+            {"enabled": True, "button": "Beep", "additional": "ในบล็อก", "secs": 0},
+            {"enabled": True, "button": am.BLOCK_END, "additional": ""},
+            {"enabled": True, "button": "Beep", "additional": "หลังบล็อก", "secs": 0},
+        ])
+        app.ent_loops.delete(0, "end")
+        app.ent_loops.insert(0, "2")
+        app.start_play()
+        self.assertTrue(self._wait_done())
+        self.assertEqual(len([s for s in self.steps if "ตรงหน้าบล็อก" in s]), 1)  # รอบ 2 โดนข้าม
+        self.assertEqual(len([s for s in self.steps if "ในบล็อก" in s]), 1)      # รอบ 2 โดนข้าม (เดิมเล่น)
+        self.assertEqual(len([s for s in self.steps if "หลังบล็อก" in s]), 2)    # ทุกรอบ
+
 
 class TestV21CliLoop(unittest.TestCase):
     """v1.21: CLI รองรับ If Loop/If Time + Section (รันผ่าน cli_main จริง)"""
@@ -2676,6 +2701,137 @@ class TestV21CliLoop(unittest.TestCase):
         rc, outp = self._run_cli(rows)
         self.assertEqual(rc, 0)
         self.assertEqual(outp.count("Beep"), 1)
+
+
+# ============================ v2.14.1: กติกา skip×Block — สัญญาเดียวทั้ง 3 ตัวเล่น ====
+class TestSkipBlockRule(unittest.TestCase):
+    """v2.14.1: skip ของเงื่อนไขกินเฉพาะแถวลำดับตรง — หัวข้อ/Block Start/End ไม่กิน skip
+    และการกระโดด/วนกลับของบล็อกยกเลิก skip ค้าง (พิสูจน์บน CI ว่าเดิมทะลุบล็อก)
+    ต้องตรงกันทั้ง GUI / CLI หลัก / engine_cli — แถว Beep ล้วน ปลอดภัยทุก OS"""
+
+    ROWS = [
+        {"enabled": True, "button": am.IF_LOOP, "additional": "2", "secs": 0, "repeat": 2},
+        {"enabled": True, "button": "Beep", "additional": "ตรงหน้าบล็อก", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "หัวข้อ"},
+        {"enabled": True, "button": am.BLOCK_START, "additional": ""},
+        {"enabled": True, "button": "Beep", "additional": "ในบล็อก", "secs": 0},
+        {"enabled": True, "button": am.BLOCK_END, "additional": ""},
+        {"enabled": True, "button": "Beep", "additional": "หลังบล็อก", "secs": 0},
+    ]
+    # รอบ 2: ข้าม 2 = Beep#ตรง + Beep#ในบล็อก (หัวข้อ/Block Start ไม่กิน — เปลี่ยนที่ v2.14.1)
+
+    def test_cli_skip_not_eaten_by_block(self):
+        tmp = tempfile.mkdtemp(prefix="skipblk_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "s.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.ROWS, fh, ensure_ascii=False)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path, "--loops", "2", "--no-log"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertEqual(outp.count("ตรงหน้าบล็อก"), 1)  # รอบ 2 โดนข้าม
+        self.assertEqual(outp.count("ในบล็อก"), 1)      # รอบ 2 โดนข้าม (skip ไม่ถูกหัวข้อ/บล็อกกิน)
+        self.assertEqual(outp.count("หลังบล็อก"), 2)    # ทุกรอบ
+
+    def test_engine_cli_skip_not_eaten_by_block(self):
+        import engine_cli
+        tmp = tempfile.mkdtemp(prefix="skipblk2_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "s.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.ROWS, fh, ensure_ascii=False)
+        out = io.StringIO()
+        with mock.patch.object(engine_cli.sys, "stdout", out):
+            rc = engine_cli.main([path, "--loops", "2", "--no-log"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertEqual(outp.count("ตรงหน้าบล็อก"), 1)  # รอบ 2 โดนข้าม
+        self.assertEqual(outp.count("ในบล็อก"), 1)      # สาขา skip ต้องเดิน pi (แก้บั๊ก v2.1) + ไม่ถูกบล็อกกิน
+        self.assertEqual(outp.count("หลังบล็อก"), 2)    # ทุกรอบ
+
+
+# ============================ v2.14.1: ปุ่มรายงาน Dry-run ล่าสุดในหน้าต่าง 📝 Log ====
+class TestLatestDryReportBtn(unittest.TestCase):
+    """v2.14.1: ปุ่ม "รายงาน Dry-run ล่าสุด" — เลือกไฟล์ dry_report_*.txt ล่าสุดขึ้นแสดง
+    (มีรายงาน = combobox ชี้ไฟล์นั้น + เนื้อหาแสดง · ไม่มี = เตือน statusbar จบเงียบ)
+    กดปุ่มจริงด้วย .invoke() ทุกเทสต์ — เทสต์ "เปิดได้" ล้วนเคยปล่อยบั๊กค่าไม่ถูกบันทึก (v1.20.1)"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = None
+        try:
+            cls.root = _Tk()
+            cls.root.withdraw()
+        except am.tk.TclError:
+            cls.root = None
+            return
+        try:
+            cls.app = am.MacroApp(cls.root)
+        except Exception:
+            cls.root.destroy()
+            cls.root = None
+            cls.app = None
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.root is not None:
+            cls.root.destroy()          # _Tk ยกเลิก timer ค้างก่อนเอง
+
+    def setUp(self):
+        if self.app is None:
+            self.skipTest("ไม่มีจอ/สร้าง MacroApp จริงไม่ได้")
+        self.app._log_enabled = False
+        d = os.path.dirname(os.path.abspath(am.__file__))
+        self._reps = sorted(glob.glob(os.path.join(d, "dry_report_*.txt")), reverse=True)
+        for f in self._reps:            # ชั่วคราวย้ายรายงานเก่าออก — คืนที่หลังเทสต์
+            os.replace(f, f + "__bak")
+
+    def tearDown(self):
+        d = os.path.dirname(os.path.abspath(am.__file__))
+        for f in glob.glob(os.path.join(d, "dry_report_*__bak")):
+            if os.path.isfile(f):
+                os.replace(f, f[:-len("__bak")])
+        for f in glob.glob(os.path.join(d, "dry_report_*.txt")):
+            if os.path.isfile(f):       # ไฟล์ที่เทสต์สร้างค้าง — ย้ายไป temp ก่อนลบ
+                shutil.move(f, os.path.join(tempfile.gettempdir(),
+                                            os.path.basename(f) + ".testdel"))
+
+    def _win_and_widgets(self):
+        self.app.view_log()
+        win = next(w for w in self.root.winfo_children()
+                   if isinstance(w, am.tk.Toplevel) and "Log" in str(w.title()))
+        self.addCleanup(win.destroy)
+        cmb = next(w for w in win.winfo_children()
+                   if isinstance(w, am.tk.Frame)).winfo_children()[1]
+        btn = next(b for f in win.winfo_children() if isinstance(f, am.tk.Frame)
+                   for b in f.winfo_children()
+                   if isinstance(b, am.tk.Button) and "Dry-run" in str(b["text"]))
+        return cmb, btn
+
+    def test_button_selects_latest_report(self):
+        d = os.path.dirname(os.path.abspath(am.__file__))
+        stamp = datetime.date.today().isoformat()
+        a = os.path.join(d, "dry_report_%s.txt" % stamp)
+        with open(a, "w", encoding="utf-8") as fh:
+            fh.write("ทดสอบรายงานล่าสุด")
+        self.addCleanup(lambda: os.path.isfile(a) and os.remove(a))
+        cmb, btn = self._win_and_widgets()
+        cmb.set("macro_log_dummy_ไม่มีจริง.txt")     # ตั้งค่าอื่นก่อน — ปุ่มต้องเปลี่ยนกลับ
+        btn.invoke()                              # กดจริง — ไม่ invoke = ค่าปุ่มลอยได้ (v1.20.1)
+        self.assertEqual(cmb.get(), os.path.basename(a))   # ชี้ไฟล์ล่าสุด
+        top = next(w for w in self.root.winfo_children()
+                   if isinstance(w, am.tk.Toplevel) and "Log" in str(w.title()))
+        txt = next(w for w in top.winfo_children() if isinstance(w, am.tk.Text))
+        self.assertIn("ทดสอบรายงานล่าสุด", str(txt.get("1.0", "end")))
+
+    def test_no_report_warns_statusbar_only(self):
+        cmb, btn = self._win_and_widgets()
+        btn.invoke()                              # ไม่มีรายงาน → เตือน statusbar จบเงียบ
+        msg = self.app._ui_state.get("msg")
+        self.assertIsNotNone(msg)
+        self.assertIn("Dry-run", msg[0])
 
 
 # ============================ v1.22: สีแถวตามหมวด + ปุ่มจับเวลา + ย่อ/ขยายกลุ่ม ====

@@ -96,6 +96,7 @@ Wait for Pixel Color (v1.18 — รอจุดสีก่อนทำต่อ
 **เงื่อนไข (v1.17+):** If Image (ไม่เจอ → ข้าม N แถว), Else If Image (สองทาง A/B — ดูบทที่ 5A),
 If Loop / If Time (นับรอบ/เวลา — ดูบทที่ 5B), If Pixel Color (สีจุด), If Variable (เทียบตัวแปร),
 หัวข้อ Section (จัดระเบียบตาราง) — กฎเดียวกันทุกตัว: **Repeat = จำนวนแถวที่ข้ามเมื่อเงื่อนไขไม่จริง**
+(v2.14.1: การข้ามกินเฉพาะแถวลำดับตรง — หัวข้อ/Block Start/End ไม่กิน skip และการกระโดดของบล็อกยกเลิก skip ค้างเสมอ)
 **ตัวแปร:** Set Variable (รวม `rand a-b` — ดูบทที่ 12), Read Pixel Color, Image Click ตั้ง `{img_x}/{img_y}` ให้เอง
 **เสียง:** Beep (จุดเช็คว่าสคริปต์ถึงไหน)
 
@@ -737,4 +738,4 @@ py auto_macro.py script.json --dry-run --dry-report C:\reports\night_{date}.txt
 
 ---
 
-*คู่มือฉบับนี้ตรงกับโค้ด v2.14.0 — ดูประวัติการเปลี่ยนแปลงที่ [CHANGELOG](CHANGELOG.html)*
+*คู่มือฉบับนี้ตรงกับโค้ด v2.14.1 — ดูประวัติการเปลี่ยนแปลงที่ [CHANGELOG](CHANGELOG.html)*

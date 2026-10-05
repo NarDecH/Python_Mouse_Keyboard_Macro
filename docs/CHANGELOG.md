@@ -2,6 +2,23 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.14.1] — 2026-10-06
+
+### ⚖️ กติกา skip×Block เป็นทางการ + ปุ่มรายงาน Dry-run ล่าสุด
+- **กติกา skip×Block เป็นทางการ (สัญญาเดียวทั้ง 3 ตัวเล่น GUI / CLI / engine_cli)** — skip ของเงื่อนไข
+  (If Image/If Loop/If Time/If Variable/เงื่อนไข plugin) กินเฉพาะแถวลำดับตรง: หัวข้อ/Block Start/End
+  **ไม่กิน skip** + การกระโดด (เงื่อนไขไม่จริง) หรือวนกลับ (ลูปย่อย) ของบล็อก **ยกเลิก skip ค้างเสมอ** ·
+  GUI เดิมกิน skip ก่อนตรวจแถวบล็อก/หัวข้อ = ต่างจาก CLI (CI Linux พิสูจน์: skip ทะลุ Block Start
+  กลืนแถวเงื่อนไข) — เทสต์ TestSkipBlockRule (CLI + engine_cli) + เทสต์ GUI ใหม่ครอบทั้ง 3 ตัวเล่น
+- **แก้บั๊ก engine_cli (แฝงตั้งแต่ v2.1)** — สาขา consume skip ไม่มี `pi += 1`: "ข้าม N แถว"
+  กดค้างแถวเดิมแล้ว**เล่นมันเอง** แถวถัดไปไม่ถูกข้าม
+- **ปุ่ม "รายงาน Dry-run ล่าสุด" ในหน้าต่าง 📝 Log** — เลือกไฟล์ dry_report ล่าสุดขึ้นแสดงทันที
+  (ไม่มีรายงาน = เตือน statusbar จบเงียบ — กฎเหล็ก) · เทสต์กดปุ่มจริงด้วย invoke ทุกตัว
+- **แผน v2.15** ลง ROADMAP — ลำดับเล่นแบบกลุ่ม / .bat คู่สคริปต์ / ไทม์ไลน์เหตุการณ์จาก log /
+  plugin เงื่อนไขจากชุมชนรอบใหม่
+- **เทสต์เพิ่ม 5 ตัว** (TestSkipBlockRule 2 + TestLatestDryReportBtn 2 + เทสต์ GUI 1) →
+  **511 unit + 20 E2E = 531**
+
 ## [2.14.0] — 2026-10-05
 
 ### 🧩 เงื่อนไข plugin ครบชุดใช้งานจริง + เลือกพาธรายงาน Dry-run เอง

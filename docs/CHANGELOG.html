@@ -65,8 +65,29 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.14.0</h2>
+      <h2>เวอร์ชัน 2.14.1</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">6 ตุลาคม 2026</span>
+    </div>
+
+    <h3>⚖️ กติกา skip×Block เป็นทางการ + ปุ่มรายงาน Dry-run ล่าสุด</h3>
+    <ul>
+      <li><b>กติกา skip×Block เป็นทางการ (สัญญาเดียวทั้ง 3 ตัวเล่น GUI / CLI / engine_cli)</b> — skip ของเงื่อนไข
+        กินเฉพาะแถวลำดับตรง: หัวข้อ/Block Start/End <b>ไม่กิน skip</b> + การกระโดด/วนกลับของบล็อก
+        <b>ยกเลิก skip ค้างเสมอ</b> · GUI เดิมกิน skip ก่อนตรวจแถวบล็อก/หัวข้อ = ต่างจาก CLI
+        (CI Linux พิสูจน์: skip ทะลุ Block Start กลืนแถวเงื่อนไข)</li>
+      <li><b>แก้บั๊ก engine_cli (แฝงตั้งแต่ v2.1)</b> — สาขา consume skip ไม่มี <code>pi += 1</code>:
+        "ข้าม N แถว" กดค้างแถวเดิมแล้ว<b>เล่นมันเอง</b> แถวถัดไปไม่ถูกข้าม</li>
+      <li><b>ปุ่ม "รายงาน Dry-run ล่าสุด" ในหน้าต่าง 📝 Log</b> — เลือกไฟล์ dry_report ล่าสุดขึ้นแสดงทันที
+        (ไม่มีรายงาน = เตือน statusbar จบเงียบ — กฎเหล็ก)</li>
+      <li><b>แผน v2.15</b> ลง ROADMAP — ลำดับเล่นแบบกลุ่ม / .bat คู่สคริปต์ / ไทม์ไลน์เหตุการณ์จาก log /
+        plugin เงื่อนไขจากชุมชนรอบใหม่</li>
+      <li><b>เทสต์เพิ่ม 5 ตัว</b> → <b>511 unit + 20 E2E = 531</b></li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.14.0</h2>
       <span class="date">5 ตุลาคม 2026</span>
     </div>
 

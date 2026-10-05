@@ -234,6 +234,7 @@ def main(argv=None):
                         print("  [%d/%d] %s" % (i, len(play_items), bmsg))
                     if goto is not None and goto > pi:
                         pi = goto
+                        skipping = 0            # v2.14.1: การกระโดดของบล็อกยกเลิก skip ค้าง (กติกา: skip กินเฉพาะแถวลำดับตรง)
                         continue
                     pi += 1
                     continue
@@ -245,6 +246,7 @@ def main(argv=None):
                         print("  [%d/%d] %s" % (i, len(play_items), bmsg))
                     if goto is not None and 0 < goto < pi:
                         pi = goto
+                        skipping = 0            # v2.14.1: การวนกลับของบล็อกยกเลิก skip ค้าง
                         continue
                     pi += 1
                     continue
@@ -291,6 +293,7 @@ def main(argv=None):
                     continue
                 if skipping > 0:               # แถวถูกสั่งข้ามจากเงื่อนไขก่อนหน้า
                     skipping -= 1
+                    pi += 1                    # v2.14.1: แก้บั๊ก v2.1 — เดิมไม่เดิน pi = กดค้างแถวเดิมแล้วเล่นมันเอง
                     continue
                 ok = runner.execute(r)
                 if not ok:
