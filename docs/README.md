@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.13.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.14.0
 
 <div align="center">
 
@@ -119,6 +119,7 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 📦 **Batch runner (v2.10)** | CLI `--queue LIST.txt` รันสคริปต์หลายไฟล์ต่อกัน — ตรวจทุกไฟล์ก่อนเริ่ม (พัง = ยกเลิกทั้งคิว) + สรุปรายไฟล์ + log [QUEUE] |
 | 🗂️ **Queue Bat (v2.10.1)** | เมนู 🗂️ เลือกไฟล์ลิสต์คิว → ได้ .bat/.sh ข้างลิสต์ ดับเบิลคลิกเล่นคิวทั้งชุด ไม่ต้องพิมพ์คำสั่ง |
 | 📑 **Run Queue (v2.12)** | เมนู 📑 เลือกไฟล์ลิสต์คิว → เล่นทีละไฟล์ในโปรแกรมเลย ติดตามผลสดรายไฟล์ + ปุ่มหยุดไฟล์นี้/หยุดทั้งคิว ไม่ต้องเปิดคอนโซล |
+| 🧩 **เงื่อนไข plugin สำเร็จรูป (v2.14)** | มาให้ 4 ตัว: `File Exists` · `Internet Up` (เช็คเน็ต — `host[:port]` และ/หรือ `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — ใช้เป็น Action หรือ `if ชื่อ [อาร์กิวเมนต์]` ใน Block Start (ผสม `&&` ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI `--dry-report PATH` เลือกไฟล์รายงาน dry-run เอง (`{date}` = วันที่) |
 | 🔌 **Plugin API v3 — เงื่อนไข plugin (v2.13)** | plugin ประกาศ `CONDITION_NAME` + `check(ctx, row) -> bool` ใช้เป็นเงื่อนไขได้ทั้งคอลัมน์ Action และ Block Start/End (`if ชื่อ [อาร์กิวเมนต์]`, ผสม `&&` ได้) — จริง = เล่นต่อ ไม่จริง = ข้าม N แถว (N = Repeat) · validate/dry-run/.ahk รองรับครบ (ดู [PLUGINS.md](PLUGINS.md)) |
 | 🗃️ **เครื่องมือ log (v2.11)** | เมนู 📝 เพิ่มปุ่มเก็บถาวรวันเก่า (ย้ายลง `log_archive/` รายเดือน) / ล้างวันเก่า + เห็นรายงาน dry-run · ตั้งจัดการอัตโนมัติตอนปิดโปรแกรมได้ใน Settings (เก็บย้อนหลัง 1–365 วัน) |
 | 📤 **Export .bat/.sh (v2.3)** | สร้างไฟล์ดับเบิลคลิกรันข้างสคริปต์ (Windows/Linux/macOS) |

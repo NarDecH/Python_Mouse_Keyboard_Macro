@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.13.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.14.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -288,6 +288,18 @@
   รับชื่อเงื่อนไขครบ · ตัวอย่าง `plugins/file_exists.py` (File Exists) + `examples/14` +
   เทสต์ TestConditionPlugins/TestConditionPluginsGui/TestConditionPluginsCli →
   493 unit + 20 E2E = 513
+- **ฟีเจอร์เสริม v2.14.0:** **plugin เงื่อนไขสำเร็จรูป 3 ตัว** (Internet Up — socket
+  stdlib ล้วน ค่าเริ่ม 1.1.1.1:443 รอ 2 วิ token `host[:port]`/`Ns` · Process Running —
+  tasklist /FO CSV (Windows) / pgrep -f (Linux/macOS) เทียบไม่สนตัวพิมพ์+ตัด .exe ·
+  Window Exists — ctypes EnumWindows+GetWindowTextW (Windows) / xdotool (Linux) —
+  ทุกตัวทน error คืน False เสมอ ไม่เพิ่ม dependency) · **ปุ่ม 🧩 เงื่อนไข plugin**
+  (`_insert_cond_plugin` — combobox ชื่อเงื่อนไข sorted + ช่องอาร์กิวเมนต์ แทรกแถวใต้แถวเลือก
+  พร้อม `_push_undo` + `row_tags(..., cond_names)` + `refresh_nums()`; ไม่มี plugin
+  เงื่อนไข = ไม่สร้างปุ่ม) · **CLI `--dry-report PATH`** (`dry_report_write(lines,
+  src=None, path=)` — path= ทับ `dry_report_path()`, `{date}` แทนวันที่วันนี้ใน engine
+  เสมอ; ทั้ง CLI หลักและ engine_cli — ใช้ลำพังไม่มี --dry-run = เตือนและไม่มีผล) ·
+  ตัวอย่าง `examples/15_system_conditions.json` + เทสต์ 13 ตัว (TestDryReportPath 5 +
+  TestPluginsV14 5 + TestInsertCondPluginGui 3) → 506 unit + 20 E2E = 526
 
 ## เทคโนโลยี
 

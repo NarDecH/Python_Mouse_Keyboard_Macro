@@ -45,6 +45,9 @@ def build_parser():
                     help="อ่านสคริปต์แบบ JSON Lines (1 แถวต่อบรรทัด — v2.2)")
     ap.add_argument("--dry-run", action="store_true",
                     help="ซ้อมเดินสคริปต์โดยไม่แตะเมาส์/คีย์ (v2.10 — รายงานแทนทำจริง)")
+    ap.add_argument("--dry-report", default=None, metavar="PATH",
+                    help="เลือกไฟล์รายงาน Dry-run เอง (v2.14 — ใช้กับ --dry-run; "
+                         "{date} = วันที่วันนี้; ไม่ใส่ = ไฟล์วันนี้เหมือนเดิม)")
     return ap
 
 
@@ -76,7 +79,12 @@ def load_script(path, json_lines=False):
 
 
 def main(argv=None):
+    import datetime
     args = build_parser().parse_args(argv)
+    dry_on = bool(getattr(args, "dry_run", False))
+    dr_path = getattr(args, "dry_report", None)          # v2.14: --dry-report PATH
+    if dr_path and not dry_on:
+        print("เตือน: --dry-report ใช้ได้เฉพาะกับ --dry-run — ไม่มีผลในการเล่นจริง")
     rows, err = load_script(args.script, json_lines=args.json_lines)
     if err:
         print(err)
@@ -138,6 +146,7 @@ def main(argv=None):
     kb_ctl = KbController()
     # v2.11: โหมด dry-run เขียนรายงานไฟล์เหมือน CLI หลัก (v2.10.1) — ดักบรรทัด DRY-RUN
     dry_on = bool(getattr(args, "dry_run", False))
+    dr_path = getattr(args, "dry_report", None)          # v2.14: --dry-report PATH
     dry_lines = []
 
     def _message(text, color="#080"):
@@ -320,8 +329,10 @@ def main(argv=None):
             me.dry_report_write(me.dry_report_block(
                 args.script, len(play_rows),
                 "ไม่จำกัด" if loops == 0 else loops, dry_lines,
-                finished=(rc == 0)), args.script)
-            print("รายงาน Dry-run: %s" % me.dry_report_path())
+                finished=(rc == 0)), args.script, path=dr_path)
+            print("รายงาน Dry-run: %s" %
+                  (dr_path.replace("{date}", datetime.date.today().isoformat())
+                   if dr_path else me.dry_report_path()))
         if log_enabled:
             prune_log()
     return rc

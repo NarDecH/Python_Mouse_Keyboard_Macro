@@ -3,6 +3,28 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.14.0] — 2026-10-05
+
+### 🧩 Ready-to-use condition plugins + custom dry-run report path
+- **Three new condition plugins ship with the program** — `Internet Up` (socket-only stdlib check,
+  Additional = `host[:port]` and/or `Ns` — defaults to 1.1.1.1:443), `Process Running`
+  (tasklist/pgrep — case-insensitive, ignores the .exe suffix), `Window Exists`
+  (ctypes EnumWindows / xdotool on Linux) — usable as an Action or inside Block Start,
+  mixable with `&&` like every condition · unsupported OS = False, the program never crashes
+  (existing plugin rule)
+- **🧩 Condition-plugin button** — pick a condition from a dropdown, type its argument and the row
+  is inserted for you (row numbers + cond tag colors refresh automatically · Ctrl+Z undoable ·
+  the button only appears when a condition plugin is loaded)
+- **CLI `--dry-report PATH`** — choose the dry-run report file yourself, in both the main CLI and
+  engine_cli (`{date}` = today; requires `--dry-run` — alone it warns and plays normally) —
+  **closes the last ROADMAP item** (pending since v2.10.1)
+- **🧪 Dry-run menu picks the report path** — path field + file picker (kept for the session,
+  not saved to conf — job-specific) · appends to the same file · `{date}` works the same
+- New example `examples/15_system_conditions.json` + `_template.py` references the new plugins +
+  v2.14 post in `docs/ANNOUNCE.md`
+- **13 new tests** (TestDryReportPath 5 + TestPluginsV14 5 + TestInsertCondPluginGui 3) →
+  **506 unit + 20 E2E = 526**
+
 ## [2.13.0] — 2026-10-05
 
 ### 🔌 Plugin API v3 — condition plugins (CONDITION_NAME + check) usable everywhere a condition fits

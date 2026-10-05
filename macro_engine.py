@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.13.0"
+__version__ = "2.14.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -1950,11 +1950,13 @@ def dry_report_block(script, n_rows, n_loops, dry_lines, finished=True, extra=""
     return out
 
 
-def dry_report_write(lines, src=None):
+def dry_report_write(lines, src=None, path=None):
     """เขียนบล็อกรายงาน Dry-run ต่อท้ายไฟล์ dry_report_วันที่.txt (ทนต่อทุก error —
-    รายงานห้ามทำโปรแกรมพัง เหมือน log_write) — แต่ละบล็อกคั่นบรรทัดว่างอ่านง่าย"""
+    รายงานห้ามทำโปรแกรมพัง เหมือน log_write) — แต่ละบล็อกคั่นบรรทัดว่างอ่านง่าย
+    v2.14: path= ระบุพาธเอง (CLI --dry-report PATH) — ไม่ใส่ = ไฟล์วันนี้เหมือนเดิม"""
     try:
-        p = dry_report_path()
+        p = str(path) if path else dry_report_path()
+        p = p.replace("{date}", datetime.date.today().isoformat())   # v2.14: {date} = วันที่วันนี้
         sep = ""
         if os.path.isfile(p) and os.path.getsize(p) > 0:
             sep = "\n"                       # มีรายงานเดิมแล้ว — คั่นบล็อกใหม่

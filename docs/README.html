@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Mouse &amp; Keyboard Macro v2.13.0 — คู่มือการใช้งาน</title>
+<title>Auto Mouse &amp; Keyboard Macro v2.14.0 — คู่มือการใช้งาน</title>
 <style>
   :root {
     --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.13.0</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.14.0</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -153,6 +153,7 @@
       <tr><td>🗂️ <b>Queue Bat v2.10.1</b></td><td>เมนู 🗂️ เลือกไฟล์ลิสต์คิว → ได้ .bat/.sh ข้างลิสต์ ดับเบิลคลิกเล่นคิวทั้งชุด ไม่ต้องพิมพ์คำสั่ง</td></tr>
       <tr><td>🗃️ <b>เครื่องมือ log v2.11</b></td><td>เมนู 📝 เพิ่มปุ่มเก็บถาวรวันเก่า (ย้ายลง <code>log_archive/</code> รายเดือน) / ล้างวันเก่า + เห็นรายงาน dry-run · ตั้งจัดการอัตโนมัติตอนปิดโปรแกรมได้ใน Settings (เก็บย้อนหลัง 1–365 วัน)</td></tr>
       <tr><td>📑 <b>Run Queue v2.12</b></td><td>เมนู 📑 เลือกไฟล์ลิสต์คิว → เล่นทีละไฟล์ในโปรแกรมเลย ติดตามผลสดรายไฟล์ + ผลลัพธ์ CLI ทันที + ปุ่มหยุดไฟล์นี้/หยุดทั้งคิว ไม่ต้องเปิดคอนโซล</td></tr>
+      <tr><td>🧩 <b>เงื่อนไข plugin สำเร็จรูป v2.14</b></td><td>มาให้ 4 ตัว: <code>File Exists</code> · <code>Internet Up</code> (เช็คเน็ต — <code>host[:port]</code> และ/หรือ <code>Ns</code>) · <code>Process Running</code> (tasklist/pgrep) · <code>Window Exists</code> (ctypes/xdotool) — ใช้เป็น Action หรือ <code>if ชื่อ [อาร์กิวเมนต์]</code> ใน Block Start (ผสม <code>&amp;&amp;</code> ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI <code>--dry-report PATH</code> เลือกไฟล์รายงาน dry-run เอง (<code>{date}</code> = วันที่)</td></tr>
       <tr><td>🔌 <b>Plugin API v3 — เงื่อนไข plugin v2.13</b></td><td>plugin ประกาศ <code>CONDITION_NAME</code> + <code>check(ctx, row) -&gt; bool</code> ใช้เป็นเงื่อนไขได้ทั้งคอลัมน์ Action และ Block Start/End (<code>if ชื่อ [อาร์กิวเมนต์]</code> ผสม <code>&amp;&amp;</code> ได้) — จริง = เล่นต่อ ไม่จริง = ข้าม N แถว (N = Repeat) · validate/dry-run/.ahk รองรับครบ (ดู PLUGINS.md)</td></tr>
       <tr><td>🔀 <b>ทำงานร่วม AutoHotkey v2.7.0</b></td><td>เมนู 🔀: ส่งออกสคริปต์เป็น <code>.ahk</code> หรือนำเข้าไฟล์ <code>.ahk</code> (Send/Click/MouseMove/Sleep/Run) เข้าตาราง — push undo ให้เอง</td></tr>
       <tr><td>🔌 <b>plugin ใหม่ v2.5</b></td><td>Screenshot (ถ่ายจอเก็บหลักฐาน) · Toast (แจ้งเตือน Windows 10/11) · Write Log · Ask Input (ถามค่าผู้ใช้เก็บเป็นตัวแปร)</td></tr>
@@ -382,7 +383,7 @@ py -m unittest test_e2e -v           # 15 E2E tests (รัน CLI จริง)
 
 </div>
 
-<footer>Auto Mouse &amp; Keyboard Macro v2.13.0 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
+<footer>Auto Mouse &amp; Keyboard Macro v2.14.0 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
 
 </body>
 </html>

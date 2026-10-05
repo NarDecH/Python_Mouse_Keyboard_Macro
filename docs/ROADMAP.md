@@ -130,5 +130,5 @@
 4. **ข้อความใหม่ต้องอยู่ใน `TR` ทั้ง th/en** — และเอกสาร .md/.html อัพเดตพร้อมกัน
 
 ---
-*อัพเดตล่าสุด: v2.13.0 — ถอดจาก CHANGELOG · Plugin API v3 (เงื่อนไขจาก plugin) ปิดครบชุดข้อเสนอ
-v2.11 แล้ว — ข้อเสนอถัดไป: flag `--dry-report PATH` เลือกพาธรายงาน dry-run เอง รอโหวตจากชุมชน*
+*อัพเดตล่าสุด: v2.14.0 — ถอดจาก CHANGELOG · ปิดครบชุดข้อเสนอ v2.11 แล้ว (เงื่อนไข plugin +
+flag `--dry-report PATH` สำเร็จใน v2.14) — ข้อเสนอถัดไปรอโหวตจากชุมชนที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*

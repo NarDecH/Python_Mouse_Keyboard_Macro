@@ -565,7 +565,25 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.13.0 ·
+  <div class="card">
+    <h2>21. เงื่อนไข plugin สำเร็จรูป + ปุ่ม 🧩 + --dry-report (v2.14)</h2>
+    <p>หัวข้อ 12 ต่อจาก Plugin API v3 — เงื่อนไขพร้อมใช้มากับโปรแกรมแล้ว 4 ตัว:
+      <code>File Exists</code> · <code>Internet Up</code> (เช็คเน็ต — Additional = <code>host[:port]</code>
+      และ/หรือ <code>Ns</code> ค่าเริ่มต้น 1.1.1.1:443) · <code>Process Running</code>
+      (tasklist/pgrep — ไม่สนตัวพิมพ์/นามสกุล .exe) · <code>Window Exists</code>
+      (EnumWindows ctypes ล้วน / xdotool บน Linux):</p>
+    <ul>
+      <li><b>ใช้เป็น Action หรือ Block Start</b> — เช่น <code>if Internet Up &amp;&amp; Process Running chrome</code>
+        = เน็ตขึ้นและ Chrome รันอยู่เท่านั้นถึงเล่นบล็อก · OS ที่ไม่มีเครื่องมือ = เท็จ โปรแกรมไม่พัง</li>
+      <li><b>ปุ่ม 🧩 เงื่อนไข plugin</b> — เลือกชื่อจาก dropdown + พิมพ์อาร์กิวเมนต์ กดแทรกได้แถวใหม่
+        (Repeat = จำนวนแถวที่ข้ามเมื่อไม่จริง) · เลขลำดับ + สี cond อัตโนมัติ · Ctrl+Z ย้อนได้</li>
+      <li><b>CLI <code>--dry-report PATH</code></b> — เลือกไฟล์รายงาน Dry-run เอง (<code>{date}</code> = วันที่วันนี้,
+        เขียนต่อท้ายไฟล์เดิม, ใช้กับ <code>--dry-run</code> เท่านั้น) · เมนู 🧪 Dry-run ก็เลือกพาธได้
+        · ตัวอย่าง: <code>examples/15_system_conditions.json</code> · คู่มือ: <a href="PLUGINS.md">PLUGINS.md</a></li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.14.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

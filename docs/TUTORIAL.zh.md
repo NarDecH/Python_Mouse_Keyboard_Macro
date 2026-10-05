@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.13.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.14.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -357,3 +357,15 @@ max 10              无条件 — 把块体重复 10 次
   GUI / CLI / engine_cli 通过同一个 runner 评估；试运行会真实调用 `check`；
   .ahk 导出时整块写为注释。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 17 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.14.0 — 新增
+
+- **四个内置条件插件** — `File Exists` · `Internet Up`（纯 socket 检测网络，附加 =
+  `host[:port]` 和/或 `Ns`，默认 1.1.1.1:443）· `Process Running`（tasklist/pgrep）·
+  `Window Exists`（ctypes EnumWindows / Linux 上的 xdotool）— 可作 Action 或用于 Block Start
+  （`&&` 混合）；系统缺少工具 = 假，程序不崩溃。
+- **🧩 条件插件按钮** — 从下拉列表选条件 + 输入参数，自动插入行（重复 = 条件为假时跳过的行数）。
+- **CLI `--dry-report PATH`** — 自行指定试运行报告文件（`{date}` = 今天；仅与 `--dry-run`
+  同用）——补上 ROADMAP 的最后一项。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 18 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+- 完整示例：`examples/15_system_conditions.json` · 详细教程见第 18 章。

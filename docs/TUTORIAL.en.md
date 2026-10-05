@@ -532,5 +532,49 @@ reason recorded — see `load_plugins.last_failed`)
 
 ---
 
-*Guide for code v2.13.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+## Chapter 18 — Built-in condition plugins · 🧩 · --dry-report (v2.14)
+
+### 18.1 The four conditions that ship with the program
+
+The `plugins/` folder now includes four ready-to-use conditions — use them as an Action
+or inside Block Start right away:
+
+| Condition | Additional | True when |
+|---|---|---|
+| `File Exists` | file path | the file exists |
+| `Internet Up` | (empty) or `host[:port]` and/or `Ns` | TCP connect succeeds (default 1.1.1.1:443, 2 s) |
+| `Process Running` | process name, e.g. `chrome` | a process is running (tasklist/pgrep) |
+| `Window Exists` | text in a window title, e.g. `Notepad` | a window whose title matches is open |
+
+Mixable Block Start example: `if Internet Up && Process Running chrome` — the block plays only
+when the network is up AND Chrome is running · on an OS without the tool (e.g. no xdotool) the
+condition is simply False — the program never crashes.
+
+### 18.2 The 🧩 button inserts a condition row
+
+Once a condition plugin is loaded, the toolbar shows **🧩 เงื่อนไข plugin** — pick a name from
+the dropdown, type the argument, press insert and a new row appears under the selected one
+(Repeat = rows to skip when the condition is false, editable later) · Ctrl+Z undoable ·
+the button only appears when a condition plugin is loaded.
+
+### 18.3 CLI --dry-report PATH
+
+`--dry-run` always wrote its report to `dry_report_<date>.txt` next to the program (v2.10.1) —
+now you can choose your own:
+
+```bash
+py auto_macro.py script.json --dry-run --dry-report C:\reports\night_{date}.txt
+```
+
+- `{date}` = today's date (e.g. `night_2026-10-05.txt`) — perfect for overnight jobs
+- Appends to the same file (each run is a new block separated by a blank line)
+- Requires `--dry-run` — alone it warns and plays normally
+- The in-app 🧪 Dry-run menu can pick the path too (path field + file picker — kept until the
+  program closes)
+
+Full example: `examples/15_system_conditions.json`
+
+---
+
+*Guide for code v2.14.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

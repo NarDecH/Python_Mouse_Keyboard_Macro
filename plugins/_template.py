@@ -37,6 +37,7 @@ def run(ctx, row):
 #         return False
 #
 # ตัวอย่างจริง: plugins/file_exists.py (File Exists — เช็คว่าไฟล์มีอยู่จริง)
+#               plugins/window_exists.py · process_running.py · internet_up.py (v2.14)
 # ---------------------------------------------------------------------------
 
 

@@ -2,6 +2,26 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.14.0] — 2026-10-05
+
+### 🧩 เงื่อนไข plugin ครบชุดใช้งานจริง + เลือกพาธรายงาน Dry-run เอง
+- **plugin เงื่อนไขใหม่ 3 ตัวแถกมากับโปรแกรม** — `Internet Up` (เช็คเน็ต socket ล้วน stdlib,
+  Additional = `host[:port]` และ/หรือ `Ns` — ค่าเริ่มต้น 1.1.1.1:443), `Process Running`
+  (tasklist/pgrep — ไม่สนตัวพิมพ์/นามสกุล .exe), `Window Exists` (EnumWindows ctypes ล้วน /
+  xdotool บน Linux) — ใช้เป็น Action หรือใน Block Start ผสม `&&` ได้เหมือนเงื่อนไขทุกชนิด ·
+  OS ที่ไม่รองรับ = False โปรแกรมไม่พัง (กติกา plugin เดิม)
+- **ปุ่ม 🧩 เงื่อนไข plugin** — เลือกชื่อเงื่อนไขจาก dropdown + พิมพ์อาร์กิวเมนต์ แล้วแทรกแถวให้
+  (เลขลำดับ + สีหมวด cond อัตโนมัติ · Ctrl+Z ย้อนได้ · ปุ่มโผล่เมื่อมี plugin เงื่อนไขเท่านั้น)
+- **CLI `--dry-report PATH`** — เลือกไฟล์รายงาน Dry-run เอง ทั้ง CLI หลักและ engine_cli
+  (`{date}` = วันที่วันนี้; ใช้กับ `--dry-run` เท่านั้น — ลำพัง = เตือนและเล่นปกติ) —
+  **ปิดแผนสุดท้ายของ ROADMAP** (ค้างจาก v2.10.1)
+- **เมนู 🧪 Dry-run เลือกพาธรายงานได้** — ช่องพาธ + ปุ่มเลือกไฟล์ (จำค่าไว้จนปิดโปรแกรม
+  ไม่จำลง conf — งานเฉพาะกิจ) · เขียนต่อท้ายไฟล์เดิม · `{date}` ใช้ได้เหมือนกัน
+- ตัวอย่าง `examples/15_system_conditions.json` + แม่แบบ `_template.py` อ้าง plugin ใหม่ +
+  ข่าวใน `docs/ANNOUNCE.md` พร้อมโพสต์ v2.14
+- **เทสต์ใหม่ 13 ตัว** (TestDryReportPath 5 + TestPluginsV14 5 + TestInsertCondPluginGui 3) →
+  **506 unit + 20 E2E = 526**
+
 ## [2.13.0] — 2026-10-05
 
 ### 🔌 Plugin API v3 — เงื่อนไข plugin (CONDITION_NAME + check) ใช้เป็นเงื่อนไขได้ทุกจุด

@@ -6508,5 +6508,241 @@ class TestConditionPluginsCli(unittest.TestCase):
         self.assertEqual(rc, 0, out)
 
 
+class TestDryReportPath(unittest.TestCase):
+    """v2.14: CLI --dry-report PATH — เลือกไฟล์รายงาน dry-run เอง ({date} = วันที่วันนี้)
+    ปิดแผนสุดท้ายของ ROADMAP (เหลือค้างจาก v2.10.1)"""
+
+    def _script(self, d, name="dry_report.json"):
+        p = os.path.join(d, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{"enabled": True, "button": "Beep", "additional": "ok",
+                        "mins": 0, "secs": 0, "repeat": 1}], fh, ensure_ascii=False)
+        return p
+
+    def test_cli_dry_report_path_used(self):
+        import contextlib
+        d = tempfile.mkdtemp(prefix="macro_drp_")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        target = os.path.join(d, "my_report.txt")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = am.cli_main([self._script(d), "--dry-run", "--no-log",
+                              "--dry-report", target])
+        self.assertEqual(rc, 0)
+        self.assertTrue(os.path.isfile(target))           # เขียนลงพาธที่สั่งจริง
+        with open(target, encoding="utf-8") as fh:
+            self.assertIn("DRY-RUN", fh.read())
+
+    def test_cli_dry_report_date_token(self):
+        import contextlib
+        d = tempfile.mkdtemp(prefix="macro_drd_")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        target = os.path.join(d, "rep_{date}.txt")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = am.cli_main([self._script(d), "--dry-run", "--no-log",
+                              "--dry-report", target])
+        self.assertEqual(rc, 0)
+        final = os.path.join(d, "rep_%s.txt" % datetime.date.today().isoformat())
+        self.assertTrue(os.path.isfile(final))            # {date} ถูกแทนวันที่วันนี้
+        self.assertIn(final, buf.getvalue())              # พิมพ์พาธที่แทนแล้ว
+
+    def test_dry_report_write_path_kw_overrides_default(self):
+        # engine ล้วน: path= ทับ dry_report_path() — และ {date} แทนใน engine ด้วย
+        d = tempfile.mkdtemp(prefix="macro_dre_")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        target = os.path.join(d, "x_{date}.txt")
+        me_mod.dry_report_write(["ไฮ"], path=target)
+        final = os.path.join(d, "x_%s.txt" % datetime.date.today().isoformat())
+        self.assertTrue(os.path.isfile(final))
+        self.assertFalse(os.path.isfile(target))          # ชื่อดิบ (ยังมี {date}) ต้องไม่เกิด
+
+    def test_cli_dry_report_without_dry_run_warns(self):
+        import contextlib
+        d = tempfile.mkdtemp(prefix="macro_drw_")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        target = os.path.join(d, "never.txt")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = am.cli_main([self._script(d), "--no-log", "--dry-report", target])
+        self.assertEqual(rc, 0)
+        self.assertIn("--dry-report", buf.getvalue())     # เตือนว่าต้องใช้กับ --dry-run
+        self.assertFalse(os.path.isfile(target))
+
+    def test_engine_cli_dry_report(self):
+        import contextlib
+        import shutil as _sh
+        import engine_cli
+        d = tempfile.mkdtemp(prefix="macro_drx_")
+        self.addCleanup(_sh.rmtree, d, ignore_errors=True)
+        target = os.path.join(d, "eng_{date}.txt")
+        p = os.path.join(d, "s.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump([{"enabled": True, "button": "Beep", "additional": "ok",
+                        "mins": 0, "secs": 0, "repeat": 1}], fh, ensure_ascii=False)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = engine_cli.main([p, "--dry-run", "--no-log", "--dry-report", target])
+        self.assertEqual(rc, 0)
+        final = os.path.join(d, "eng_%s.txt" % datetime.date.today().isoformat())
+        self.assertTrue(os.path.isfile(final))
+
+
+class TestPluginsV14(unittest.TestCase):
+    """v2.14: plugin เงื่อนไขระบบ 3 ตัวที่แจกมากับโปรเจกต์ — มาตรฐาน PLUGINS.md:
+    เรียก check จริง / ทน Additional พัง / ทน ctx ขาด / ตรวจโค้ดจริงของ plugin"""
+
+    def _load(self, name):
+        me_mod.load_plugins()
+        conds = dict(getattr(me_mod.load_plugins, "last_conditions", []) or [])
+        self.assertIn(name, conds, "plugin %s ต้องโหลดเจอ" % name)
+        return conds[name]
+
+    def test_real_internet_up(self):
+        mod = self._load("Internet Up")
+        # Additional พัง/ว่าง → ยังต้องคืน bool (ค่าเริ่ม 1.1.1.1 — ไม่ raise เด็ดขาด)
+        for add in ("", "not a host!:", "1.1.1.1 0.2s", "bad..host 9999"):
+            r = mod.check({}, {"button": "Internet Up", "additional": add})
+            self.assertIsInstance(r, bool)
+
+    def test_real_process_running(self):
+        mod = self._load("Process Running")
+        self.assertIsInstance(mod.check({}, {"button": "Process Running",
+                                            "additional": "python"}), bool)
+        self.assertFalse(mod.check({}, {"button": "Process Running",
+                                        "additional": "no_such_process_xyz"}))
+        self.assertFalse(mod.check({}, {"button": "Process Running", "additional": ""}))
+        self.assertFalse(mod.check({}, {}))               # ctx ขาด/แถวว่าง — ไม่พัง
+
+    def test_real_window_exists(self):
+        mod = self._load("Window Exists")
+        self.assertIsInstance(mod.check({}, {"button": "Window Exists",
+                                            "additional": "python"}), bool)
+        self.assertFalse(mod.check({}, {"button": "Window Exists",
+                                        "additional": "no_such_window_xyz"}))
+        self.assertFalse(mod.check({}, {"button": "Window Exists", "additional": ""}))
+        self.assertFalse(mod.check({}, {}))
+
+    def test_condition_names_registered(self):
+        me_mod.load_plugins()
+        conds = [n for n, _ in getattr(me_mod.load_plugins, "last_conditions", []) or []]
+        for n in ("File Exists", "Internet Up", "Process Running", "Window Exists"):
+            self.assertIn(n, conds)
+
+    def test_example_15_validates_and_skips(self):
+        """ตัวอย่าง 15: validate ผ่าน + เล่น CLI จริง (แถว Window Exists ไม่เจอ = ข้าม)"""
+        import contextlib
+        import shutil as _sh
+        ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "examples", "15_system_conditions.json")
+        with open(ex, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        me_mod.load_plugins()
+        cond_names = [n for n, _ in getattr(me_mod.load_plugins, "last_conditions", []) or []]
+        self.assertEqual(me_mod.validate_rows(rows, plugin_names=[],
+                                              condition_names=cond_names), [])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = am.cli_main([ex, "--no-log"])
+        self.assertEqual(rc, 0)
+        out = buf.getvalue()
+        self.assertIn("เงื่อนไข plugin", out)             # หัวโปรแกรมแสดงรายชื่อเงื่อนไข
+        self.assertIn("ข้าม 1 แถว", out)                   # Window Exists ไม่เจอ Notepad → ข้าม
+
+
+class TestInsertCondPluginGui(unittest.TestCase):
+    """v2.14: ปุ่ม 🧩 — แทรกแถวเงื่อนไข plugin จาก dialog (ใช้ MacroApp จริง)"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = None
+        try:
+            cls.root = am.tk.Tk()
+            cls.root.withdraw()
+        except am.tk.TclError:
+            cls.root = None
+            return
+        try:
+            cls.app = am.MacroApp(cls.root)
+        except Exception:
+            cls.root.destroy()
+            cls.root = None
+            cls.app = None
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.root is not None:
+            cls.root.destroy()
+
+    def setUp(self):
+        if self.app is None:
+            self.skipTest("ไม่มีจอ/สร้าง MacroApp จริงไม่ได้")
+        import types
+        self.mod = types.SimpleNamespace(CONDITION_NAME="Flag On", check=lambda c, r: True)
+        self.app._cond_plugins = [("Flag On", self.mod)]
+        self.app._cond_names = frozenset({"Flag On"})
+        self.app._action_runner.conditions = {"Flag On": self.mod}
+        for iid in self.app.tree.get_children():
+            self.app.tree.delete(iid)
+        self.addCleanup(self._restore)
+
+    def _restore(self):
+        self.app._cond_plugins = list(getattr(am.load_plugins, "last_conditions", []) or [])
+        self.app._cond_names = frozenset(n for n, _ in self.app._cond_plugins)
+        self.app._action_runner.conditions = dict(self.app._cond_plugins)
+
+    def test_button_present_and_insert(self):
+        # ปุ่ม 🧩 มีจริงเมื่อโหลดเงื่อนไขแล้ว
+        btns = [w for w in self.app.root.winfo_children()]
+        self.assertTrue(hasattr(self.app, "_insert_cond_plugin"))
+        # แทรกโดยตรง (เลียนแบบหน้าต่าง — คลิกจริงทำใน dialog ที่ grab_set)
+        before = len(self.app.tree.get_children())
+        self.app.tree.insert("", "end",
+                             values=["☑", "#", "", "", "Beep", "", 0, 0, 1])
+        for iid in self.app.tree.get_children():
+            self.app.tree.selection_set(iid)
+        self.app._insert_cond_plugin()
+        # เปิด dialog ได้จริง — ปิดทิ้ง (grab ป้องกันไม่ให้รบกวนเทสต์อื่น)
+        for w in self.app.root.winfo_children():
+            if isinstance(w, am.tk.Toplevel) and "แทรกเงื่อนไข" in str(w.title()):
+                w.destroy()
+        self.assertEqual(len(self.app.tree.get_children()), before + 1)
+
+    def test_insert_via_dialog_ok(self):
+        # เดิน dialog จริง: เลือกชื่อ + พิมพ์อาร์กิวเมนต์ + กดแทรก (ผ่าน command ของปุ่ม)
+        self.app._insert_cond_plugin()
+        dlg = None
+        for w in self.app.root.winfo_children():
+            if isinstance(w, am.tk.Toplevel) and "แทรกเงื่อนไข" in str(w.title()):
+                dlg = w
+        self.assertIsNotNone(dlg)
+        cmb = next(w for w in dlg.winfo_children()
+                   if isinstance(w, am.ttk.Combobox))
+        self.assertEqual(cmb["values"], ("Flag On",))
+        # ⚠️ ttk.Combobox สืบทอด tk.Entry ด้วย — ต้องตัด combobox ออกก่อนถึงจะได้ช่องอาร์กิวเมนต์จริง
+        ent = next(w for w in dlg.winfo_children()
+                   if isinstance(w, am.tk.Entry) and not isinstance(w, am.ttk.Combobox))
+        ent.delete(0, "end")
+        ent.insert(0, "on")
+        # ปุ่ม "แทรก" เรียก _ok จริง — หาผ่าน children ของ frame
+        frames = [w for w in dlg.winfo_children() if isinstance(w, am.tk.Frame)]
+        ok_btn = next(b for f in frames for b in f.winfo_children()
+                      if isinstance(b, am.tk.Button) and str(b["text"]) == "แทรก")
+        ok_btn.invoke()
+        vals = list(self.app.tree.item(self.app.tree.get_children()[-1], "values"))
+        self.assertEqual(vals[4], "Flag On")              # Action = ชื่อเงื่อนไข
+        self.assertEqual(vals[5], "on")                   # Additional = อาร์กิวเมนต์
+        self.assertEqual(str(vals[1]), "1")               # เลขลำดับรีเลขแล้ว (Tk คืน string)
+        self.assertEqual(self.app.tree.item(self.app.tree.get_children()[-1], "tags"),
+                         ("cond",))                       # สีหมวดเงื่อนไข
+
+    def test_no_plugins_message(self):
+        self.app._cond_names = frozenset()
+        self.app._insert_cond_plugin()                    # ไม่มี plugin = เตือนแล้วจบ เปิด dialog
+        tops = [w for w in self.app.root.winfo_children()
+                if isinstance(w, am.tk.Toplevel) and "แทรกเงื่อนไข" in str(w.title())]
+        self.assertEqual(tops, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

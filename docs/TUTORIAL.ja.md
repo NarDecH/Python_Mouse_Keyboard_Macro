@@ -319,7 +319,7 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   テキスト検索 `~` → `InStr()`）；画像・色の条件は翻訳不可ならブロック全体がコメントに —
   迷子の波括弧なし。インポートは 3 形式すべて Block Start/End 行に戻せます。
 
-*コード v2.13.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
+*コード v2.14.0 対応 · タイ語完全版（練習がより豊富）：[TUTORIAL.md](TUTORIAL.md) ·
 プロジェクト文書：[README.md](README.md) · プラグインマーケット：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新機能
@@ -372,3 +372,16 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   実行され、.ahk エクスポートではブロック全体がコメントになります。
 - 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第17章 ·
   [TUTORIAL.en.md](TUTORIAL.en.md) を参照。
+
+## v2.14.0 — 新機能
+
+- **内蔵条件プラグイン 4 種** — `File Exists` · `Internet Up`（純 socket のネット接続チェック、
+  追加欄 = `host[:port]` かつ/または `Ns`、既定 1.1.1.1:443）· `Process Running`
+  （tasklist/pgrep）· `Window Exists`（ctypes EnumWindows / Linux では xdotool）—
+  Action としても Block Start 内でも使用可（`&&` で混在可）；ツールが無い環境 = 偽で、
+  プログラムは決してクラッシュしません。
+- **🧩 条件プラグインボタン** — ドロップダウンで条件を選び + 引数を入力して行を挿入
+  （Repeat = 条件が偽のときスキップする行数）。
+- **CLI `--dry-report PATH`** — ドライラン レポートの保存先を自分で指定
+  （`{date}` = 本日；`--dry-run` と併用時のみ）——ROADMAP の最後の項目を完結。
+- 完全な例：`examples/15_system_conditions.json` · 詳細は第 18 章参照。

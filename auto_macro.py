@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.13.0"
+__version__ = "2.14.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -2042,11 +2042,13 @@ def dry_report_block(script, n_rows, n_loops, dry_lines, finished=True, extra=""
     return out
 
 
-def dry_report_write(lines, src=None):
+def dry_report_write(lines, src=None, path=None):
     """เขียนบล็อกรายงาน Dry-run ต่อท้ายไฟล์ dry_report_วันที่.txt (ทนต่อทุก error —
-    รายงานห้ามทำโปรแกรมพัง เหมือน log_write) — แต่ละบล็อกคั่นบรรทัดว่างอ่านง่าย"""
+    รายงานห้ามทำโปรแกรมพัง เหมือน log_write) — แต่ละบล็อกคั่นบรรทัดว่างอ่านง่าย
+    v2.14: path= ระบุพาธเอง (CLI --dry-report PATH) — ไม่ใส่ = ไฟล์วันนี้เหมือนเดิม"""
     try:
-        p = dry_report_path()
+        p = str(path) if path else dry_report_path()
+        p = p.replace("{date}", datetime.date.today().isoformat())   # v2.14: {date} = วันที่วันนี้
         sep = ""
         if os.path.isfile(p) and os.path.getsize(p) > 0:
             sep = "\n"                       # มีรายงานเดิมแล้ว — คั่นบล็อกใหม่
@@ -3641,6 +3643,8 @@ class MacroApp:
             tk.Button(tools, text="🎨 จับสี (คลิกบนจอ)", command=self._pick_pixel_color).pack(side="right", padx=2)
         tk.Button(tools, text="🕐 เวลานี้ (+15 นาที)", command=self._apply_current_time).pack(side="right", padx=2)  # v1.22
         tk.Button(tools, text="🔌 plugins", command=self.open_plugins_folder).pack(side="right", padx=2)  # v2.1: ตลาด plugin
+        if self._cond_names:
+            tk.Button(tools, text="🧩 เงื่อนไข plugin", command=self._insert_cond_plugin).pack(side="right", padx=2)  # v2.14: แทรกแถวเงื่อนไข plugin
 
     # -------------------------------------------------- จับภาพหน้าจอ (snip) ---
     def _capture_snip(self):
@@ -4802,6 +4806,59 @@ class MacroApp:
         vals = list(self.tree.item(row_id, "values"))
         vals[ci] = value
         self.tree.item(row_id, values=vals)
+
+    def _insert_cond_plugin(self):
+        """🧩 แทรกเงื่อนไข plugin (v2.14) — เลือกชื่อเงื่อนไข + ใส่อาร์กิวเมนต์
+        แล้วแทรกแถวใหม่ใต้แถวที่เลือก (จบ = ท้ายตาราง) — แถวเงื่อนไขเล่นเหมือนเงื่อนไขในตัว
+        (จริง = เล่นต่อ / ไม่จริง = ข้าม N แถว ตาม Repeat — แก้ Repeat ทีหลังได้)"""
+        if not self._cond_names:
+            self._ui_state["msg"] = ("ยังไม่มี plugin เงื่อนไข — วางไฟล์ .py ในโฟลเดอร์ plugins/ "
+                                     "(ปุ่ม 🔌 เปิดโฟลเดอร์) แล้วรีสตาร์ตโปรแกรม", "#c00")
+            return
+        win = tk.Toplevel(self.root)
+        win.title("แทรกเงื่อนไข plugin (v2.14)")
+        win.configure(bg="#f0f0f0")
+        tk.Label(win, text="เงื่อนไข:", bg="#f0f0f0").grid(row=0, column=0,
+                                                           padx=10, pady=(14, 4), sticky="e")
+        names = sorted(self._cond_names)
+        cmb = ttk.Combobox(win, state="readonly", values=names, width=30)
+        cmb.current(0)
+        cmb.grid(row=0, column=1, padx=10, pady=(14, 4), sticky="w")
+        tk.Label(win, text="อาร์กิวเมนต์:", bg="#f0f0f0").grid(row=1, column=0,
+                                                              padx=10, pady=4, sticky="e")
+        ent = tk.Entry(win, width=32)
+        ent.grid(row=1, column=1, padx=10, pady=4, sticky="w")
+        tk.Label(win, text="Repeat = จำนวนแถวที่ข้ามเมื่อเงื่อนไขไม่จริง", bg="#f0f0f0",
+                 fg="#666").grid(row=2, column=0, columnspan=2, padx=10, pady=(0, 4))
+
+        def _ok():
+            name = cmb.get().strip()
+            arg = ent.get().strip()
+            if not name:
+                return
+            sel = self.tree.selection()
+            pos = (self.tree.index(sel[0]) + 1) if sel else len(self.tree.get_children())
+            vals = ["☑", "#", "", "", name, arg, 0, 0, 1]
+            self._push_undo()          # v2.5: แทรกแล้วย้อนได้ (Ctrl+Z)
+            iid = self.tree.insert("", pos, values=vals)
+            self.tree.item(iid, tags=row_tags(name, pos + 1, self._cond_names))   # สีหมวด cond
+            self.refresh_nums()        # รีเลขลำดับ + สีแถวเสมอ (กฎ AGENTS.md)
+            win.destroy()
+            self._ui_state["msg"] = ("แทรกเงื่อนไข %s แล้ว — แถวถัดไปใช้ Repeat กำหนดแถวที่ข้าม"
+                                     % name, "#080")
+
+        bf = tk.Frame(win, bg="#f0f0f0")
+        bf.grid(row=3, column=0, columnspan=2, pady=(4, 14))
+        tk.Button(bf, text="แทรก", width=8, command=_ok).pack(side="left", padx=4)
+        tk.Button(bf, text="ยกเลิก", width=8, command=win.destroy).pack(side="left", padx=4)
+        ent.focus_set()
+        win.bind("<Return>", lambda e: _ok())
+        win.bind("<Escape>", lambda e: win.destroy())
+        win.transient(self.root)
+        win.grab_set()
+        x = self.root.winfo_rootx() + self.root.winfo_width() // 2 - win.winfo_reqwidth() // 2
+        y = self.root.winfo_rooty() + self.root.winfo_height() // 3
+        win.geometry("+%d+%d" % (max(0, x), max(0, y)))
 
     # ------------------------------------------------------------- playback --
     def _play_options(self):
@@ -6767,6 +6824,9 @@ def cli_main(argv):
                          "(ค่าเริ่มต้น 3) — หยุดถาวรด้วย F8/Esc/Ctrl+C/stop-file")
     ap.add_argument("--dry-run", action="store_true",
                     help="ซ้อมเดินสคริปต์โดยไม่แตะเมาส์/คีย์ (v2.10 — รายงานแทนทำจริง)")
+    ap.add_argument("--dry-report", default=None, metavar="PATH",
+                    help="เลือกไฟล์รายงาน Dry-run เอง (v2.14 — ใช้กับ --dry-run; "
+                         "{date} = วันที่วันนี้ เช่น report_{date}.txt; ไม่ใส่ = ไฟล์วันนี้เหมือนเดิม)")
     ap.add_argument("--queue", default=None, metavar="LIST.txt",
                     help="รันสคริปต์หลายไฟล์ต่อกันตามลิสต์ (v2.10 — บรรทัดละพาธ "
                          "ข้าม # และบรรทัดว่าง) ต้องผ่านตรวจทุกไฟล์ก่อนเริ่มเล่น")
@@ -6825,6 +6885,9 @@ def cli_main(argv):
     cli_conditions = {}          # v2.13: condition plugins (เติมหลังโหลด plugins ด้านล่าง)
     speed = min(10.0, max(0.1, args.speed))
     dry_run_on = bool(getattr(args, "dry_run", False))   # v2.10.1: เก็บรายงาน dry-run เป็นไฟล์
+    dr_path = getattr(args, "dry_report", None)          # v2.14: --dry-report PATH (ต้องมี --dry-run)
+    if dr_path and not dry_run_on:
+        print("เตือน: --dry-report ใช้ได้เฉพาะกับ --dry-run — ไม่มีผลในการเล่นจริง")
     dry_lines = []
 
     # v2.1 (phase 2): CLI ใช้ ActionRunner จาก engine เป็นแหล่งเดียวกับ GUI —
@@ -7129,8 +7192,10 @@ def cli_main(argv):
                 dry_report_write(dry_report_block(
                     args.script, len(rows),
                     "ไม่จำกัด" if (args.loop or args.loops == 0) else str(max(0, args.loops)),
-                    dry_lines, finished=ok), args.script)
-                print("รายงาน Dry-run: %s" % dry_report_path())
+                    dry_lines, finished=ok), args.script, path=dr_path)
+                print("รายงาน Dry-run: %s" %
+                      (dr_path.replace("{date}", datetime.date.today().isoformat())
+                       if dr_path else dry_report_path()))
                 dry_lines.clear()
             if log_enabled:
                 log_write("STOP" if not ok else "END",

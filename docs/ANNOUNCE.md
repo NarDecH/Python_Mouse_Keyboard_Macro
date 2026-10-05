@@ -78,8 +78,9 @@ Highlights:
 - Image Click with search area + per-row confidence threshold (OpenCV)
 - In-script conditions: If Image / If Pixel Color / If Variable / If Loop / If Time,
   variables `{name}`, clipboard actions, and 20+ built-in actions
-- Plugin system: drop a small .py into plugins/ to add new Actions
-  (13 built-ins: Screenshot, Toast, Webhook, Ask Input, Random Pause, Counter, Open URL, ...)
+- Plugin system: drop a small .py into plugins/ to add new Actions AND Conditions
+  (13 built-in actions: Screenshot, Toast, Webhook, Ask Input, Random Pause, Counter, Open URL, ...
+   + condition plugins: File Exists, Internet Up, Process Running, Window Exists)
 - Global hotkeys (F1–F10) that work even when unfocused, with self-healing listeners
 - Scheduler (every N minutes / daily HH:MM — several daily times, comma-separated — each time
   can bind its own profile: `12:30=morning job`),
@@ -93,13 +94,28 @@ Highlights:
 
 Tech: Python (Tkinter + pynput), optional opencv-python + Pillow, engine separated
 from the GUI (macro_engine.py — embed it in your own project).
-428 unit tests + 15 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
+506 unit tests + 20 end-to-end tests, CI on Windows/Linux/macOS, auto releases via tag.
 Docs in Thai, English, Chinese and Japanese.
 
 Download (no Python needed): https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 Source: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro
 
 Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
+```
+
+---
+
+## 🆕 ข่าวเวอร์ชัน v2.14 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🆕 v2.14 ออกแล้ว!
+
+• เงื่อนไขใหม่ 3 ตัวจาก plugin: Internet Up / Process Running / Window Exists —
+  เช่น เล่นต่อเมื่อเน็ตขึ้น หรือข้ามบล็อกเมื่อโปรแกรมปิดอยู่ (ผสม && กับเงื่อนไขอื่นได้)
+• ปุ่ม 🧩 ในโปรแกรม: เลือกเงื่อนไข plugin + ใส่อาร์กิวเมนต์ แล้วแทรกแถวให้เลย
+• CLI: --dry-report PATH เลือกไฟล์รายงาน Dry-run เอง ({date} = วันที่วันนี้)
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
 ---

@@ -24,6 +24,9 @@
 | `counter.py` | Counter | นับ/ตั้งตัวแปร — `ชื่อ` = +1, `ชื่อ += 5`, `ชื่อ = rand 1-10` — คู่ If Variable เป็นลูปนับรอบได้ |
 | `open_url.py` | Open URL | เปิดลิงก์เว็บด้วย webbrowser ของ stdlib — แทน `{ตัวแปร}` ก่อนเปิด, ไม่มี scheme เติม https:// ให้ |
 | `file_exists.py` | **File Exists** (เงื่อนไข) | **Condition plugin ตัวอย่าง (v2.13)** — ไฟล์ใน Additional มีจริง = จริง, ไม่มี = ข้าม N แถว (N = Repeat) ใช้ `{ตัวแปร}` ได้ |
+| `internet_up.py` | **Internet Up** (เงื่อนไข v2.14) | เช็คเน็ตด้วย socket ล้วน stdlib — Additional ว่าง = 1.1.1.1:443, หรือ `host[:port]` และ/หรือ `Ns` (เช่น `8.8.8.8:53 5s`) — เชื่อมได้ = จริง |
+| `process_running.py` | **Process Running** (เงื่อนไข v2.14) | มีโปรเซสรันอยู่ = จริง (Windows: tasklist, Linux/macOS: pgrep) — ไม่สนตัวพิมพ์/นามสกุล .exe |
+| `window_exists.py` | **Window Exists** (เงื่อนไข v2.14) | มีหน้าต่างที่ชื่อมีข้อความนี้เปิดอยู่ = จริง (Windows: ctypes EnumWindows ล้วน, Linux: xdotool) — เทียบไม่สนตัวพิมพ์ |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที
