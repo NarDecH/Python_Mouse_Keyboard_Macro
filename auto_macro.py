@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.14.1"
+__version__ = "2.15.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -156,6 +156,7 @@ TR = {
            "ifloop_hit": "ยังไม่เกินรอบที่กำหนด → เล่นต่อ", "iftime_hit": "ยังไม่ผ่านเวลาที่กำหนด → เล่นต่อ",
            "ctx_section": "🗂️ เปลี่ยนเป็นหัวข้อ Section", "section_new": "🗂️ เพิ่มหัวข้อ Section",
            "group_collapse": "📁 ย่อกลุ่มนี้", "group_expand": "📂 ขยายกลุ่มนี้",
+           "grp_empty": "กลุ่มนี้ไม่มีแถวที่เปิดใช้ — ไม่มีอะไรให้เล่น", "ctx_play_group": "▶ เล่นกลุ่มนี้อย่างเดียว",
            "group_show_hint": "📦 กลุ่มนี้ย่ออยู่ — แถวซ่อนถูกเล่นตามปกติ",
            "group_expand_first": "📂 ขยายกลุ่มก่อนแก้แถว",
            "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
@@ -208,6 +209,7 @@ TR = {
            "ifloop_hit": "Round below threshold → continue", "iftime_hit": "Before the set time → continue",
            "ctx_section": "🗂️ Convert to Section header", "section_new": "🗂️ Add Section header",
            "group_collapse": "📁 Collapse this group", "group_expand": "📂 Expand this group",
+           "grp_empty": "No enabled rows in this group — nothing to play", "ctx_play_group": "▶ Play this group only",
            "group_show_hint": "📦 Group collapsed — hidden rows still play",
            "group_expand_first": "📂 Expand group before editing",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",
@@ -4459,6 +4461,9 @@ class MacroApp:
             collapsed = self._group_collapsed(iid)
             menu.add_command(label=self._t("group_expand" if collapsed else "group_collapse"),
                              command=lambda: self._group_toggle(iid))
+            if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:
+                menu.add_command(label=self._t("ctx_play_group"),      # v2.15: เล่นกลุ่มนี้อย่างเดียว
+                                 command=lambda: self._play_section(iid))
         elif self._near_collapsed_marker(iid):
             menu.add_command(label=self._t("group_show_hint"), state="disabled")
             menu.add_command(label=self._t("group_expand_first"),
@@ -4900,6 +4905,54 @@ class MacroApp:
                     iids.append(None)            # แถวซ่อน — ไฮไลต์ไม่ได้
         return rows, iids
 
+    def _row_from_values(self, v):
+        """v2.15: dict แถวจาก values ของตาราง (แหล่งเดียว — ใช้ทั้งเล่นทั้งหมด/เล่นกลุ่ม)"""
+        v = list(v)
+        add = str(v[5])
+        if str(v[4]) in (SECTION_HEADER, BLOCK_START):
+            m = re.match(r"^(.*?)\s*\(ย่อ \d+ แถว\)$", add.strip())
+            if m:
+                add = m.group(1)             # ป้ายย่อไม่ใช่เงื่อนไข/ชื่อ — ตัดก่อนเล่น
+        return dict(x=v[2], y=v[3], button=str(v[4]), additional=add,
+                    mins=v[6], secs=v[7], repeat=v[8])
+
+    def _section_range(self, head_iid):
+        """v2.15: (indexหัวข้อ, indexล่าสุดก่อนหัวข้อถัดไป/จบตาราง) ของกลุ่มหัวข้อ — ไม่เจอ = (None, None)"""
+        kids = list(self.tree.get_children())
+        for i, iid in enumerate(kids):
+            if iid == head_iid:
+                j = i + 1
+                while j < len(kids) and str(self.tree.item(kids[j], "values")[4]) != SECTION_HEADER:
+                    j += 1
+                return i, j - 1
+        return None, None
+
+    def _play_section(self, head_iid):
+        """v2.15: เล่นกลุ่มหัวข้อนี้อย่างเดียว — หัวข้อถัดไป/จบตารางคือขอบเขต
+        เล่นเฉพาะแถว ☑ ในกลุ่ม (หัวข้อไม่เล่นอยู่แล้ว) · แถวย่อใน stash ถูกเลือกรวมด้วย
+        (สัญญาเดิม: ย่อแล้วเล่นได้) · ตรวจแล้วเล่นผ่าน _start_player_inner(items=) —
+        สายเดียวกับเล่นทั้งหมด: validate/STOP/เลขรอบ/คิวเหมือนเดิมทุกอย่าง"""
+        kids = list(self.tree.get_children())
+        a, b = self._section_range(head_iid)
+        if a is None:
+            return
+        name = str(self.tree.item(head_iid, "values")[5]) or "กลุ่มไม่มีชื่อ"
+        items = []
+        for iid in kids[a:b + 1]:
+            # แถวย่อใน stash ตรวจก่อนเสมอ (หัวข้อที่ถูก continue ต้องไม่พลาดแถวย่อของตัวเอง)
+            for hv in self._section_stash:
+                if hv.get("after") == iid and str(hv["vals"][0]) == "☑":
+                    w = hv["vals"]
+                    items.append((self._row_from_values(w), None))   # แถวย่อ — ไฮไลต์ไม่ได้
+            v = self.tree.item(iid, "values")
+            if str(v[0]) == "☑" and str(v[4]) != SECTION_HEADER:
+                items.append((self._row_from_values(v), iid))
+            # หัวข้อไม่เล่น — ใช้แค่กำหนดขอบเขตกลุ่ม
+        if not items:
+            self._ui_state["msg"] = (self._t("grp_empty"), "#a60")
+            return
+        self._start_player_inner(False, items=items, src_name="กลุ่ม: %s" % name)
+
     def _plugin_module(self, name):
         """คืน module ของ plugin ตามชื่อ Action (ไม่พบ = None)"""
         for n, mod in self._plugins:
@@ -4948,12 +5001,17 @@ class MacroApp:
         once=True = เล่นครั้งเดียวจบรอบเดียว (ใช้โดย schedule — ไม่สนช่อง รอบ:/forever)"""
         self._start_player_inner(loop, once=once, auto=False)
 
-    def _start_player_inner(self, loop, once=False, auto=False, dry=False):
+    def _start_player_inner(self, loop, once=False, auto=False, dry=False, items=None,
+                            src_name=None):
         """v2.9.1: แยก inner เพื่อรับ auto=True จาก schedule — แถวพังถูกข้ามอัตโนมัติ
         โดยไม่เด้ง askyesno ค้างรอคนกด (นัดหมายตอนตี 3 ต้องเล่นต่อได้เอง + log [SKIP] ทุกแถว)
-        v2.10: dry=True = โหมด Dry-run — เดินสคริปต์ครบแต่ไม่แตะเมาส์/คีย์ (ซ้อมก่อนงานจริง)"""
-        rows, iids = self._rows_and_iids_for_play()
-        items = list(zip(rows, iids))     # คู่ (แถว, iid) — เล่น/ไฮไลต์ตามกันเสมอ (v1.19)
+        v2.10: dry=True = โหมด Dry-run — เดินสคริปต์ครบแต่ไม่แตะเมาส์/คีย์ (ซ้อมก่อนงานจริง)
+        v2.15: items= ส่งรายการเล่นเอง (เล่นกลุ่มหัวข้อ) · src_name= ชื่อแหล่ง log/dry-report"""
+        if items is None:
+            rows, iids = self._rows_and_iids_for_play()
+            items = list(zip(rows, iids))     # คู่ (แถว, iid) — เล่น/ไฮไลต์ตามกันเสมอ (v1.19)
+        else:
+            rows = [r for r, _ in items]      # v2.15: ส่งรายการเล่นเอง — rows ใช้ตอน validate/log
         if not items:
             if not auto:
                 messagebox.showinfo(APP_TITLE, self._t("no_rows"))
@@ -5016,6 +5074,8 @@ class MacroApp:
         self._action_runner.variables = self._vars   # v2.1: runner ใช้ dict ใหม่นี้
         self._loop_no = 1                 # ตัวนับรอบเริ่มใหม่ (If Loop, v1.21)
         self._log_src = self._loaded_file or "ตารางในโปรแกรม"
+        if src_name:                      # v2.15: เล่นกลุ่มหัวข้อ — log ระบุกลุ่มที่เล่นชัดเจน
+            self._log_src = src_name
         if self._log_enabled:
             extra = " สุ่มลำดับ" if self._shuffle else ""
             if self._pct < 100:
@@ -6821,6 +6881,8 @@ def cli_main(argv):
                     help="แสดงเวอร์ชันโปรแกรมแล้วจบ")
     ap.add_argument("--loop", action="store_true", help="เล่นวนซ้ำไม่จำกัด")
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
+    ap.add_argument("--only-section", default=None, metavar="ชื่อ",
+                    help="v2.15: เล่นเฉพาะกลุ่มหัวข้อที่ชื่อตรงกัน (กลุ่ม = หัวข้อนี้ถึงก่อนหัวข้อถัดไป)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
     ap.add_argument("--no-log", action="store_true",
                     help="ไม่บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt")
@@ -7073,8 +7135,35 @@ def cli_main(argv):
             run_t0 = time.time()            # v2.4: Safety timeout (--max-minutes)
             mx = max(0.0, float(getattr(args, "max_minutes", 0.0) or 0.0))
             # v2.9.1: แถวที่ --validate ตรวจไม่ผ่านถูกตัดตั้งแต่หัวโปรแกรม — เล่นเฉพาะแถวที่ผ่าน
-            active = [r for i, r in enumerate(rows, 1)
-                      if r.get("enabled", True) is not False and i not in cli_issue_rows]
+            # v2.15: --only-section ชื่อ — เลือกเฉพาะกลุ่มของหัวข้อที่ชื่อตรงกัน (จบที่หัวข้อถัดไป)
+            sec = getattr(args, "only_section", None)
+            if sec:
+                si, se = None, -1
+                for k, rr in enumerate(rows):
+                    if (rr.get("button") == SECTION_HEADER
+                            and str(rr.get("additional") or "").strip() == sec):
+                        si = k
+                        break
+                if si is None:
+                    print("ไม่พบหัวข้อชื่อ '%s' — เล่นทั้งหมด" % sec)
+                    active = [r for i, r in enumerate(rows, 1)
+                              if r.get("enabled", True) is not False and i not in cli_issue_rows]
+                else:
+                    se = len(rows)
+                    for k in range(si + 1, len(rows)):
+                        if rows[k].get("button") == SECTION_HEADER:
+                            se = k
+                            break
+                    # si+1 > se = หัวข้อว่าง (อยู่ติดกัน) — ก็ต้องไม่เล่นอะไรเหมือนกัน
+                    active = ([r for k, r in enumerate(rows, 1)
+                               if si <= k - 1 < se and k != si + 1
+                               and r.get("enabled", True) is not False
+                               and (k - 1) not in cli_issue_rows]
+                              if si + 1 <= se else [])
+                    print("เล่นกลุ่ม '%s' (แถว %d-%d) — %d แถว" % (sec, si + 1, se, len(active)))
+            else:
+                active = [r for i, r in enumerate(rows, 1)
+                          if r.get("enabled", True) is not False and i not in cli_issue_rows]
             cli_vars.clear()                 # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
             skip_n = 0                       # ตัวนับข้ามแถวจาก If Loop/If Time (v1.21)
             n_loop = 0

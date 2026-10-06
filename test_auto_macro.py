@@ -2535,8 +2535,8 @@ class TestSectionsGui(unittest.TestCase):
         self.assertEqual(store["i1"][4], "Left Click")
 
 
-class TestV21GuiPlay(unittest.TestCase):
-    """v1.21: เล่นจริงผ่าน player (GUI) — If Loop/If Time ข้ามแถว + Section ไม่หยุดการเล่น
+class _GuiPlayBase(unittest.TestCase):
+    """ฐานร่วมเทสต์เล่นจริงผ่าน player (GUI) — app จริง + steps จับ log + _wait_done
     แถว Beep ล้วน (secs=0) ไม่แตะเมาส์/คีย์ — ไม่มีจอ skip อัตโนมัติ"""
 
     @classmethod
@@ -2595,6 +2595,10 @@ class TestV21GuiPlay(unittest.TestCase):
                 return True
             time.sleep(0.03)
         return False
+
+
+class TestV21GuiPlay(_GuiPlayBase):
+    """v1.21: If Loop/If Time ข้ามแถว + Section ไม่หยุดการเล่น"""
 
     def test_if_loop_skips_from_round_n(self):
         app = self.app
@@ -2832,6 +2836,99 @@ class TestLatestDryReportBtn(unittest.TestCase):
         msg = self.app._ui_state.get("msg")
         self.assertIsNotNone(msg)
         self.assertIn("Dry-run", msg[0])
+
+
+# ============================ v2.15: เล่นเฉพาะกลุ่มหัวข้อ (GUI + CLI) ====
+class TestSectionOnlyPlay(_GuiPlayBase):
+    """v2.15: เล่นกลุ่มหัวข้ออย่างเดียว — GUI คลิกขวาหัวข้อ → ▶ เล่นกลุ่มนี้อย่างเดียว (player จริง)
+    สืบทอด harness ของ _GuiPlayBase (app จริง + steps จับ log + _wait_done)
+    CLI: --only-section ชื่อ (ผ่าน cli_main จริง) — สายเดียวกับเล่นทั้งหมด: validate/STOP/เลขรอบ"""
+
+    ROWS = [
+        {"enabled": True, "button": am.IF_LOOP, "additional": "99", "secs": 0, "repeat": 1},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "เตรียม"},
+        {"enabled": True, "button": "Beep", "additional": "A1", "secs": 0},
+        {"enabled": True, "button": "Beep", "additional": "A2", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "งาน"},
+        {"enabled": True, "button": "Beep", "additional": "B1", "secs": 0},
+        {"enabled": False, "button": "Beep", "additional": "B-off", "secs": 0},
+        {"enabled": True, "button": "Beep", "additional": "B2", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "ล้าง"},
+        {"enabled": True, "button": "Beep", "additional": "C1", "secs": 0},
+    ]
+
+    def test_gui_play_group_only(self):
+        app = self.app
+        app._load_rows([dict(r) for r in self.ROWS])
+        kids = list(app.tree.get_children())
+        head = kids[4]                      # หัวข้อ "งาน" — เล่นเฉพาะกลุ่มนี้
+        app.ent_loops.delete(0, "end")
+        app.ent_loops.insert(0, "1")
+        app._play_section(head)
+        self.assertTrue(app.running)
+        self.assertTrue(self._wait_done())
+        beeps = [s for s in self.steps if "Beep" in s]
+        self.assertTrue(any("B1" in s for s in beeps))
+        self.assertTrue(any("B2" in s for s in beeps))
+        self.assertFalse(any("A1" in s or "A2" in s for s in beeps))   # กลุ่มอื่นไม่เล่น
+        self.assertFalse(any("C1" in s for s in beeps))
+        self.assertFalse(any("B-off" in s for s in beeps))             # ☐ ไม่เล่น
+
+    def test_gui_play_group_includes_collapsed_rows(self):
+        app = self.app
+        app._load_rows([dict(r) for r in self.ROWS])
+        kids = list(app.tree.get_children())
+        self.addCleanup(lambda: app._section_stash.clear())   # _group_toggle ตั้งลิสต์ใหม่ — ต้อง clear ที่ลิสต์จริง
+        app._group_toggle(kids[4])          # ย่อกลุ่ม "งาน" — สมาชิกเข้า stash
+        app.ent_loops.delete(0, "end")
+        app.ent_loops.insert(0, "1")
+        app._play_section(kids[4])          # เล่นกลุ่มที่ย่ออยู่ — สมาชิกต้องถูกเล่นครบ
+        self.assertTrue(self._wait_done())
+        self.assertTrue(any("B1" in s for s in self.steps))
+        self.assertTrue(any("B2" in s for s in self.steps))
+
+    def test_gui_empty_group_warns_only(self):
+        app = self.app
+        app._load_rows([
+            {"enabled": True, "button": am.SECTION_HEADER, "additional": "ว่าง"},
+            {"enabled": True, "button": am.SECTION_HEADER, "additional": "จบ"},
+        ])
+        kids = list(app.tree.get_children())
+        app._play_section(kids[0])          # กลุ่มว่าง = เตือน statusbar ไม่เล่น (กฎเหล็ก)
+        self.assertFalse(app.running)
+        self.assertIn("ไม่มีแถวที่เปิดใช้", str(self.app._ui_state.get("msg", ("",))[0]))
+
+    def test_cli_only_section(self):
+        tmp = tempfile.mkdtemp(prefix="seconly_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "s.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.ROWS, fh, ensure_ascii=False)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path, "--loops", "1", "--no-log", "--only-section", "งาน"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertIn("เล่นกลุ่ม 'งาน'", outp)
+        self.assertIn("B1", outp)
+        self.assertIn("B2", outp)
+        self.assertNotIn("A1", outp)
+        self.assertNotIn("C1", outp)
+
+    def test_cli_only_section_missing_warns_and_plays_all(self):
+        tmp = tempfile.mkdtemp(prefix="secnone_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = os.path.join(tmp, "s.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.ROWS, fh, ensure_ascii=False)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path, "--loops", "1", "--no-log", "--only-section", "ไม่มีจริง"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertIn("ไม่พบหัวข้อชื่อ", outp)
+        for tag in ("A1", "B1", "C1"):    # fallback = เล่นทั้งหมด
+            self.assertIn(tag, outp)
 
 
 # ============================ v1.22: สีแถวตามหมวด + ปุ่มจับเวลา + ย่อ/ขยายกลุ่ม ====

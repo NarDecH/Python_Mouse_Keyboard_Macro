@@ -65,8 +65,30 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.14.1</h2>
+      <h2>เวอร์ชัน 2.15.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">6 ตุลาคม 2026</span>
+    </div>
+
+    <h3>▶️ เล่นเฉพาะกลุ่มหัวข้อ (ข้อแรกของแผน v2.15 — <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1">milestone No.1</a>)</h3>
+    <ul>
+      <li><b>คลิกขวาที่หัวข้อ Section → "▶ เล่นกลุ่มนี้อย่างเดียว"</b> — เล่นเฉพาะแถวที่เปิดใช้ (☑) ในกลุ่มนั้น
+        จนถึงหัวข้อถัดไป ผ่าน <b>player จริงสายเดียวกับ START ทุกอย่าง</b> (validate/STOP/ไฮไลต์/log/รอบ) —
+        ไม่ต้องปิดแถวอื่นเอง งานยาวที่แบ่งเป็นขั้น ๆ ทดสอบ/รันทีละกลุ่มได้ทันที</li>
+      <li><b>แถวในกลุ่มที่ย่ออยู่ก็เล่นครบ</b> — เก็บแถวจาก stash ของกลุ่มก่อนเสมอ ตามสัญญา "ย่อแล้วเล่นเหมือนเดิม"
+        · กลุ่มที่ไม่มีแถวที่เปิดใช้ = เตือน statusbar แล้วจบเงียบ ไม่เริ่มเล่น</li>
+      <li><b>CLI <code>--only-section ชื่อ</code></b> — เล่นเฉพาะกลุ่มจาก command line (ปุ่มเดียวกับ GUI):
+        หาหัวข้อชื่อตรงเป๊ะ → เล่นแถวในกลุ่มนั้นเท่านั้น (print ช่วงแถว + จำนวน) · ชื่อไม่พบ = เตือนแล้วเล่นทั้งหมด
+        · สายเดียวกับเล่นทั้งหมด — validate/STOP/เลขรอบ/[SKIP] ครบ</li>
+      <li><b>GitHub milestone v2.15</b> — milestone No.1 + issues #2–#5 ตามแผน ROADMAP (เล่นกลุ่ม+ลากจัดลำดับกลุ่ม /
+        .bat คู่สคริปต์ / ไทม์ไลน์เหตุการณ์ / ตลาด condition-plugin)</li>
+      <li><b>เทสต์เพิ่ม 5 ตัว</b> (TestSectionOnlyPlay — GUI เล่นจริง 2 + เตือนกลุ่มว่าง 1 + CLI 2 ·
+        refactor เทสต์เล่นจริงเป็น harness ร่วม <code>_GuiPlayBase</code>) → <b>516 unit + 20 E2E = 536</b></li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.14.1</h2>
       <span class="date">6 ตุลาคม 2026</span>
     </div>
 

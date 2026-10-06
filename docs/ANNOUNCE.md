@@ -118,6 +118,21 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
+## 🆕 ข่าวเวอร์ชัน v2.15 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🆕 v2.15 ออกแล้ว!
+
+• เล่นเฉพาะกลุ่มหัวข้อ: คลิกขวาที่หัวข้อ Section → "▶ เล่นกลุ่มนี้อย่างเดียว" —
+  สคริปต์ยาวแบ่งเป็นขั้น ๆ ทดสอบ/รันทีละกลุ่มได้ ไม่ต้องปิดแถวอื่นเอง
+  (แถวที่ย่อไว้ก็เล่นครบ · ผ่าน player จริง — STOP/ไฮไลต์/log ครบ)
+• CLI: --only-section ชื่อกลุ่ม เล่นเฉพาะกลุ่มนั้นจาก command line
+• เปิด milestone v2.15 + issues แผนถัดไปแล้ว: ลากจัดลำดับกลุ่ม / .bat คู่สคริปต์ /
+  ไทม์ไลน์เหตุการณ์ / ตลาด condition-plugin — เสนอไอเดียได้ที่ Issue #1
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
 ---
 
 ## 💡 เคล็ดลับตอนโพสต์

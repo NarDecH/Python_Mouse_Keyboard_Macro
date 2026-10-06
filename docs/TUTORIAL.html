@@ -583,7 +583,22 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.14.1 ·
+  <div class="card">
+    <h2>22. เล่นเฉพาะกลุ่มหัวข้อ (v2.15) — คลิกขวาที่หัวข้อ + --only-section</h2>
+    <p>สคริปต์ยาวที่แบ่งเป็นขั้น ๆ ด้วยหัวข้อ Section (⬛) ตอนนี้ทดสอบ/รันทีละกลุ่มได้:</p>
+    <ul>
+      <li><b>คลิกขวาที่แถวหัวข้อ → "▶ เล่นกลุ่มนี้อย่างเดียว"</b> — เล่นเฉพาะแถวที่เปิดใช้ (☑) ในกลุ่มนั้น
+        จนถึงหัวข้อถัดไป แล้วหยุดเอง — ผ่าน player จริงสายเดียวกับ START ทุกอย่าง
+        (validate/STOP/ไฮไลต์/log/เลขรอบ ครบ) ไม่ต้องปิดแถวอื่นเอง</li>
+      <li><b>แถวในกลุ่มที่ย่ออยู่ก็เล่นครบ</b> — ย่อกลุ่มไว้ประหยัดจอแล้วเล่นได้ปกติ (สัญญาเดียวกับ v1.22)
+        · กลุ่มไม่มีแถวที่เปิดใช้ = เตือน statusbar แล้วจบเงียบ ไม่เริ่มเล่น</li>
+      <li><b>CLI <code>--only-section ชื่อ</code></b> — หาหัวข้อชื่อตรงเป๊ะ → print ช่วงแถว + จำนวน
+        แล้วเล่นเฉพาะกลุ่มนั้น · ชื่อไม่พบ = เตือนแล้วเล่นทั้งหมดตามปกติ · สายเดียวกับเล่นทั้งหมด —
+        เอาไปผสม <code>--queue</code>/watchdog ได้</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.15.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

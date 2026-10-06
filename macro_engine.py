@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.14.1"
+__version__ = "2.15.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -64,6 +64,7 @@ TR = {
            "ifloop_hit": "ยังไม่เกินรอบที่กำหนด → เล่นต่อ", "iftime_hit": "ยังไม่ผ่านเวลาที่กำหนด → เล่นต่อ",
            "ctx_section": "🗂️ เปลี่ยนเป็นหัวข้อ Section", "section_new": "🗂️ เพิ่มหัวข้อ Section",
            "group_collapse": "📁 ย่อกลุ่มนี้", "group_expand": "📂 ขยายกลุ่มนี้",
+           "grp_empty": "กลุ่มนี้ไม่มีแถวที่เปิดใช้ — ไม่มีอะไรให้เล่น", "ctx_play_group": "▶ เล่นกลุ่มนี้อย่างเดียว",
            "group_show_hint": "📦 กลุ่มนี้ย่ออยู่ — แถวซ่อนถูกเล่นตามปกติ",
            "group_expand_first": "📂 ขยายกลุ่มก่อนแก้แถว",
            "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
@@ -116,6 +117,7 @@ TR = {
            "ifloop_hit": "Round below threshold → continue", "iftime_hit": "Before the set time → continue",
            "ctx_section": "🗂️ Convert to Section header", "section_new": "🗂️ Add Section header",
            "group_collapse": "📁 Collapse this group", "group_expand": "📂 Expand this group",
+           "grp_empty": "No enabled rows in this group — nothing to play", "ctx_play_group": "▶ Play this group only",
            "group_show_hint": "📦 Group collapsed — hidden rows still play",
            "group_expand_first": "📂 Expand group before editing",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",

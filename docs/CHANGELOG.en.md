@@ -3,6 +3,30 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.15.0] — 2026-10-06
+
+### ▶️ Play a single section group (first item of the v2.15 plan — milestone [No.1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1))
+- **Right-click a Section header → "▶ Play this group only"** — plays only the enabled (☑) rows
+  inside that group, up to the next header, through the **real player — the same path as START**
+  (validate/STOP/highlight/log/loop counting) — no more disabling other rows by hand; long scripts
+  split into stages can be tested and run one group at a time
+- **Collapsed rows inside the group still play** — the group's stash (`_section_stash`) is read
+  first, honoring the "collapse never changes what plays" promise (v1.22/v2.9.1) · a group with
+  nothing enabled warns on the statusbar ("no enabled rows in this group") and exits quietly
+- **CLI `--only-section ชื่อ`** — play a single group from the command line (same contract as the
+  GUI): exact header-name match → only that group's rows play (prints the row range + count) ·
+  unknown name = warns "section not found" and plays everything as usual · same pipeline as a
+  full play — validate/STOP/loop counting/[SKIP] all apply
+- **New plumbing** — `_row_from_values`/`_section_range`/`_play_section` +
+  `_start_player_inner(items=, src_name=)` (the player can now accept rows handed to it + the
+  START log line names the source "group: <name>") — previously the player only read the table
+- **i18n** — new keys `grp_empty` + `ctx_play_group` in Thai and English
+- **GitHub milestone v2.15** — milestone No.1 + issues #2–#5 created from the ROADMAP plan
+  (group play + group reordering / per-script .bat / event timeline / condition-plugin marketplace)
+- **5 new tests** (TestSectionOnlyPlay — 2 real-play GUI + empty-group warning + 2 CLI ·
+  the real-play tests were refactored into a shared `_GuiPlayBase` harness — parent tests no
+  longer run twice) → **516 unit + 20 E2E = 536**
+
 ## [2.14.1] — 2026-10-06
 
 ### Formal skip×Block rule + Latest dry-run report button

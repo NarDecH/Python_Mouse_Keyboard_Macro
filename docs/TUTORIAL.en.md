@@ -578,5 +578,38 @@ Full example: `examples/15_system_conditions.json`
 
 ---
 
-*Guide for code v2.14.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+## Chapter 19 — Play a single section group (v2.15)
+
+### 19.1 Right-click a header → "Play this group only"
+
+Long scripts split into stages with Section headers (⬛) can now be tested/run one group at a time:
+**right-click a Section header row → ▶ Play this group only** — the program plays just the enabled
+(☑) rows inside that group, up to the next header, then stops. No more disabling other rows by hand.
+
+- Runs through the **real player — the same path as START** — validate/STOP (F8)/row highlight/log
+  /loop counting all apply
+- **Collapsed rows inside the group still play** — collapse a group to save screen space and it
+  still plays in full (the same promise since v1.22)
+- A group with nothing enabled warns on the statusbar ("no enabled rows in this group") and
+  exits quietly without starting the player
+
+Exercise: build a script with 3 groups (prep/work/cleanup), two Beep rows each → right-click the
+"work" header → play this group only → you hear only B1, B2.
+
+### 19.2 CLI --only-section ชื่อ
+
+```bash
+py auto_macro.py script.json --only-section งาน
+```
+
+- Matches the header name exactly (case-sensitive) — prints the row range + count, then plays only
+  that group
+- Unknown name = warns "section not found" and **plays everything** as usual (never a silent
+  empty run)
+- Same pipeline as a full play — validate/STOP/`--max-minutes`/[SKIP] logging all apply, so it
+  composes with `--queue`/watchdog, e.g. a queue where each file plays only its own group
+
+---
+
+*Guide for code v2.15.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

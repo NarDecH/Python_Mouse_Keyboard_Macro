@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.14.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.15.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -369,3 +369,14 @@ max 10              无条件 — 把块体重复 10 次
   同用）——补上 ROADMAP 的最后一项。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 18 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
 - 完整示例：`examples/15_system_conditions.json` · 详细教程见第 18 章。
+
+## v2.15.0 — 新增
+
+- **▶ 播放单个分组** — 右键 Section 标题行 → "▶ เล่นกลุ่มนี้อย่างเดียว（仅播放此分组）"：
+  只播放该分组内已启用（☑）的行，直到下一个标题为止，然后自动停止。走的是与 START
+  完全相同的播放器（validate/STOP/高亮/log/轮数全部生效），无需手动禁用其他行。
+- **折叠的行也会完整播放** — 与 v1.22 的承诺一致；分组内没有已启用行 = 状态栏提示后
+  静默结束，不开始播放。
+- **CLI `--only-section ชื่อ`** — 精确匹配标题名 → 打印行范围 + 数量并只播放该分组；
+  未找到 = 警告后照常播放全部（与完整播放同一管线，可与 `--queue`/watchdog 组合）。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。

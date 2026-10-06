@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.14.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.15.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -316,6 +316,17 @@
   dry_report ล่าสุด + แสดงเนื้อหา; ไม่มีรายงาน = เตือน statusbar — กฎเหล็ก; เทสต์ invoke ปุ่มจริง) ·
   **แผน v2.15** ลง ROADMAP (กลุ่มเล่นตามลำดับ/bat คู่สคริปต์/ไทม์ไลน์เหตุการณ์/plugin ชุมชน) ·
   เทสต์เพิ่ม 5 ตัว → 511 unit + 20 E2E = 531
+- **ฟีเจอร์เสริม v2.15.0 (milestone No.1 — ข้อแรกของแผน v2.15):** **เล่นเฉพาะกลุ่มหัวข้อ** —
+  คลิกขวาที่หัวข้อ Section → "▶ เล่นกลุ่มนี้อย่างเดียว" (`ctx_play_group` → `_play_section(head_iid)` —
+  เก็บแถว: **ตรวจ `self._section_stash` ก่อนเสมอ** (`after == iid` → แถวย่อ) แล้วค่อยแถวมองเห็น ☑
+  ที่ไม่ใช่หัวข้อ — กลุ่มว่าง = เตือน statusbar `grp_empty` ไม่เริ่มเล่น) + CLI `--only-section ชื่อ`
+  (หาหัวข้อตรงเป๊ะ → เล่นเฉพาะช่วงกลุ่ม; ไม่พบ = เตือนแล้วเล่นทั้งหมด) · **`_start_player_inner`
+  รับ `items=` (รายการ (row, iid) มาเล่นเอง) + `src_name=` (log START ระบุแหล่งที่มา "กลุ่ม: ชื่อ")** —
+  player เดิมอ่านแถวจากตารางเท่านั้น · กลไกใหม่ `_row_from_values` (ตัดป้ายย่อ)/`_section_range`
+  · **GitHub milestone v2.15** = milestone No.1 + issues #2–#5 ตาม ROADMAP · เทสต์ refactor:
+  **`_GuiPlayBase` = harness ล้วน (ห้ามมี test_ method — เทสต์แม่จะถูกรันเอง)** +
+  `TestV21GuiPlay`/`TestSectionOnlyPlay` แยกสืบทอด กันเทสต์แม่รันซ้ำ · เทสต์เพิ่ม 5 ตัว
+  (TestSectionOnlyPlay — GUI เล่นจริง 2 + เตือนกลุ่มว่าง 1 + CLI 2) → 516 unit + 20 E2E = 536
 
 ## เทคโนโลยี
 
