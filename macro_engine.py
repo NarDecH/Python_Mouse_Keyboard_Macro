@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.15.0"
+__version__ = "2.15.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -65,6 +65,8 @@ TR = {
            "ctx_section": "🗂️ เปลี่ยนเป็นหัวข้อ Section", "section_new": "🗂️ เพิ่มหัวข้อ Section",
            "group_collapse": "📁 ย่อกลุ่มนี้", "group_expand": "📂 ขยายกลุ่มนี้",
            "grp_empty": "กลุ่มนี้ไม่มีแถวที่เปิดใช้ — ไม่มีอะไรให้เล่น", "ctx_play_group": "▶ เล่นกลุ่มนี้อย่างเดียว",
+           "ctx_group_up": "⬆ ย้ายกลุ่มขึ้น", "ctx_group_down": "⬇ ย้ายกลุ่มลง",
+           "grp_moved": "ย้ายกลุ่ม '%s' แล้ว — Ctrl+Z ย้อนได้", "grp_move_block": "ย้ายกลุ่มไม่ได้ — Block Start/End คร่อมกลุ่มนี้ (แก้บล็อกก่อน)",
            "group_show_hint": "📦 กลุ่มนี้ย่ออยู่ — แถวซ่อนถูกเล่นตามปกติ",
            "group_expand_first": "📂 ขยายกลุ่มก่อนแก้แถว",
            "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
@@ -118,6 +120,8 @@ TR = {
            "ctx_section": "🗂️ Convert to Section header", "section_new": "🗂️ Add Section header",
            "group_collapse": "📁 Collapse this group", "group_expand": "📂 Expand this group",
            "grp_empty": "No enabled rows in this group — nothing to play", "ctx_play_group": "▶ Play this group only",
+           "ctx_group_up": "⬆ Move group up", "ctx_group_down": "⬇ Move group down",
+           "grp_moved": "Moved group '%s' — Ctrl+Z to undo", "grp_move_block": "Can't move — a Block Start/End spans this group (fix the block first)",
            "group_show_hint": "📦 Group collapsed — hidden rows still play",
            "group_expand_first": "📂 Expand group before editing",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",

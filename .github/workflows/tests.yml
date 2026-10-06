@@ -120,10 +120,18 @@ jobs:
       - name: รัน unit tests
         run: |
           set -o pipefail
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            xvfb-run -a $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
-          else
-            $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+          run_once() {
+            if [ "$RUNNER_OS" = "Linux" ]; then
+              xvfb-run -a $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+            else
+              $PY -m unittest test_auto_macro -v 2>&1 | tee unit_output.txt
+            fi
+          }
+          if ! run_once; then
+            # v2.15.1: flake ของ runner (Xvfb ปิด connection กลาง suite / macOS SIGTRAP จาก CGEventTap)
+            # เคยพบโดยโค้ดไม่เปลี่ยน — รันซ้ำเต็มชุด 1 ครั้ง (ต้องผ่านจริงจึงจะผ่าน job)
+            echo "::warning::unit tests รอบแรกไม่ผ่าน — รันซ้ำเต็มชุด (flake ของ runner: Xvfb/CGEventTap)"
+            run_once
           fi
 
       - name: ระบุจุดที่พังเป็น annotation (พา traceback — อ่านจาก API ได้)
@@ -137,10 +145,16 @@ jobs:
       - name: รัน E2E tests (Linux ใต้ xvfb)
         run: |
           set -o pipefail
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            xvfb-run -a $PY -m unittest test_e2e -v 2>&1 | tee e2e_output.txt
-          else
-            $PY -m unittest test_e2e -v 2>&1 | tee e2e_output.txt
+          run_once() {
+            if [ "$RUNNER_OS" = "Linux" ]; then
+              xvfb-run -a $PY -m unittest test_e2e -v 2>&1 | tee e2e_output.txt
+            else
+              $PY -m unittest test_e2e -v 2>&1 | tee e2e_output.txt
+            fi
+          }
+          if ! run_once; then
+            echo "::warning::E2E รอบแรกไม่ผ่าน — รันซ้ำเต็มชุด (flake ของ runner: Xvfb/CGEventTap)"
+            run_once
           fi
 
       - name: annotation จุดพังของ E2E

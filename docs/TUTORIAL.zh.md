@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.15.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.15.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -380,3 +380,11 @@ max 10              无条件 — 把块体重复 10 次
 - **CLI `--only-section ชื่อ`** — 精确匹配标题名 → 打印行范围 + 数量并只播放该分组；
   未找到 = 警告后照常播放全部（与完整播放同一管线，可与 `--queue`/watchdog 组合）。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.15.1 — 新增
+
+- **整体移动分组** — 右键 Section 标题 → "⬆ 上移分组 / ⬇ 下移分组"（或在标题上按
+  Alt+↑/↓）：整个 [标题 + 可见行 + 折叠在 stash 中的行] 与相邻分组整体交换，无需逐行拖动。
+- 折叠的行始终跟随自己的标题 — 折叠后移动也不会散组；跨越分组的 Block Start/End =
+  拒绝并警告（防止块损坏）· Ctrl+Z 可撤销。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 19.3 · [TUTORIAL.en.md](TUTORIAL.en.md)。

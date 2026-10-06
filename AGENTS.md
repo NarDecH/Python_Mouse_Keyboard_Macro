@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.15.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.15.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -331,6 +331,18 @@
   (_gk/_sched_loop/recorder สะสมทุกคลาส) — เธรดค้างทำ GC finalize Tcl บนเธรดผิด = abort ทั้งโปรเซส ·
   ตอนนี้ **`_Tk.destroy` = หยุดเธรดของ app ผ่าน `root._app` (patch MacroApp.__init__ ในไฟล์เทสต์)
   + ยกเลิก after + gc.collect() บน main thread** — เทสต์ GUI ใหม่ที่สร้าง root เองต้องใช้ `_Tk` เสมอ
+- **ฟีเจอร์เสริม v2.15.1 (ปิด Issue #2 ครบ — Group order):** **ย้ายกลุ่มหัวข้อทั้งก้อน** —
+  เมนูขวาหัวข้อ "⬆ ย้ายกลุ่มขึ้น"/"⬇ ย้ายกลุ่มลง" + Alt+↑↓/ปุ่ม ▲▼ บนหัวข้อ →
+  `_move_section_group(iid, d)` = สลับก้อน [หัวข้อ+แถว+stash] กับหน่วยข้างเคียงทั้งก้อน
+  (กลุ่มก่อน/หลัง — ย่ออยู่ = หัวข้อเดียว stash เดินตามเอง / แถวก่อนหัวข้อแรก = ทั้งชุด) ·
+  stash ผูกกับ iid จึงไม่มีแถวหลุดกลุ่ม · **กันบล็อกคร่อม:** นับ depth Block Start/End ของ
+  ลำดับใหม่ก่อนย้าย ติดลบ = ปฏิเสธ (`grp_move_block`) · push_undo ก่อนย้าย (Ctrl+Z ได้) ·
+  `move()` บนหัวข้อ (ย่อ/ขยาย) route เข้า `_move_section_group` แทนเดิม (เดิมย้ายเฉพาะแถวหัวข้อ
+  = แถวข้าง ๆ หลุดเข้ากลุ่ม; `_move_collapsed_group` คงอยู่แต่ไม่ถูกเรียกจาก move แล้ว) ·
+  **CI: cross-platform unit/E2E รันซ้ำ 1 ครั้งเมื่อพัง** (flake ของ runner — Xvfb/macOS SIGTRAP —
+  พิสูจน์แล้ว rerun ผ่านโดยโค้ดไม่เปลี่ยน; ต้องผ่านจริงจึงผ่าน job ไม่ใช่การข้ามเทสต์) ·
+  เทสต์เพิ่ม 6 ตัว (TestGroupMove — mock-tree ต้อง bind `tree.detach` + `_group_members`
+  ให้ครบ ไม่งั้น toggle ย่อไม่ได้) → 522 unit + 20 E2E = 542
 
 ## เทคโนโลยี
 

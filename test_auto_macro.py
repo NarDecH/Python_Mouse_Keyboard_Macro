@@ -3165,6 +3165,142 @@ class TestSectionCollapse(unittest.TestCase):
         self.assertEqual(am._save_head_add("", 1), "(ย่อ 1 แถว)")
 
 
+# ================= v2.15.1: ย้ายกลุ่มหัวข้อทั้งก้อน (Group order — Issue #2) ====
+class TestGroupMove(unittest.TestCase):
+    """v2.15.1: ย้ายกลุ่มหัวข้อทั้งก้อนขึ้น/ลง — สลับกับกลุ่มข้างเคียงทั้งก้อน
+    (แถวย่อใน stash เดินตามหัวข้อของตัวเอง) · บล็อกคร่อมกลุ่ม = ปฏิเสธ · Ctrl+Z ย้อนได้
+    · move() บนหัวข้อ (Alt+↑↓ / ปุ่ม ▲▼) = ย้ายกลุ่มทั้งก้อนด้วย"""
+
+    def _app(self):
+        app = mock.MagicMock()
+        kids = iter("g%d" % i for i in range(1, 999))
+        order = []
+        store = {}
+
+        def insert(parent, index, **kw):
+            iid = next(kids)
+            store[iid] = list(kw["values"])
+            order.append(iid)
+            return iid
+
+        def delete(*iids):
+            for i in iids:
+                if i in store:
+                    del store[i]
+                    order.remove(i)
+
+        def item(iid, *args, **kw):
+            if "values" in kw:
+                store[iid] = list(kw["values"])
+                return None
+            return store[iid]
+
+        def move(iid, parent, index):
+            order.remove(iid)
+            order.insert(index, iid)
+
+        app.tree.get_children.side_effect = lambda: list(order)
+        app.tree.insert = insert
+        app.tree.delete = delete
+        app.tree.item = item
+        app.tree.move = move
+        app.tree.detach = lambda iid: order.remove(iid)     # ย่อกลุ่มต้องถอดแถวออกจาก tree จริง
+        app.tree.index = lambda iid: order.index(iid)
+        app.tree.selection_set = lambda *a: None
+        app.tree.see = lambda *a: None
+        app._section_stash = []
+        app._hl_row = None
+        app._ui_state = {}
+        app._undo_stack = []
+        app._redo_stack = []
+        app.refresh_nums = lambda: am.MacroApp.refresh_nums(app)
+        for m in ("_move_section_group", "_section_range", "_group_collapsed",
+                  "_group_toggle", "_group_members", "_serialize", "_snapshot_rows",
+                  "_push_undo", "_undo_delete", "_restore_rows", "_undo_restore_collapsed",
+                  "_row_from_values", "move"):
+            setattr(app, m, getattr(am.MacroApp, m).__get__(app))
+        app._t = lambda k: am.tr("th", k)
+        return app, store, order
+
+    def _rows(self, app, rows):
+        for r in rows:
+            app.tree.insert("", "end", values=["☑", "#", "", "", r[0], r[1], 0, r[2], 1])
+
+    def _kids(self, app):
+        return [app.tree.item(i)[5] for i in app.tree.get_children()]      # ลำดับ Additional
+
+    def test_move_group_down_swaps_whole_groups(self):
+        app, store, order = self._app()
+        self._rows(app, [(am.SECTION_HEADER, "A", 0), ("Beep", "a1", 0), ("Beep", "a2", 0),
+                         (am.SECTION_HEADER, "B", 0), ("Beep", "b1", 0),
+                         (am.SECTION_HEADER, "C", 0), ("Beep", "c1", 0)])
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app._move_section_group(heads[0], 1)           # ย้ายกลุ่ม A ลง = สลับกับ B ทั้งก้อน
+        self.assertEqual(self._kids(app), ["B", "b1", "A", "a1", "a2", "C", "c1"])
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app._move_section_group(heads[0], 1)           # B ลง = สลับกับกลุ่มถัดไป (A) ทั้งก้อน
+        self.assertEqual(self._kids(app), ["A", "a1", "a2", "B", "b1", "C", "c1"])
+
+    def test_move_group_up_preamble_moves_whole_block(self):
+        app, store, order = self._app()
+        self._rows(app, [("Beep", "pre1", 0), ("Beep", "pre2", 0),
+                         (am.SECTION_HEADER, "A", 0), ("Beep", "a1", 0),
+                         (am.SECTION_HEADER, "B", 0), ("Beep", "b1", 0)])
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app._move_section_group(heads[0], -1)          # A ขึ้น = กระโดดข้ามแถวก่อนหัวข้อแรกทั้งชุด
+        self.assertEqual(self._kids(app), ["A", "a1", "pre1", "pre2", "B", "b1"])
+        app._move_section_group(heads[0], -1)          # ขึ้นอีก = อยู่บนสุดแล้ว ไม่มีผล
+        self.assertEqual(self._kids(app), ["A", "a1", "pre1", "pre2", "B", "b1"])
+
+    def test_move_group_carries_collapsed_rows(self):
+        app, store, order = self._app()
+        self._rows(app, [(am.SECTION_HEADER, "A", 0), ("Beep", "a1", 0), ("Beep", "a2", 0),
+                         (am.SECTION_HEADER, "B", 0), ("Beep", "b1", 0), ("Beep", "b2", 0)])
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app._group_toggle(heads[1])                    # ย่อกลุ่ม B (2 แถวเข้า stash)
+        self.assertEqual(len(app._section_stash), 2)
+        app._move_section_group(heads[0], 1)           # A ลง = สลับกับหัวข้อ B ย่อ
+        self.assertEqual(self._kids(app), ["B (ย่อ 2 แถว)", "A", "a1", "a2"])
+        self.assertEqual(len(app._section_stash), 2)   # แถวย่อยังครบ
+        rows = app._serialize()                        # และยังอยู่กับกลุ่ม B ตามลำดับเดิม
+        self.assertEqual([r["additional"] for r in rows],
+                         ["B", "b1", "b2", "A", "a1", "a2"])  # B ย่อ = แถวกลับมาต่อหัวข้อ B (สลับก้อนสำเร็จ)
+
+    def test_move_group_block_cross_refused(self):
+        app, store, order = self._app()
+        self._rows(app, [(am.SECTION_HEADER, "A", 0), (am.BLOCK_START, "", 0), ("Beep", "a1", 0),
+                         (am.SECTION_HEADER, "B", 0), (am.BLOCK_END, "", 0), ("Beep", "b1", 0)])
+        before = self._kids(app)
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app._move_section_group(heads[0], 1)           # Block Start ใน A คร่อมไป End ใน B = ห้ามย้าย
+        self.assertEqual(self._kids(app), before)
+        self.assertIn("Block", app._ui_state["msg"][0])
+        app._move_section_group(heads[1], -1)          # ทิศเดียวกันต้องโดนกันเหมือนกัน
+        self.assertEqual(self._kids(app), before)
+
+    def test_move_group_undo_restores_order(self):
+        app, store, order = self._app()
+        self._rows(app, [(am.SECTION_HEADER, "A", 0), ("Beep", "a1", 0),
+                         (am.SECTION_HEADER, "B", 0), ("Beep", "b1", 0)])
+        before = self._kids(app)
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app._move_section_group(heads[0], 1)
+        self.assertEqual(self._kids(app), ["B", "b1", "A", "a1"])
+        app._undo_delete()                             # Ctrl+Z ย้อน
+        self.assertEqual(self._kids(app), before)
+
+    def test_move_on_header_moves_group_via_keyboard(self):
+        app, store, order = self._app()
+        self._rows(app, [(am.SECTION_HEADER, "A", 0), ("Beep", "a1", 0),
+                         (am.SECTION_HEADER, "B", 0), ("Beep", "b1", 0), ("Beep", "b2", 0)])
+        heads = [i for i in app.tree.get_children() if app.tree.item(i)[4] == am.SECTION_HEADER]
+        app.tree.selection_set = lambda *a: None
+        app.tree.focus = lambda *a: None
+        app.tree.selection = lambda: [heads[0]]
+        app.move(1)                                    # Alt+↓ บนหัวข้อ = ย้ายกลุ่มทั้งก้อน
+        self.assertEqual(self._kids(app), ["B", "b1", "b2", "A", "a1"])
+
+
 # ================================ v2.0: แยก engine ออกจาก GUI ==================
 class TestEngineSplit(unittest.TestCase):
     """v2.0 phase 1: macro_engine.py = engine ล้วน ไม่มี Tk — นำไปใช้/เทสต์แยกได้

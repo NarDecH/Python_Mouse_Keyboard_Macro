@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.15.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.15.1
 
 <div align="center">
 
@@ -113,6 +113,7 @@
 | 🗃️ **Log tools** (v2.11) | 📝 window adds "Archive old" (moves old logs/dry-reports into monthly `log_archive/` folders) / "Clear old" buttons and lists dry-run reports · automatic cleanup on close is configurable in Settings (keep 1–365 days, archive or delete) |
 | 📑 **Run Queue** (v2.12) | 📑 menu picks a queue list file → plays each script inside the program with a live monitor (per-file status + real-time CLI output) and two stop levels — stop this file / stop the whole queue — no console needed |
 | ▶️ **Play a single group** (v2.15) | right-click a Section header → "Play this group only" — plays the ☑ rows in that group up to the next header through the real player (validate/STOP/highlight/log all apply) · collapsed rows still play · CLI `--only-section ชื่อ` · an empty group warns on the statusbar and doesn't play |
+| ⇅ **Move whole groups** (v2.15.1) | right-click a header → "Move group up/down" (or Alt+↑↓ on a header) — swaps entire groups; collapsed stash rows follow their own header · a Block spanning the group = refused · Ctrl+Z to undo |
 | 🧩 **Built-in condition plugins** (v2.14) | ship with 4: `File Exists` · `Internet Up` (net check — `host[:port]` and/or `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — use as an Action or `if name [argument]` in Block Start (mixable with `&&`) + 🧩 button inserts a condition row for you + CLI `--dry-report PATH` picks the dry-run report file (`{date}` = today) |
 | 🔌 **Plugin API v3 — condition plugins** (v2.13) | a plugin declares `CONDITION_NAME` + `check(ctx, row) -> bool` and its name works as a condition in both the Action column and Block Start/End (`if name [argument]`, mixable with `&&`) — True = keep playing, False = skip N rows (N = Repeat) · validation / dry-run / .ahk export all support it (see [PLUGINS.md](PLUGINS.md)) |
 

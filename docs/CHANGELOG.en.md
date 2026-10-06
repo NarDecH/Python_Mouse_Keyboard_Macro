@@ -3,6 +3,28 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.15.1] — 2026-10-06
+
+### ⇅ Move whole section groups (closes the remaining part of [Issue #2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/2) — Group order)
+- **Right-click a Section header → "⬆ Move group up" / "⬇ Move group down"** — swaps the
+  whole [header + visible rows + collapsed stash rows] unit with the neighbouring group —
+  reorder play-by-group without dragging row by row · collapsed stash rows are bound to
+  their own row iids so they always follow their own header (the "collapse never changes
+  what plays" promise still holds)
+- **Alt+↑/↓ (or the ▲▼ buttons) on a header now moves the whole group too** — previously it
+  moved just the header row (making neighbouring rows leak into the group); collapsed or
+  expanded headers behave the same · a first group moved up / last group moved down is a no-op
+- **Block Start/End spanning the group = refused with a warning** — the new order's block
+  depth is checked before any move (an End appearing before its Start would break the block)
+  · Ctrl+Z undoes a move as usual (the existing undo/expand-collapsed mechanics v1.22/v2.5)
+- **CI: one automatic retry for cross-platform failures** — Xvfb closing the display mid-suite /
+  macOS SIGTRAP (CGEventTap) have been seen with unchanged code (proven on v2.15.0: the rerun
+  passed) — the Linux/macOS unit + E2E steps now re-run the full suite once with a warning
+  annotation (the suite must genuinely pass — this is not skipping tests)
+- **6 new tests** (TestGroupMove — swap groups up/down, whole preamble block, collapsed rows
+  travel with the group, block-crossing refused, undo, Alt+↓ keyboard path) →
+  **522 unit + 20 E2E = 542**
+
 ## [2.15.0] — 2026-10-06
 
 ### ▶️ Play a single section group (first item of the v2.15 plan — milestone [No.1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1))

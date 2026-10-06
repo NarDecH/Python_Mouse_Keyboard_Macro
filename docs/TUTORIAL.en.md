@@ -609,7 +609,23 @@ py auto_macro.py script.json --only-section งาน
 - Same pipeline as a full play — validate/STOP/`--max-minutes`/[SKIP] logging all apply, so it
   composes with `--queue`/watchdog, e.g. a queue where each file plays only its own group
 
+### 19.3 Move whole groups (v2.15.1 — Group order)
+
+Groups in the wrong order? No need to drag row by row — **right-click a header → "Move group up"
+/ "Move group down"** swaps the whole [header + rows + collapsed stash rows] unit with the
+neighbouring group in one step (or click a header and press **Alt+↑/↓**, or use the ▲▼ buttons —
+same result).
+
+- Collapsed stash rows always follow their own header — collapse a group, move it, rows stay
+  inside the group
+- A Block Start/End spanning the group (Start in one group, End in another) = refused with a
+  warning, so blocks can't break
+- Made a mistake? **Ctrl+Z** undoes · moving the first group up / last group down is a no-op
+
+Exercise: create groups A/B/C, press "Move group up" on B twice → order becomes B, A, C —
+then Ctrl+Z back to A, B, C.
+
 ---
 
-*Guide for code v2.15.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.15.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

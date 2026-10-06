@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.15.0"
+__version__ = "2.15.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -157,6 +157,8 @@ TR = {
            "ctx_section": "🗂️ เปลี่ยนเป็นหัวข้อ Section", "section_new": "🗂️ เพิ่มหัวข้อ Section",
            "group_collapse": "📁 ย่อกลุ่มนี้", "group_expand": "📂 ขยายกลุ่มนี้",
            "grp_empty": "กลุ่มนี้ไม่มีแถวที่เปิดใช้ — ไม่มีอะไรให้เล่น", "ctx_play_group": "▶ เล่นกลุ่มนี้อย่างเดียว",
+           "ctx_group_up": "⬆ ย้ายกลุ่มขึ้น", "ctx_group_down": "⬇ ย้ายกลุ่มลง",
+           "grp_moved": "ย้ายกลุ่ม '%s' แล้ว — Ctrl+Z ย้อนได้", "grp_move_block": "ย้ายกลุ่มไม่ได้ — Block Start/End คร่อมกลุ่มนี้ (แก้บล็อกก่อน)",
            "group_show_hint": "📦 กลุ่มนี้ย่ออยู่ — แถวซ่อนถูกเล่นตามปกติ",
            "group_expand_first": "📂 ขยายกลุ่มก่อนแก้แถว",
            "else_title": "🔀 Else If Image", "else_label": "วางหลังกลุ่ม A: If Image เจอ → ข้ามกลุ่ม B (Repeat แถว), ไม่เจอ → เล่นกลุ่ม B",
@@ -210,6 +212,8 @@ TR = {
            "ctx_section": "🗂️ Convert to Section header", "section_new": "🗂️ Add Section header",
            "group_collapse": "📁 Collapse this group", "group_expand": "📂 Expand this group",
            "grp_empty": "No enabled rows in this group — nothing to play", "ctx_play_group": "▶ Play this group only",
+           "ctx_group_up": "⬆ Move group up", "ctx_group_down": "⬇ Move group down",
+           "grp_moved": "Moved group '%s' — Ctrl+Z to undo", "grp_move_block": "Can't move — a Block Start/End spans this group (fix the block first)",
            "group_show_hint": "📦 Group collapsed — hidden rows still play",
            "group_expand_first": "📂 Expand group before editing",
            "save": "Save", "close": "Close", "language": "Language (ภาษา):",
@@ -4464,6 +4468,10 @@ class MacroApp:
             if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:
                 menu.add_command(label=self._t("ctx_play_group"),      # v2.15: เล่นกลุ่มนี้อย่างเดียว
                                  command=lambda: self._play_section(iid))
+                menu.add_command(label=self._t("ctx_group_up"),        # v2.15.1: ย้ายกลุ่มทั้งก้อน (Group order)
+                                 command=lambda: self._move_section_group(iid, -1))
+                menu.add_command(label=self._t("ctx_group_down"),
+                                 command=lambda: self._move_section_group(iid, 1))
         elif self._near_collapsed_marker(iid):
             menu.add_command(label=self._t("group_show_hint"), state="disabled")
             menu.add_command(label=self._t("group_expand_first"),
@@ -4710,8 +4718,8 @@ class MacroApp:
             return
         iid = sel[0]
         vals = self.tree.item(iid, "values")
-        if str(vals[4]) == SECTION_HEADER and self._group_collapsed(iid):
-            self._move_collapsed_group(iid, d)
+        if str(vals[4]) == SECTION_HEADER:
+            self._move_section_group(iid, d)   # v2.15.1: หัวข้อ = ย้ายกลุ่มทั้งก้อน (ย่อ/ขยายก็ได้)
             return
         idx = self.tree.index(iid)
         tgt = idx + d
@@ -4741,6 +4749,55 @@ class MacroApp:
         else:
             self.tree.move(head_iid, "", tgt)
         self.refresh_nums()
+
+    def _move_section_group(self, head_iid, d):
+        """v2.15.1: ย้ายกลุ่มหัวข้อทั้งก้อนขึ้น/ลง (Issue #2 — Group order)
+        สลับก้อน [หัวข้อ + แถวมองเห็น + แถวย่อใน stash] กับหน่วยข้างเคียงทั้งก้อน —
+        หน่วยข้างเคียง = กลุ่มหัวข้อก่อน/หลัง (ย่ออยู่ = หัวข้อเดียว stash เดินตามเอง)
+        หรือแถวก่อนหัวข้อแรกทั้งชุด · stash ผูกกับ iid ของตัวเองจึงไม่มีแถวหลุดกลุ่ม
+        · Block Start/End คร่อมกลุ่ม = ปฏิเสธ (กัน End โผล่ก่อน Start) · Ctrl+Z ย้อนได้"""
+        kids = list(self.tree.get_children())
+        a, b = self._section_range(head_iid)
+        if a is None:
+            return
+        n = len(kids)
+        is_head = lambda iid: str(self.tree.item(iid, "values")[4]) == SECTION_HEADER
+        if d < 0:
+            if a == 0:
+                return
+            u = a - 1                          # เดินขึ้นหาต้นหน่วยข้างบน
+            while u >= 0 and not is_head(kids[u]):
+                u -= 1
+            u += 1                             # หัวข้อก่อนหน้า (ย่อ/ขยายก็ได้) หรือแถวก่อนหัวข้อแรกทั้งชุด
+            if u >= a:
+                return
+            new_order = kids[:u] + kids[a:b + 1] + kids[u:a] + kids[b + 1:]
+        else:
+            if b + 1 >= n:
+                return
+            e = b + 2                          # เดินลงหาปลายกลุ่มถัดไป (ย่ออยู่ = หยุดที่หัวข้อถัดจากมันเอง)
+            while e < n and not is_head(kids[e]):
+                e += 1
+            new_order = kids[:a] + kids[b + 1:e] + kids[a:b + 1] + kids[e:]
+        depth = 0                              # บล็อก Start/End คร่อมกลุ่ม = ลำดับใหม่ต้องพัง — กันไว้ก่อน
+        for iid in new_order:
+            btn = str(self.tree.item(iid, "values")[4])
+            if btn == BLOCK_START:
+                depth += 1
+            elif btn == BLOCK_END:
+                depth -= 1
+                if depth < 0:
+                    self._ui_state["msg"] = (self._t("grp_move_block"), "#c00")
+                    return
+        name = str(self.tree.item(head_iid, "values")[5]).strip()
+        self._push_undo()                      # Ctrl+Z กู้ตาราง + ขยายกลุ่มย่อคืน (กลไกเดิม v1.22/v2.5)
+        for pos, iid in enumerate(new_order):
+            if kids[pos] != iid:
+                self.tree.move(iid, "", pos)
+        self.refresh_nums()
+        self.tree.selection_set(head_iid)
+        self.tree.see(head_iid)
+        self._ui_state["msg"] = (self._t("grp_moved") % (name or "กลุ่มไม่มีชื่อ"), "#080")
 
     # -------------------------------------------------------- cell editing ---
     def _on_dbl_click(self, event):

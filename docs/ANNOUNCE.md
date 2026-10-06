@@ -133,6 +133,19 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
+## 🆕 ข่าวเวอร์ชัน v2.15.1 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🆕 v2.15.1 ออกแล้ว!
+
+• ย้ายกลุ่มทั้งก้อน: คลิกขวาที่หัวข้อ → "⬆ ย้ายกลุ่มขึ้น" / "⬇ ย้ายกลุ่มลง"
+  (หรือ Alt+↑↓ บนหัวข้อ) — จัดลำดับการเล่นทีละกลุ่ม ไม่ต้องลากทีละแถว
+• แถวที่ย่อไว้เดินตามกลุ่มของตัวเองเสมอ · Block คร่อมกลุ่ม = โปรแกรมกันไว้ให้
+• ผิดพลาดกด Ctrl+Z ย้อนได้ตามปกติ
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
 ---
 
 ## 💡 เคล็ดลับตอนโพสต์

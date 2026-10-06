@@ -135,13 +135,14 @@
 
 - [x] ~~**เล่นเฉพาะกลุ่มหัวข้อ (Play section group)**~~ ✅ v2.15.0 (คลิกขวาหัวข้อ → "▶ เล่นกลุ่มนี้อย่างเดียว"
       + CLI `--only-section ชื่อ` — player จริงสายเดียวกับ START, แถวย่อก็เล่นครบ)
-- [ ] **ลากจัดลำดับกลุ่ม (Group order)** — สั่งเล่น"ทีละกลุ่มหัวข้อ"ตามลำดับที่จัดไว้ / ลากสลับกลุ่มทั้งก้อน —
-      ต่อยอด Section/Block ที่มีอยู่ ครอบงานใหญ่ที่แบ่งเป็นขั้น ๆ ([Issue #2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/2))
+- [x] ~~**ย้ายกลุ่มทั้งก้อน (Group order)**~~ ✅ v2.15.1 (คลิกขวาหัวข้อ → "⬆ ย้ายกลุ่มขึ้น" / "⬇ ย้ายกลุ่มลง" / Alt+↑↓ —
+      สลับกลุ่มทั้งก้อน แถวย่อเดินตามหัวข้อของตัวเอง, บล็อกคร่อม = ปฏิเสธ, Ctrl+Z ย้อนได้) —
+      **[Issue #2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/2) ปิดครบ**
 - [ ] **ส่งออก/นำเข้าเป็น .exe คู่สคริปต์** — สร้าง .bat/.lnk ที่เล่นสคริปต์นั้นทันทีผ่าน AutoMouseMacro.exe (ต่อยอด Export Bat/Queue Bat — หนึ่งดับเบิลคลิก = หนึ่งสคริปต์ ไม่ต้องเปิดโปรแกรมหลัก) ([Issue #3](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/3))
 - [ ] **ถอดเงื่อนไขซ้อนเป็นลำดับเหตุการณ์ (Event timeline)** — มุมมองใหม่ของสคริปต์: เห็นผลเงื่อนไข/skip ของการเล่นล่าสุดเป็นไทม์ไลน์ต่อแถว (ใช้ log STEP เดิม — ช่วยดีบั๊กสคริปต์เงื่อนไขซ้อนหลายชั้น) ([Issue #4](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/4))
 - [ ] **ตลาด plugin จากชุมชนรอบใหม่** — ประกาศ Plugin API v3/v3.5 หา condition-plugin ที่เป็นประโยชน์ (เช่น Window Focused, File Newer Than, HTTP Status) รวมดีๆ ขึ้น Release ถัดไป ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5))
 
 ---
-*อัพเดตล่าสุด: v2.15.0 — ถอดจาก CHANGELOG · เปิด [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
-แล้ว (ข้อแรก "เล่นเฉพาะกลุ่มหัวข้อ" สำเร็จใน v2.15.0) — ข้อถัดไปติดตามใน issues #2–#5 ·
-ข้อเสนอใหม่เสนอได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
+*อัพเดตล่าสุด: v2.15.1 — ถอดจาก CHANGELOG · เปิด [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
+แล้ว (ข้อแรก "กลุ่มหัวข้อ" ปิดครบ: เล่นเฉพาะกลุ่ม v2.15.0 + ย้ายกลุ่มทั้งก้อน v2.15.1) —
+ข้อถัดไปติดตามใน issues #3–#5 · ข้อเสนอใหม่เสนอได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
