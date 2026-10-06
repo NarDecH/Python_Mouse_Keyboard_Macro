@@ -7,6 +7,7 @@ Unit tests สำหรับฟังก์ชันล้วน ๆ ของ 
 """
 
 import datetime
+import gc
 import glob
 import io
 import json
@@ -45,14 +46,64 @@ def _cancel_tk_afters(root):
 
 
 class _Tk(am.tk.Tk):
-    """Tk ของเทสต์ — destroy() ยกเลิก timer `after` ทั้งหมดก่อน (ดู _cancel_tk_afters)"""
+    """Tk ของเทสต์ — destroy() เคลียร์ครบก่อนปิด interpreter:
+    ① หยุดเธรดของ app ที่ผูกไว้ (root._app — ดู _register_macro_app ด้านล่าง):
+       player (_gk hotkey listener, _sched_loop, recorder listeners) — เทสต์เก่าไม่เคยหยุด
+       ทิ้งสะสมหลายเธรด ระหว่าง suite CI Linux/macOS เธรดเหล่านี้จัดสรรหน่วยความจำต่อ
+       → GC ไป finalize Tcl object ของ interpreter เก่า "บนเธรดผิด" =
+       Tcl_AsyncDelete: async handler deleted by the wrong thread → abort ทั้งโปรเซส
+       (พิสูจน์บน CI v2.15.0: ระเบิดตอนเริ่มคลาส GUI ถัดไป)
+    ② ยกเลิก timer `after` ทั้งหมด (ดู _cancel_tk_afters)
+    ③ destroy แล้ว gc.collect() บน main thread — finalize Tcl state บนเธรดที่ถูกต้องเสมอ"""
 
     def destroy(self):
+        app = getattr(self, "_app", None)
+        if app is not None:
+            try:
+                app.stop_all(silent=True)
+            except Exception:
+                pass
+            gk = getattr(app, "_gk", None)
+            if gk is not None:
+                try:
+                    gk.stop()
+                except Exception:
+                    pass
+                app._gk = None                     # กัน poller/heal รีสตาร์ตระหว่างปิด
+            try:
+                app._sched_stop.set()
+            except Exception:
+                pass
+            try:
+                app._recorder.stop_listeners()
+            except Exception:
+                pass
         _cancel_tk_afters(self)
         try:
             super().destroy()
         except am.tk.TclError:
             pass
+        gc.collect()                               # finalize บน main thread — จุดเดียวจบปัญหา
+
+
+def _register_macro_app():
+    """ผูก MacroApp กับ root (root._app) ให้ _Tk.destroy หยุดเธรดได้ — patch ครั้งเดียว
+    ทำในไฟล์เทสต์เท่านั้น (โค้ดโปรแกรมไม่เกี่ยว — ผู้ใช้ปิดโปรแกรมผ่าน _on_close อยู่แล้ว)"""
+    if getattr(am.MacroApp, "_gk_autostop_patched", False):
+        return
+    _orig_macro_init = am.MacroApp.__init__
+
+    def _macro_init(self, root, *args, **kwargs):
+        _orig_macro_init(self, root, *args, **kwargs)
+        try:
+            root._app = self
+        except Exception:
+            pass
+    am.MacroApp.__init__ = _macro_init
+    am.MacroApp._gk_autostop_patched = True
+
+
+_register_macro_app()
 
 
 class TestParseKey(unittest.TestCase):
@@ -1573,7 +1624,9 @@ class TestPlayLoopGui(unittest.TestCase):
             except Exception:
                 pass
         if cls.root is not None:
-            cls.root.destroy()
+            cls.root.destroy()              # _Tk.destroy = หยุดเธรด + ยกเลิก after + gc.collect
+        cls.app = None                      # ปล่อย ref ให้เก็บบน main thread ไม่ค้างถึงจบ suite
+        cls.root = None
 
     def setUp(self):
         if self.app is None:
@@ -2573,7 +2626,9 @@ class _GuiPlayBase(unittest.TestCase):
             except Exception:
                 pass
         if cls.root is not None:
-            cls.root.destroy()
+            cls.root.destroy()              # _Tk.destroy = หยุดเธรด + ยกเลิก after + gc.collect
+        cls.app = None                      # ปล่อย ref ให้เก็บบน main thread ไม่ค้างถึงจบ suite
+        cls.root = None
 
     def setUp(self):
         if self.app is None:
@@ -6661,7 +6716,9 @@ class TestConditionPluginsGui(unittest.TestCase):
             except Exception:
                 pass
         if cls.root is not None:
-            cls.root.destroy()
+            cls.root.destroy()              # _Tk.destroy = หยุดเธรด + ยกเลิก after + gc.collect
+        cls.app = None                      # ปล่อย ref ให้เก็บบน main thread ไม่ค้างถึงจบ suite
+        cls.root = None
 
     def setUp(self):
         if self.app is None:

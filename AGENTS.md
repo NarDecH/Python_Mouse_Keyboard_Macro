@@ -326,7 +326,11 @@
   · **GitHub milestone v2.15** = milestone No.1 + issues #2–#5 ตาม ROADMAP · เทสต์ refactor:
   **`_GuiPlayBase` = harness ล้วน (ห้ามมี test_ method — เทสต์แม่จะถูกรันเอง)** +
   `TestV21GuiPlay`/`TestSectionOnlyPlay` แยกสืบทอด กันเทสต์แม่รันซ้ำ · เทสต์เพิ่ม 5 ตัว
-  (TestSectionOnlyPlay — GUI เล่นจริง 2 + เตือนกลุ่มว่าง 1 + CLI 2) → 516 unit + 20 E2E = 536
+  (TestSectionOnlyPlay — GUI เล่นจริง 2 + เตือนกลุ่มว่าง 1 + CLI 2) → 516 unit + 20 E2E = 536 ·
+  **แก้ CI Linux/macOS Tcl_AsyncDelete abort:** เทสต์ GUI ไม่เคยหยุดเธรด listener ของ app
+  (_gk/_sched_loop/recorder สะสมทุกคลาส) — เธรดค้างทำ GC finalize Tcl บนเธรดผิด = abort ทั้งโปรเซส ·
+  ตอนนี้ **`_Tk.destroy` = หยุดเธรดของ app ผ่าน `root._app` (patch MacroApp.__init__ ในไฟล์เทสต์)
+  + ยกเลิก after + gc.collect() บน main thread** — เทสต์ GUI ใหม่ที่สร้าง root เองต้องใช้ `_Tk` เสมอ
 
 ## เทคโนโลยี
 

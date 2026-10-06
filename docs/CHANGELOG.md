@@ -21,6 +21,12 @@
 - **i18n** — คีย์ใหม่ `grp_empty` + `ctx_play_group` ทั้งไทย/อังกฤษ
 - **GitHub milestone v2.15** — สร้าง milestone No.1 + issues #2–#5 ตามแผน ROADMAP
   (เล่นกลุ่ม+ลากจัดลำดับกลุ่ม / .bat คู่สคริปต์ / ไทม์ไลน์เหตุการณ์ / ตลาด condition-plugin)
+- **แก้บั๊ก CI Linux/macOS — Tcl_AsyncDelete abort ทั้งโปรเซส** — เทสต์ GUI แต่ละคลาสสร้าง
+  MacroApp ใหม่แต่ไม่เคยหยุดเธรด listener (_gk hotkey/_sched_loop/recorder) เธรดสะสมหลายตัว
+  ระหว่าง suite จัดสรรหน่วยความจำต่อ → GC finalize Tcl object ของ interpreter เก่าบนเธรดผิด
+  = abort กลาง suite (ตายตอนเริ่มคลาส GUI ถัดไป) — ตอนนี้ `_Tk.destroy` หยุดเธรดของ app
+  (ผ่าน `root._app` ที่ patch ในไฟล์เทสต์) + ยกเลิก `after` + `gc.collect()` บน main thread
+  ทุกคลาส — finalize บนเธรดที่ถูกต้องเสมอ โค้ดโปรแกรมไม่เกี่ยว (ผู้ใช้ปิดผ่าน `_on_close` เดิม)
 - **เทสต์เพิ่ม 5 ตัว** (TestSectionOnlyPlay — GUI เล่นจริง 2 + เตือนกลุ่มว่าง 1 + CLI 2 ·
   refactor เทสต์เล่นจริงเป็น harness ร่วม `_GuiPlayBase` — เทสต์แม่ไม่รันซ้ำ) →
   **516 unit + 20 E2E = 536**

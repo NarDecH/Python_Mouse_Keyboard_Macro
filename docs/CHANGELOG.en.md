@@ -23,6 +23,13 @@
 - **i18n** — new keys `grp_empty` + `ctx_play_group` in Thai and English
 - **GitHub milestone v2.15** — milestone No.1 + issues #2–#5 created from the ROADMAP plan
   (group play + group reordering / per-script .bat / event timeline / condition-plugin marketplace)
+- **Fixed a CI Linux/macOS abort — Tcl_AsyncDelete** — each GUI test class created a fresh
+  MacroApp but never stopped its listener threads (_gk hotkey/_sched_loop/recorder); the
+  accumulating threads kept allocating during the suite, so GC finalized an old interpreter's Tcl
+  object "on the wrong thread" and the whole process aborted (it died when the next GUI class
+  started) — `_Tk.destroy` now stops the app's threads (via `root._app` patched in the test file),
+  cancels `after` timers and runs `gc.collect()` on the main thread — Tcl state is always finalized
+  on the correct thread; production code is untouched (users close through `_on_close` as before)
 - **5 new tests** (TestSectionOnlyPlay — 2 real-play GUI + empty-group warning + 2 CLI ·
   the real-play tests were refactored into a shared `_GuiPlayBase` harness — parent tests no
   longer run twice) → **516 unit + 20 E2E = 536**
