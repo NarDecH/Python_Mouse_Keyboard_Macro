@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.16.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.16.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -360,6 +360,19 @@
   4xx ที่รอเป๊ะจริงได้) · เทสต์เพิ่ม 19 ตัว (TestLauncherPair 7 + TestLogTimeline 4 +
   TestLogTimelineGui 3 + TestPluginsV16 5 — HTTP Status ยิง http.server จริงบน localhost
   bind 127.0.0.1:0) → 541 unit + 20 E2E = 561
+- **แก้บั๊ก + ของเสริม v2.16.1 (จากการทดสอบ .exe จริง):** **bug ไฟล์ runtime ของ .exe หายทุกครั้งที่ปิด** —
+  ใน PyInstaller onefile `__file__` ชี้ `_MEI` temp ที่ถูกลบตอนปิด → conf/โปรไฟล์/log/dry-report
+  เขียนลงนั่น · แก้ด้วย **`app_base_dir()` แหล่งเดียวใน engine** (frozen = โฟลเดอร์ของ exe,
+  ซอร์ส = เดิม 100%) ครอบ CONF/PROFILES/log_path/dry_report_path/log_stats_summary/
+  log_daily_series/log_monthly_series/log_archive_path/cleanup_old_logs/resolve_image_path ·
+  ⚠️ **ทดสอบ .exe จาก Release จริงก่อนปล่อยทุกรอบ** — CLI เล่นจบ exit 0 ยังไม่พอ ต้องเช็ค
+  ไฟล์ runtime ตกหล่นไหน · เทสต์ frozen ต้องจำลองใน subprocess (set `sys.frozen` **ก่อน import**
+  เหมือน PyInstaller — set หลัง import แล้ว CONF ที่เป็น import-time constant ไม่เปลี่ยน) ·
+  ตัวอย่างใหม่ `examples/16_condition_plugins_v216.json` (เงื่อนไขใหม่ 3 ตัว แบบกลาง platform —
+  แถวเท็จกิน Beep ของตัวเอง ไม่มี skip cascade · รันจากโฟลเดอร์ examples เพื่อเจอ target.png —
+  ⚠️ พาธ relative ในเงื่อนไขไฟล์ resolve กับ **cwd ของโปรเซส** ไม่ใช่โฟลเดอร์สคริปต์) ·
+  LANDING.html ฟีเจอร์ v2.16 · เปิด milestone v2.17 (No.2) + issues #6–#9 + แผนใน ROADMAP ·
+  เทสต์เพิ่ม 3 ตัว (TestFrozenPaths 2 + TestExample16PluginsV216 1) → 544 unit + 20 E2E = 564
 
 ## เทคโนโลยี
 

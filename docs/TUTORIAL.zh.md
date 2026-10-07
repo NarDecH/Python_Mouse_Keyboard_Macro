@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.16.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.16.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -388,6 +388,15 @@ max 10              无条件 — 把块体重复 10 次
 - 折叠的行始终跟随自己的标题 — 折叠后移动也不会散组；跨越分组的 Block Start/End =
   拒绝并警告（防止块损坏）· Ctrl+Z 可撤销。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 19.3 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.16.1 — 修复
+
+- **.exe 真正保存日志/设置** — 通过实际测试发行版 .exe 发现的 bug：exe 的配置/配置文件/
+  日志/dry-run 报告之前在每次关闭时都会丢失（写进了 `_MEI` 临时目录）— 现在统一通过
+  `app_base_dir()` 存放到 .exe 旁边。
+- 新示例 `examples/16_condition_plugins_v216.json`（新的 3 个条件插件，平台中立）·
+  LANDING.html 展示 v2.16 新功能 · 开启 [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
+  + issues #6–#9。
 
 ## v2.16.0 — 新增
 

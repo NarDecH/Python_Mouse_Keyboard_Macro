@@ -410,6 +410,15 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
 - 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第19章 19.3 ·
   [TUTORIAL.en.md](TUTORIAL.en.md) を参照。
 
+## v2.16.1 — 修正
+
+- **.exe がログ/設定を保持するようになった** — リリース版 .exe を実際にテストして発見したバグ:
+  exe の設定/プロファイル/ログ/dry-run レポートが毎回クローズ時に消えていた（`_MEI` 一時
+  フォルダに書かれていたため）— 現在は `app_base_dir()` を通じて .exe の隣に保存される。
+- 新サンプル `examples/16_condition_plugins_v216.json`（新しい 3 条件プラグイン、プラットフォーム中立）·
+  LANDING.html に v2.16 の機能を追加 · [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
+  + issues #6–#9 を作成。
+
 ## v2.16.0 — 新機能
 
 - **🚀 スクリプトランチャー（.bat + .lnk）** — スクリプト保存後に 🚀 Launcher メニューを押すと、

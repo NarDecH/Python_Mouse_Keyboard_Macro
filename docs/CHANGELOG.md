@@ -2,6 +2,37 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.16.1] — 2026-10-07
+
+### 🐛 แก้บั๊กจากการทดสอบ .exe จริง — ไฟล์ runtime ของ .exe หายทุกครั้งที่ปิดโปรแกรม
+- **ใน .exe (PyInstaller onefile) `__file__` ชี้โฟลเดอร์ `_MEI` temp ที่ถูกลบตอนปิดโปรแกรม** —
+  เดิม `macro_conf.json`/`macro_profiles.json`/`macro_log_วันที่.txt`/`dry_report_วันที่.txt`
+  และ log_archive ทั้งหมดเขียนลงโฟลเดอร์นั้น = **การตั้งค่า/log/สถิติ/รายงาน dry-run ของ .exe
+  หายทุกครั้งที่ปิด** (หน้าต่าง 📝 Log/📊 Stats ใน .exe ก็อ่านจากโฟลเดอร์ผิดเห็นว่างเปล่า)
+- **แก้ด้วย `app_base_dir()` แหล่งเดียวใน engine** — รันจาก .exe = โฟลเดอร์ของไฟล์ exe
+  (แนวเดียวกับ `load_plugins`/`open_plugins_folder` ที่ทำถูกอยู่แล้ว) · โค้ดจากซอร์ส =
+  โฟลเดอร์ของ auto_macro.py เหมือนเดิม 100% · ครอบ CONF/PROFILES/log_path/dry_report_path/
+  log_stats_summary/log_daily_series/log_monthly_series/log_archive_path/cleanup_old_logs/
+  resolve_image_path (ภาพ relative เทียบข้าง exe)
+- **ทดสอบ .exe จาก Release v2.16.0 จริงก่อนเจอบั๊ก** — โหลด AutoMouseMacro.exe มารัน CLI
+  สคริปต์ Beep ล้วน: เล่นจบครบ "จบแล้ว ✔" exit 0 (สินค้าใช้ได้จริง) แต่ log หายหลังจบ →
+  ตามรอยจนเจอสาเหตุ · regression test จำลอง frozen ใน subprocess (set `sys.frozen` ก่อน
+  import เหมือน PyInstaller) ตรวจ CONF/PROFILES/log/dry-report/log_archive/image ครบ
+
+### 📚 อื่น ๆ
+- **ตัวอย่างใหม่ `examples/16_condition_plugins_v216.json`** — สาธิตเงื่อนไข plugin ใหม่
+  3 ตัว (File Newer Than / Window Focused / HTTP Status) แบบกลาง platform: จริงจากไฟล์ที่
+  commit มา เท็จจากชื่อที่ไม่มีจริง แถวเท็จกิน Beep ของตัวเอง (ไม่มี skip cascade กลืนแถวอื่น) —
+  รันจากโฟลเดอร์ examples แล้วเปิด ⏱ ไทม์ไลน์ดูผลทีละแถว (เทสต์ validate + เล่นจริง CLI)
+- `examples/README.md` เติมแถวตัวอย่าง 14_condition_plugin + 15_system_conditions ที่ขาด
+  ไปตอน v2.13/v2.14 + แถว 16 ใหม่
+- **LANDING.html** เพิ่มฟีเจอร์ v2.16 (launcher คู่สคริปต์ · ไทม์ไลน์ · เงื่อนไข plugin ครบชุด)
+- **เปิด [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)**
+  + issues #6–#9 (plugin ชุมชนรอบถัดไป / Task Scheduler + launcher / Beep ตั้งค่าได้ /
+  OR ในเงื่อนไขรวม — รอโหวต) + แผนใน ROADMAP
+- **เทสต์เพิ่ม 3 ตัว** (TestFrozenPaths 2 + TestExample16PluginsV216 1) →
+  **544 unit + 20 E2E = 564**
+
 ## [2.16.0] — 2026-10-07
 
 ### 🏁 ปิด milestone v2.15 ครบ — Launcher คู่สคริปต์ · ไทม์ไลน์เหตุการณ์ · plugin เงื่อนไขชุมชนรอบใหม่

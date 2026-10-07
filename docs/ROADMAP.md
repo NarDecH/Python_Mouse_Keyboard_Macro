@@ -122,6 +122,26 @@
 - [x] ~~**Plugin API v2** — ctx เพิ่ม `stop_check()` (plugin หยุดตาม STOP ได้), `ui` (toast/statusbar)~~ ✅ v1.20
 - [x] ~~**รวบรวม plugin จากชุมชน / Multi-language (จีน-ญี่ปุ่น)**~~ ⬆️ ย้ายไปแผน v2.3 (หัวข้อบน)
 
+---
+
+## 🚀 v2.17 — แนวโน้มถัดไป ([milestone No.2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2) — ติดตามผ่าน issues)
+
+- [ ] **เงื่อนไข plugin ชุมชนรอบถัดไป** — Disk Space Low (พื้นที่เหลือ < N GB) · Process CPU
+      (โปรเซสใช้ CPU เกิน/ไม่เกิน N%) · Window Closed (หน้าต่างงานปิดแล้ว = จริง —
+      ตรงข้าม Window Exists) — เสนอเพิ่มได้ตามเกณฑ์ 6 ข้อใน [PLUGINS.md](PLUGINS.md)
+      ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6))
+- [ ] **คู่มือ Windows Task Scheduler + launcher ตั้งเวลา** — ทีละขั้น: Task Scheduler เรียก
+      launcher .bat/.lnk (จาก 🚀 Launcher v2.16) หรือ exe ตรง ๆ · trigger logon/idle ·
+      สิทธิ์ admin · หยุดผ่าน --stop-file · ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์
+      ([Issue #7](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7) —
+      ของค้างจาก [Unreleased] ใน CHANGELOG)
+- [ ] **ตั้งค่าเสียง Beep ได้** — ความถี่/ระยะ/จำนวนครั้งผ่าน Additional (คงพฤติกรรมเดิมเมื่อไม่ใส่)
+      ([Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) —
+      ของค้างจาก [Unreleased] ใน CHANGELOG)
+- [ ] **OR (`||`) ในเงื่อนไขรวม** — ต่อยอด [RFC](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
+      (ค้างตั้งแต่คำถามข้อ 1) — **รอโหวตจริงก่อนลงมือ** คงกติกาเหล็ก: สคริปต์เดิมเล่นผลเดิม 100%
+      ([Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9))
+
 ## 🎯 หลักการที่ห้ามฝ่าฝืน
 
 1. **ความปลอดภัยผู้ใช้มาก่อน** — ฟีเจอร์ใหม่ห้ามทำให้ STOP ใช้ไม่ได้ทุกช่องทาง
@@ -151,7 +171,7 @@
       ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5) ปิดครบ)
 
 ---
-*อัพเดตล่าสุด: v2.16.0 — ถอดจาก CHANGELOG · [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
-**ปิดครบทั้ง 5 ข้อแล้ว**: เล่นเฉพาะกลุ่ม v2.15.0 · ย้ายกลุ่มทั้งก้อน v2.15.1 · launcher คู่สคริปต์ ·
-ไทม์ไลน์เหตุการณ์ · plugin เงื่อนไขชุมชนรอบใหม่ v2.16.0 (issues #2–#5 ทุกตัวปิด) —
+*อัพเดตล่าสุด: v2.16.1 — ถอดจาก CHANGELOG · [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
+**ปิดครบทั้ง 5 ข้อแล้ว** (issues #2–#5) · เปิด [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
+แล้ว (issues #6–#9: plugin ชุมชนรอบถัดไป / Task Scheduler + launcher / Beep ตั้งค่าได้ / OR) —
 ข้อเสนอใหม่เสนอได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*

@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.16.0"
+__version__ = "2.16.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -246,8 +246,18 @@ TR = {
 def tr(lang, key):
     """ดึงข้อความตามภาษา (lang: 'th'/'en') — คีย์หาย = ใช้ภาษาไทย fallback"""
     return TR.get(lang, TR["th"]).get(key, TR["th"].get(key, key))
-CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_conf.json")
-PROFILES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macro_profiles.json")
+def app_base_dir():
+    """โฟลเดอร์ไฟล์ runtime ของโปรแกรม (conf/log/dry-report/backup/image) (v2.16.1)
+    รันจาก .exe (PyInstaller onefile) __file__ ชี้ _MEI temp ที่ถูกลบตอนปิดโปรแกรม —
+    เดิม conf/log/dry-report ของ .exe หายทุกครั้ง · ตอนนี้ใช้โฟลเดอร์ของไฟล์ exe เสมอ
+    โค้ดจากซอร์ส = โฟลเดอร์ของ auto_macro.py เหมือนเดิมทุกอย่าง"""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+CONF = os.path.join(app_base_dir(), "macro_conf.json")
+PROFILES = os.path.join(app_base_dir(), "macro_profiles.json")
 DEFAULT_PROFILE = "ค่าเริ่มต้น"
 DEFAULT_THRESHOLD = 0.80        # ความมั่นใจเริ่มต้นของ Image Click (80%)
 MAX_LOG_LINES = 500             # จำนวนบรรทัดสูงสุดของ log (ตัดข้างหลังอัตโนมัติ)
@@ -1824,8 +1834,9 @@ def log_filename():
 
 
 def log_path():
-    """พาธไฟล์ log ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)"""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), log_filename())
+    """พาธไฟล์ log ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)
+    v2.16.1: ใช้ app_base_dir() — รันจาก .exe เก็บข้าง exe ไม่หายใน _MEI temp"""
+    return os.path.join(app_base_dir(), log_filename())
 
 
 def log_write(mode, message, src=None):
@@ -1882,7 +1893,7 @@ def parse_log_stats(path):
 
 def log_stats_summary(base_dir=None):
     """สรุปสถิติจาก log ทุกวันรวมกัน — ใช้หน้าต่าง 📊 Stats (v1.11)"""
-    d = base_dir or os.path.dirname(os.path.abspath(__file__))
+    d = base_dir or app_base_dir()
     files = sorted(glob.glob(os.path.join(d, "macro_log_*.txt")))
     total = {"files": len(files), "runs": 0, "steps": 0,
              "stops": 0, "restarts": 0, "slowest": None, "actions": {}}
@@ -2039,7 +2050,7 @@ def prune_backups(base_dir, keep_days=BACKUP_KEEP_DAYS, today=None):
 def log_daily_series(base_dir=None, limit=14):
     """สถิติรายวันสำหรับกราฟ (v1.12) — เรียงวันเก่า → ใหม่ เอา `limit` วันล่าสุด
     คืนรายการ dict: {"day": "2026-09-28", "runs": n, "steps": n, "restarts": n}"""
-    d = base_dir or os.path.dirname(os.path.abspath(__file__))
+    d = base_dir or app_base_dir()
     out = []
     for f in sorted(glob.glob(os.path.join(d, "macro_log_*.txt"))):
         name = os.path.basename(f)                    # macro_log_YYYY-MM-DD.txt
@@ -2053,7 +2064,7 @@ def log_daily_series(base_dir=None, limit=14):
 def log_monthly_series(base_dir=None, limit=12):
     """สรุปการใช้งานรวมรายเดือน (v1.15) — จาก log ทุกไฟล์ จับคู่เดือนจากชื่อไฟล์
     คืนรายการ dict: {"month": "2026-09", "runs": n, "steps": n} เรียงเดือนเก่า → ใหม่"""
-    d = base_dir or os.path.dirname(os.path.abspath(__file__))
+    d = base_dir or app_base_dir()
     agg = {}
     for f in glob.glob(os.path.join(d, "macro_log_*.txt")):
         name = os.path.basename(f)
@@ -2091,7 +2102,7 @@ _LOG_DAY_RE = re.compile(r"^(?:macro_log_|dry_report_)(\d{4}-\d{2}-\d{2})\.txt$"
 
 def log_archive_path(base_dir=None):
     """โฟลเดอร์เก็บ log ถาวร <base_dir>/log_archive/ (patch ฟังก์ชันนี้ใน unit tests)"""
-    return os.path.join(base_dir or os.path.dirname(os.path.abspath(__file__)),
+    return os.path.join(base_dir or app_base_dir(),
                         LOG_ARCHIVE_DIR)
 
 
@@ -2104,7 +2115,7 @@ def cleanup_old_logs(base_dir=None, keep_days=None, archive=True, today=None):
     mode = "archive" if archive else "delete"
     n = 0
     try:
-        d = base_dir or os.path.dirname(os.path.abspath(__file__))
+        d = base_dir or app_base_dir()
         today = today or datetime.date.today()
         if keep_days is None:
             cutoff = today                          # ทุกไฟล์ที่ไม่ใช่วันนี้
@@ -2153,8 +2164,9 @@ def dry_report_filename():
 
 
 def dry_report_path():
-    """พาธไฟล์รายงาน Dry-run ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)"""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), dry_report_filename())
+    """พาธไฟล์รายงาน Dry-run ของวันนี้ (patch ฟังก์ชันนี้ใน unit tests เพื่อย้ายที่เก็บ)
+    v2.16.1: ใช้ app_base_dir() — รันจาก .exe เก็บข้าง exe ไม่หายใน _MEI temp"""
+    return os.path.join(app_base_dir(), dry_report_filename())
 
 
 def dry_report_summary(dry_lines):
@@ -2853,9 +2865,10 @@ def grab_area_bgr(area=None):
 
 
 def resolve_image_path(path):
-    """พาธสัมพัทธ์ → เทียบกับโฟลเดอร์ของโปรแกรม (เหมือนเดิมทุกเวอร์ชัน)"""
+    """พาธสัมพัทธ์ → เทียบกับโฟลเดอร์ของโปรแกรม (v2.16.1: ใช้ app_base_dir() —
+    .exe เทียบข้าง exe ไม่ใช่ _MEI temp)"""
     if not os.path.isabs(path):
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+        path = os.path.join(app_base_dir(), path)
     return path
 
 

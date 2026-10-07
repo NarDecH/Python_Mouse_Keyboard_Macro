@@ -3,6 +3,43 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.16.1] — 2026-10-07
+
+### 🐛 Bug found by testing the real .exe — runtime files vanished on every .exe exit
+- **Inside the .exe (PyInstaller onefile), `__file__` points at the `_MEI` temp folder which
+  is deleted when the program exits** — `macro_conf.json`/`macro_profiles.json`/
+  `macro_log_<date>.txt`/`dry_report_<date>.txt` and log_archive were all written there =
+  **the .exe lost its settings/logs/stats/dry-run reports on every close** (the 📝 Log and
+  📊 Stats windows inside the .exe read the wrong folder and appeared empty)
+- **Fixed with a single `app_base_dir()` helper in the engine** — running from the .exe =
+  the folder containing the exe file (same approach `load_plugins`/`open_plugins_folder`
+  already used correctly) · source runs = the auto_macro.py folder, exactly as before ·
+  covers CONF/PROFILES/log_path/dry_report_path/log_stats_summary/log_daily_series/
+  log_monthly_series/log_archive_path/cleanup_old_logs/resolve_image_path (relative images
+  now resolve next to the exe)
+- **The bug was found by actually testing the released .exe** — downloaded
+  AutoMouseMacro.exe v2.16.0 and ran a Beep-only script via its CLI: played through
+  "จบแล้ว ✔" with exit 0 (the product works) but the log vanished on exit → traced it to
+  the root cause · regression test simulates frozen mode in a subprocess (setting
+  `sys.frozen` before import, like PyInstaller) and checks CONF/PROFILES/log/dry-report/
+  log_archive/image paths
+
+### 📚 Also
+- **New example `examples/16_condition_plugins_v216.json`** — demonstrates the 3 new
+  condition plugins (File Newer Than / Window Focused / HTTP Status) platform-neutrally:
+  true from committed files, false from names that never exist; each false condition eats
+  its own Beep (no skip cascade swallowing other rows) — run from the examples folder and
+  open the ⏱ timeline to see it row by row (validate + real CLI test included)
+- `examples/README.md` adds the missing rows for 14_condition_plugin and
+  15_system_conditions (skipped back in v2.13/v2.14) plus the new 16
+- **LANDING.html** now shows the v2.16 features (launcher pair · timeline · condition
+  plugin set)
+- **Opened [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)**
+  + issues #6–#9 (next community plugins / Task Scheduler + launcher / configurable Beep /
+  OR in combined conditions — awaiting votes) + the plan in ROADMAP
+- **3 new tests** (TestFrozenPaths 2 + TestExample16PluginsV216 1) → **544 unit + 20 E2E
+  = 564**
+
 ## [2.16.0] — 2026-10-07
 
 ### 🏁 Milestone v2.15 complete — script launchers · event timeline · new community condition plugins

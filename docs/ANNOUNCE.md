@@ -161,6 +161,19 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
+## 🆕 ข่าวเวอร์ชัน v2.16.1 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🛠 v2.16.1 — แก้บั๊กที่เจอจากการทดสอบ .exe จริง
+
+• ใครใช้ AutoMouseMacro.exe: ตอนนี้ตั้งค่า/โปรไฟล์/log/รายงาน dry-run
+  จะเก็บอยู่ข้างไฟล์ .exe ไม่หายอีกต่อไป (เดิมหายทุกครั้งที่ปิดโปรแกรม)
+• แถม: ตัวอย่างใหม่ examples/16 ลองเล่นเงื่อนไข plugin ใหม่ 3 ตัว
+  แล้วเปิด ⏱ ไทม์ไลน์ดูผลทีละแถว
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
 ---
 
 ## 💡 เคล็ดลับตอนโพสต์

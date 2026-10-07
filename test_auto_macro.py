@@ -7574,5 +7574,83 @@ class TestPluginsV16(unittest.TestCase):
         self.assertFalse(mod.check({}, {}))
 
 
+class TestFrozenPaths(unittest.TestCase):
+    """v2.16.1: แก้บั๊กจากการทดสอบ .exe จริง — ใน .exe (PyInstaller onefile) __file__ ชี้
+    _MEI temp ที่ถูกลบตอนปิดโปรแกรม → conf/log/dry-report ของ .exe หายทุกครั้ง ·
+    ตอนนี้ทุกพาธ runtime ผ่าน app_base_dir() (โฟลเดอร์ของ exe) — จำลอง frozen
+    ใน subprocess (set sys.frozen ก่อน import เหมือน PyInstaller)"""
+
+    def test_source_mode_paths_unchanged(self):
+        base = os.path.dirname(os.path.abspath(me_mod.__file__))
+        self.assertEqual(me_mod.app_base_dir(), base)
+        self.assertEqual(os.path.dirname(me_mod.log_path()), base)
+        self.assertEqual(os.path.dirname(me_mod.dry_report_path()), base)
+        self.assertEqual(me_mod.CONF, os.path.join(base, "macro_conf.json"))
+
+    def test_frozen_mode_paths_next_to_exe(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        code = (
+            "import sys, os, tempfile\n"
+            "d = tempfile.mkdtemp(prefix='frozen_t_')\n"
+            "exe = os.path.join(d, 'AutoMouseMacro.exe')\n"
+            "open(exe, 'wb').write(b'MZ')\n"
+            "sys.frozen = True; sys.executable = exe\n"
+            "sys.path.insert(0, %r)\n" % root +
+            "import macro_engine as me\n"
+            "assert me.app_base_dir() == d, me.app_base_dir()\n"
+            "assert os.path.dirname(me.CONF) == d, me.CONF\n"
+            "assert os.path.dirname(me.PROFILES) == d\n"
+            "assert os.path.dirname(me.log_path()) == d\n"
+            "assert os.path.dirname(me.dry_report_path()) == d\n"
+            "assert os.path.dirname(me.resolve_image_path('img.png')) == d\n"
+            "assert me.log_archive_path() == os.path.join(d, 'log_archive')\n"
+            "me.log_write('START', 'frozen test', 'x.json')\n"
+            "assert os.path.isfile(me.log_path())\n"
+            "assert me.log_stats_summary()['runs'] == 1\n"
+            "assert me.log_daily_series()[0]['runs'] == 1\n"
+            "print('OK')"
+        )
+        import subprocess
+        r = subprocess.run([sys.executable, "-X", "utf8", "-c", code],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("OK", r.stdout)
+
+
+class TestExample16PluginsV216(unittest.TestCase):
+    """v2.16.1: ตัวอย่าง 16 — เงื่อนไข plugin ใหม่ 3 ตัว (File Newer Than /
+    Window Focused / HTTP Status) — ผลตัดสิน deterministic ทุก OS:
+    จริงจากไฟล์ที่ commit มา + เท็จจากชื่อที่ไม่มีจริง · แถวเท็จกิน Beep ของตัวเอง
+    (ไม่มี skip cascade กลืนแถวอื่น) · รันจากโฟลเดอร์ examples (target.png)"""
+
+    def test_example_16_validates_and_flows(self):
+        import contextlib
+        ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "examples", "16_condition_plugins_v216.json")
+        with open(ex, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        me_mod.load_plugins()
+        cond_names = [n for n, _ in getattr(me_mod.load_plugins, "last_conditions", []) or []]
+        self.assertEqual(me_mod.validate_rows(rows, plugin_names=[],
+                                              condition_names=cond_names), [])
+        ex_abs = os.path.abspath(ex)
+        old = os.getcwd()
+        os.chdir(os.path.dirname(ex_abs))       # target.png อยู่ในโฟลเดอร์ตัวอย่าง
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = am.cli_main([ex_abs, "--no-log"])
+        finally:
+            os.chdir(old)
+        out = buf.getvalue()
+        self.assertEqual(rc, 0)
+        self.assertIn("จบแล้ว ✔", out)                     # ครบทุกแถว — skip ไม่กลืนเกิน
+        self.assertIn("File Newer Than → เงื่อนไขจริง เล่นต่อ", out)   # target.png มีจริง
+        self.assertIn("File Newer Than → เงื่อนไขไม่จริง ข้าม 1 แถว", out)
+        self.assertIn("Window Focused → เงื่อนไขไม่จริง ข้าม 1 แถว", out)
+        self.assertIn("HTTP Status →", out)               # เท็จทั้งเครือข่ายปกติ/จริงก็ไม่กินแถวอื่น
+        self.assertNotIn("แถวนี้ถูกข้าม — ไฟล์แรก", out)    # แถวที่ถูกกินไม่โดนเล่นจริง
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

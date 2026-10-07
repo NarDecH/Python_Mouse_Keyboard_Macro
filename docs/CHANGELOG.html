@@ -65,8 +65,31 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.16.0</h2>
+      <h2>เวอร์ชัน 2.16.1</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">7 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🐛 แก้บั๊กจากการทดสอบ .exe จริง — ไฟล์ runtime ของ .exe หายทุกครั้งที่ปิดโปรแกรม</h3>
+    <ul>
+      <li><b>ใน .exe (PyInstaller onefile) <code>__file__</code> ชี้โฟลเดอร์ <code>_MEI</code> temp ที่ถูกลบตอนปิดโปรแกรม</b> —
+        เดิม conf/โปรไฟล์/log/dry-report/log_archive เขียนลงนั่น = <b>ตั้งค่า+log+สถิติของ .exe หายทุกครั้งที่ปิด</b></li>
+      <li><b>แก้ด้วย <code>app_base_dir()</code> แหล่งเดียวใน engine</b> — .exe = โฟลเดอร์ของไฟล์ exe · ซอร์ส = โฟลเดอร์เดิม 100% ·
+        ครอบ CONF/PROFILES/log/dry-report/สถิติ/log_archive/resolve_image_path ครบ</li>
+      <li><b>เจอจากการทดสอบ .exe จริง</b> — โหลดจาก Release v2.16.0 มารันสคริปต์ Beep: เล่นจบ exit 0 แต่ log หายหลังจบ →
+        regression test จำลอง frozen ใน subprocess ตรวจพาธครบ</li>
+    </ul>
+    <h3>📚 อื่น ๆ</h3>
+    <ul>
+      <li><b>ตัวอย่างใหม่ <code>examples/16_condition_plugins_v216.json</code></b> — เงื่อนไข plugin ใหม่ 3 ตัวแบบกลาง platform
+        (แถวเท็จกิน Beep ของตัวเอง ไม่กลืนแถวอื่น) + examples/README เติมแถว 14/15 ที่ขาด</li>
+      <li><b>LANDING.html</b> เพิ่มฟีเจอร์ v2.16 · <b>เปิด milestone v2.17</b> + issues #6–#9 + แผนใน ROADMAP</li>
+      <li><b>เทสต์เพิ่ม 3 ตัว</b> (TestFrozenPaths 2 + TestExample16PluginsV216 1) → <b>544 unit + 20 E2E = 564</b></li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.16.0</h2>
       <span class="date">7 ตุลาคม 2026</span>
     </div>
 
