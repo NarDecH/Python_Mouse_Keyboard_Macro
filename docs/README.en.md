@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.15.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.16.0
 
 <div align="center">
 
@@ -114,6 +114,9 @@
 | 📑 **Run Queue** (v2.12) | 📑 menu picks a queue list file → plays each script inside the program with a live monitor (per-file status + real-time CLI output) and two stop levels — stop this file / stop the whole queue — no console needed |
 | ▶️ **Play a single group** (v2.15) | right-click a Section header → "Play this group only" — plays the ☑ rows in that group up to the next header through the real player (validate/STOP/highlight/log all apply) · collapsed rows still play · CLI `--only-section ชื่อ` · an empty group warns on the statusbar and doesn't play |
 | ⇅ **Move whole groups** (v2.15.1) | right-click a header → "Move group up/down" (or Alt+↑↓ on a header) — swaps entire groups; collapsed stash rows follow their own header · a Block spanning the group = refused · Ctrl+Z to undo |
+| 🚀 **Script launcher pair** (v2.16) | 🚀 menu writes a .bat + .lnk next to a saved script — double-click plays that script right away through AutoMouseMacro.exe (exe found = .lnk points at it, else falls back to `py auto_macro.py`) |
+| ⏱ **Event timeline** (v2.16) | button in 📝 Log: reads the [START]/[STEP]/[SKIP] log and shows the latest run row by row (time / played-skipped / reason / seconds) — debug deeply nested condition scripts · walk back through earlier runs |
+| 🔌 **Community condition plugins** (v2.16) | 3 new: **Window Focused** (focused window title contains text), **File Newer Than** (`fileA > fileB` or `file Ns`), **HTTP Status** (`URL [code] [Ns]`) — usable as an Action or inside Block Start with `&&` |
 | 🧩 **Built-in condition plugins** (v2.14) | ship with 4: `File Exists` · `Internet Up` (net check — `host[:port]` and/or `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — use as an Action or `if name [argument]` in Block Start (mixable with `&&`) + 🧩 button inserts a condition row for you + CLI `--dry-report PATH` picks the dry-run report file (`{date}` = today) |
 | 🔌 **Plugin API v3 — condition plugins** (v2.13) | a plugin declares `CONDITION_NAME` + `check(ctx, row) -> bool` and its name works as a condition in both the Action column and Block Start/End (`if name [argument]`, mixable with `&&`) — True = keep playing, False = skip N rows (N = Repeat) · validation / dry-run / .ahk export all support it (see [PLUGINS.md](PLUGINS.md)) |
 

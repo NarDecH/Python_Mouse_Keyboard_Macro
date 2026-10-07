@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.15.1"
+__version__ = "2.16.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -79,6 +79,7 @@ TR = {
            "log_clear_ask": "ลบ log/dry-report วันเก่าทั้งหมด (ยกเว้นของวันนี้)?\nลบแล้วเรียกคืนไม่ได้ — ถ้าอยากเก็บไว้ ใช้ปุ่มเก็บถาวรแทน",
            "log_archived": "เก็บถาวรแล้ว %d ไฟล์ (log_archive/ รายเดือน)",
            "log_cleared": "ล้างแล้ว %d ไฟล์",
+           "timeline_btn": "⏱ ไทม์ไลน์การเล่นล่าสุด", "timeline_none": "ไฟล์นี้ยังไม่มีการเล่น ([START]) — เล่นสคริปต์ก่อนแล้วไทม์ไลน์จะปรากฏ",
            "logclean_label": "จัดการ log วันเก่าตอนปิดโปรแกรม — เก็บย้อนหลัง",
            "logclean_days": "วัน (1–365)",
            "logarchive_label": "เก็บถาวรใน log_archive/ (แยกโฟลเดอร์รายเดือน) แทนการลบ",
@@ -132,6 +133,7 @@ TR = {
            "log_clear_ask": "Delete all old log/dry-report files (today's kept)?\nThis cannot be undone — use Archive instead to keep them.",
            "log_archived": "Archived %d file(s) (log_archive/ monthly)",
            "log_cleared": "Deleted %d file(s)",
+           "timeline_btn": "⏱ Event timeline (latest run)", "timeline_none": "No play run ([START]) in this file yet — play a script and the timeline will appear",
            "logclean_label": "Clean old logs on exit — keep last",
            "logclean_days": "days (1–365)",
            "logarchive_label": "Archive to log_archive/ (monthly folders) instead of deleting",
@@ -845,6 +847,59 @@ def batch_export_sh(script_name, py_cmd="python3"):
         "# เพิ่มอาร์กิวเมนต์ได้ เช่น --loop --speed 2 (ดูทั้งหมด: python3 auto_macro.py --help)\n"
         "cd \"$(dirname \"$0\")\" || exit 1\n"
         "%s auto_macro.py \"%s\" \"$@\"\n" % (__version__, py_cmd, script_name))
+
+
+# --------------------- launcher คู่สคริปต์ .bat + .lnk (v2.16 — Issue #3) --
+def launcher_bat(script_name, exe_name="AutoMouseMacro.exe", py_cmd="py"):
+    """เนื้อหาไฟล์ .bat launcher คู่สคริปต์ (v2.16 — Issue #3) — ดับเบิลคลิกเล่นสคริปต์นั้นทันที
+    โฟลเดอร์นี้มี AutoMouseMacro.exe = เปิด exe เลย (start ไม่บล็อก — หน้าต่างดำปิดเอง),
+    ไม่มี exe = รอง py auto_macro.py แล้ว pause ไว้ให้เห็นผล/error
+    script_name = ชื่อไฟล์สคริปต์ (ไม่รวมพาธ) — ไฟล์ .bat ต้องอยู่โฟลเดอร์เดียวกับสคริปต์
+    · %* ส่งต่ออาร์กิวเมนต์ เช่น --loop --speed 2 (เนื้อหา ASCII ล้วน ปลอดภัยกับ codepage)"""
+    return (
+        "@echo off\r\n"
+        "rem Auto Mouse & Keyboard Macro v%s - one-click script launcher (Issue #3)\r\n"
+        "rem Double-click this file (or its .lnk) to play \"%s\" right away.\r\n"
+        "rem Extra CLI args can be appended, e.g. --loop --speed 2  (see: %s auto_macro.py --help)\r\n"
+        "cd /d \"%%~dp0\"\r\n"
+        "if exist \"%%~dp0%s\" (\r\n"
+        "  start \"\" \"%%~dp0%s\" \"%s\" %%*\r\n"
+        "  exit /b 0\r\n"
+        ")\r\n"
+        "%s auto_macro.py \"%s\" %%*\r\n"
+        "pause\r\n" % (__version__, script_name, py_cmd, exe_name, exe_name,
+                       script_name, py_cmd, script_name))
+
+
+def create_shortcut_lnk(lnk_path, target_path, arguments="", workdir=None):
+    """สร้างไฟล์ .lnk (Windows shortcut) ผ่าน PowerShell WScript.Shell (v2.16 — Issue #3)
+    target_path = ไฟล์ปลายทาง (exe/bat) · arguments = อาร์กิวเมนต์ท้าย target (เช่น "สคริปต์.json")
+    · workdir = โฟลเดอร์เริ่มต้น (ค่าเริ่ม = โฟลเดอร์ของ target) · icon เอาจาก target เสมอ
+    คืน True เมื่อไฟล์ .lnk ถูกสร้างจริง · OS อื่น/PowerShell ไม่มี/พัง = False (ไม่มีวัน raise)"""
+    if os.name != "nt":
+        return False
+    try:
+        import subprocess
+        lnk_path = os.path.abspath(lnk_path)
+        target_path = os.path.abspath(target_path)
+        workdir = workdir or os.path.dirname(target_path)
+
+        def q(s):
+            return "'" + str(s).replace("'", "''") + "'"   # หนีตัวคั่น single-quote ของ PS
+
+        ps = ("$ws = New-Object -ComObject WScript.Shell; "
+              "$s = $ws.CreateShortcut(%s); "
+              "$s.TargetPath = %s; " % (q(lnk_path), q(target_path)))
+        if arguments:
+            ps += "$s.Arguments = %s; " % q(arguments)
+        ps += ("$s.WorkingDirectory = %s; $s.IconLocation = %s; $s.Save()"
+               % (q(workdir), q(target_path + ",0")))
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # กัน console กระพริบตอนเรียกจาก GUI
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                       capture_output=True, timeout=30, creationflags=flags)
+        return os.path.isfile(lnk_path)
+    except Exception:
+        return False
 
 
 # ----------------------------- ทำงานร่วม AutoHotkey .ahk (v2.7) ----------
@@ -1761,6 +1816,100 @@ def top_actions_summary(stats, limit=5):
     out = [(a, e["count"], e["total"], e["max"]) for a, e in acts.items()]
     out.sort(key=lambda x: -x[2])
     return out[:limit]
+
+
+# ---------------- ไทม์ไลน์เหตุการณ์จาก log (v2.16 — Issue #4) -------------
+_LOG_LINE_RE = re.compile(r"^(\d{1,2}:\d{2}:\d{2}) \[(\w+)\] (.*?)(?:  <- (.*))?$")
+_LOG_STEP_RE = re.compile(r"^รอบ (\d+) แถว (\d+)/(\d+) (.*) \(([\d.]+) วิ\)$")
+_LOG_SKIP_RE = re.compile(r"^แถว (\d+) ถูกข้าม \((.*)\)$")
+_LOG_ACTION_NAMES = tuple(sorted(ACTIONS_ALL, key=len, reverse=True))  # ชื่อยาวสุดมาก่อน
+
+
+def _split_step_action(rest):
+    """แยก (ชื่อ Action, additional) จากข้อความแถว STEP — แมตช์ชื่อ Action ที่รู้จัก
+    (ชื่อหลายคำ เช่น "Left Click" ต้องได้ทั้งคำ) ชื่อไม่รู้จัก (plugin) = ตัดคำแรก"""
+    for name in _LOG_ACTION_NAMES:
+        if rest == name:
+            return name, ""
+        if rest.startswith(name + " "):
+            return name, rest[len(name):].strip()
+    bits = rest.split(None, 1)
+    return (bits[0] if bits else rest), (bits[1] if len(bits) > 1 else "")
+
+
+def parse_log_timeline(path):
+    """อ่าน log การเล่น 1 ไฟล์ → ไทม์ไลน์เหตุการณ์แยกรายการเล่น (v2.16 — Issue #4)
+    การเล่น 1 ครั้ง = เริ่มบรรทัด [START] จบที่ [STOP]/[END] (หรือ [START] ถัดไป)
+    บรรทัดก่อน [START] แรก (noise อื่น ๆ) ไม่เข้าไทม์ไลน์
+    คืน list เรียงเก่า → ใหม่ แต่ละตัวเป็น dict:
+      {"time": "HH:MM:SS", "src": "demo.json", "played": n, "skipped": n,
+       "events": [{"time", "mode", "status" ("played"/"skipped"/"info"),
+                   "row", "total", "action", "detail", "secs"}, ...]}
+    บรรทัดรูปแบบไม่รู้จัก = event status "info" เก็บข้อความเต็ม (ข้อมูลไม่หาย)"""
+    runs = []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.readlines()
+    except OSError:
+        return runs
+
+    def _event(ts, mode, msg, **kw):
+        ev = {"time": ts, "mode": mode, "status": "info", "row": None,
+              "total": None, "action": None, "detail": None, "secs": None}
+        ev["detail"] = msg if not kw else None
+        ev.update(kw)
+        return ev
+
+    for raw in lines:
+        line = raw.rstrip("\n").rstrip()
+        m = _LOG_LINE_RE.match(line)
+        if not m:
+            continue
+        ts, mode, msg, src = m.group(1), m.group(2).upper(), m.group(3), m.group(4)
+        if mode == "START":
+            runs.append({"time": ts, "src": src or "", "played": 0, "skipped": 0,
+                         "events": [_event(ts, mode, msg)]})
+            continue
+        if not runs:
+            continue                                   # ก่อน [START] แรก = ไม่ใช่ไทม์ไลน์
+        run = runs[-1]
+        run["events"].append(_event(ts, mode, msg))
+        if mode == "STEP":
+            sm = _LOG_STEP_RE.match(msg)
+            if sm:
+                row, total, rest, secs = (int(sm.group(2)), int(sm.group(3)),
+                                          sm.group(4), float(sm.group(5)))
+                ev = run["events"][-1]
+                ev.update(row=row, total=total, secs=secs)
+                if " → " in rest:                      # แถวเงื่อนไข: ปุ่ม → ผล
+                    act, _, det = rest.partition(" → ")
+                    ev.update(action=act.strip(), detail=det.strip())
+                    if "ข้าม" in det:
+                        ev["status"] = "skipped"
+                        run["skipped"] += 1
+                    else:
+                        ev["status"] = "played"
+                        run["played"] += 1
+                else:                                  # แถวปกติ: ปุ่ม + additional
+                    act, add = _split_step_action(rest)
+                    ev.update(action=act, detail=add or None, status="played")
+                    run["played"] += 1
+        elif mode == "SKIP":
+            sm = _LOG_SKIP_RE.match(msg)
+            if sm:
+                run["events"][-1].update(row=int(sm.group(1)), status="skipped",
+                                         detail=sm.group(2))
+                run["skipped"] += 1
+    return runs
+
+
+def timeline_run_label(run):
+    """หัวข้อสั้น ๆ ของ 1 รายการเล่น สำหรับ dropdown ไทม์ไลน์ (v2.16 — Issue #4)
+    รูปแบบ: เวลา — ชื่อไฟล์ (เล่น N · ข้าม N)"""
+    src = run.get("src") or "-"
+    return "%s — %s (เล่น %d · ข้าม %d)" % (run.get("time", "?"), src,
+                                            run.get("played", 0),
+                                            run.get("skipped", 0))
 
 
 # ------------------------------------------------ backup อัตโนมัติ (v1.13) --

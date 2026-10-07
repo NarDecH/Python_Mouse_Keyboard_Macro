@@ -3,6 +3,59 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.16.0] — 2026-10-07
+
+### 🏁 Milestone v2.15 complete — script launchers · event timeline · new community condition plugins
+
+### 🚀 Script launcher pair .bat + .lnk ([Issue #3](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/3))
+- **New 🚀 Launcher menu** — creates a launcher next to a saved script: double-click it
+  (or the .lnk) to **play that script immediately** — no main window, no command line,
+  perfect for tasks that run every day (extends Export Bat / Queue Bat)
+- **Picks the fastest route for you** — with `AutoMouseMacro.exe` next to the script the
+  .lnk points straight at the exe (program icon, no console flash); without an exe the
+  .lnk points at the .bat which itself picks: exe → start exe (non-blocking), otherwise
+  falls back to `py auto_macro.py` + pause so errors stay visible
+- **New engine helpers** `launcher_bat()` (ASCII-only .bat body, codepage-safe, extra
+  args pass through `%*`, e.g. `--loop`) and `create_shortcut_lnk()` via PowerShell
+  WScript.Shell (CREATE_NO_WINDOW keeps the console from flashing; other OS / missing
+  PowerShell = quiet False, the .bat still works) · success reports via statusbar only ·
+  script must be saved first, same as Export Bat
+
+### ⏱ Event timeline from the log ([Issue #4](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/4))
+- **"⏱ Event timeline (latest run)" button in the 📝 Log window** — a new view for
+  debugging deeply nested condition scripts: reads the existing [START]/[STEP]/[SKIP] log
+  and shows the latest run row by row (time · ▶ played/⏭ skipped/ℹ other · row i/N ·
+  button + condition result · seconds) colour-coded green/orange/grey
+- **Runs split automatically** — a dropdown walks back through each play (starts at
+  [START], ends at [STOP]/[END]) with a summary header "start HH:MM:SS · file · played N ·
+  skipped N · N events" — the latest run is always preselected
+- **New engine** `parse_log_timeline()` (pure function — unknown line formats become
+  "info" events, nothing is lost) + `timeline_run_label()` · multi-word action names
+  ("Left Click") split by longest-name-first matching against ACTIONS_ALL — unknown
+  plugin names fall back to the first token
+
+### 🔌 New community condition plugins (3) ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5))
+- **Window Focused** — the **currently focused** window's title contains the text = true
+  (unlike Window Exists which scans every window — Windows: GetForegroundWindow via
+  ctypes, Linux: xdotool, macOS: osascript) — keep working while the work window stays
+  on top
+- **File Newer Than** — two forms: `fileA > fileB` (A newer than B = true — watch file
+  conversion jobs) and `file Ns` (modified within the last N seconds = true — wait for a
+  download to land) · paths with spaces are fine
+- **HTTP Status** — `URL [code] [Ns]`, e.g. `https://api.local/health 200 3s` — stdlib
+  urllib only, no explicit code = any 2xx counts · an expected 4xx/5xx can also be true
+  (HTTPError's e.code is compared) · gate work on API health
+- All three follow the standing plugin rules: `check` must never raise (broken input =
+  false), usable as an Action or inside Block Start with `&&`, `{vars}` supported, no
+  new dependencies
+
+### 📚 Docs + tests
+- **19 new tests** (TestLauncherPair 7 + TestLogTimeline 4 + TestLogTimelineGui 3 +
+  TestPluginsV16 5 — including an HTTP Status test against a real localhost server) →
+  **541 unit + 20 E2E = 561**
+- TUTORIAL chapter 20 (Thai/English) + short zh/ja notes · PLUGINS.md lists the 3 new
+  plugins · ROADMAP: milestone v2.15 fully closed (issues #2–#5)
+
 ## [2.15.1] — 2026-10-06
 
 ### ⇅ Move whole section groups (closes the remaining part of [Issue #2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/2) — Group order)

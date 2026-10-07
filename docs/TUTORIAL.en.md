@@ -625,7 +625,66 @@ same result).
 Exercise: create groups A/B/C, press "Move group up" on B twice → order becomes B, A, C —
 then Ctrl+Z back to A, B, C.
 
+## Chapter 20 — Script launchers · Event timeline · Community condition plugins (v2.16)
+
+### 20.1 🚀 Script launcher pair — double-click = play (Issue #3)
+
+Daily repeated tasks no longer need the main window:
+
+1. Arrange the script and press **💾 Save**
+2. Press the **🚀 Launcher** menu — the app writes a pair of files next to the script:
+   - `script.bat` — picks the route for you: with `AutoMouseMacro.exe` in the same folder it
+     starts the exe directly (the console flash disappears), otherwise it falls back to
+     `py auto_macro.py` + pause so errors stay visible
+   - `script.lnk` (Windows) — with an exe it points straight at the exe (program icon,
+     cleanest), otherwise at the .bat
+3. **Double-click the .lnk (or the .bat)** = that script plays immediately
+
+- Append CLI args by editing the .bat, e.g. `--loop --speed 2` (full list:
+  `py auto_macro.py --help`)
+- Complements the existing 📤 Export Bat (bat/sh pair) and 🗂️ Queue Bat (pair for a queue
+  list file)
+- .lnk creation uses PowerShell (Windows only) — other OSes still get the .bat/.sh pair
+
+Exercise: save a 2-Beep script as `morning.json` → 🚀 Launcher → double-click
+`morning.lnk` → hear two beeps without ever opening the main app.
+
+### 20.2 ⏱ Event timeline — debug nested conditions (Issue #4)
+
+For scripts with If Image / If Variable / Block Start stacked in layers, the 📝 Log window
+now has an **⏱ Event timeline (latest run)** button:
+
+- Each row = one event: **time · result (▶ played / ⏭ skipped / ℹ other) · row i/N ·
+  event · seconds** — green = played, orange = skipped (the reason sits in the event
+  column, e.g. `If Loop · skip 2 rows`), grey = system info
+- The **"Run:" dropdown** walks back through every run of the day, with a summary header
+  like `13:02:11 — demo.json (played 12 · skipped 3)` — the latest run is preselected
+- Data comes from the existing log (`parse_log_timeline` in the engine) — the Settings log
+  switch works as before; with logging off there is no timeline (the log is the only source)
+
+Exercise: a script with If Loop skipping 1 row + Beep, run once → open the timeline →
+the If Loop row is orange with "skip 1 row" and Beep is green.
+
+### 20.3 🔌 New community condition plugins (Issue #5)
+
+Three conditions ship with the app (same rules as every condition plugin — use as an
+Action or inside Block Start `&&`, `{vars}` supported, no new dependencies):
+
+| Condition | Additional | True when |
+|---|---|---|
+| **Window Focused** | text in the window title, e.g. `Documents` | the **currently focused** window's title contains it (unlike Window Exists which scans every window) |
+| **File Newer Than** | `report.csv > done.flag` or `setup.zip 60s` | the first file is newer than the second / the file was modified within the last N seconds |
+| **HTTP Status** | `https://api.local/health 200 3s` | the URL answers with the expected code (no code = any 2xx; `3s` = 3-second timeout) |
+
+Real example: before the main work group, use Block Start `if HTTP Status
+https://api.local/health 200 && Process Running chrome` — API down or browser closed =
+the whole group is skipped.
+
+Exercise: create `a.txt` + `b.txt`, modify a.txt last → a File Newer Than row
+`a.txt > b.txt` reports "condition true, continue" in the console/log — then check the
+⏱ timeline to see the result in one window.
+
 ---
 
-*Guide for code v2.15.1 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.16.0 · Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

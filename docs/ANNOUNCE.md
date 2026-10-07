@@ -146,6 +146,21 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
+## 🆕 ข่าวเวอร์ชัน v2.16 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🆕 v2.16.0 ออกแล้ว! — ปิด milestone v2.15 ครบทุกข้อ
+
+• 🚀 Launcher คู่สคริปต์: Save สคริปต์ → กดเมนู 🚀 → ได้ .bat + .lnk
+  ดับเบิลคลิกเล่นสคริปต์นั้นทันที ไม่ต้องเปิดโปรแกรมหลัก งานประจำวันสบายขึ้น
+• ⏱ ไทม์ไลน์การเล่น: ปุ่มใหม่ในหน้าต่าง 📝 Log — เห็นทุกแถวของรอบล่าสุด
+  (เล่น/ข้าม/เหตุผล/เวลา) ดีบั๊กสคริปต์เงื่อนไขซ้อน ๆ ได้ในหน้าเดียว
+• 🔌 เงื่อนไข plugin ใหม่ 3 ตัว: Window Focused · File Newer Than · HTTP Status
+  เช่น "API พร้อมและหน้าต่างงานยังโฟกัส = ค่อยทำงานต่อ"
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
 ---
 
 ## 💡 เคล็ดลับตอนโพสต์

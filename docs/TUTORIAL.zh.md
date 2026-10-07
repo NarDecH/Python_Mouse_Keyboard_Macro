@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.15.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.16.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -388,3 +388,17 @@ max 10              无条件 — 把块体重复 10 次
 - 折叠的行始终跟随自己的标题 — 折叠后移动也不会散组；跨越分组的 Block Start/End =
   拒绝并警告（防止块损坏）· Ctrl+Z 可撤销。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 19.3 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.16.0 — 新增
+
+- **🚀 脚本启动器（.bat + .lnk）** — 保存脚本后点 🚀 Launcher 菜单，在脚本旁生成一对启动文件：
+  双击即可立即播放该脚本，无需打开主程序。文件夹里有 `AutoMouseMacro.exe` = .lnk 直接指向
+  exe（程序图标，无黑窗）；没有 = 指向 .bat（exe 不在时回退 `py auto_macro.py` + pause）。
+- **⏱ 事件时间线** — 📝 Log 窗口新增按钮：读取原有 [START]/[STEP]/[SKIP] 日志，把最近一次
+  播放逐行显示（时间 / ▶ 播放 / ⏭ 跳过 / ℹ 其他 / 行号 / 秒数），用下拉框回看今天的每一次
+  播放 — 调试多层嵌套条件脚本的好帮手。
+- **🔌 3 个新条件插件** — **Window Focused**（当前获得焦点的窗口标题包含指定文字）、
+  **File Newer Than**（`文件A > 文件B` 或 `文件 Ns` 最近 N 秒内修改过）、**HTTP Status**
+  （`URL [代码] [Ns]`，如 `https://api.local/health 200 3s`）— 用作 Action 或在 Block Start
+  中 `&&` 组合均可。
+- 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 20 章 · [TUTORIAL.en.md](TUTORIAL.en.md)。

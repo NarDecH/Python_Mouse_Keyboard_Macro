@@ -138,11 +138,20 @@
 - [x] ~~**ย้ายกลุ่มทั้งก้อน (Group order)**~~ ✅ v2.15.1 (คลิกขวาหัวข้อ → "⬆ ย้ายกลุ่มขึ้น" / "⬇ ย้ายกลุ่มลง" / Alt+↑↓ —
       สลับกลุ่มทั้งก้อน แถวย่อเดินตามหัวข้อของตัวเอง, บล็อกคร่อม = ปฏิเสธ, Ctrl+Z ย้อนได้) —
       **[Issue #2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/2) ปิดครบ**
-- [ ] **ส่งออก/นำเข้าเป็น .exe คู่สคริปต์** — สร้าง .bat/.lnk ที่เล่นสคริปต์นั้นทันทีผ่าน AutoMouseMacro.exe (ต่อยอด Export Bat/Queue Bat — หนึ่งดับเบิลคลิก = หนึ่งสคริปต์ ไม่ต้องเปิดโปรแกรมหลัก) ([Issue #3](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/3))
-- [ ] **ถอดเงื่อนไขซ้อนเป็นลำดับเหตุการณ์ (Event timeline)** — มุมมองใหม่ของสคริปต์: เห็นผลเงื่อนไข/skip ของการเล่นล่าสุดเป็นไทม์ไลน์ต่อแถว (ใช้ log STEP เดิม — ช่วยดีบั๊กสคริปต์เงื่อนไขซ้อนหลายชั้น) ([Issue #4](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/4))
-- [ ] **ตลาด plugin จากชุมชนรอบใหม่** — ประกาศ Plugin API v3/v3.5 หา condition-plugin ที่เป็นประโยชน์ (เช่น Window Focused, File Newer Than, HTTP Status) รวมดีๆ ขึ้น Release ถัดไป ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5))
+- [x] ~~**ส่งออก/นำเข้าเป็น .exe คู่สคริปต์**~~ ✅ v2.16.0 — เมนู 🚀 Launcher: สร้าง .bat/.lnk ข้างสคริปต์ที่ Save แล้ว
+      ดับเบิลคลิกเล่นทันทีผ่าน AutoMouseMacro.exe (มี exe = .lnk ชี้ตรง exe, ไม่มี = fallback `py auto_macro.py`)
+      ([Issue #3](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/3) ปิดครบ)
+- [x] ~~**ถอดเงื่อนไขซ้อนเป็นลำดับเหตุการณ์ (Event timeline)**~~ ✅ v2.16.0 — ปุ่ม ⏱ ในหน้าต่าง 📝 Log:
+      อ่าน log [START]/[STEP]/[SKIP] เดิมแสดงไทม์ไลน์ต่อแถวของการเล่นล่าสุด (เล่น/ข้าม/เหตุผล/เวลา)
+      ย้อนทุกครั้งที่เล่นด้วย dropdown — engine `parse_log_timeline` แหล่งเดียว
+      ([Issue #4](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/4) ปิดครบ)
+- [x] ~~**ตลาด plugin จากชุมชนรอบใหม่**~~ ✅ v2.16.0 — 3 condition plugin แถกมากับโปรแกรม:
+      Window Focused (GetForegroundWindow) · File Newer Than (`A > B` หรือ `Ns`) · HTTP Status
+      (`URL [รหัส] [Ns]`) — ตามเกณฑ์ 6 ข้อใน docs/PLUGINS.md ครบ
+      ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5) ปิดครบ)
 
 ---
-*อัพเดตล่าสุด: v2.15.1 — ถอดจาก CHANGELOG · เปิด [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
-แล้ว (ข้อแรก "กลุ่มหัวข้อ" ปิดครบ: เล่นเฉพาะกลุ่ม v2.15.0 + ย้ายกลุ่มทั้งก้อน v2.15.1) —
-ข้อถัดไปติดตามใน issues #3–#5 · ข้อเสนอใหม่เสนอได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
+*อัพเดตล่าสุด: v2.16.0 — ถอดจาก CHANGELOG · [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
+**ปิดครบทั้ง 5 ข้อแล้ว**: เล่นเฉพาะกลุ่ม v2.15.0 · ย้ายกลุ่มทั้งก้อน v2.15.1 · launcher คู่สคริปต์ ·
+ไทม์ไลน์เหตุการณ์ · plugin เงื่อนไขชุมชนรอบใหม่ v2.16.0 (issues #2–#5 ทุกตัวปิด) —
+ข้อเสนอใหม่เสนอได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*

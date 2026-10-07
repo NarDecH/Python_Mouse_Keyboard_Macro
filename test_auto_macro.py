@@ -7228,5 +7228,351 @@ class TestInsertCondPluginGui(unittest.TestCase):
         self.assertEqual(tops, [])
 
 
+class TestLauncherPair(unittest.TestCase):
+    """v2.16 (Issue #3): 🚀 Launcher คู่สคริปต์ — .bat ดับเบิลคลิกเล่นทันที
+    (มี exe = start exe, ไม่มี = fallback py auto_macro.py) + .lnk ผ่าน PowerShell"""
+
+    def test_bat_content(self):
+        s = me_mod.launcher_bat("demo.json")
+        self.assertTrue(s.startswith("@echo off"))
+        self.assertIn('cd /d "%~dp0"', s)
+        self.assertIn('if exist "%~dp0AutoMouseMacro.exe"', s)
+        self.assertIn('start "" "%~dp0AutoMouseMacro.exe" "demo.json" %*', s)
+        self.assertIn('py auto_macro.py "demo.json" %*', s)   # fallback โค้ดจากซอร์ส
+        self.assertIn("pause", s)
+        s.encode("ascii")                                    # เนื้อหา ASCII ล้วน
+
+    def test_bat_custom_exe_and_py(self):
+        s = me_mod.launcher_bat("a.json", exe_name="MyMacro.exe", py_cmd="python")
+        self.assertIn('if exist "%~dp0MyMacro.exe"', s)
+        self.assertIn('python auto_macro.py "a.json" %*', s)
+
+    def test_create_shortcut_lnk(self):
+        with tempfile.TemporaryDirectory() as d:
+            target = os.path.join(d, "target.bat")
+            with open(target, "w", encoding="utf-8") as fh:
+                fh.write("@echo off\r\n")
+            lnk = os.path.join(d, "t.lnk")
+            ok = me_mod.create_shortcut_lnk(lnk, target)
+            if os.name == "nt":                               # Windows จริง = สร้างได้
+                self.assertTrue(ok)
+                self.assertTrue(os.path.isfile(lnk))
+                self.assertGreater(os.path.getsize(lnk), 0)
+            else:
+                self.assertFalse(ok)                          # OS อื่น = False เงียบ ๆ
+
+    def test_create_shortcut_lnk_bad_input(self):
+        self.assertFalse(me_mod.create_shortcut_lnk("", ""))
+        if os.name == "nt":
+            self.assertFalse(me_mod.create_shortcut_lnk(
+                os.path.join(tempfile.gettempdir(), "no_such_dir_xyz", "a.lnk"),
+                "no_such_target_xyz.exe"))
+
+    def test_gui_method_exports_pair(self):
+        app = mock.MagicMock()
+        app._ui_state = {"msg": None}
+        with tempfile.TemporaryDirectory() as d:
+            scr = os.path.join(d, "demo.json")
+            with open(scr, "w", encoding="utf-8") as fh:
+                fh.write("[]")
+            app._loaded_file = scr
+            am.MacroApp.export_launcher_pair(app)
+            bat = os.path.join(d, "demo.bat")
+            self.assertTrue(os.path.isfile(bat))
+            with open(bat, encoding="ascii") as fh:
+                self.assertIn('"demo.json" %*', fh.read())
+            lnk = os.path.join(d, "demo.lnk")
+            if os.name == "nt":
+                self.assertTrue(os.path.isfile(lnk))          # .lnk ชี้ .bat (ไม่มี exe ข้าง ๆ)
+            # สำเร็จแจ้งผ่าน statusbar เท่านั้น (กฎเหล็ก)
+            self.assertIn("สร้าง launcher แล้ว", app._ui_state["msg"][0])
+
+    def test_gui_no_file_shows_message(self):
+        app = mock.MagicMock()
+        app._loaded_file = None
+        with mock.patch.object(am.messagebox, "showinfo") as mi:
+            am.MacroApp.export_launcher_pair(app)
+        self.assertTrue(mi.called)
+        self.assertEqual(app._ui_state["msg"], mock.ANY)      # ไม่แตะ statusbar
+
+    def test_menu_has_launcher_entry(self):
+        names = [name for _, _, name, _ in am.MacroApp._menu_items()]
+        self.assertIn("export_launcher_pair", names)
+        self.assertIn("export_batch_files", names)            # ของเดิมคงอยู่
+
+
+class TestLogTimeline(unittest.TestCase):
+    """v2.16 (Issue #4): engine parse_log_timeline — อ่าน log STEP/SKIP เป็นไทม์ไลน์
+    แยกรายการเล่น (เริ่ม [START] จบ [STOP]/[END]) — pure function ไม่มี Tk"""
+
+    LOG = (
+        "08:00:00 [WATCHDOG] รีสตาร์ต noise ก่อน START — ไม่เข้าไทม์ไลน์  <- job.json\n"
+        "13:00:01 [START] เริ่มเล่น (CLI) ความเร็ว 1x รอบ=1 แถวที่เล่น=5  <- demo.json\n"
+        "13:00:02 [STEP] รอบ 1 แถว 1/5 Left Click 100,200 (0.5 วิ)  <- demo.json\n"
+        "13:00:03 [STEP] รอบ 1 แถว 2/5 Process Running → เงื่อนไขจริง เล่นต่อ (0.1 วิ)  <- demo.json\n"
+        "13:00:04 [STEP] รอบ 1 แถว 3/5 If Loop → ข้าม 2 แถว (0.2 วิ)  <- demo.json\n"
+        "13:00:05 [SKIP] แถว 4 ถูกข้าม (คอลัมน์ Repeat ไม่ใช่เลข)  <- demo.json\n"
+        "13:00:06 [STEP] รอบ 1 แถว 5/5 Beep  (0.0 วิ)  <- demo.json\n"
+        "13:00:10 [END] เล่นจบเองครบ 9.0 วิ  <- demo.json\n"
+        "13:05:00 [START] เริ่มเล่น (GUI) ความเร็ว 2x รอบ=0 แถวที่เล่น=2  <- other.json\n"
+        "13:05:01 [STOP] หยุดโดยผู้ใช้ (F8/ปุ่ม STOP) — ปล่อยคีย์ค้างแล้ว  <- other.json\n"
+        "13:09:00 [START] เริ่มเล่น (CLI) ความเร็ว 1x รอบ=1 แถวที่เล่น=1  <- third.json\n"
+        "บรรทัดขยะไม่ตรงรูปแบบ\n"
+    )
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="macro_timeline_")
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.path = os.path.join(self.d, "macro_log_2026-10-07.txt")
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write(self.LOG)
+
+    def test_runs_split_and_counts(self):
+        runs = me_mod.parse_log_timeline(self.path)
+        self.assertEqual(len(runs), 3)
+        r1, r2, r3 = runs
+        self.assertEqual(r1["src"], "demo.json")
+        self.assertEqual(r1["time"], "13:00:01")
+        # เล่นจริง 3 (1/5, 2/5 เงื่อนไขจริง, 5/5) · ข้าม 2 (If Loop + SKIP แถว 4)
+        self.assertEqual(r1["played"], 3)
+        self.assertEqual(r1["skipped"], 2)
+        self.assertEqual(len(r1["events"]), 7)      # START + 4 STEP + SKIP + END
+        self.assertEqual(r2["src"], "other.json")
+        self.assertEqual(len(r2["events"]), 2)      # START + STOP
+        self.assertEqual(r3["src"], "third.json")   # START ท้ายไฟล์ไม่มี END = ยังเป็นรายการเล่น
+        self.assertEqual(len(r3["events"]), 1)
+
+    def test_event_fields(self):
+        r1 = me_mod.parse_log_timeline(self.path)[0]
+        step1 = r1["events"][1]                     # แถวปกติ
+        self.assertEqual(step1["status"], "played")
+        self.assertEqual(step1["row"], 1)
+        self.assertEqual(step1["total"], 5)
+        self.assertEqual(step1["action"], "Left Click")
+        self.assertEqual(step1["detail"], "100,200")
+        self.assertAlmostEqual(step1["secs"], 0.5)
+        cond = r1["events"][3]                      # If Loop → ข้าม 2 แถว
+        self.assertEqual(cond["status"], "skipped")
+        self.assertIn("ข้าม 2 แถว", cond["detail"])
+        skip4 = r1["events"][4]                     # [SKIP] แถว 4
+        self.assertEqual(skip4["row"], 4)
+        self.assertEqual(skip4["status"], "skipped")
+        end_ev = r1["events"][-1]                   # END = info
+        self.assertEqual(end_ev["mode"], "END")
+        self.assertEqual(end_ev["status"], "info")
+
+    def test_missing_and_garbage_files(self):
+        self.assertEqual(me_mod.parse_log_timeline(
+            os.path.join(self.d, "no_such.txt")), [])
+        p2 = os.path.join(self.d, "empty.txt")
+        with open(p2, "w", encoding="utf-8") as fh:
+            fh.write("บรรทัดขยะ\n\n")
+        self.assertEqual(me_mod.parse_log_timeline(p2), [])
+
+    def test_run_label(self):
+        r1 = me_mod.parse_log_timeline(self.path)[0]
+        lbl = me_mod.timeline_run_label(r1)
+        self.assertIn("13:00:01", lbl)
+        self.assertIn("demo.json", lbl)
+        self.assertIn("เล่น 3", lbl)
+        self.assertIn("ข้าม 2", lbl)
+
+
+class TestLogTimelineGui(unittest.TestCase):
+    """v2.16 (Issue #4): หน้าต่าง ⏱ ไทม์ไลน์ + ปุ่มใน 📝 Log — ใช้ app จำลอง + _Tk"""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.root = _Tk()
+            cls.root.withdraw()
+            cls.has_tk = True
+        except am.tk.TclError:
+            cls.has_tk = False
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.has_tk:
+            cls.root.destroy()
+
+    def setUp(self):
+        if not self.has_tk:
+            self.skipTest("ไม่มี display สำหรับ Tk")
+        self.d = tempfile.mkdtemp(prefix="macro_tl_gui_")
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.log = os.path.join(self.d, "macro_log_2026-10-07.txt")
+        with open(self.log, "w", encoding="utf-8") as fh:
+            fh.write(TestLogTimeline.LOG)
+        self.app = mock.MagicMock()
+        self.app.root = self.root
+        self.app._lang = "th"
+        self.app._t = lambda key: am.tr("th", key)
+
+    def _widgets(self, w, kinds):
+        out = []
+        for c in w.winfo_children():
+            if isinstance(c, kinds):
+                out.append(c)
+            out.extend(self._widgets(c, kinds))
+        return out
+
+    def test_dialog_shows_latest_run_events(self):
+        n_win = len(self.root.winfo_children())
+        am.MacroApp.timeline_dialog(self.app, self.log)
+        win = self.root.winfo_children()[n_win]
+        self.addCleanup(win.destroy)
+        tree = self._widgets(win, am.ttk.Treeview)[0]
+        cmb = self._widgets(win, am.ttk.Combobox)[0]
+        # ค่าเริ่ม = การเล่นล่าสุด (third.json — START อย่างเดียว)
+        rows = [tree.item(i, "values") for i in tree.get_children()]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][1], "ℹ อื่น ๆ")             # START = info
+        # สลับไปรายการแรก (เก่าสุด — demo.json เต็มรูปแบบ)
+        cmb.current(2)
+        cmb.event_generate("<<ComboboxSelected>>")
+        rows = [tree.item(i, "values") for i in tree.get_children()]
+        self.assertEqual(len(rows), 7)                       # START + 4 STEP + SKIP + END
+        self.assertEqual(rows[1][1], "▶ เล่น")
+        self.assertEqual(rows[1][2], "1/5")
+        self.assertEqual(rows[1][3], "Left Click · 100,200")  # ชื่อ action หลายคำได้ครบ
+        self.assertEqual(rows[3][1], "⏭ ข้าม")               # If Loop
+        hdr = self._widgets(win, am.tk.Label)[-1]
+        self.assertIn("เล่น 3", str(hdr.cget("text")))
+
+    def test_dialog_without_runs_shows_hint(self):
+        p = os.path.join(self.d, "macro_log_empty.txt")
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("ไม่มี START\n")
+        n_win = len(self.root.winfo_children())
+        am.MacroApp.timeline_dialog(self.app, p)
+        win = self.root.winfo_children()[n_win]
+        self.addCleanup(win.destroy)
+        hdr = self._widgets(win, am.tk.Label)[-1]
+        self.assertIn("ยังไม่มีการเล่น", str(hdr.cget("text")))
+
+    def test_log_window_has_timeline_button(self):
+        self.app._loaded_file = None
+        self.app._ui_state = {"msg": None}
+        # ปุ่มเรียก self.timeline_dialog — app เป็น MagicMock ต้อง wire เข้าเมธอดจริง
+        self.app.timeline_dialog = mock.Mock(
+            side_effect=lambda path=None:
+                am.MacroApp.timeline_dialog(self.app, path))
+        self._p1 = mock.patch.object(am.os.path, "abspath",
+                                     return_value=os.path.join(self.d, "auto_macro.py"))
+        self._p2 = mock.patch.object(am.os.path, "dirname", return_value=self.d)
+        self._p1.start()
+        self._p2.start()
+        self.addCleanup(self._p1.stop)
+        self.addCleanup(self._p2.stop)
+        n_win = len(self.root.winfo_children())
+        am.MacroApp.view_log(self.app)
+        log_win = self.root.winfo_children()[n_win]
+        self.addCleanup(log_win.destroy)
+        btn = next(b for b in self._widgets(log_win, am.tk.Button)
+                   if "ไทม์ไลน์" in str(b.cget("text")))
+        n_before = len(self.root.winfo_children())
+        btn.invoke()                                          # เปิดไทม์ไลน์จาก log ที่เลือก
+        wins = self.root.winfo_children()[n_before:]
+        tl = next(w for w in wins if isinstance(w, am.tk.Toplevel)
+                  and "ไทม์ไลน์" in str(w.title()))
+        tree = self._widgets(tl, am.ttk.Treeview)[0]
+        self.assertTrue(self.app.timeline_dialog.called)     # ปุ่มเรียกเมธอดจริง
+        # รายการล่าสุด (third.json — START อย่างเดียว) + สลับรายการเต็มของ demo.json
+        self.assertEqual(len(tree.get_children()), 1)
+        cmb = self._widgets(tl, am.ttk.Combobox)[0]
+        cmb.current(2)
+        cmb.event_generate("<<ComboboxSelected>>")
+        self.assertEqual(len(tree.get_children()), 7)
+
+
+class TestPluginsV16(unittest.TestCase):
+    """v2.16 (Issue #5): condition plugin ชุมชนรอบใหม่ 3 ตัว — Window Focused /
+    File Newer Than / HTTP Status — มาตรฐาน PLUGINS.md: check จริง + ทน input พัง"""
+
+    def _load(self, name):
+        me_mod.load_plugins()
+        conds = dict(getattr(me_mod.load_plugins, "last_conditions", []) or [])
+        self.assertIn(name, conds, "plugin %s ต้องโหลดเจอ" % name)
+        return conds[name]
+
+    def test_conditions_registered(self):
+        me_mod.load_plugins()
+        conds = [n for n, _ in getattr(me_mod.load_plugins, "last_conditions", []) or []]
+        for n in ("Window Focused", "File Newer Than", "HTTP Status"):
+            self.assertIn(n, conds)
+
+    def test_window_focused_tolerant(self):
+        mod = self._load("Window Focused")
+        self.assertFalse(mod.check({}, {"button": "Window Focused", "additional": ""}))
+        self.assertFalse(mod.check({}, {}))                   # ctx/แถวว่าง — ไม่พัง
+        r = mod.check({}, {"button": "Window Focused", "additional": "python"})
+        self.assertIsInstance(r, bool)                        # ผลจริงขึ้นกับจอ = ไม่ assert ค่า
+
+    def test_file_newer_than_compare_and_recency(self):
+        mod = self._load("File Newer Than")
+        d = tempfile.mkdtemp(prefix="macro_fnt_")
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        a = os.path.join(d, "a.txt")                          # a เก่ากว่า (100 วิ)
+        b = os.path.join(d, "b.txt")                          # b ใหม่ (เพิ่งสร้าง)
+        for p in (a, b):
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("x")
+        old = time.time() - 100
+        os.utime(a, (old, old))
+        row = lambda add: {"button": "File Newer Than", "additional": add}
+        self.assertFalse(mod.check({}, row("%s > %s" % (a, b))))   # a เก่ากว่า b
+        self.assertTrue(mod.check({}, row("%s > %s" % (b, a))))    # b ใหม่กว่า a
+        self.assertFalse(mod.check({}, row("%s 60s" % a)))         # แก้เมื่อ 100 วิก่อน
+        self.assertTrue(mod.check({}, row("%s 999s" % a)))
+        self.assertTrue(mod.check({}, row(b)))                     # มีไฟล์จริง = จริง
+        self.assertFalse(mod.check({}, row("")))
+        self.assertFalse(mod.check({}, row("no_such_file_xyz.txt 5s")))
+        self.assertFalse(mod.check({}, row("%s > no_such_xyz.txt" % a)))
+        self.assertFalse(mod.check({}, {}))
+
+    def test_http_status_local_server(self):
+        import http.server
+        import threading
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                code = 404 if self.path == "/404" else 200
+                self.send_response(code)
+                self.end_headers()
+                self.wfile.write(b"ok")
+
+            def log_message(self, *args):
+                pass
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+        port = srv.server_address[1]
+        th = threading.Thread(target=srv.serve_forever, daemon=True)
+        th.start()
+        try:
+            mod = self._load("HTTP Status")
+            base = "http://127.0.0.1:%d" % port
+            row = lambda add: {"button": "HTTP Status", "additional": add}
+            self.assertTrue(mod.check({}, row("%s/ok 200" % base)))
+            self.assertTrue(mod.check({}, row("%s/ok" % base)))       # ไม่ระบุรหัส = 2xx
+            self.assertFalse(mod.check({}, row("%s/404 200" % base)))
+            self.assertTrue(mod.check({}, row("%s/404 404" % base)))   # 4xx ที่รอ = จริง
+            self.assertFalse(mod.check({}, row("")))                   # ไม่มี URL
+            self.assertFalse(mod.check({}, row("%s/ok 500" % base)))
+        finally:
+            srv.shutdown()
+            srv.server_close()
+        # ปิดเซิร์ฟเวอร์แล้ว = เชื่อมไม่ได้ → เท็จ ไม่ raise (ทน network พัง)
+        mod = self._load("HTTP Status")
+        self.assertFalse(mod.check({}, {"button": "HTTP Status",
+                                        "additional": "http://127.0.0.1:%d/ok 1s" % port}))
+
+    def test_http_status_broken_urls(self):
+        mod = self._load("HTTP Status")
+        row = lambda add: {"button": "HTTP Status", "additional": add}
+        for add in ("", "   ", "not a url !!", "ht!tp://bad", "http://nonexistent.invalid/ 0.5s"):
+            self.assertFalse(mod.check({}, row(add)))
+        self.assertFalse(mod.check({}, {}))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

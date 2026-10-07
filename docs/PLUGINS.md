@@ -1,4 +1,4 @@
-# 🔌 ตลาด Plugin — PLUGINS.md (v2.13)
+# 🔌 ตลาด Plugin — PLUGINS.md (v2.16)
 
 ขยายโปรแกรมด้วย **Custom Action** และ (ตั้งแต่ v2.13) **เงื่อนไข plugin (Condition)** —
 เขียนไฟล์ Python สั้น ๆ วางใน `plugins/` โปรแกรมโหลดอัตโนมัติตอนเปิด แล้วชื่อจะโผล่ใน dropdown
@@ -27,6 +27,9 @@
 | `internet_up.py` | **Internet Up** (เงื่อนไข v2.14) | เช็คเน็ตด้วย socket ล้วน stdlib — Additional ว่าง = 1.1.1.1:443, หรือ `host[:port]` และ/หรือ `Ns` (เช่น `8.8.8.8:53 5s`) — เชื่อมได้ = จริง |
 | `process_running.py` | **Process Running** (เงื่อนไข v2.14) | มีโปรเซสรันอยู่ = จริง (Windows: tasklist, Linux/macOS: pgrep) — ไม่สนตัวพิมพ์/นามสกุล .exe |
 | `window_exists.py` | **Window Exists** (เงื่อนไข v2.14) | มีหน้าต่างที่ชื่อมีข้อความนี้เปิดอยู่ = จริง (Windows: ctypes EnumWindows ล้วน, Linux: xdotool) — เทียบไม่สนตัวพิมพ์ |
+| `window_focused.py` | **Window Focused** (เงื่อนไข v2.16) | **หน้าต่างที่โฟกัสอยู่ตอนนี้**มีข้อความในชื่อ = จริง (Windows: GetForegroundWindow ctypes ล้วน, Linux: xdotool, macOS: osascript) — ต่างจาก Window Exists ที่สแกนทุกหน้าต่าง |
+| `file_newer_than.py` | **File Newer Than** (เงื่อนไข v2.16) | 2 รูปแบบ: `ไฟล์A > ไฟล์B` = A ใหม่กว่า B (watch งานแปลงไฟล์), `ไฟล์ Ns` = ถูกแก้ภายใน N วินาทีล่าสุด (รอ download เสร็จ) — พาธมีช่องว่างใช้ได้ |
+| `http_status.py` | **HTTP Status** (เงื่อนไข v2.16) | `URL [รหัส] [Ns]` เช่น `https://api.local/health 200 3s` — ไม่ใส่รหัส = 2xx ใด ๆ · 4xx/5xx ที่รอเป๊ะก็จริงได้ · urllib stdlib ล้วน เช็ค API ก่อนทำงานต่อ |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที
@@ -104,6 +107,8 @@ def check(ctx, row) -> bool:
 - 📸 OCR อ่านข้อความบนจอแล้วเก็บเป็นตัวแปร (ผ่าน `ctx["vars"]`)
 - ⌨️ ฟอร์มกรอกข้อความชุดจากไฟล์ CSV (อ่านแถวแล้วเขียน `ctx["vars"]["row"]` ทีละบรรทัด)
 - 🖼️ ค้นภาพหลายไฟล์พร้อมกันแล้วคลิกตัวที่เจอก่อน (มีตัวอย่างแล้ว: multi_image_click.py)
+- ✅ เงื่อนไขจากชุมชนรอบ v2.16 ปิดแล้ว 3 ตัว: Window Focused / File Newer Than / HTTP Status —
+  ตัวถัดไปเสนอได้เลย เช่น Disk Space Low, Process CPU, Window Closed
 
 ส่ง PR มาที่ [CONTRIBUTING.md](../CONTRIBUTING.md) — plugin ดี ๆ จะถูกเพิ่มในตารางข้างบน
 

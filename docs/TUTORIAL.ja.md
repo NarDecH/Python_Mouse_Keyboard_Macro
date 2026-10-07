@@ -409,3 +409,20 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   グループをまたぐ Block Start/End = 拒否して警告（ブロックの破損を防止）· Ctrl+Z で元に戻せます。
 - 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第19章 19.3 ·
   [TUTORIAL.en.md](TUTORIAL.en.md) を参照。
+
+## v2.16.0 — 新機能
+
+- **🚀 スクリプトランチャー（.bat + .lnk）** — スクリプト保存後に 🚀 Launcher メニューを押すと、
+  スクリプトの隣に起動用ファイルのペアが生成され、ダブルクリックでそのスクリプトを即再生
+  （メインアプリ不要）。`AutoMouseMacro.exe` が同じフォルダにあれば .lnk は exe を直接指し
+  （アプリのアイコン、黒い窓なし）、なければ .bat を指す（exe がない環境は
+  `py auto_macro.py` + pause にフォールバック）。
+- **⏱ イベントタイムライン** — 📝 Log ウィンドウに新しいボタン：既存の [START]/[STEP]/[SKIP]
+  ログを読み、直近の再生を行単位で表示（時刻 / ▶ 再生 / ⏭ スキップ / ℹ その他 / 行番号 / 秒数）。
+  ドロップダウンで当日の各再生を遡れます — 深いネストの条件スクリプトのデバッグに便利。
+- **🔌 条件プラグイン 3 本** — **Window Focused**（現在フォーカス中のウィンドウのタイトルが
+  指定語を含む）、**File Newer Than**（`ファイルA > ファイルB` または `ファイル Ns` —
+  直近 N 秒以内に更新）、**HTTP Status**（`URL [コード] [Ns]`、例:
+  `https://api.local/health 200 3s`）— Action としても Block Start の `&&` 組み合わせでも利用可。
+- 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第20章 ·
+  [TUTORIAL.en.md](TUTORIAL.en.md) を参照。

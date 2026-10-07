@@ -609,7 +609,41 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.15.1 ·
+  <div class="card">
+    <h2>24. 🚀 Launcher คู่สคริปต์ (v2.16) — ดับเบิลคลิก = เล่นทันที</h2>
+    <p>งานรันซ้ำทุกวันไม่ต้องเปิดโปรแกรมหลักอีกต่อไป (ต่อยอด Export Bat / Queue Bat):</p>
+    <ul>
+      <li><b>Save สคริปต์ → กดเมนู 🚀 Launcher</b> — ได้ไฟล์คู่ข้างสคริปต์: <code>ชื่อ.bat</code>
+        (มี exe ข้าง ๆ = start exe, ไม่มี = fallback <code>py auto_macro.py</code> + pause) และ
+        <code>ชื่อ.lnk</code> (Windows — มี exe = ชี้ตรง exe ได้ไอคอนโปรแกรม, ไม่มี = ชี้ .bat)</li>
+      <li><b>ดับเบิลคลิก .lnk (หรือ .bat)</b> = เล่นสคริปต์นั้นทันที · เติมอาร์กิวเมนต์ได้ท้ายบรรทัดใน .bat
+        เช่น <code>--loop --speed 2</code></li>
+      <li>.lnk ใช้ PowerShell (Windows เท่านั้น) — OS อื่นได้ .bat/.sh อย่างเดียว ใช้ได้เหมือนกัน</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>25. ⏱ ไทม์ไลน์เหตุการณ์ (v2.16) — ดีบั๊กเงื่อนไขซ้อนหลายชั้น</h2>
+    <p>เปิด <b>📝 Log → ปุ่ม "⏱ ไทม์ไลน์การเล่นล่าสุด"</b>:</p>
+    <ul>
+      <li>ตารางต่อเหตุการณ์: <b>เวลา · ผล (▶ เล่น/⏭ ข้าม/ℹ อื่น ๆ) · แถว i/N · เหตุการณ์ · วินาที</b> —
+        เขียว = เล่น, ส้ม = ข้าม (เหตุผลอยู่คอลัมน์เหตุการณ์), เทา = ข้อมูลระบบ</li>
+      <li><b>dropdown ย้อนทุกครั้งที่เล่น</b> + หัวสรุป "เล่น N · ข้าม N" — เปิดมาชี้รายการล่าสุดให้เอง ·
+        ข้อมูลจาก log เดิม (<code>parse_log_timeline</code>) — ปิด log ไว้ = ไม่มีข้อมูล</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>26. 🔌 เงื่อนไข plugin ชุมชนรอบใหม่ (v2.16)</h2>
+    <ul>
+      <li><b>Window Focused</b> — หน้าต่างที่<b>โฟกัสอยู่ตอนนี้</b>มีข้อความในชื่อ = จริง (ต่างจาก Window Exists ที่สแกนทุกหน้าต่าง)</li>
+      <li><b>File Newer Than</b> — <code>ไฟล์A &gt; ไฟล์B</code> (A ใหม่กว่า B) หรือ <code>ไฟล์ Ns</code> (แก้ภายใน N วินาที) · พาธมีช่องว่างใช้ได้</li>
+      <li><b>HTTP Status</b> — <code>URL [รหัส] [Ns]</code> เช่น <code>https://api.local/health 200 3s</code> —
+        ไม่ใส่รหัส = 2xx ใด ๆ · ใช้เป็น Action หรือ Block Start <code>&amp;&amp;</code> ได้เหมือนเงื่อนไข plugin ทุกตัว</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.16.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

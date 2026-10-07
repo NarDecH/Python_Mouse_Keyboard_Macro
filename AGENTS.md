@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.15.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.16.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -343,6 +343,23 @@
   พิสูจน์แล้ว rerun ผ่านโดยโค้ดไม่เปลี่ยน; ต้องผ่านจริงจึงผ่าน job ไม่ใช่การข้ามเทสต์) ·
   เทสต์เพิ่ม 6 ตัว (TestGroupMove — mock-tree ต้อง bind `tree.detach` + `_group_members`
   ให้ครบ ไม่งั้น toggle ย่อไม่ได้) → 522 unit + 20 E2E = 542
+- **ฟีเจอร์เสริม v2.16.0 (ปิด milestone v2.15 ครบ — issues #3–#5):** **🚀 Launcher คู่สคริปต์**
+  (เมนู 🚀 = `export_launcher_pair` — สร้าง .bat + .lnk ข้างสคริปต์ที่ Save แล้ว ดับเบิลคลิกเล่นทันที
+  ผ่าน AutoMouseMacro.exe · engine `launcher_bat()` (ASCII ล้วน, start exe ไม่บล็อก → fallback
+  `py auto_macro.py` + pause) + `create_shortcut_lnk()` ผ่าน PowerShell WScript.Shell
+  (CREATE_NO_WINDOW · OS อื่น/พัง = False เงียบ ๆ · มี exe ข้างสคริปต์ = .lnk ชี้ตรง exe+Arguments,
+  ไม่มี = ชี้ .bat) — ต้อง Save ก่อนเหมือน Export Bat) · **⏱ ไทม์ไลน์เหตุการณ์** (ปุ่มในหน้าต่าง
+  📝 Log = `timeline_dialog` — engine `parse_log_timeline()` pure + `timeline_run_label()`
+  อ่าน [START]/[STEP]/[SKIP] แยก "รายการเล่น" (เริ่ม START จบ STOP/END), event status
+  played/skipped/info (det มี "ข้าม" = skipped), บรรทัดไม่รู้จัก = info ข้อมูลไม่หาย, แยกชื่อ Action
+  หลายคำด้วย `_split_step_action` (ชื่อยาวสุดมาก่อนจาก ACTIONS_ALL — plugin ไม่รู้จัก fallback
+  คำแรก) · dropdown ล่าสุดขึ้นก่อน + หัวสรุป "เล่น N · ข้าม N") · **plugin เงื่อนไขชุมชน 3 ตัว**
+  (`window_focused.py` Window Focused — GetForegroundWindow ctypes/xdotool/osascript ·
+  `file_newer_than.py` File Newer Than — `A > B` เทียบ mtime หรือ `Ns` recency ·
+  `http_status.py` HTTP Status — `URL [รหัส] [Ns]` urllib ล้วน, HTTPError ใช้ e.code ทำให้
+  4xx ที่รอเป๊ะจริงได้) · เทสต์เพิ่ม 19 ตัว (TestLauncherPair 7 + TestLogTimeline 4 +
+  TestLogTimelineGui 3 + TestPluginsV16 5 — HTTP Status ยิง http.server จริงบน localhost
+  bind 127.0.0.1:0) → 541 unit + 20 E2E = 561
 
 ## เทคโนโลยี
 

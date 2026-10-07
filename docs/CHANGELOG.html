@@ -65,8 +65,48 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.15.1</h2>
+      <h2>เวอร์ชัน 2.16.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">7 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🏁 ปิด milestone v2.15 ครบ — Launcher คู่สคริปต์ · ไทม์ไลน์เหตุการณ์ · plugin เงื่อนไขชุมชนรอบใหม่</h3>
+    <h3>🚀 Launcher คู่สคริปต์ .bat + .lnk (<a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/3">Issue #3</a>)</h3>
+    <ul>
+      <li><b>เมนู 🚀 Launcher ใหม่</b> — สร้าง launcher ข้างสคริปต์ที่ 💾 Save แล้ว: ดับเบิลคลิก =
+        <b>เล่นสคริปต์นั้นทันที</b> ไม่ต้องเปิดโปรแกรมหลัก ไม่ต้องพิมพ์คำสั่ง (ต่อยอด 📤 Export Bat / 🗂️ Queue Bat)</li>
+      <li><b>เลือกเส้นทางที่เร็วสุดให้เอง</b> — มี <code>AutoMouseMacro.exe</code> ข้างสคริปต์ = .lnk ชี้ตรง exe
+        (ไอคอนโปรแกรม ไม่มีหน้าต่างดำ) · ไม่มี = .lnk ชี้ .bat ซึ่ง fallback <code>py auto_macro.py</code> + pause</li>
+      <li><b>engine ใหม่</b> <code>launcher_bat()</code> + <code>create_shortcut_lnk()</code> ผ่าน PowerShell
+        (CREATE_NO_WINDOW กัน console กระพริบ · OS อื่น = False เงียบ ๆ ได้ .bat อยู่) · สำเร็จแจ้ง statusbar เท่านั้น</li>
+    </ul>
+    <h3>⏱ ไทม์ไลน์เหตุการณ์จาก log (<a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/4">Issue #4</a>)</h3>
+    <ul>
+      <li><b>ปุ่ม "⏱ ไทม์ไลน์การเล่นล่าสุด" ในหน้าต่าง 📝 Log</b> — มุมมองดีบั๊กสคริปต์เงื่อนไขซ้อนหลายชั้น:
+        อ่าน log [START]/[STEP]/[SKIP] เดิมแล้วแสดงต่อแถว (เวลา · ▶ เล่น/⏭ ข้าม/ℹ อื่น ๆ · แถว i/N · ผลเงื่อนไข · วินาที)</li>
+      <li><b>แยกรายการเล่นอัตโนมัติ</b> — dropdown ย้อนแต่ละครั้งที่เล่น + หัวสรุป "เล่น N · ข้าม N · N เหตุการณ์" — ล่าสุดขึ้นก่อน</li>
+      <li><b>engine ใหม่</b> <code>parse_log_timeline()</code> + <code>timeline_run_label()</code> — บรรทัดไม่รู้จักเก็บเป็น event "info"
+        ข้อมูลไม่หาย · แยกชื่อ Action หลายคำด้วยชื่อยาวสุดมาก่อน</li>
+    </ul>
+    <h3>🔌 condition plugin ชุมชนรอบใหม่ 3 ตัว (<a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5">Issue #5</a>)</h3>
+    <ul>
+      <li><b>Window Focused</b> — หน้าต่างที่<b>โฟกัสอยู่ตอนนี้</b>มีข้อความในชื่อ = จริง (Windows: GetForegroundWindow
+        ctypes ล้วน / Linux: xdotool / macOS: osascript)</li>
+      <li><b>File Newer Than</b> — <code>ไฟล์A &gt; ไฟล์B</code> (A ใหม่กว่า B) หรือ <code>ไฟล์ Ns</code> (แก้ภายใน N วินาที) · พาธมีช่องว่างใช้ได้</li>
+      <li><b>HTTP Status</b> — <code>URL [รหัส] [Ns]</code> เช่น <code>https://api.local/health 200 3s</code> — urllib stdlib ล้วน
+        ไม่ระบุรหัส = 2xx · 4xx/5xx ที่รอเป๊ะก็จริงได้</li>
+      <li>ทั้ง 3 ตัวตามกติกา plugin: check ห้าม raise · เป็น Action/Block Start `&amp;&amp;` ได้ · ใช้ <code>{ตัวแปร}</code> ได้ · ไม่เพิ่ม dependency</li>
+    </ul>
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>เทสต์เพิ่ม 19 ตัว</b> (TestLauncherPair 7 + TestLogTimeline 4 + TestLogTimelineGui 3 + TestPluginsV16 5) →
+        <b>541 unit + 20 E2E = 561</b></li>
+      <li>TUTORIAL บทที่ 20 + zh/ja สรุปสั้น · PLUGINS.md เพิ่ม 3 plugin · ROADMAP: ปิด milestone v2.15 ครบ (issues #2–#5)</li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.15.1</h2>
       <span class="date">6 ตุลาคม 2026</span>
     </div>
 

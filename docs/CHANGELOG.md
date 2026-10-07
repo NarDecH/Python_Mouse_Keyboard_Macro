@@ -2,6 +2,51 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.16.0] — 2026-10-07
+
+### 🏁 ปิด milestone v2.15 ครบ — Launcher คู่สคริปต์ · ไทม์ไลน์เหตุการณ์ · plugin เงื่อนไขชุมชนรอบใหม่
+
+### 🚀 Launcher คู่สคริปต์ .bat + .lnk ([Issue #3](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/3))
+- **เมนู 🚀 Launcher ใหม่** — สร้าง launcher ข้างสคริปต์ที่ 💾 Save แล้ว: ดับเบิลคลิก
+  (หรือดับเบิลคลิก .lnk) = **เล่นสคริปต์นั้นทันที** ไม่ต้องเปิดโปรแกรมหลักและไม่ต้องพิมพ์
+  คำสั่ง — สำหรับงานรันซ้ำทุกวัน (ต่อยอด 📤 Export Bat / 🗂️ Queue Bat)
+- **เลือกเส้นทางที่เร็วสุดให้เอง** — โฟลเดอร์มี `AutoMouseMacro.exe` = .lnk ชี้ตรง exe
+  (ไอคอนโปรแกรม ไม่มีหน้าต่างดำกระพริบ) · ไม่มี exe = .lnk ชี้ .bat ซึ่งเลือกต่อเอง:
+  มี exe → start exe (ไม่บล็อก), ไม่มี → fallback `py auto_macro.py` + pause ให้เห็น error
+- **engine ใหม่** `launcher_bat()` (เนื้อหา .bat ASCII ล้วน ปลอดภัยกับ codepage,
+  อาร์กิวเมนต์เพิ่มได้ผ่าน `%*` เช่น `--loop`) + `create_shortcut_lnk()` ผ่าน PowerShell
+  WScript.Shell (CREATE_NO_WINDOW กัน console กระพริบ · OS อื่น/PowerShell พัง = False
+  เงียบ ๆ ได้ .bat อยู่) · สำเร็จแจ้ง statusbar เท่านั้น (กฎเหล็ก) · ต้อง Save ก่อนเหมือน Export Bat
+
+### ⏱ ไทม์ไลน์เหตุการณ์จาก log ([Issue #4](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/4))
+- **ปุ่ม "⏱ ไทม์ไลน์การเล่นล่าสุด" ในหน้าต่าง 📝 Log** — มุมมองใหม่สำหรับดีบั๊กสคริปต์เงื่อนไข
+  ซ้อนหลายชั้น: อ่าน log [START]/[STEP]/[SKIP] เดิมแล้วแสดงเป็นไทม์ไลน์ต่อแถวของการเล่นล่าสุด
+  (เวลา · ▶ เล่น/⏭ ข้าม/ℹ อื่น ๆ · แถว i/N · ปุ่ม+ผลเงื่อนไข · วินาที) สีเขียว/ส้ม/เทาตามผล
+- **แยก "รายการเล่น" อัตโนมัติ** — dropdown เลือกย้อนแต่ละครั้งที่เล่น (เริ่ม [START] จบ [STOP]/[END])
+  พร้อมหัวสรุป "เริ่ม HH:MM:SS · ไฟล์ · เล่น N แถว · ข้าม N · N เหตุการณ์" — ล่าสุดขึ้นก่อนเสมอ
+- **engine ใหม่** `parse_log_timeline()` (pure function — บรรทัดรูปแบบไม่รู้จักเก็บเป็น
+  event "info" ข้อมูลไม่หาย) + `timeline_run_label()` · แยกชื่อ Action หลายคำ ("Left Click")
+  ด้วยชื่อยาวสุดมาก่อนจาก ACTIONS_ALL — plugin ชื่อไม่รู้จัก fallback ตัดคำแรก
+
+### 🔌 condition plugin ชุมชนรอบใหม่ 3 ตัว ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5))
+- **Window Focused** — หน้าต่างที่**โฟกัสอยู่ตอนนี้**มีข้อความในชื่อ = จริง (ต่างจาก Window Exists
+  ที่สแกนทุกหน้าต่าง — Windows: GetForegroundWindow ctypes ล้วน / Linux: xdotool /
+  macOS: osascript) — ใช้ว่า "ทำต่อเมื่อหน้าต่างงานยังอยู่หน้าเดียว"
+- **File Newer Than** — 2 รูปแบบ: `ไฟล์A > ไฟล์B` (A ใหม่กว่า B = จริง — watch งานแปลงไฟล์) และ
+  `ไฟล์ Ns` (แก้ภายใน N วินาทีล่าสุด = จริง — รอ download เสร็จ) · พาธมีช่องว่างใช้ได้
+- **HTTP Status** — `URL [รหัส] [Ns]` เช่น `https://api.local/health 200 3s` — urllib stdlib ล้วน
+  ไม่ระบุรหัส = 2xx คือจริง · 4xx/5xx ที่รอเป๊ะก็จริงได้ (HTTPError ใช้ e.code) · เช็ค API
+  ก่อนทำงานต่อ
+- ทั้ง 3 ตัวตามกติกา plugin เดิม: check ห้าม raise (input พัง = เท็จ), ใช้เป็น Action หรือ
+  ผสม `&&` ใน Block Start ได้, ใช้ `{ตัวแปร}` ได้, ไม่เพิ่ม dependency
+
+### 📚 เอกสาร + เทสต์
+- **เทสต์เพิ่ม 19 ตัว** (TestLauncherPair 7 + TestLogTimeline 4 + TestLogTimelineGui 3 +
+  TestPluginsV16 5 — รวมเทสต์ HTTP Status ยิงเซิร์ฟเวอร์จริงบน localhost) →
+  **541 unit + 20 E2E = 561**
+- TUTORIAL บทที่ 20 (ไทย/อังกฤษ) + zh/ja สรุปสั้น · PLUGINS.md เพิ่ม 3 plugin ·
+  ROADMAP: ปิด milestone v2.15 ครบทั้ง 5 ข้อ (issues #2–#5)
+
 ## [2.15.1] — 2026-10-06
 
 ### ⇅ ย้ายกลุ่มหัวข้อทั้งก้อน (ปิดข้อที่เหลือของ [Issue #2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/2) — Group order)
