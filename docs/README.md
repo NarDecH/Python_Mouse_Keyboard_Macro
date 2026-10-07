@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.17.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.17.1
 
 <div align="center">
 
@@ -127,6 +127,7 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 🐛 **.exe จำ log/ตั้งค่าได้จริง (v2.16.1)** | แก้บั๊กจากการทดสอบ .exe จริง: conf/โปรไฟล์/log/dry-report ของ .exe เคยหายทุกครั้งที่ปิด (เขียนลง _MEI temp) — ตอนนี้เก็บข้างไฟล์ .exe ผ่าน `app_base_dir()` แหล่งเดียว |
 | 🧩 **เงื่อนไข plugin ชุมชน 3 ตัวใหม่ (v2.17)** | **Disk Space Low** (`D: 2GB` — พื้นที่เหลือน้อย = จริง), **Process CPU** (`chrome 5% 3s` — โปรเซสใช้ CPU เกินเกณฑ์), **Window Closed** (ปิดหน้าต่างเป้าหมายแล้ว = จริง — ตรงข้าม Window Exists) |
 | 📅 **คู่มือ Task Scheduler (v2.17)** | TUTORIAL บทที่ 21: สคริปต์ + 🚀 Launcher + Task Scheduler = งานตั้งเวลาทำงานเอง — หยุดผ่าน `--stop-file` ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงานจริง |
+| 🔊 **Beep ตั้งค่าได้ (v2.17.1)** | Additional ของแถว Beep รับ `freq=1000 dur=200 count=3` (ความถี่ Hz / ระยะ ms / จำนวนครั้ง — ใส่เฉพาะตัวที่ต้องการ) — ไม่ใส่ = เสียงระบบเดิมเหมือนเดิม · Windows เสียงจริงผ่าน winsound, OS อื่น bell · STOP หยุดกลางชุดได้ · .ahk export ตามค่าที่ตั้ง |
 | 🧩 **เงื่อนไข plugin สำเร็จรูป (v2.14)** | มาให้ 4 ตัว: `File Exists` · `Internet Up` (เช็คเน็ต — `host[:port]` และ/หรือ `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — ใช้เป็น Action หรือ `if ชื่อ [อาร์กิวเมนต์]` ใน Block Start (ผสม `&&` ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI `--dry-report PATH` เลือกไฟล์รายงาน dry-run เอง (`{date}` = วันที่) |
 | 🔌 **Plugin API v3 — เงื่อนไข plugin (v2.13)** | plugin ประกาศ `CONDITION_NAME` + `check(ctx, row) -> bool` ใช้เป็นเงื่อนไขได้ทั้งคอลัมน์ Action และ Block Start/End (`if ชื่อ [อาร์กิวเมนต์]`, ผสม `&&` ได้) — จริง = เล่นต่อ ไม่จริง = ข้าม N แถว (N = Repeat) · validate/dry-run/.ahk รองรับครบ (ดู [PLUGINS.md](PLUGINS.md)) |
 | 🗃️ **เครื่องมือ log (v2.11)** | เมนู 📝 เพิ่มปุ่มเก็บถาวรวันเก่า (ย้ายลง `log_archive/` รายเดือน) / ล้างวันเก่า + เห็นรายงาน dry-run · ตั้งจัดการอัตโนมัติตอนปิดโปรแกรมได้ใน Settings (เก็บย้อนหลัง 1–365 วัน) |
@@ -145,7 +146,8 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 - **Launch App** — เปิดโปรแกรม/เว็บ เช่น `notepad.exe` หรือ `https://example.com`
 - **Image Click / Wait for Image** — คลิกตามภาพ / รอภาพปรากฏ (ชื่อไฟล์ .png ใน Additional; ต้องติดตั้ง `opencv-python Pillow`)
   - 🆕 **Search Area:** ใส่ท้ายชื่อไฟล์ได้ เช่น `button.png@100,200,300,400` = ค้นเฉพาะกรอบซ้ายบน (100,200) กว้าง 300 × สูง 400 — ไม่ใส่ @ = ค้นทั้งจอ
-- **Beep** — เสียงเตือน
+- **Beep** — เสียงเตือน — 🆕 ตั้งค่าได้ใน Additional เช่น `freq=1000 dur=200 count=3`
+  (ความถี่ Hz / ระยะ ms / จำนวนครั้ง — ไม่ใส่ = เสียงระบบเดิม; Windows เสียงจริงผ่าน winsound, OS อื่น bell)
 - **🔌 Custom Action (v1.16)** — เพิ่ม Action ของคุณเองด้วยไฟล์ Python สั้น ๆ ใน `plugins/` (ดู [plugins/README.md](../plugins/README.md))
 - **🏪 ตลาด plugin (v2.1)** — [docs/PLUGINS.md](PLUGINS.md) รวม API/กฎ/แนวคิด + ปุ่ม **🔌 plugins** บนแถบเครื่องมือเปิดโฟลเดอร์ให้ทันที
 - **🧩 engine แยกจาก GUI (v2.0–2.2)** — [macro_engine.py](../macro_engine.py) ไม่มี Tk นำไปฝังที่อื่นได้ · CLI ย่อย `py engine_cli.py script.json` สำหรับใช้ engine ล้วน (+ `--json-lines` อ่านสคริปต์ 1 แถว/บรรทัด)

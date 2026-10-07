@@ -65,8 +65,35 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.17.0</h2>
+      <h2>เวอร์ชัน 2.17.1</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">7 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🔊 Beep ตั้งค่าได้ (ปิด <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8">Issue #8</a> — milestone v2.17)</h3>
+    <ul>
+      <li><b>Additional ของแถว Beep รับ <code>freq=1000 dur=200 count=3</code></b> — ความถี่ (Hz) /
+        ระยะเสียง (มิลลิวินาที) / จำนวนครั้ง ตั้งได้เฉพาะตัวหรือกันทั้งชุด —
+        <b>ไม่ใส่อะไรเลย = เสียง default ของระบบเหมือนเดิมทุกเครื่อง</b> (สคริปต์เดิมไม่ต้องแก้)</li>
+      <li><b>Windows เล่นเสียงจริงผ่าน <code>winsound.Beep</code></b> (stdlib ล้วน — ทางเดียวกับ
+        plugin Play Sound) · OS อื่น = fallback เสียง bell เดิมอัตโนมัติ — ทน error ทุกจุด</li>
+      <li><b>STOP ทำงานระหว่างบี๊บหลายครั้ง</b> — เช็คการหยุดก่อนทุกเสียง</li>
+      <li><b>.ahk export ตามค่าที่ตั้ง</b> — <code>SoundBeep, freq, dur</code></li>
+      <li>engine ใหม่: <code>parse_beep_spec</code> + <code>ActionRunner.do_beep()</code> (แหล่งเดียวทั้ง GUI/CLI)</li>
+    </ul>
+    <h3>🗺️ แผน v2.18 ลง ROADMAP</h3>
+    <ul>
+      <li>แผนเด่น: <b>OR (<code>||</code>) ในเงื่อนไขรวม</b> (รอโหวตที่ Issue #1/#9) ·
+        ลำดับการเล่นระดับกลุ่ม · งานหนักสคริปต์ยิ่งใหญ่ · เสนอ plugin เข้าโปรแกรมได้ตลอด</li>
+    </ul>
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>เทสต์เพิ่ม 7 ตัว</b> (TestBeepSettings) → <b>556 unit + 20 E2E = 576</b></li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.17.0</h2>
       <span class="date">7 ตุลาคม 2026</span>
     </div>
 

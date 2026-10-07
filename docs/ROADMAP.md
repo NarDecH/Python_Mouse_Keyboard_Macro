@@ -134,12 +134,33 @@
       สคริปต์ + 🚀 Launcher + Task Scheduler ทีละขั้น (Run only when logged on · ช่อง Start in ·
       ทดสอบด้วยปุ่ม Run) + หยุดผ่าน --stop-file + ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงาน
       ([Issue #7](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7) ปิดครบ)
-- [ ] **ตั้งค่าเสียง Beep ได้** — ความถี่/ระยะ/จำนวนครั้งผ่าน Additional (คงพฤติกรรมเดิมเมื่อไม่ใส่)
-      ([Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) —
-      ของค้างจาก [Unreleased] ใน CHANGELOG)
+- [x] ~~**ตั้งค่าเสียง Beep ได้**~~ ✅ v2.17.1 — Additional รับ `freq=1000 dur=200 count=3`
+      (ความถี่/ระยะ/จำนวน — ใส่บางส่วนได้) ไม่ใส่ = เสียงเดิมเป๊ะ · Windows เสียงจริงผ่าน
+      winsound (OS อื่น bell) · STOP หยุดกลางชุดได้ · .ahk export ตามค่าที่ตั้ง
+      ([Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) ปิดครบ)
 - [ ] **OR (`||`) ในเงื่อนไขรวม** — ต่อยอด [RFC](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
       (ค้างตั้งแต่คำถามข้อ 1) — **รอโหวตจริงก่อนลงมือ** คงกติกาเหล็ก: สคริปต์เดิมเล่นผลเดิม 100%
       ([Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9))
+
+---
+
+## 🚀 v2.18 — แผนถัดไป (จากการทบทวน [RFC Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1) + milestone v2.17 — ต.ค. 2026)
+
+> โหวต/เสนอเพิ่มได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
+> — ลำดับข้างล่างเรียงตามความพร้อมและผลโหวต เปลี่ยนได้ตาม feedback จริง
+
+1. **OR (`||`) ในเงื่อนไขรวม** ([Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9) —
+   ของค้างคำถามข้อ 1 จาก RFC) — ต่อยอด `&&` ของชุด N1: แตกชิ้นด้วย `||` ก่อน แล้วแตกชิ้นย่อยด้วย `&&`
+   (ทั้งแถวเงื่อนไขและ Block Start) · validate/dry-run/สีแถว/.ahk ตามให้ครบ · กติกาเหล็กเดิม:
+   สคริปต์เดิมเล่นผลเดิม 100% + skip = ข้าม N แถวเหมือนเดิม — **เริ่มได้เมื่อมีโหวตสมควร**
+2. **ลำดับการเล่นระดับกลุ่ม** — ต่อยอด "▶ เล่นกลุ่มนี้อย่างเดียว" (v2.15): สุ่มลำดับกลุ่ม /
+   เล่นเฉพาะกลุ่มที่ระบุหลายกลุ่ม (`--only-section` รับ comma) / วนเฉพาะช่วงกลุ่ม —
+   งานยาวที่แบ่งขั้นเป็นกลุ่มจะจัดโปรแกรมการเล่นได้โดยไม่ต้องแยกไฟล์
+3. **งานหนักสคริปต์ยิ่งใหญ่** — dry-run ระดับกลุ่ม (เมนูขวากลุ่ม → 🧪) · รายงาน dry-run แยกตามกลุ่ม ·
+   เช็คลิสต์ก่อนปล่อยงาน (จากบทที่ 21) ผูกเป็นปุ่มเดียว
+4. **ตลาด plugin เดินหน้าต่อเนื่อง** — รับ plugin Action/เงื่อนไขจากชุมชนตลอด (เกณฑ์ 6 ข้อใน
+   [PLUGINS.md](PLUGINS.md) + issue template) · พร้อมกัน: เพิ่มตัวอย่าง/บทเรียนให้ครอบคลุม use case จริง
+   ที่ชุมชนส่งมา
 
 ## 🎯 หลักการที่ห้ามฝ่าฝืน
 
@@ -170,7 +191,6 @@
       ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5) ปิดครบ)
 
 ---
-*อัพเดตล่าสุด: v2.17.0 — ถอดจาก CHANGELOG · milestone v2.15 ปิดครบ (issues #2–#5) ·
-[milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2) เดินหน้า:
-plugin ชุมชนรอบใหม่ + คู่มือ Task Scheduler ปิดแล้ว (v2.17.0 — issues #6/#7) ·
-เหลือ #8 (Beep ตั้งค่าได้) + #9 (OR — รอโหวต) — ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
+*อัพเดตล่าสุด: v2.17.1 — ถอดจาก CHANGELOG · milestone v2.15 ปิดครบ (issues #2–#5) ·
+[milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2) เหลือ #9 (OR — รอโหวต) ·
+แผน v2.18 ขึ้นแล้ว (OR / ลำดับกลุ่ม / งานหนัก / ตลาด plugin) — ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*

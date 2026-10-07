@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.17.0"
+__version__ = "2.17.1"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -1054,7 +1054,11 @@ def rows_to_ahk(rows, condition_names=()):
         elif btn == "Launch App":
             lines = ["Run %s" % add]
         elif btn == "Beep":
-            lines = ["SoundBeep, 750, 300"]
+            bp = parse_beep_spec(add)                     # v2.17.1: ตั้งค่าได้
+            if bp:
+                lines = ["SoundBeep, %d, %d" % (bp[0] or 750, bp[1] or 300)]
+            else:
+                lines = ["SoundBeep, 750, 300"]
         elif btn == "Set Variable":
             # v2.8: ตัวแปรสองทิศ — name := ค่า / name += จำนวน (ตัวเลข/ตัวแปรตรง ข้อความครอบ "")
             sv = parse_set_var(add)
@@ -1570,6 +1574,22 @@ def parse_key_combo(txt):
                        and getattr(key, "vk", None) is None):
         return None
     return mods, key
+
+
+def parse_beep_spec(txt):
+    """แยกค่า Beep จาก Additional (v2.17.1 — Issue #8) — รูปแบบ 'freq=1000 dur=200 count=3'
+    (case-insensitive) พิมพ์เฉพาะตัวใดตัวหนึ่งได้ ไม่ใส่อะไรเลย/มี token ไม่รู้จัก = None
+    ค่าใดไม่ใส่ = None → ผู้เรียกใช้ default แทน (คงพฤติกรรมเดิมเมื่อไม่ใส่)
+    freq = Hz, dur = ms, count = จำนวนครั้ง — หน่วยเดียวกับ winsound.Beep"""
+    out = {"freq": None, "dur": None, "count": None}
+    for tok in str(txt or "").split():
+        m = re.fullmatch(r"(freq|dur|count)=(\d+)", tok, re.I)
+        if not m:
+            return None
+        out[m.group(1).lower()] = int(m.group(2))
+    if all(v is None for v in out.values()):
+        return None
+    return (out["freq"], out["dur"], out["count"])
 
 
 def delay_seconds(mins, secs):
@@ -2204,6 +2224,25 @@ class ActionRunner:
         except Exception:
             pass
 
+    def do_beep(self, freq=None, dur=None, count=None):
+        """เล่นเสียงบี๊บตามค่าที่ตั้ง (v2.17.1 — Issue #8) — ค่า None = default เดิม
+        Windows: winsound.Beep (เสียงจริง) · OS อื่น: fallback on_beep() (bell)
+        ทน error ทุกจุด — เสียงพังไม่ควรทำให้สคริปต์หยุด"""
+        freq = 1000 if freq is None else freq
+        dur = 200 if dur is None else dur
+        count = 1 if count is None else count
+        for _ in range(max(1, int(count))):
+            if not self.stop_check():
+                break
+            try:
+                import winsound
+                winsound.Beep(int(freq), int(dur))
+            except Exception:
+                try:
+                    self.on_beep()
+                except Exception:
+                    pass
+
     def _do_mod_click(self, r, mods):
         """คลิกพร้อมกด modifier เช่น Ctrl+Click"""
         mod_keys = {"ctrl": Key.ctrl, "shift": Key.shift, "alt": Key.alt}
@@ -2664,7 +2703,11 @@ class ActionRunner:
                     opener = "open" if sys.platform == "darwin" else "xdg-open"
                     subprocess.Popen([opener, target])
         elif btn == "Beep":                                          # เสียงเตือน
-            self.on_beep()
+            bp = parse_beep_spec(r.get("additional"))
+            if bp:
+                self.do_beep(*bp)      # v2.17.1: ตั้งค่าได้ผ่าน Additional
+            else:
+                self.on_beep()         # ไม่ใส่ = เสียง default ของระบบเหมือนเดิม
         elif btn in KEY_ACTIONS:                                     # คีย์บอร์ด
             combo = parse_key_combo(r.get("additional", ""))   # v1.20.4: Ctrl+W ฯลฯ
             mods, k = combo if combo else ((), parse_key(r.get("additional", "")))

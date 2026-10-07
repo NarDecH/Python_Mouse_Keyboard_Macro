@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.17.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.17.1 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -375,6 +375,16 @@
   (ไฟล์มีแค่ในเครื่อง dev CI checkout ไม่มี = พังทั้ง 5 job) เช็คด้วย `git ls-files` เสมอ) ·
   LANDING.html ฟีเจอร์ v2.16 · เปิด milestone v2.17 (No.2) + issues #6–#9 + แผนใน ROADMAP ·
   เทสต์เพิ่ม 3 ตัว (TestFrozenPaths 2 + TestExample16PluginsV216 1) → 544 unit + 20 E2E = 564
+- **ฟีเจอร์เสริม v2.17.1 (ปิด Issue #8 — Beep ตั้งค่าได้):** Additional ของ Beep รับ
+  `freq=1000 dur=200 count=3` (case-insensitive, ใส่บางส่วนได้) — **ไม่ใส่ = on_beep เดิมเป๊ะ**
+  (สคริปต์เดิมไม่เปลี่ยน) · ใส่ = `ActionRunner.do_beep()` เรียก `winsound.Beep` ตรง (เสียงจาก OS
+  ไม่ใช่ Tk — เลี่ยงข้อจำกัด bell ของ .exe; OS อื่น import พัง = fallback on_beep ต่อเสียง)
+  เช็ค `stop_check()` ก่อนทุกเสียง ทน error ทุกจุด · engine `parse_beep_spec` (token ไม่รู้จัก =
+  None = default) · .ahk export `SoundBeep, freq, dur` ตามค่า (ไม่ใส่ = 750/300 เดิม) ·
+  ⚠️ เทสต์ที่แตะ winsound ต้องฉีด fake ผ่าน `mock.patch.dict(sys.modules, {"winsound": fake})`
+  เสมอ — ปล่อยตามจริงจะบี๊บหูตายบน Windows และ CI Linux/macOS พัง import ต่างเส้นทาง ·
+  แผน v2.18 ลง ROADMAP (OR รอโหวต / ลำดับกลุ่ม / งานหนัก / ตลาด plugin) · เทสต์เพิ่ม 7 ตัว
+  (TestBeepSettings) → 556 unit + 20 E2E = 576
 - **ฟีเจอร์เสริม v2.17.0 (milestone v2.17 — ปิด issues #6 #7):** **plugin เงื่อนไขชุมชน 3 ตัวใหม่**
   (`disk_space_low.py` Disk Space Low — `[ไดรฟ์/พาธ] N[GB|MB|KB|B]` ไม่ใส่หน่วย = MB,
   shutil.disk_usage ล้วน · `process_cpu.py` Process CPU — `ชื่อ [เกณฑ์%] [Ns]` วัด cpu-time

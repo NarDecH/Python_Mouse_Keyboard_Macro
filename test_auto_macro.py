@@ -18,6 +18,7 @@ import shutil
 import sys
 import tempfile
 import time
+import types
 import unittest
 from unittest import mock
 
@@ -7746,6 +7747,90 @@ class TestExample17PluginsV217(unittest.TestCase):
         self.assertIn("Process CPU → เงื่อนไขไม่จริง ข้าม 1 แถว", out)     # ไม่มีโปรเซส
         self.assertIn("Window Closed → เงื่อนไขจริง เล่นต่อ", out)        # ไม่มีหน้าต่างนี้
         self.assertNotIn("แถวนี้ถูกข้าม — พื้นที่เหลือ", out)              # แถวถูกกินไม่โดนเล่น
+
+
+class TestBeepSettings(unittest.TestCase):
+    """v2.17.1 (Issue #8): Beep ตั้งค่าได้ผ่าน Additional 'freq=1000 dur=200 count=3'
+    — ไม่ใส่ = เสียง default เดิม (on_beep callback) · ใส่ = winsound.Beep จริง
+    ⚠️ CI รันบน Linux/macOS ซึ่งไม่มี winsound — เทสต์ใช้ fake module ผ่าน sys.modules เสมอ
+    ทั้งตัว winsound ตัวจริงและ on_beep ต้องไม่โดนเรียกตอน dry-run/stop"""
+
+    def setUp(self):
+        self.ws = types.ModuleType("winsound")
+        self.ws.calls = []
+        self.ws.Beep = lambda f, d: self.ws.calls.append((f, d))
+        # ฉีด fake ทับ winsound จริง (Windows มีจริง — กันบี๊บหูตายระหว่างรันเทสต์)
+        # Linux/macOS ไม่มี winsound — patch.dict ให้ทั้งสองฝั่งเจอ fake เหมือนกัน
+        p = mock.patch.dict(sys.modules, {"winsound": self.ws})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def _runner(self, **kw):
+        beeps = []
+        kw.setdefault("on_beep", lambda: beeps.append(1))
+        kw.setdefault("on_message", lambda t, c="#080": None)
+        default = {"winsound": self.ws, "beeps": beeps}
+        return am.ActionRunner(None, None, **kw), default
+
+    def test_parse_beep_spec(self):
+        cases = [("", None), (None, None), ("   ", None),
+                 ("freq=1000 dur=200 count=3", (1000, 200, 3)),
+                 ("freq=600", (600, None, None)),
+                 ("FREQ=440 dur=300", (440, 300, None)),   # case-insensitive
+                 ("count=5", (None, None, 5)),
+                 ("count=0", (None, None, 0)),
+                 ("dur=abc", None), ("freq=1 extra", None)]  # token ไม่รู้จัก
+        for txt, want in cases:
+            self.assertEqual(me_mod.parse_beep_spec(txt), want,
+                             "parse_beep_spec(%r)" % (txt,))
+
+    def test_beep_empty_uses_default_callback(self):
+        # ไม่ใส่ Additional = พฤติกรรมเดิม: on_beep 1 ครั้ง ไม่แตะ winsound
+        rn, got = self._runner()
+        rn.execute({"button": "Beep", "additional": ""})
+        self.assertEqual(got["beeps"], [1])
+        self.assertEqual(self.ws.calls, [])
+
+    def test_beep_winsound_values_and_defaults(self):
+        rn, got = self._runner()
+        rn.execute({"button": "Beep", "additional": "freq=500 dur=30 count=3"})
+        self.assertEqual(self.ws.calls, [(500, 30)] * 3)
+        self.assertEqual(got["beeps"], [])          # ไม่ fallback เพราะ winsound ใช้ได้
+        self.ws.calls.clear()
+        rn.execute({"button": "Beep", "additional": "freq=660"})
+        self.assertEqual(self.ws.calls, [(660, 200)])   # dur ไม่ใส่ = default 200
+
+    def test_beep_respects_stop(self):
+        # stop_check เป็น False ตั้งแต่แรก → ไม่มีเสียงทั้ง winsound และ fallback
+        rn, got = self._runner(stop_check=lambda: False)
+        rn.execute({"button": "Beep", "additional": "freq=440 count=9"})
+        self.assertEqual(self.ws.calls, [])
+        self.assertEqual(got["beeps"], [])
+
+    def test_beep_fallback_when_winsound_unavailable(self):
+        # OS ที่ไม่มี winsound (import พัง) → fallback on_beep ต่อแต่ละเสียง ไม่ raise
+        rn, got = self._runner()
+        with mock.patch("builtins.__import__", side_effect=ImportError("no winsound")):
+            rn.execute({"button": "Beep", "additional": "freq=700 count=3"})
+        self.assertEqual(got["beeps"], [1, 1, 1])
+
+    def test_ahk_export_uses_spec(self):
+        dflt = me_mod.rows_to_ahk([{"button": "Beep"}])
+        spec = me_mod.rows_to_ahk([{"button": "Beep", "additional": "freq=440 dur=100"}])
+        self.assertIn("SoundBeep, 750, 300", dflt)          # ไม่ใส่ = เดิม (คงพฤติกรรม)
+        self.assertIn("SoundBeep, 440, 100", spec)
+        self.assertNotIn("SoundBeep, 750", spec)
+
+    def test_beep_dry_run_reports_not_injects(self):
+        msgs = []
+        rn, got = self._runner(on_message=lambda t, c="#080": msgs.append(t),
+                               dry_run=True)
+        for add in ("", "freq=800 dur=100 count=2"):
+            rn.execute({"button": "Beep", "additional": add})
+        for t in msgs:
+            self.assertTrue(t.startswith("DRY-RUN: จะส่งเสียง"), t)
+        self.assertEqual(self.ws.calls, [])                  # dry-run ไม่มีเสียงจริง
+        self.assertEqual(got["beeps"], [])
 
 
 if __name__ == "__main__":

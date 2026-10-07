@@ -2,6 +2,30 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.17.1] — 2026-10-07
+
+### 🔊 Beep ตั้งค่าได้ (ปิด [Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) — milestone v2.17)
+- **Additional ของแถว Beep รับ `freq=1000 dur=200 count=3`** — ความถี่ (Hz) / ระยะเสียง
+  (มิลลิวินาที) / จำนวนครั้ง ตั้งได้เฉพาะตัวหรือกันทั้งชุด พิมพ์เล็ก-ใหญ่สลับก็ได้ —
+  **ไม่ใส่อะไรเลย = เสียง default ของระบบเหมือนเดิมทุกเครื่อง** (สคริปต์เดิมไม่ต้องแก้)
+- **Windows เล่นเสียงจริงผ่าน `winsound.Beep`** (stdlib ล้วน — ทางเดียวกับ plugin Play Sound)
+  — เสียง .exe กลายเป็น beep จริงแทน bell เงียบ ๆ · OS อื่น (Linux/macOS) ไม่มี winsound =
+  fallback เสียง bell เดิมอัตโนมัติ — ทน error ทุกจุด เสียงพังไม่ทำให้สคริปต์หยุด
+- **STOP ทำงานระหว่างบี๊บหลายครั้ง** — เช็คการหยุดก่อนทุกเสียง (count ยาวก็หยุดทันที)
+- **.ahk export ตามค่าที่ตั้ง** — `SoundBeep, freq, dur` (ไม่ใส่ = `SoundBeep, 750, 300` เดิม)
+- engine ใหม่: `parse_beep_spec` (parser ล้วน) + `ActionRunner.do_beep()` (แหล่งเดียวทั้ง
+  GUI/CLI — เสียงมาจาก OS ไม่ใช่ Tk จึงโทรตรงได้) · พิมพ์รูปแบบผิด = ใช้ default เหมือนเดิม
+
+### 🗺️ แผน v2.18 ลง ROADMAP (จากการทบทวน [RFC Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1) + milestone v2.17)
+- แผนเด่น: **OR (`||`) ในเงื่อนไขรวม** (ของค้างคำถามข้อ 1 จาก RFC — รอโหวตที่ Issue #1/#9) ·
+  ลำดับการเล่นระดับกลุ่ม (สุ่ม/วนเฉพาะกลุ่มที่ระบุ) · งานหนักสคริปต์ยิ่งใหญ่ (dry-run ระดับกลุ่ม) ·
+  เสนอ plugin เงื่อนไข/Action เข้าโปรแกรมได้ตลอด (docs/PLUGINS.md)
+
+### 📚 เอกสาร + เทสต์
+- **เทสต์เพิ่ม 7 ตัว** (TestBeepSettings — parser/คงเดิมเมื่อว่าง/ค่าเต็ม+default/STOP/
+  fallback/ahk/dry-run — fake winsound ผ่าน sys.modules ให้ Windows + CI Linux/macOS ผ่านเส้นทางเดียวกัน)
+  → **556 unit + 20 E2E = 576**
+
 ## [2.17.0] — 2026-10-07
 
 ### 🧩 เงื่อนไข plugin ชุมชนรอบใหม่ 3 ตัว ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6) — milestone v2.17)
@@ -1521,5 +1545,5 @@
 ## [Unreleased]
 
 ### 🎯 วางแผนไว้
-- เชื่อมต่อ Windows Task Scheduler ผ่าน CLI (คู่มือทีละขั้นใน TUTORIAL บทที่ 8)
-- ตั้งค่าเสียง Beep ได้ (ความถี่/ระยะ) — มี plugin Play Sound แล้วระดับหนึ่ง
+- OR (`||`) ในเงื่อนไขรวม — ต่อยอด [RFC](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
+  (ค้างคำถามข้อ 1) — **รอโหวตจริงก่อนลงมือ** ([Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9))

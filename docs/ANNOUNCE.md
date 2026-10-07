@@ -161,6 +161,20 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
+## 🆕 ข่าวเวอร์ชัน v2.17.1 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🔊 v2.17.1 — Beep ตั้งค่าได้แล้ว!
+
+• แถว Beep ใส่ Additional ได้ เช่น freq=1000 dur=200 count=3
+  (ความถี่ Hz / ระยะ ms / จำนวนครั้ง — ใส่บางส่วนก็ได้)
+• ไม่ใส่ = เสียงเดิมเหมือนเดิม สคริปต์เก่าไม่ต้องแก้อะไร
+• Windows ได้เสียงจริงผ่าน winsound (ไม่ใช่เสียง bell เงียบ ๆ)
+  STOP กดระหว่างบี๊บหลายครั้งได้ทันที
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
 ## 🆕 ข่าวเวอร์ชัน v2.17 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
 
 ```

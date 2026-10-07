@@ -686,6 +686,6 @@ Exercise: create `a.txt` + `b.txt`, modify a.txt last → a File Newer Than row
 
 ---
 
-*Guide for code v2.17.0 · Chapter 21 (Task Scheduler guide, Thai): [TUTORIAL.md](TUTORIAL.md) ·
+*Guide for code v2.17.1 · Chapter 21 (Task Scheduler guide, Thai): [TUTORIAL.md](TUTORIAL.md) ·
 Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

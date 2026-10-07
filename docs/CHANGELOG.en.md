@@ -3,6 +3,31 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.17.1] — 2026-10-07
+
+### 🔊 Configurable Beep (closes [Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) — milestone v2.17)
+- **The Beep row's Additional now accepts `freq=1000 dur=200 count=3`** — frequency (Hz) /
+  duration (ms) / number of beeps, individually or together, case-insensitive —
+  **leaving it empty keeps the exact same system-default sound** (existing scripts need no change)
+- **Windows plays a real tone via `winsound.Beep`** (stdlib only — same route as the Play Sound
+  plugin) — the .exe's beep becomes a real tone instead of a silent bell · other OSes
+  (Linux/macOS) have no winsound and fall back to the old bell automatically — errors are
+  swallowed everywhere; a broken sound never stops the script
+- **STOP works between repeated beeps** — checked before every tone (a long count stops instantly)
+- **.ahk export follows the settings** — `SoundBeep, freq, dur` (empty = the old `SoundBeep, 750, 300`)
+- New engine pieces: `parse_beep_spec` (pure parser) + `ActionRunner.do_beep()` (single source
+  for GUI/CLI — the sound comes from the OS, not Tk, so it can be called directly)
+
+### 🗺️ v2.18 roadmap (after reviewing [RFC Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1) + the v2.17 milestone)
+- Highlights: **OR (`||`) in combined conditions** (left over from RFC question 1 — vote at
+  Issue #1/#9) · group-level play order (shuffle/loop specific groups) · heavy-script helpers
+  (group-level dry-run) · community plugin submissions always welcome (docs/PLUGINS.md)
+
+### 📚 Docs + tests
+- **7 new tests** (TestBeepSettings — parser/unchanged-when-empty/values+defaults/STOP/
+  fallback/ahk/dry-run — fake winsound via sys.modules so Windows and CI Linux/macOS take
+  the same path) → **556 unit + 20 E2E = 576**
+
 ## [2.17.0] — 2026-10-07
 
 ### 🧩 New community condition plugins (3) ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6) — milestone v2.17)
