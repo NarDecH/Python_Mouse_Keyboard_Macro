@@ -126,15 +126,14 @@
 
 ## 🚀 v2.17 — แนวโน้มถัดไป ([milestone No.2](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2) — ติดตามผ่าน issues)
 
-- [ ] **เงื่อนไข plugin ชุมชนรอบถัดไป** — Disk Space Low (พื้นที่เหลือ < N GB) · Process CPU
-      (โปรเซสใช้ CPU เกิน/ไม่เกิน N%) · Window Closed (หน้าต่างงานปิดแล้ว = จริง —
+- [x] ~~**เงื่อนไข plugin ชุมชนรอบถัดไป**~~ ✅ v2.17.0 — Disk Space Low (`D: 2GB` — พื้นที่เหลือ < N)
+      · Process CPU (`chrome 5% 3s` — วัด CPU 2 จุดห่าง Ns) · Window Closed (หน้าต่างปิดแล้ว = จริง —
       ตรงข้าม Window Exists) — เสนอเพิ่มได้ตามเกณฑ์ 6 ข้อใน [PLUGINS.md](PLUGINS.md)
-      ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6))
-- [ ] **คู่มือ Windows Task Scheduler + launcher ตั้งเวลา** — ทีละขั้น: Task Scheduler เรียก
-      launcher .bat/.lnk (จาก 🚀 Launcher v2.16) หรือ exe ตรง ๆ · trigger logon/idle ·
-      สิทธิ์ admin · หยุดผ่าน --stop-file · ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์
-      ([Issue #7](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7) —
-      ของค้างจาก [Unreleased] ใน CHANGELOG)
+      ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6) ปิดครบ)
+- [x] ~~**คู่มือ Windows Task Scheduler + launcher ตั้งเวลา**~~ ✅ v2.17.0 — TUTORIAL บทที่ 21:
+      สคริปต์ + 🚀 Launcher + Task Scheduler ทีละขั้น (Run only when logged on · ช่อง Start in ·
+      ทดสอบด้วยปุ่ม Run) + หยุดผ่าน --stop-file + ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงาน
+      ([Issue #7](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7) ปิดครบ)
 - [ ] **ตั้งค่าเสียง Beep ได้** — ความถี่/ระยะ/จำนวนครั้งผ่าน Additional (คงพฤติกรรมเดิมเมื่อไม่ใส่)
       ([Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) —
       ของค้างจาก [Unreleased] ใน CHANGELOG)
@@ -171,7 +170,7 @@
       ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5) ปิดครบ)
 
 ---
-*อัพเดตล่าสุด: v2.16.1 — ถอดจาก CHANGELOG · [milestone v2.15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/1)
-**ปิดครบทั้ง 5 ข้อแล้ว** (issues #2–#5) · เปิด [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
-แล้ว (issues #6–#9: plugin ชุมชนรอบถัดไป / Task Scheduler + launcher / Beep ตั้งค่าได้ / OR) —
-ข้อเสนอใหม่เสนอได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
+*อัพเดตล่าสุด: v2.17.0 — ถอดจาก CHANGELOG · milestone v2.15 ปิดครบ (issues #2–#5) ·
+[milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2) เดินหน้า:
+plugin ชุมชนรอบใหม่ + คู่มือ Task Scheduler ปิดแล้ว (v2.17.0 — issues #6/#7) ·
+เหลือ #8 (Beep ตั้งค่าได้) + #9 (OR — รอโหวต) — ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*

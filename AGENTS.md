@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.16.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.17.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -375,6 +375,16 @@
   (ไฟล์มีแค่ในเครื่อง dev CI checkout ไม่มี = พังทั้ง 5 job) เช็คด้วย `git ls-files` เสมอ) ·
   LANDING.html ฟีเจอร์ v2.16 · เปิด milestone v2.17 (No.2) + issues #6–#9 + แผนใน ROADMAP ·
   เทสต์เพิ่ม 3 ตัว (TestFrozenPaths 2 + TestExample16PluginsV216 1) → 544 unit + 20 E2E = 564
+- **ฟีเจอร์เสริม v2.17.0 (milestone v2.17 — ปิด issues #6 #7):** **plugin เงื่อนไขชุมชน 3 ตัวใหม่**
+  (`disk_space_low.py` Disk Space Low — `[ไดรฟ์/พาธ] N[GB|MB|KB|B]` ไม่ใส่หน่วย = MB,
+  shutil.disk_usage ล้วน · `process_cpu.py` Process CPU — `ชื่อ [เกณฑ์%] [Ns]` วัด cpu-time
+  2 จุดหารจำนวนแกน จุดแรกจดฐาน _CPU_MEASURE, Windows: ctypes Toolhelp32+GetProcessTimes,
+  Linux: /proc/<pid>/stat · `window_closed.py` Window Closed — ตรงข้าม Window Exists,
+  Additional ว่าง = เท็จกันพิมพ์ผิด) · **คู่มือ Task Scheduler** (TUTORIAL บทที่ 21 —
+  สคริปต์ + 🚀 Launcher + Task Scheduler ทีละขั้น Run only when logged on/Start in/ปุ่ม Run +
+  --stop-file + ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงาน) · ตัวอย่าง examples/17 (ขอบเขตตัดสินแน่นอน
+  999999GB จริงเสมอ / 1KB เท็จเสมอ) · เทสต์เพิ่ม 5 ตัว (TestPluginsV17 4 +
+  TestExample17PluginsV217 1) → 549 unit + 20 E2E = 569
 
 ## เทคโนโลยี
 

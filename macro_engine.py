@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.16.1"
+__version__ = "2.17.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ

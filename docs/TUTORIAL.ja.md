@@ -410,6 +410,17 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
 - 詳細チュートリアル（タイ語 / 英語）は [TUTORIAL.md](TUTORIAL.md) 第19章 19.3 ·
   [TUTORIAL.en.md](TUTORIAL.en.md) を参照。
 
+## v2.17.0 — 新機能
+
+- **🔌 条件プラグイン 3 本** — **Disk Space Low**（`D: 2GB` — 空き容量がしきい値未満 = 真、
+  書き込み処理の途中失敗を防止）、**Process CPU**（`chrome 5% 3s` — プロセスの CPU がしきい値
+  超過 = 真、Ns 間隔で 2 点サンプリング）、**Window Closed**（対象ウィンドウが閉じたら = 真、
+  Window Exists の逆 — 終了後の片付けに）。
+- **📅 Task Scheduler ガイド** — TUTORIAL 第21章（タイ語）：スクリプト + 🚀 ランチャー +
+  Task Scheduler = 定期ジョブ。`--stop-file` で停止、⏱ タイムラインで後から確認、公開前
+  チェックリスト付き。
+- 新サンプル `examples/17_condition_plugins_v217.json`。
+
 ## v2.16.1 — 修正
 
 - **.exe がログ/設定を保持するようになった** — リリース版 .exe を実際にテストして発見したバグ:

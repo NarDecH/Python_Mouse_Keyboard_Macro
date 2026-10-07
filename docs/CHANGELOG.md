@@ -2,6 +2,36 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.17.0] — 2026-10-07
+
+### 🧩 เงื่อนไข plugin ชุมชนรอบใหม่ 3 ตัว ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6) — milestone v2.17)
+- **Disk Space Low** — `[ไดรฟ์/พาธ] N[GB|MB|KB|B]` เช่น `D: 2GB` — พื้นที่เหลือ < ที่กำหนด =
+  จริง (กันงานเขียนไฟล์/backup พังกลางทาง) · ไม่ใส่หน่วย = MB · shutil stdlib ล้วน ·
+  อ่านดิสก์ไม่ได้ = เท็จ ไม่ raise
+- **Process CPU** — `ชื่อ [เกณฑ์%] [Ns]` เช่น `chrome 5% 3s` — โปรเซสใช้ CPU เฉลี่ย > เกณฑ์ =
+  จริง (วัด cpu-time 2 จุดห่าง Ns แล้วหารจำนวนแกน; จุดแรกจดฐาน จุดถัดไปตัดสิน) — Windows:
+  ctypes Toolhelp32+GetProcessTimes ล้วน, Linux: /proc — ไม่เจอโปรเซส = เท็จ
+- **Window Closed** — ไม่มีหน้าต่างที่ชื่อมีข้อความนี้ = จริง — **ตรงข้าม Window Exists**
+  (จบงานเมื่อปิดหน้าต่างเป้าหมาย เช่น เกมปิดแล้วค่อยล้างไฟล์) · Additional ว่าง = เท็จ
+  (กันสคริปต์พิมพ์ผิดแล้วคิดว่าปิดแล้ว)
+- ทั้ง 3 ตัวตามกติกา plugin เดิม: check ห้าม raise · Action/Block Start `&&` ได้ · ใช้ `{ตัวแปร}` ·
+  dropdown เงื่อนไข + 🧩 + validate + dry-run รู้จักอัตโนมัติ
+
+### 📅 คู่มือตั้งเวลางานด้วย Task Scheduler + 🚀 Launcher ([Issue #7](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7))
+- **TUTORIAL บทที่ 21 ใหม่ (ไทย)** — ผสมสคริปต์ + launcher + Task Scheduler ให้เป็นงานตั้งเวลา
+  ทีละขั้น (Run only when logged on, ช่อง Start in สำคัญกับพาธ relative, ทดสอบด้วยปุ่ม Run) +
+  หยุดจากภายนอกด้วย `--stop-file` + ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + **เช็คลิสต์ปล่อยงานจริง**
+  (validate → Dry-run → --max-minutes → เปิด log → ทดสอบ Run ก่อนวันจริง)
+
+### 📚 เอกสาร + เทสต์
+- **ตัวอย่างใหม่ `examples/17_condition_plugins_v217.json`** — สาธิต 3 เงื่อนไขใหม่ที่ขอบเขต
+  ตัดสินแน่นอนทุกเครื่อง (999999GB จริงเสมอ · 1KB เท็จเสมอ · ชื่อโปรเซส/หน้าต่างที่ไม่มีจริง) ·
+  แถวเท็จกิน Beep ของตัวเอง ไม่มี skip cascade
+- **เทสต์เพิ่ม 5 ตัว** (TestPluginsV17 4 + TestExample17PluginsV217 1) →
+  **549 unit + 20 E2E = 569**
+- PLUGINS.md เพิ่ม 3 plugin · examples/README เพิ่มแถว 17 · ROADMAP ติ๊กข้อ 6/7 ·
+  zh/ja สรุปสั้น
+
 ## [2.16.1] — 2026-10-07
 
 ### 🐛 แก้บั๊กจากการทดสอบ .exe จริง — ไฟล์ runtime ของ .exe หายทุกครั้งที่ปิดโปรแกรม

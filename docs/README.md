@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.16.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.17.0
 
 <div align="center">
 
@@ -125,6 +125,8 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | ⏱ **ไทม์ไลน์เหตุการณ์ (v2.16)** | ปุ่มใน 📝 Log: อ่าน log [START]/[STEP]/[SKIP] แสดงต่อแถวของการเล่นล่าสุด (เวลา/เล่น-ข้าม/เหตุผล/วินาที) — ดีบั๊กสคริปต์เงื่อนไขซ้อนหลายชั้น · ย้อนแต่ละครั้งที่เล่นได้ |
 | 🔌 **เงื่อนไข plugin ชุมชน (v2.16)** | 3 ตัวใหม่: **Window Focused** (หน้าต่างโฟกัสตอนนี้มีข้อความ), **File Newer Than** (`ไฟล์A > ไฟล์B` หรือ `ไฟล์ Ns`), **HTTP Status** (`URL [รหัส] [Ns]`) — ใช้เป็น Action หรือผสม `&&` ใน Block Start ได้ |
 | 🐛 **.exe จำ log/ตั้งค่าได้จริง (v2.16.1)** | แก้บั๊กจากการทดสอบ .exe จริง: conf/โปรไฟล์/log/dry-report ของ .exe เคยหายทุกครั้งที่ปิด (เขียนลง _MEI temp) — ตอนนี้เก็บข้างไฟล์ .exe ผ่าน `app_base_dir()` แหล่งเดียว |
+| 🧩 **เงื่อนไข plugin ชุมชน 3 ตัวใหม่ (v2.17)** | **Disk Space Low** (`D: 2GB` — พื้นที่เหลือน้อย = จริง), **Process CPU** (`chrome 5% 3s` — โปรเซสใช้ CPU เกินเกณฑ์), **Window Closed** (ปิดหน้าต่างเป้าหมายแล้ว = จริง — ตรงข้าม Window Exists) |
+| 📅 **คู่มือ Task Scheduler (v2.17)** | TUTORIAL บทที่ 21: สคริปต์ + 🚀 Launcher + Task Scheduler = งานตั้งเวลาทำงานเอง — หยุดผ่าน `--stop-file` ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงานจริง |
 | 🧩 **เงื่อนไข plugin สำเร็จรูป (v2.14)** | มาให้ 4 ตัว: `File Exists` · `Internet Up` (เช็คเน็ต — `host[:port]` และ/หรือ `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — ใช้เป็น Action หรือ `if ชื่อ [อาร์กิวเมนต์]` ใน Block Start (ผสม `&&` ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI `--dry-report PATH` เลือกไฟล์รายงาน dry-run เอง (`{date}` = วันที่) |
 | 🔌 **Plugin API v3 — เงื่อนไข plugin (v2.13)** | plugin ประกาศ `CONDITION_NAME` + `check(ctx, row) -> bool` ใช้เป็นเงื่อนไขได้ทั้งคอลัมน์ Action และ Block Start/End (`if ชื่อ [อาร์กิวเมนต์]`, ผสม `&&` ได้) — จริง = เล่นต่อ ไม่จริง = ข้าม N แถว (N = Repeat) · validate/dry-run/.ahk รองรับครบ (ดู [PLUGINS.md](PLUGINS.md)) |
 | 🗃️ **เครื่องมือ log (v2.11)** | เมนู 📝 เพิ่มปุ่มเก็บถาวรวันเก่า (ย้ายลง `log_archive/` รายเดือน) / ล้างวันเก่า + เห็นรายงาน dry-run · ตั้งจัดการอัตโนมัติตอนปิดโปรแกรมได้ใน Settings (เก็บย้อนหลัง 1–365 วัน) |

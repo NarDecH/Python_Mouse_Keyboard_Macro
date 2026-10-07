@@ -634,6 +634,31 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
   </div>
 
   <div class="card">
+    <h2>27. 🧩 เงื่อนไข plugin ชุมชนรอบใหม่ 3 ตัว (v2.17)</h2>
+    <ul>
+      <li><b>Disk Space Low</b> — <code>[ไดรฟ์/พาธ] N[GB|MB|KB|B]</code> เช่น <code>D: 2GB</code> — พื้นที่เหลือ &lt; ที่กำหนด = จริง
+        (กันงานเขียนไฟล์พังกลางทาง) · ไม่ใส่หน่วย = MB</li>
+      <li><b>Process CPU</b> — <code>ชื่อ [เกณฑ์%] [Ns]</code> เช่น <code>chrome 5% 3s</code> — โปรเซสใช้ CPU เฉลี่ย &gt; เกณฑ์ = จริง
+        (วัด 2 จุดห่าง Ns · Windows ctypes / Linux /proc ล้วน)</li>
+      <li><b>Window Closed</b> — ไม่มีหน้าต่างที่ชื่อมีข้อความนี้ = จริง — <b>ตรงข้าม Window Exists</b>
+        (จบงานเมื่อปิดหน้าต่างเป้าหมาย เช่น เกมปิดแล้วค่อยล้างไฟล์)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>28. 📅 ตั้งเวลางานด้วย Task Scheduler + 🚀 Launcher (v2.17)</h2>
+    <p>ผสมสคริปต์ + launcher + Task Scheduler ให้เป็นงานตั้งเวลาทำงานเอง — คู่มือเต็ม TUTORIAL บทที่ 21:</p>
+    <ul>
+      <li><b>ทีละขั้น</b> — Create Task → <b>Run only when user is logged on</b> (การเล่นต้องใช้จอ/เมาส์จริง) →
+        Trigger เวลา/log-on → Action ชี้ <code>.lnk</code> และ <b>Start in = โฟลเดอร์สคริปต์</b> (พาธ relative) →
+        ทดสอบด้วยปุ่ม Run ก่อนวันจริงเสมอ</li>
+      <li><b>หยุดจากภายนอก</b> — <code>.bat --stop-file C:\งาน\stop.txt</code> เจอไฟล์เมื่อไรหยุดทันที + ปล่อยคีย์ค้างให้เอง</li>
+      <li><b>ตรวจย้อนหลัง</b> — 📝 Log → ⏱ ไทม์ไลน์ เห็นแต่ละแถวเล่น/ข้าม/เหตุผล งานตี 3 พังรู้สาเหตุโดยไม่ต้องนั่งดู</li>
+      <li><b>เช็คลิสต์ก่อนปล่อยงาน</b> — --validate → Dry-run → --max-minutes → เปิด log → ทดสอบ Run หนึ่งครั้ง</li>
+    </ul>
+  </div>
+
+  <div class="card">
     <h2>26. 🔌 เงื่อนไข plugin ชุมชนรอบใหม่ (v2.16)</h2>
     <ul>
       <li><b>Window Focused</b> — หน้าต่างที่<b>โฟกัสอยู่ตอนนี้</b>มีข้อความในชื่อ = จริง (ต่างจาก Window Exists ที่สแกนทุกหน้าต่าง)</li>
@@ -643,7 +668,7 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.16.1 ·
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.17.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

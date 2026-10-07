@@ -65,8 +65,37 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.16.1</h2>
+      <h2>เวอร์ชัน 2.17.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">7 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🧩 เงื่อนไข plugin ชุมชนรอบใหม่ 3 ตัว (<a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6">Issue #6</a> — milestone v2.17)</h3>
+    <ul>
+      <li><b>Disk Space Low</b> — <code>[ไดรฟ์/พาธ] N[GB|MB|KB|B]</code> เช่น <code>D: 2GB</code> — พื้นที่เหลือ &lt; ที่กำหนด = จริง
+        (กันงานเขียนไฟล์พังกลางทาง) · ไม่ใส่หน่วย = MB · shutil stdlib ล้วน</li>
+      <li><b>Process CPU</b> — <code>ชื่อ [เกณฑ์%] [Ns]</code> เช่น <code>chrome 5% 3s</code> — โปรเซสใช้ CPU เฉลี่ย &gt; เกณฑ์ = จริง
+        (วัด 2 จุดห่าง Ns) — Windows ctypes / Linux /proc ล้วน</li>
+      <li><b>Window Closed</b> — ไม่มีหน้าต่างที่ชื่อมีข้อความนี้ = จริง — <b>ตรงข้าม Window Exists</b>
+        (จบงานเมื่อปิดหน้าต่างเป้าหมาย) · Additional ว่าง = เท็จ</li>
+    </ul>
+    <h3>📅 คู่มือตั้งเวลางานด้วย Task Scheduler + 🚀 Launcher (<a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7">Issue #7</a>)</h3>
+    <ul>
+      <li><b>TUTORIAL บทที่ 21 ใหม่</b> — ผสมสคริปต์ + launcher + Task Scheduler ทีละขั้น (Run only when logged on ·
+        ช่อง Start in สำคัญกับพาธ relative · ทดสอบด้วยปุ่ม Run) + หยุดผ่าน <code>--stop-file</code> +
+        ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ปล่อยงานจริง</li>
+    </ul>
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>ตัวอย่างใหม่ <code>examples/17_condition_plugins_v217.json</code></b> — 3 เงื่อนไขใหม่ที่ขอบเขตแน่นอนทุกเครื่อง
+        (แถวเท็จกิน Beep ตัวเอง ไม่กลืนแถวอื่น)</li>
+      <li><b>เทสต์เพิ่ม 5 ตัว</b> (TestPluginsV17 4 + TestExample17PluginsV217 1) → <b>549 unit + 20 E2E = 569</b></li>
+      <li>PLUGINS.md เพิ่ม 3 plugin · examples/README แถว 17 · ROADMAP ติ๊ก #6/#7 · zh/ja สรุปสั้น</li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.16.1</h2>
       <span class="date">7 ตุลาคม 2026</span>
     </div>
 

@@ -161,6 +161,20 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
 ```
 
+## 🆕 ข่าวเวอร์ชัน v2.17 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🆕 v2.17.0 ออกแล้ว!
+
+• 🧩 เงื่อนไข plugin ใหม่ 3 ตัว: Disk Space Low (ดิสก์เหลือน้อย = เตือนก่อนพัง)
+  Process CPU (เฝ้าโปรเซสใช้ CPU เกินเกณฑ์) · Window Closed (ปิดหน้าต่างงานแล้ว = จบงาน)
+• 📅 คู่มือตั้งเวลางานด้วย Task Scheduler + 🚀 Launcher (TUTORIAL บทที่ 21)
+  ตั้งแล้วลืมได้ — หยุดด้วย --stop-file ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์
+• ตัวอย่างใหม่ examples/17 ลองเล่นเงื่อนไขใหม่ได้ทันที
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
 ## 🆕 ข่าวเวอร์ชัน v2.16.1 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
 
 ```

@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.16.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.17.0
 
 <div align="center">
 
@@ -118,6 +118,8 @@
 | ⏱ **Event timeline** (v2.16) | button in 📝 Log: reads the [START]/[STEP]/[SKIP] log and shows the latest run row by row (time / played-skipped / reason / seconds) — debug deeply nested condition scripts · walk back through earlier runs |
 | 🔌 **Community condition plugins** (v2.16) | 3 new: **Window Focused** (focused window title contains text), **File Newer Than** (`fileA > fileB` or `file Ns`), **HTTP Status** (`URL [code] [Ns]`) — usable as an Action or inside Block Start with `&&` |
 | 🐛 **.exe finally keeps its logs/settings** (v2.16.1) | bug found by testing the real .exe: the .exe's conf/profiles/log/dry-reports used to vanish on every close (written into the _MEI temp folder) — now stored next to the .exe via a single `app_base_dir()` helper |
+| 🧩 **3 new community condition plugins** (v2.17) | **Disk Space Low** (`D: 2GB` — low free space = true), **Process CPU** (`chrome 5% 3s` — process CPU above the limit), **Window Closed** (target window closed = true — inverse of Window Exists) |
+| 📅 **Task Scheduler guide** (v2.17) | TUTORIAL chapter 21: script + 🚀 Launcher + Task Scheduler = a self-running scheduled job — stop via `--stop-file`, review with the ⏱ timeline, plus a go-live checklist |
 | 🧩 **Built-in condition plugins** (v2.14) | ship with 4: `File Exists` · `Internet Up` (net check — `host[:port]` and/or `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — use as an Action or `if name [argument]` in Block Start (mixable with `&&`) + 🧩 button inserts a condition row for you + CLI `--dry-report PATH` picks the dry-run report file (`{date}` = today) |
 | 🔌 **Plugin API v3 — condition plugins** (v2.13) | a plugin declares `CONDITION_NAME` + `check(ctx, row) -> bool` and its name works as a condition in both the Action column and Block Start/End (`if name [argument]`, mixable with `&&`) — True = keep playing, False = skip N rows (N = Repeat) · validation / dry-run / .ahk export all support it (see [PLUGINS.md](PLUGINS.md)) |
 

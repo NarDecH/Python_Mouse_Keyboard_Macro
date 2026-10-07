@@ -30,6 +30,9 @@
 | `window_focused.py` | **Window Focused** (เงื่อนไข v2.16) | **หน้าต่างที่โฟกัสอยู่ตอนนี้**มีข้อความในชื่อ = จริง (Windows: GetForegroundWindow ctypes ล้วน, Linux: xdotool, macOS: osascript) — ต่างจาก Window Exists ที่สแกนทุกหน้าต่าง |
 | `file_newer_than.py` | **File Newer Than** (เงื่อนไข v2.16) | 2 รูปแบบ: `ไฟล์A > ไฟล์B` = A ใหม่กว่า B (watch งานแปลงไฟล์), `ไฟล์ Ns` = ถูกแก้ภายใน N วินาทีล่าสุด (รอ download เสร็จ) — พาธมีช่องว่างใช้ได้ |
 | `http_status.py` | **HTTP Status** (เงื่อนไข v2.16) | `URL [รหัส] [Ns]` เช่น `https://api.local/health 200 3s` — ไม่ใส่รหัส = 2xx ใด ๆ · 4xx/5xx ที่รอเป๊ะก็จริงได้ · urllib stdlib ล้วน เช็ค API ก่อนทำงานต่อ |
+| `disk_space_low.py` | **Disk Space Low** (เงื่อนไข v2.17) | `[ไดรฟ์/พาธ] N[GB\|MB\|KB\|B]` เช่น `D: 2GB` — พื้นที่เหลือ < ที่กำหนด = จริง (กันงานเขียนไฟล์พังกลางทาง) · shutil stdlib ล้วน |
+| `process_cpu.py` | **Process CPU** (เงื่อนไข v2.17) | `ชื่อ [เกณฑ์%] [Ns]` เช่น `chrome 5% 3s` — โปรเซสใช้ CPU เฉลี่ย > เกณฑ์ = จริง (วัด 2 จุดห่าง Ns) — Windows ctypes / Linux /proc ล้วน |
+| `window_closed.py` | **Window Closed** (เงื่อนไข v2.17) | ไม่มีหน้าต่างที่ชื่อมีข้อความนี้ = จริง — ตรงข้าม Window Exists (จบงานเมื่อปิดหน้าต่างเป้าหมาย) |
 | `_template.py` | — | แม่แบบคัดลอกไปแก้ต่อ (ไฟล์ขึ้นต้น `_` ไม่ถูกโหลด) |
 
 ## วิธีเขียน plugin ใน 30 วินาที
@@ -107,8 +110,8 @@ def check(ctx, row) -> bool:
 - 📸 OCR อ่านข้อความบนจอแล้วเก็บเป็นตัวแปร (ผ่าน `ctx["vars"]`)
 - ⌨️ ฟอร์มกรอกข้อความชุดจากไฟล์ CSV (อ่านแถวแล้วเขียน `ctx["vars"]["row"]` ทีละบรรทัด)
 - 🖼️ ค้นภาพหลายไฟล์พร้อมกันแล้วคลิกตัวที่เจอก่อน (มีตัวอย่างแล้ว: multi_image_click.py)
-- ✅ เงื่อนไขจากชุมชนรอบ v2.16 ปิดแล้ว 3 ตัว: Window Focused / File Newer Than / HTTP Status —
-  ตัวถัดไปเสนอได้เลย เช่น Disk Space Low, Process CPU, Window Closed
+- ✅ เงื่อนไขจากชุมชนรอบ v2.16 ปิดแล้ว 3 ตัว: Window Focused / File Newer Than / HTTP Status ·
+  รอบ v2.17 ปิดแล้ว 3 ตัว: Disk Space Low / Process CPU / Window Closed — ตัวถัดไปเสนอได้เลย
 
 ส่ง PR มาที่ [CONTRIBUTING.md](../CONTRIBUTING.md) — plugin ดี ๆ จะถูกเพิ่มในตารางข้างบน
 

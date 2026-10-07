@@ -3,6 +3,40 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.17.0] — 2026-10-07
+
+### 🧩 New community condition plugins (3) ([Issue #6](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/6) — milestone v2.17)
+- **Disk Space Low** — `[drive/path] N[GB|MB|KB|B]`, e.g. `D: 2GB` — free space below the
+  limit = true (protects file-writing/backup jobs from dying midway) · bare numbers = MB ·
+  stdlib shutil only · unreadable disk = false, never raises
+- **Process CPU** — `name [limit%] [Ns]`, e.g. `chrome 5% 3s` — process's average CPU above
+  the limit = true (samples cpu-time at two points Ns apart and divides by core count; the
+  first call establishes the baseline) — Windows: ctypes Toolhelp32+GetProcessTimes only,
+  Linux: /proc · no matching process = false
+- **Window Closed** — no window whose title contains the text = true — **the inverse of
+  Window Exists** (finish work when the target window closes, e.g. game closed → clean up)
+  · empty Additional = false (guards against a typo silently reading as "already closed")
+- All three follow the standing plugin rules: `check` never raises · usable as an Action or
+  inside Block Start `&&` · `{vars}` supported · the condition dropdown, 🧩, validate and
+  dry-run all pick them up automatically
+
+### 📅 Task Scheduler + 🚀 Launcher guide ([Issue #7](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/7))
+- **New TUTORIAL chapter 21 (Thai)** — combining script + launcher + Task Scheduler into a
+  scheduled job step by step (Run only when logged on, why the "Start in" field matters for
+  relative paths, test with the Run button) + stopping externally with `--stop-file` +
+  reviewing runs via the ⏱ timeline + a **go-live checklist** (validate → dry-run →
+  --max-minutes → logging on → one Run test before the real day)
+
+### 📚 Docs + tests
+- **New example `examples/17_condition_plugins_v217.json`** — demonstrates the 3 new
+  conditions at boundaries that decide identically on every machine (999999GB always true ·
+  1KB always false · process/window names that never exist) · each false condition eats its
+  own Beep, no skip cascade
+- **5 new tests** (TestPluginsV17 4 + TestExample17PluginsV217 1) → **549 unit + 20 E2E =
+  569**
+- PLUGINS.md lists the 3 plugins · examples/README row 17 · ROADMAP ticks #6/#7 · zh/ja
+  short notes
+
 ## [2.16.1] — 2026-10-07
 
 ### 🐛 Bug found by testing the real .exe — runtime files vanished on every .exe exit

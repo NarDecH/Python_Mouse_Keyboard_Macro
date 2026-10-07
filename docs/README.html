@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Mouse &amp; Keyboard Macro v2.16.1 — คู่มือการใช้งาน</title>
+<title>Auto Mouse &amp; Keyboard Macro v2.17.0 — คู่มือการใช้งาน</title>
 <style>
   :root {
     --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.16.1</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.17.0</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -159,6 +159,8 @@
       <tr><td>⏱ <b>ไทม์ไลน์เหตุการณ์ v2.16</b></td><td>ปุ่มใน 📝 Log: อ่าน log [START]/[STEP]/[SKIP] แสดงต่อแถวของการเล่นล่าสุด (เวลา/เล่น-ข้าม/เหตุผล/วินาที) — ดีบั๊กสคริปต์เงื่อนไขซ้อนหลายชั้น · ย้อนแต่ละครั้งที่เล่นได้</td></tr>
       <tr><td>🔌 <b>เงื่อนไข plugin ชุมชน v2.16</b></td><td>3 ตัวใหม่: <b>Window Focused</b> (หน้าต่างโฟกัสตอนนี้มีข้อความ), <b>File Newer Than</b> (ไฟล์A &gt; ไฟล์B หรือ ไฟล์ Ns), <b>HTTP Status</b> (URL [รหัส] [Ns]) — ใช้เป็น Action หรือผสม &amp;&amp; ใน Block Start ได้</td></tr>
       <tr><td>🐛 <b>.exe จำ log/ตั้งค่าได้จริง v2.16.1</b></td><td>แก้บั๊กจากการทดสอบ .exe จริง: conf/โปรไฟล์/log/dry-report ของ .exe เคยหายทุกครั้งที่ปิด (เขียนลง _MEI temp) — ตอนนี้เก็บข้างไฟล์ .exe ผ่าน app_base_dir() แหล่งเดียว</td></tr>
+      <tr><td>🧩 <b>เงื่อนไข plugin ชุมชน 3 ตัวใหม่ v2.17</b></td><td><b>Disk Space Low</b> (D: 2GB — พื้นที่เหลือน้อย = จริง), <b>Process CPU</b> (chrome 5% 3s — โปรเซสใช้ CPU เกินเกณฑ์), <b>Window Closed</b> (ปิดหน้าต่างเป้าหมายแล้ว = จริง — ตรงข้าม Window Exists)</td></tr>
+      <tr><td>📅 <b>คู่มือ Task Scheduler v2.17</b></td><td>TUTORIAL บทที่ 21: สคริปต์ + 🚀 Launcher + Task Scheduler = งานตั้งเวลาทำงานเอง — หยุดผ่าน --stop-file ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงานจริง</td></tr>
       <tr><td>🧩 <b>เงื่อนไข plugin สำเร็จรูป v2.14</b></td><td>มาให้ 4 ตัว: <code>File Exists</code> · <code>Internet Up</code> (เช็คเน็ต — <code>host[:port]</code> และ/หรือ <code>Ns</code>) · <code>Process Running</code> (tasklist/pgrep) · <code>Window Exists</code> (ctypes/xdotool) — ใช้เป็น Action หรือ <code>if ชื่อ [อาร์กิวเมนต์]</code> ใน Block Start (ผสม <code>&amp;&amp;</code> ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI <code>--dry-report PATH</code> เลือกไฟล์รายงาน dry-run เอง (<code>{date}</code> = วันที่)</td></tr>
       <tr><td>🔌 <b>Plugin API v3 — เงื่อนไข plugin v2.13</b></td><td>plugin ประกาศ <code>CONDITION_NAME</code> + <code>check(ctx, row) -&gt; bool</code> ใช้เป็นเงื่อนไขได้ทั้งคอลัมน์ Action และ Block Start/End (<code>if ชื่อ [อาร์กิวเมนต์]</code> ผสม <code>&amp;&amp;</code> ได้) — จริง = เล่นต่อ ไม่จริง = ข้าม N แถว (N = Repeat) · validate/dry-run/.ahk รองรับครบ (ดู PLUGINS.md)</td></tr>
       <tr><td>🔀 <b>ทำงานร่วม AutoHotkey v2.7.0</b></td><td>เมนู 🔀: ส่งออกสคริปต์เป็น <code>.ahk</code> หรือนำเข้าไฟล์ <code>.ahk</code> (Send/Click/MouseMove/Sleep/Run) เข้าตาราง — push undo ให้เอง</td></tr>
@@ -389,7 +391,7 @@ py -m unittest test_e2e -v           # 15 E2E tests (รัน CLI จริง)
 
 </div>
 
-<footer>Auto Mouse &amp; Keyboard Macro v2.16.1 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
+<footer>Auto Mouse &amp; Keyboard Macro v2.17.0 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
 
 </body>
 </html>

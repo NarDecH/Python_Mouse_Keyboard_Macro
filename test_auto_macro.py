@@ -7654,5 +7654,99 @@ class TestExample16PluginsV216(unittest.TestCase):
         self.assertNotIn("แถวนี้ถูกข้าม — ไฟล์แรก", out)    # แถวที่ถูกกินไม่โดนเล่นจริง
 
 
+class TestPluginsV17(unittest.TestCase):
+    """v2.17 (Issue #6): condition plugin ชุมชนรอบใหม่ 3 ตัว — Disk Space Low /
+    Process CPU / Window Closed — มาตรฐาน PLUGINS.md: check จริง + ทน input พัง"""
+
+    def _load(self, name):
+        me_mod.load_plugins()
+        conds = dict(getattr(me_mod.load_plugins, "last_conditions", []) or [])
+        self.assertIn(name, conds, "plugin %s ต้องโหลดเจอ" % name)
+        return conds[name]
+
+    def test_conditions_registered(self):
+        me_mod.load_plugins()
+        conds = [n for n, _ in getattr(me_mod.load_plugins, "last_conditions", []) or []]
+        for n in ("Disk Space Low", "Process CPU", "Window Closed"):
+            self.assertIn(n, conds)
+
+    def test_disk_space_low(self):
+        mod = self._load("Disk Space Low")
+        row = lambda add: {"button": "Disk Space Low", "additional": add}
+        self.assertFalse(mod.check({}, row("1TB")))          # ยังเหลือมากกว่า 1TB
+        self.assertTrue(mod.check({}, row("999999GB")))      # ไม่มีดิสก์ไหนเหลือเกือบ 1 PB
+        self.assertFalse(mod.check({}, row("1B")))           # เหลือ < 1 ไบต์ = เท็จเสมอ
+        self.assertFalse(mod.check({}, row("")))             # ไม่มีเกณฑ์ = เท็จ
+        self.assertFalse(mod.check({}, row("not a number!!")))
+        self.assertFalse(mod.check({}, row("no_such_drive_xyz 1MB")))   # อ่านไม่ได้ = เท็จ
+        self.assertFalse(mod.check({}, {}))
+        # หน่วย MB โดยไม่ใส่หน่วย + พาธเฉพาะเจาะจง
+        self.assertIsInstance(mod.check({}, row("1MB")), bool)
+        self.assertIsInstance(mod.check({}, row("999999GB")), bool)
+
+    def test_process_cpu(self):
+        mod = self._load("Process CPU")
+        row = lambda add: {"button": "Process CPU", "additional": add}
+        self.assertFalse(mod.check({}, row("")))
+        self.assertFalse(mod.check({}, row("!! ##")))        # input มั่ว — ไม่ raise
+        self.assertFalse(mod.check({}, row("no_such_proc_xyz 1%")))    # ไม่เจอโปรเซส
+        self.assertFalse(mod.check({}, row("no_such_proc_xyz 1% 3s"))) # ทน token Ns
+        self.assertFalse(mod.check({}, {}))
+        # โปรเซส python มีจริงทุกที่ที่รันเทสต์ได้ — จุดแรกจดฐาน (เท็จ) จุดสองตัดสิน
+        first = mod.check({}, row("python 0.0001%"))
+        self.assertIsInstance(first, bool)
+        time.sleep(0.15)
+        second = mod.check({}, row("python 0.0001%"))       # เกณฑ์ต่ำมาก — จริง/เท็จไม่ assert
+        self.assertIsInstance(second, bool)
+
+    def test_window_closed(self):
+        mod = self._load("Window Closed")
+        row = lambda add: {"button": "Window Closed", "additional": add}
+        self.assertTrue(mod.check({}, row("no_such_window_xyz")))   # ไม่มีหน้าต่างนี้ = ปิดแล้ว
+        self.assertFalse(mod.check({}, row("")))             # Additional ว่าง = เท็จ (กันพิมพ์ผิดคิดว่าปิดแล้ว)
+        self.assertFalse(mod.check({}, row("   ")))
+        self.assertFalse(mod.check({}, {}))
+        # ตรงข้ามกับ Window Exists ตรง ๆ — ผลกลับกันกับ input เดียวกัน
+        me_mod.load_plugins()
+        we = dict(getattr(me_mod.load_plugins, "last_conditions", []) or [])["Window Exists"]
+        r_we = we.check({}, {"button": "Window Exists", "additional": "no_such_window_xyz"})
+        r_wc = mod.check({}, row("no_such_window_xyz"))
+        self.assertNotEqual(r_we, r_wc)
+
+
+class TestExample17PluginsV217(unittest.TestCase):
+    """v2.17 (Issue #6): ตัวอย่าง 17 — เงื่อนไข plugin ใหม่ 3 ตัว แบบกลาง platform:
+    จริง/เท็จตัดสินจากขอบเขตที่แน่นอน (999999GB จริงเสมอ, 1KB เท็จเสมอ, ชื่อโปรเซส/
+    หน้าต่างที่ไม่มีจริง) — แถวเท็จกิน Beep ของตัวเอง ไม่มี skip cascade"""
+
+    def test_example_17_validates_and_flows(self):
+        import contextlib
+        ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "examples", "17_condition_plugins_v217.json")
+        with open(ex, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        me_mod.load_plugins()
+        cond_names = [n for n, _ in getattr(me_mod.load_plugins, "last_conditions", []) or []]
+        self.assertEqual(me_mod.validate_rows(rows, plugin_names=[],
+                                              condition_names=cond_names), [])
+        ex_abs = os.path.abspath(ex)
+        old = os.getcwd()
+        os.chdir(os.path.dirname(ex_abs))
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = am.cli_main([ex_abs, "--no-log"])
+        finally:
+            os.chdir(old)
+        out = buf.getvalue()
+        self.assertEqual(rc, 0)
+        self.assertIn("จบแล้ว ✔", out)
+        self.assertIn("Disk Space Low → เงื่อนไขจริง เล่นต่อ", out)      # 999999GB
+        self.assertIn("Disk Space Low → เงื่อนไขไม่จริง ข้าม 1 แถว", out)  # 1KB
+        self.assertIn("Process CPU → เงื่อนไขไม่จริง ข้าม 1 แถว", out)     # ไม่มีโปรเซส
+        self.assertIn("Window Closed → เงื่อนไขจริง เล่นต่อ", out)        # ไม่มีหน้าต่างนี้
+        self.assertNotIn("แถวนี้ถูกข้าม — พื้นที่เหลือ", out)              # แถวถูกกินไม่โดนเล่น
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

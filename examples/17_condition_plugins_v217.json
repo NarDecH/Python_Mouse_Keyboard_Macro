@@ -1,0 +1,12 @@
+[
+  {"enabled": true,  "x": "", "y": "", "button": "⬛ หัวข้อ",          "additional": "v2.17 — เงื่อนไข plugin ชุมชนรอบใหม่ 3 ตัว (รันจากโฟลเดอร์ examples: cd examples)", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Disk Space Low",    "additional": "999999GB", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",              "additional": "Disk Space Low 999999GB = จริงเสมอ (ไม่มีดิสก์ไหนเหลือเกือบ 1 PB) → เดินต่อ", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Disk Space Low",    "additional": "1KB", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",              "additional": "แถวนี้ถูกข้าม — พื้นที่เหลือมากกว่า 1KB = เงื่อนไขเท็จ ข้าม 1 แถว (กิน Beep ตัวเอง)", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Process CPU",       "additional": "no_such_proc_xyz 1%", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",              "additional": "แถวนี้ถูกข้าม — ไม่มีโปรเซสชื่อนี้", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Window Closed",     "additional": "no_such_window_title_xyz", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",              "additional": "Window Closed จริง (ไม่มีหน้าต่างชื่อนี้) → เดินต่อ", "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true,  "x": "", "y": "", "button": "Beep",              "additional": "จบครบ — เปิด ⏱ ไทม์ไลน์ในหน้าต่าง 📝 Log ดูผลทีละแถวได้เลย", "mins": 0, "secs": 0, "repeat": 2}
+]

@@ -310,7 +310,7 @@ max 10              无条件 — 把块体重复 10 次
   `~` → `InStr()`）；无法翻译的图像/颜色条件整块变成注释，不会留下孤立大括号 ·
   导入时三种形式都会转换回 Block Start/End 行。
 
-*对应代码 v2.16.1 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
+*对应代码 v2.17.0 · 泰语完整教程（更多练习）：[TUTORIAL.md](TUTORIAL.md) ·
 项目文档：[README.md](README.md) · 插件市场：[PLUGINS.md](PLUGINS.md)*
 
 ## v2.10.1 — 新增
@@ -388,6 +388,15 @@ max 10              无条件 — 把块体重复 10 次
 - 折叠的行始终跟随自己的标题 — 折叠后移动也不会散组；跨越分组的 Block Start/End =
   拒绝并警告（防止块损坏）· Ctrl+Z 可撤销。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 19.3 · [TUTORIAL.en.md](TUTORIAL.en.md)。
+
+## v2.17.0 — 新增
+
+- **🔌 3 个新条件插件** — **Disk Space Low**（`D: 2GB` — 剩余空间低于阈值 = 真，防止写文件
+  中途失败）、**Process CPU**（`chrome 5% 3s` — 进程 CPU 超过阈值 = 真，间隔 Ns 采样两次）、
+  **Window Closed**（目标窗口已关闭 = 真 — Window Exists 的反义，用于关闭后收尾）。
+- **📅 Task Scheduler 指南** — TUTORIAL 第 21 章（泰语）：脚本 + 🚀 启动器 + Task Scheduler =
+  定时任务，用 `--stop-file` 停止，用 ⏱ 时间线回查，附上线前检查清单。
+- 新示例 `examples/17_condition_plugins_v217.json`。
 
 ## v2.16.1 — 修复
 
