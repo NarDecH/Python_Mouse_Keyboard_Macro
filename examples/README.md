@@ -73,6 +73,21 @@ py auto_macro.py examples/12_blocks.json
 `until ... max N` วนเนื้อในซ้ำจนเงื่อนไขจริง (ตัวนับ 1-5 ด้วย Set Variable) และบล็อกซ้อน 2 ชั้น
 ตรวจโครงสร้างก่อนเล่นด้วย `--validate`
 
+### ตัวอย่างลำดับกลุ่ม (v2.18+)
+
+```bash
+# เล่นทั้งหมดตามลำดับเดิม
+py auto_macro.py examples/18_group_order.json
+# สุ่มลำดับกลุ่ม (เตรียม/งานหลัก/ล้าง = ก้อนเดิม ไม่สลับแถวภายใน)
+py auto_macro.py examples/18_group_order.json --shuffle-groups
+# เล่นเฉพาะบางกลุ่มหลายกลุ่มพร้อมกัน
+py auto_macro.py examples/18_group_order.json --only-section "เตรียม,ล้าง"
+```
+
+สาธิต **ลำดับการเล่นระดับกลุ่ม** — สุ่มลำดับกลุ่มหัวข้อ (แถวภายในกลุ่มเรียงเดิมเสมอ)
+เลือกเฉพาะกลุ่มที่ต้องการหลาย ๆ กลุ่มด้วย comma และซ้อมเล่นได้ทั้งกลุ่มด้วย
+คลิกขวาหัวข้อ → "🧪 Dry-run กลุ่มนี้" (GUI)
+
 ### ตัวอย่างงานเฝ้าระบบ (v1.10+)
 
 ```bash
@@ -106,6 +121,7 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `15_system_conditions.json` | **v2.14**: เงื่อนไขระบบ Internet Up / Process Running / Window Exists + Block Start ผสม `&&` | ✅ ไม่คลิก |
 | `16_condition_plugins_v216.json` | **v2.16**: เงื่อนไขใหม่ File Newer Than / Window Focused / HTTP Status — รันจากโฟลเดอร์ examples (`cd examples` ก่อน เพื่อให้เจอ README.md) แล้วเปิด ⏱ ไทม์ไลน์ดูผลทีละแถว | ✅ ไม่คลิก |
 | `17_condition_plugins_v217.json` | **v2.17**: เงื่อนไขใหม่ Disk Space Low / Process CPU / Window Closed — ตัวอย่างขอบเขตตัดสินแน่นอนทุกเครื่อง + เปิด ⏱ ไทม์ไลน์ดูผลทีละแถว | ✅ ไม่คลิก |
+| `18_group_order.json` | **v2.18**: ลำดับกลุ่ม — `--shuffle-groups` สุ่มลำดับกลุ่ม + `--only-section "เตรียม,ล้าง"` เลือกหลายกลุ่ม + คลิกขวาหัวข้อ Dry-run กลุ่ม | ✅ ไม่คลิก |
 | `queue_sample.txt` | ลิสต์ตัวอย่าง `--queue` — `py auto_macro.py --queue examples/queue_sample.txt` เล่น 13+14 ต่อกัน | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 

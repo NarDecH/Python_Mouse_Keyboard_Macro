@@ -153,11 +153,14 @@
    ของค้างคำถามข้อ 1 จาก RFC) — ต่อยอด `&&` ของชุด N1: แตกชิ้นด้วย `||` ก่อน แล้วแตกชิ้นย่อยด้วย `&&`
    (ทั้งแถวเงื่อนไขและ Block Start) · validate/dry-run/สีแถว/.ahk ตามให้ครบ · กติกาเหล็กเดิม:
    สคริปต์เดิมเล่นผลเดิม 100% + skip = ข้าม N แถวเหมือนเดิม — **เริ่มได้เมื่อมีโหวตสมควร**
-2. **ลำดับการเล่นระดับกลุ่ม** — ต่อยอด "▶ เล่นกลุ่มนี้อย่างเดียว" (v2.15): สุ่มลำดับกลุ่ม /
-   เล่นเฉพาะกลุ่มที่ระบุหลายกลุ่ม (`--only-section` รับ comma) / วนเฉพาะช่วงกลุ่ม —
-   งานยาวที่แบ่งขั้นเป็นกลุ่มจะจัดโปรแกรมการเล่นได้โดยไม่ต้องแยกไฟล์
-3. **งานหนักสคริปต์ยิ่งใหญ่** — dry-run ระดับกลุ่ม (เมนูขวากลุ่ม → 🧪) · รายงาน dry-run แยกตามกลุ่ม ·
-   เช็คลิสต์ก่อนปล่อยงาน (จากบทที่ 21) ผูกเป็นปุ่มเดียว
+2. ~~**ลำดับการเล่นระดับกลุ่ม**~~ ✅ v2.18.0 — สุ่มลำดับกลุ่มหัวข้อ (checkbox "สุ่มลำดับกลุ่ม" /
+   CLI `--shuffle-groups`) + `--only-section` รับหลายกลุ่มคั่น comma — สลับก้อนทั้งก้อน
+   แถวภายในกลุ่มเรียงเดิมเสมอ (engine `select_groups` + `shuffle_group_order` แหล่งเดียว) —
+   **[Issue #10](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10) ปิดครบ**
+3. **งานหนักสคริปต์ยิ่งใหญ่** — ✅ dry-run ระดับกลุ่ม (v2.18.0: คลิกขวาหัวข้อ → "🧪 Dry-run กลุ่มนี้" —
+   ซ้อมเฉพาะกลุ่ม ไม่แตะเมาส์/คีย์) + แก้ dry-run เดิมเขียน [STEP] ลง log —
+   **[Issue #11](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/11) ปิดครบ** ·
+   ⏳ รายงาน dry-run แยกตามกลุ่ม · เช็คลิสต์ก่อนปล่อยงานผูกเป็นปุ่มเดียว
 4. **ตลาด plugin เดินหน้าต่อเนื่อง** — รับ plugin Action/เงื่อนไขจากชุมชนตลอด (เกณฑ์ 6 ข้อใน
    [PLUGINS.md](PLUGINS.md) + issue template) · พร้อมกัน: เพิ่มตัวอย่าง/บทเรียนให้ครอบคลุม use case จริง
    ที่ชุมชนส่งมา
@@ -191,6 +194,6 @@
       ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5) ปิดครบ)
 
 ---
-*อัพเดตล่าสุด: v2.17.1 — ถอดจาก CHANGELOG · milestone v2.15 ปิดครบ (issues #2–#5) ·
-[milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2) เหลือ #9 (OR — รอโหวต) ·
-แผน v2.18 ขึ้นแล้ว (OR / ลำดับกลุ่ม / งานหนัก / ตลาด plugin) — ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
+*อัพเดตล่าสุด: v2.18.0 — ถอดจาก CHANGELOG · [milestone v2.18](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/3)
+ปิด #10 #11 แล้ว เหลือ #9 (OR — ดีไซน์ร่างแล้วใน DESIGN-nested-if.md รอโหวต) ·
+ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*

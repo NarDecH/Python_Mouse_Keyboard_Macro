@@ -668,7 +668,22 @@ py engine_cli.py s.jsonl --json-lines     # อ่านสคริปต์ 1 
     </ul>
   </div>
 
-<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.17.1 ·
+  <div class="card">
+    <h2>29. 🎲 ลำดับการเล่นระดับกลุ่ม + Dry-run กลุ่ม (v2.18)</h2>
+    <ul>
+      <li><b>สุ่มลำดับกลุ่ม</b> — ติ๊ก ☑ "สุ่มลำดับกลุ่ม" ข้าง ๆ สุ่มลำดับเดิม (จำลง conf) หรือ
+        CLI <code>--shuffle-groups</code> — กลุ่ม = หัวข้อ + แถวสมาชิกทั้งก้อน ย้ายทั้งก้อนพร้อมกัน
+        แถวภายในกลุ่มเรียงเดิมเสมอ · เปิดสุ่มแถว + สุ่มกลุ่มพร้อมกันไม่ได้ (สุ่มกลุ่มชนะ)</li>
+      <li><b>เลือกหลายกลุ่ม</b> — <code>--only-section "เตรียม,ล้าง"</code> รับหลายชื่อคั่น comma
+        (ชื่อเดียว = พฤติกรรมเดิม, ไม่พบ = เตือนแล้วเล่นทั้งหมด)</li>
+      <li><b>Dry-run เฉพาะกลุ่ม</b> — คลิกขวาหัวข้อ → "🧪 Dry-run กลุ่มนี้" — ซ้อมเดินเฉพาะกลุ่ม:
+        เงื่อนไข/ตัวแปร/บล็อกเดินจริง ส่วนแถวเมาส์/คีย์ถูกแทนด้วย "DRY-RUN: จะ…" ไม่แตะเมาส์/คีย์จริง</li>
+      <li>ตัวอย่าง: <code>examples/18_group_order.json</code> (3 กลุ่ม Beep ล้วน) —
+        ดูบทที่ 22 ใน TUTORIAL.md (ฉบับไทย)</li>
+    </ul>
+  </div>
+
+<footer><a href="README.html">← README</a> • <a href="RESEARCH.html">RESEARCH</a> • <a href="CHANGELOG.html">CHANGELOG</a> • Auto Mouse &amp; Keyboard Macro v2.18.0 ·
 แปลฉบับอื่น: <a href="TUTORIAL.en.md">English</a> · <a href="TUTORIAL.zh.md">中文</a> · <a href="TUTORIAL.ja.md">日本語</a></footer>
 
 </body>

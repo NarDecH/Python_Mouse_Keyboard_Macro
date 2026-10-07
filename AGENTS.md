@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.17.1 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.18.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -395,6 +395,21 @@
   --stop-file + ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงาน) · ตัวอย่าง examples/17 (ขอบเขตตัดสินแน่นอน
   999999GB จริงเสมอ / 1KB เท็จเสมอ) · เทสต์เพิ่ม 5 ตัว (TestPluginsV17 4 +
   TestExample17PluginsV217 1) → 549 unit + 20 E2E = 569
+- **ฟีเจอร์เสริม v2.18.0 (milestone v2.18 — ปิด issues #10 #11):** **ลำดับการเล่นระดับกลุ่ม** —
+  สุ่มลำดับกลุ่มหัวข้อ (checkbox `chk_shuffle_groups` ข้าง chk_shuffle + conf `shuffle_groups` /
+  CLI `--shuffle-groups`) — engine `select_groups(rows, names)` (เลือกกลุ่มตามชื่อ — ซ้ำ =
+  ทุกกลุ่มที่ตรง, ไม่ใส่ชื่อ = ทุกกลุ่ม, ไม่แก้ลิสต์เดิม) + `shuffle_group_order(items)`
+  สลับก้อนคงความสมบูรณ์กลุ่ม · `--only-section` รับหลายกลุ่มคั่น comma (ชื่อเดียว = เดิมเป๊ะ,
+  ไม่พบ = เตือนแล้วเล่นทั้งหมด) · **Dry-run ระดับกลุ่ม** (คลิกขวาหัวข้อ → `_play_section(iid,
+  dry=True)` src_name "Dry-run กลุ่ม: ชื่อ") · **แก้บั๊กแฝง v2.10:** dry-run เขียน [STEP] ลง
+  log — ตอนนี้ `if self._log_enabled and not dry:` · ดีไซน์ OR (`||`) ลง DESIGN-nested-if.md
+  ระดมโหวต Issue #9 · ตัวอย่าง examples/18 · เทสต์เพิ่ม 12 ตัว (TestGroupPlayOrder 10 +
+  TestGroupPlayOrderGui 2) + เทสต์ conf เดิม 3 ตัวเพิ่มคีย์ shuffle_groups →
+  568 unit + 20 E2E = 588 · ⚠️ **บทเรียน: `shuffle_group_order` ใช้ module-level
+  `random.shuffle` (ไม่ใช่ random.Random()) — เทสต์ต้อง patch `am.random.shuffle`**
+  (mock.patch.object(am.random, "shuffle", side_effect=...)) · เทสต์ GUI สุ่มต้อง
+  deterministic — side_effect ทำ reverse รอบแรก / identity รอบสอง แล้ว assert ก้อนครบ
+  แทนการ assert perm ตายตัว
 
 ## เทคโนโลยี
 

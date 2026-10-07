@@ -686,6 +686,12 @@ Exercise: create `a.txt` + `b.txt`, modify a.txt last → a File Newer Than row
 
 ---
 
-*Guide for code v2.17.1 · Chapter 21 (Task Scheduler guide, Thai): [TUTORIAL.md](TUTORIAL.md) ·
+**v2.18 — Group play order & group dry-run (full Thai guide, chapter 22):**
+shuffle section groups (`--shuffle-groups` or the "Shuffle groups" checkbox — whole group
+chunks move together, rows inside keep their order), pick several groups with
+`--only-section "A,B"`, and right-click a section header → "Dry-run this group" to rehearse
+just that group without touching the real mouse/keyboard (conditions/variables/blocks still run).
+
+*Guide for code v2.18.0 · Chapter 21 (Task Scheduler guide, Thai): [TUTORIAL.md](TUTORIAL.md) ·
 Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*

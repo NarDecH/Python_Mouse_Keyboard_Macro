@@ -2,6 +2,47 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.18.0] — 2026-10-08
+
+### 🎲 ลำดับการเล่นระดับกลุ่ม (ปิด [Issue #10](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10) — milestone v2.18)
+- **สุ่มลำดับกลุ่มหัวข้อ** — GUI: checkbox **"สุ่มลำดับกลุ่ม"** ข้าง ๆ สุ่มลำดับเดิม (จำลง conf,
+  อยู่ใน Export/Import settings) · CLI: `--shuffle-groups` — โปรแกรมสลับ **ก้อนกลุ่มทั้งก้อน**
+  (หัวข้อ+แถวสมาชิกเดินตามกัน) แถวภายในกลุ่มเรียงเดิมเสมอ — เหมาะงานเสี่ยงทาย/สุ่มลำดับงานรายวัน
+  โดยไม่ต้องเขียนสคริปต์ใหม่ · เปิดทั้งสองโหมดพร้อมกันไม่ได้ (สุ่มกลุ่มชนะ — กันลำดับเลอะ)
+- **engine แหล่งเดียว:** `select_groups(rows, names)` (เลือกกลุ่มตามชื่อหัวข้อ — ชื่อซ้ำได้ทุกกลุ่ม
+  ที่ตรง, ไม่ใส่ชื่อ = ทุกกลุ่ม, ไม่แก้ลิสต์เดิม) + `shuffle_group_order(items)` (สลับก้อนคงความ
+  สมบูรณ์กลุ่ม — ก้อนนำหน้าก่อนหัวข้อแรกเป็นก้อนเดี่ยว, ใช้ `random.shuffle` ระดับ module
+  จึง patch ได้ง่ายในเทสต์) · เดิม `--only-section` รับได้ชื่อเดียว — ตอนนี้**รับหลายกลุ่มคั่น
+  comma** เช่น `--only-section "เตรียม,ล้าง"` (ชื่อเดียว = พฤติกรรมเดิมเป๊ะ, ไม่พบกลุ่มไหนเลย =
+  เตือนแล้วเล่นทั้งหมด)
+- จับคู่ไฮไลต์แถวระหว่างเล่นถูกต้องแม้กลุ่มถูกสลับ (ผ่าน `id()` ไม่พึ่งลำดับ)
+
+### 🧪 Dry-run ระดับกลุ่ม (ปิด [Issue #11](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/11))
+- **คลิกขวาหัวข้อ Section → "🧪 Dry-run กลุ่มนี้"** — ซ้อมเดินเฉพาะกลุ่มนั้นทันที: เงื่อนไข/ตัวแปร/
+  บล็อกเดินจริง ส่วนแถวเมาส์/คีย์/คลิปบอร์ดถูกแทนด้วย "DRY-RUN: จะ…" — ไม่แตะเมาส์/คีย์จริง
+  (โลจิก dry-run เดิม v2.10 ทั้งหมด — คำนวณ skip/ตัวแปร/เงื่อนไขครบ) · ผลเข้า log แหล่งเดียวกับ
+  dry-run ปกติ + ป้ายแหล่งที่มา "Dry-run กลุ่ม: ชื่อ" ใน statusbar/log START
+- ซ้อมทีละกลุ่มก่อนปล่อยสคริปต์ยิ่งใหญ่ — ไม่ต้องหยุดสคริปต์ทั้งไฟล์เพื่อทดสอบกลุ่มเดียว
+
+### 🐛 แก้บั๊กแฝง v2.10 — dry-run เขียน [STEP] ลง log
+- **เดิมโหมด Dry-run เขียนแถวเป็น [STEP] ลง macro_log เหมือนเล่นจริง** — log ปนรายการที่ไม่เคย
+  เกิดจริง ทำ ⏱ ไทม์ไลน์ + 📊 Stats นับเพี้ยน — ตอนนี้โหมด DRY ไม่เขียน STEP (เหตุการณ์เดินจริง
+  อยู่ใน dry-report ตามดีไซน์ v2.10 แล้ว)
+
+### 📚 เอกสาร + เทสต์
+- **ตัวอย่างใหม่ `examples/18_group_order.json`** — สคริปต์ 3 กลุ่ม Beep ล้วน (เตรียม/งานหลัก/ล้าง)
+  กลาง platform: รันผ่าน `--validate`, เล่นจริง, `--only-section "เตรียม,ล้าง"` และ
+  `--shuffle-groups` ทดสอบจริงทุกคำสั่ง
+- **เทสต์เพิ่ม 12 ตัว** (TestGroupPlayOrder 10 — engine select_groups/shuffle_group_order +
+  CLI only-section รูปแบบเดียว/comma/ไม่พบ, TestGroupPlayOrderGui 2 — GUI สุ่มกลุ่ม 2 รอบ
+  ก้อนครบ + dry-run กลุ่มไม่แตะเมาส์) · เทสต์ conf เดิม 3 ตัวเพิ่มคีย์ `shuffle_groups`
+  (บทเรียน v2.11: fixture MagicMock ต้อง set attr ที่โค้ดใหม่อ่านใน fixture เอง)
+  → **568 unit + 20 E2E = 588**
+- **ดีไซน์ OR (`||`)** ลง `docs/DESIGN-nested-if.md` (ข้อเสนอ: แตก `||` เป็นชิ้นย่อยแล้ว AND
+  ภายในชิ้น — กติกา skip/validate/.ahk/สีแถว/โทเคน `>ชื่อ` ครบ) — **ระดมโหวตที่
+  [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9)** ก่อนลงมือ
+- LANDING.html อัพเดตฟีเจอร์ v2.17.x + v2.18 · ROADMAP ติ๊กข้อ 2/3 ของแผน v2.18
+
 ## [2.17.1] — 2026-10-07
 
 ### 🔊 Beep ตั้งค่าได้ (ปิด [Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) — milestone v2.17)

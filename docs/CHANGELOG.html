@@ -65,8 +65,49 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.17.1</h2>
+      <h2>เวอร์ชัน 2.18.0</h2>
       <span class="tag latest">ล่าสุด</span>
+      <span class="date">8 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🎲 ลำดับการเล่นระดับกลุ่ม (ปิด <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10">Issue #10</a> — milestone v2.18)</h3>
+    <ul>
+      <li><b>สุ่มลำดับกลุ่มหัวข้อ</b> — GUI: checkbox <b>"สุ่มลำดับกลุ่ม"</b> ข้าง ๆ สุ่มลำดับเดิม
+        (จำลง conf + Export/Import) · CLI: <code>--shuffle-groups</code> — สลับ<b>ก้อนกลุ่มทั้งก้อน</b>
+        (หัวข้อ+แถวสมาชิกเดินตามกัน) แถวภายในกลุ่มเรียงเดิมเสมอ · เปิดสองโหมดพร้อมกันไม่ได้
+        (สุ่มกลุ่มชนะ)</li>
+      <li><b>engine แหล่งเดียว:</b> <code>select_groups</code> + <code>shuffle_group_order</code>
+        (ก้อนนำหน้าก่อนหัวข้อแรก = ก้อนเดี่ยว, ไม่แก้ลิสต์เดิม) · <code>--only-section</code>
+        รับ<b>หลายกลุ่มคั่น comma</b> เช่น <code>--only-section "เตรียม,ล้าง"</code> — ชื่อเดียว =
+        พฤติกรรมเดิมเป๊ะ, ไม่พบ = เตือนแล้วเล่นทั้งหมด</li>
+      <li>ไฮไลต์แถวระหว่างเล่นถูกต้องแม้กลุ่มถูกสลับ (จับคู่ด้วย <code>id()</code>)</li>
+    </ul>
+    <h3>🧪 Dry-run ระดับกลุ่ม (ปิด <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/11">Issue #11</a>)</h3>
+    <ul>
+      <li><b>คลิกขวาหัวข้อ Section → "🧪 Dry-run กลุ่มนี้"</b> — ซ้อมเดินเฉพาะกลุ่ม: เงื่อนไข/ตัวแปร/
+        บล็อกเดินจริง แถวเมาส์/คีย์/คลิปบอร์ดถูกแทนด้วย "DRY-RUN: จะ…" — ไม่แตะเมาส์/คีย์จริง
+        (โลจิก dry-run v2.10 ครบ) · ป้ายแหล่งที่มา "Dry-run กลุ่ม: ชื่อ" ใน statusbar/log</li>
+    </ul>
+    <h3>🐛 แก้บั๊กแฝง v2.10 — dry-run เขียน [STEP] ลง log</h3>
+    <ul>
+      <li><b>เดิมโหมด Dry-run เขียนแถวเป็น [STEP] ลง macro_log เหมือนเล่นจริง</b> — log ปนรายการ
+        ที่ไม่เคยเกิดจริง ทำ ⏱ ไทม์ไลน์ + 📊 Stats นับเพี้ยน — ตอนนี้โหมด DRY ไม่เขียน STEP
+        (เหตุการณ์อยู่ใน dry-report ตามดีไซน์ v2.10)</li>
+    </ul>
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>ตัวอย่างใหม่ <code>examples/18_group_order.json</code></b> — 3 กลุ่ม Beep ล้วน
+        (เตรียม/งานหลัก/ล้าง) กลาง platform — ทดสอบจริง validate/เล่น/only-section comma/shuffle-groups</li>
+      <li><b>เทสต์เพิ่ม 12 ตัว</b> (TestGroupPlayOrder 10 + TestGroupPlayOrderGui 2) →
+        <b>568 unit + 20 E2E = 588</b></li>
+      <li><b>ดีไซน์ OR (<code>||</code>)</b> ลง docs/DESIGN-nested-if.md — ระดมโหวตที่
+        <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9">Issue #9</a> ก่อนลงมือ ·
+        LANDING.html อัพเดต v2.17.x + v2.18 · ROADMAP ติ๊กข้อ 2/3</li>
+    </ul>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.17.1</h2>
       <span class="date">7 ตุลาคม 2026</span>
     </div>
 

@@ -3,6 +3,52 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.18.0] — 2026-10-08
+
+### 🎲 Group-level play order (closes [Issue #10](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10) — milestone v2.18)
+- **Shuffle the order of section groups** — GUI: a **"Shuffle groups"** checkbox next to the
+  existing row shuffle (remembered in conf, included in settings Export/Import) · CLI:
+  `--shuffle-groups` — the program shuffles **whole group chunks** (header + member rows move
+  together); rows inside a group keep their order — great for guessing games / randomized daily
+  routines without rewriting the script · enabling both shuffles at once is not allowed
+  (group shuffle wins)
+- **Single engine source:** `select_groups(rows, names)` (pick groups by section name —
+  duplicate names select every match, no names = all groups, input list is never mutated) +
+  `shuffle_group_order(items)` (shuffles chunks while keeping each group intact — the leading
+  chunk before the first header is its own chunk; uses module-level `random.shuffle` so tests
+  can patch it easily) · `--only-section` used to accept a single name — now it **accepts
+  several comma-separated groups**, e.g. `--only-section "Prep,Cleanup"` (a single name keeps
+  the old behavior exactly; no group found = warn and play everything)
+- Row highlighting stays correct while groups are shuffled (matched via `id()`, not position)
+
+### 🧪 Group-level Dry-run (closes [Issue #11](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/11))
+- **Right-click a section header → "🧪 Dry-run this group"** — rehearse just that group:
+  conditions/variables/blocks actually run while mouse/keyboard/clipboard rows are replaced with
+  "DRY-RUN: would…" — nothing touches your mouse or keys (all v2.10 dry-run logic — skip counts,
+  variables, conditions are computed for real) · results go to the same log as a normal dry-run
+  with the source label "Dry-run group: name"
+- Rehearse group by group before releasing a huge script — no need to dry-run the entire file
+
+### 🐛 Latent v2.10 bug — dry-run wrote [STEP] lines to the log
+- **Dry-run used to write [STEP] rows into macro_log just like real plays** — the log mixed in
+  events that never happened, skewing ⏱ Timeline and 📊 Stats — DRY mode now writes no STEP
+  lines (the walk itself already lives in the dry report, as v2.10 designed)
+
+### 📚 Docs + tests
+- **New example `examples/18_group_order.json`** — 3 Beep-only groups (Prep / Main / Cleanup),
+  platform-neutral: passes `--validate`, plays for real, and is exercised with
+  `--only-section "เตรียม,ล้าง"` and `--shuffle-groups`
+- **12 new tests** (TestGroupPlayOrder 10 — engine select_groups/shuffle_group_order + CLI
+  single-name/comma/not-found, TestGroupPlayOrderGui 2 — GUI group shuffle keeps chunks over 2
+  rounds + group dry-run never touches the mouse) · 3 existing conf tests gained the
+  `shuffle_groups` key (v2.11 lesson: a MagicMock fixture must set attrs the new code reads)
+  → **568 unit + 20 E2E = 588**
+- **OR (`||`) design** added to `docs/DESIGN-nested-if.md` (proposal: split `||` into sub-pieces
+  then AND inside each — skip rules/validate/.ahk/row colors/`>name` tokens covered) —
+  **collecting votes on [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9)**
+  before implementing
+- LANDING.html updated with v2.17.x + v2.18 features · ROADMAP ticks items 2/3 of the v2.18 plan
+
 ## [2.17.1] — 2026-10-07
 
 ### 🔊 Configurable Beep (closes [Issue #8](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/8) — milestone v2.17)

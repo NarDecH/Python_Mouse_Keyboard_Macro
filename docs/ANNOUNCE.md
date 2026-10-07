@@ -204,6 +204,22 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 
 ---
 
+## 🆕 ข่าวเวอร์ชัน v2.18 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🎲 v2.18 — ลำดับการเล่นระดับกลุ่ม + ซ้อมเล่นเฉพาะกลุ่ม
+
+• สุ่มลำดับ "กลุ่มหัวข้อ" ทั้งก้อน (แถวภายในกลุ่มเรียงเดิมเสมอ)
+  — GUI: ติ๊ก "สุ่มลำดับกลุ่ม" · CLI: --shuffle-groups
+• --only-section รับหลายกลุ่มคั่น comma เช่น --only-section "เตรียม,ล้าง"
+• คลิกขวาหัวข้อ → 🧪 Dry-run กลุ่มนี้ — ซ้อมเดินเฉพาะกลุ่ม ไม่แตะเมาส์/คีย์จริง
+• ตัวอย่างใหม่ examples/18 ลองได้ทันที
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
+---
+
 ## 💡 เคล็ดลับตอนโพสต์
 
 - แนบ `screenshot.png` หรือเปิด [LANDING.html](LANDING.html) เป็นลิงก์หลัก (สวย อ่านง่าย มี CTA)

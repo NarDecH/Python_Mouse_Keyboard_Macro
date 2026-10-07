@@ -2172,6 +2172,7 @@ class TestPersistSettings(unittest.TestCase):
         app.chk_forever.get.return_value = True
         app.chk_restore.get.return_value = False
         app.chk_shuffle.get.return_value = True
+        app.chk_shuffle_groups.get.return_value = True   # v2.18: คีย์ shuffle_groups ใน conf
         app.ent_pct.get.return_value = "50"
         app._play_options = lambda: 50          # อ่านค่าจาก widget จำลอง
         app._time_limit_enabled = True          # v2.4: keys ใหม่ใน conf
@@ -2193,6 +2194,7 @@ class TestPersistSettings(unittest.TestCase):
                 # v2.7: คีย์เดียว "sched" เป็น dict (แทน sched_mode/every/at/profile แยก)
                 self.assertEqual(data["sched"]["mode"], "interval")
                 self.assertEqual(data["sched"]["every"], 15)
+                self.assertTrue(data["shuffle_groups"])   # v2.18: บันทึกค่าสุ่มกลุ่มลง conf ด้วย
                 # โหลดกลับเข้าเครื่องจำลอง
                 app2 = mock.MagicMock()
                 app2._serialize.return_value = []
@@ -4332,6 +4334,7 @@ class TestSafetyTimeout(unittest.TestCase):
         app.chk_forever.get.return_value = False
         app.chk_restore.get.return_value = False
         app.chk_shuffle.get.return_value = False
+        app.chk_shuffle_groups.get.return_value = False  # v2.18: _save_conf อ่าน var นี้
         app._play_options = lambda: 100
         am.MacroApp._settings_save(app, mock.MagicMock())   # win = หน้าต่างจำลอง
         self.assertTrue(app._time_limit_enabled)
@@ -4362,6 +4365,7 @@ class TestSafetyTimeout(unittest.TestCase):
         app.chk_forever.get.return_value = False
         app.chk_restore.get.return_value = False
         app.chk_shuffle.get.return_value = False
+        app.chk_shuffle_groups.get.return_value = False  # v2.18: _save_conf อ่าน var นี้
         app._play_options = lambda: 100
         app._sched = {"mode": "off", "every": 10, "times": [], "profile": ""}   # v2.7: dict เดียว
         with tempfile.TemporaryDirectory() as d:
@@ -5167,6 +5171,7 @@ class TestSchedMulti(unittest.TestCase):
         app.chk_forever.get.return_value = False
         app.chk_restore.get.return_value = False
         app.chk_shuffle.get.return_value = False
+        app.chk_shuffle_groups.get.return_value = False  # v2.18: _save_conf อ่าน var นี้
         app.ent_pct.get.return_value = "100"
         app._play_options = lambda: 100
         app._time_limit_enabled = False
@@ -7831,6 +7836,220 @@ class TestBeepSettings(unittest.TestCase):
             self.assertTrue(t.startswith("DRY-RUN: จะส่งเสียง"), t)
         self.assertEqual(self.ws.calls, [])                  # dry-run ไม่มีเสียงจริง
         self.assertEqual(got["beeps"], [])
+
+
+class TestGroupPlayOrder(unittest.TestCase):
+    """v2.18 (Issue #10): ลำดับการเล่นระดับกลุ่ม — select_groups (เลือกหลายกลุ่ม) +
+    shuffle_group_order (สุ่มลำดับก้อน แถวในก้อนคงเดิม) + CLI --only-section รับ comma +
+    --shuffle-groups · กติกาเหล็ก: ไม่ใส่ flag/ชื่อ = เล่นผลเดิม 100%"""
+
+    ROWS = [
+        {"enabled": True, "button": "Beep", "additional": "P1", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "เตรียม"},
+        {"enabled": True, "button": "Beep", "additional": "A1", "secs": 0},
+        {"enabled": True, "button": "Beep", "additional": "A2", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "งาน"},
+        {"enabled": True, "button": "Beep", "additional": "B1", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "ล้าง"},
+        {"enabled": True, "button": "Beep", "additional": "C1", "secs": 0},
+        {"enabled": True, "button": am.SECTION_HEADER, "additional": "งาน"},
+        {"enabled": True, "button": "Beep", "additional": "B2", "secs": 0},
+    ]
+
+    @staticmethod
+    def _seq(rows):
+        return [r.get("additional") for r in rows
+                if r.get("button") != am.SECTION_HEADER]
+
+    def test_select_groups_single_and_multi(self):
+        rows = [dict(r) for r in self.ROWS]
+        self.assertEqual(self._seq(me_mod.select_groups(rows, ["เตรียม"])), ["A1", "A2"])
+        self.assertTrue(all(r["button"] != am.SECTION_HEADER
+                            for r in me_mod.select_groups(rows, ["เตรียม"])))
+        self.assertEqual(self._seq(me_mod.select_groups(rows, ["เตรียม", "ล้าง"])),
+                         ["A1", "A2", "C1"])          # เล่นต่อกันตามลำดับตาราง
+
+    def test_select_groups_duplicate_name_all_matches(self):
+        rows = [dict(r) for r in self.ROWS]
+        self.assertEqual(self._seq(me_mod.select_groups(rows, ["งาน"])), ["B1", "B2"])
+
+    def test_select_groups_edge_cases(self):
+        rows = [dict(r) for r in self.ROWS]
+        self.assertEqual(me_mod.select_groups(rows, ["ไม่มีจริง"]), [])
+        self.assertEqual(self._seq(me_mod.select_groups(rows, None)),
+                         ["P1", "A1", "A2", "B1", "C1", "B2"])   # ไม่ระบุ = ทั้งสคริปต์
+        self.assertEqual(me_mod.select_groups([{"button": "Beep", "additional": "x"}],
+                                             ["A"]), [])
+        self.assertEqual(me_mod.select_groups([], ["A"]), [])
+
+    def test_select_groups_does_not_mutate(self):
+        rows = [dict(r) for r in self.ROWS]
+        snap = [dict(r) for r in rows]
+        me_mod.select_groups(rows, ["งาน"])
+        self.assertEqual(rows, snap)
+
+    def test_shuffle_group_order_keeps_group_integrity(self):
+        rows = [dict(r) for r in self.ROWS[1:]]          # 4 ก้อน: เตรียม/งาน/ล้าง/งาน(ท้าย)
+
+        class _R:
+            def __init__(self, perm):
+                self.perm = list(perm)
+
+            def shuffle(self, lst):
+                lst[:] = [lst[i] for i in self.perm.pop(0)]
+
+        out = me_mod.shuffle_group_order(rows, rng=_R([[2, 0, 3, 1]]))
+        self.assertEqual(self._seq(out), ["C1", "A1", "A2", "B2", "B1"])   # ก้อนสลับ ข้างในคงเดิม
+        self.assertEqual(me_mod.shuffle_group_order(rows, rng=_R([[0, 1, 2, 3]])), rows)
+
+    def test_shuffle_group_order_leading_chunk_and_empty(self):
+        class _R:
+            def __init__(self, perm):
+                self.perm = list(perm)
+
+            def shuffle(self, lst):
+                lst[:] = [lst[i] for i in self.perm.pop(0)]
+
+        head = [{"button": "Beep", "additional": "P"},
+                {"button": am.SECTION_HEADER, "additional": "A"},
+                {"button": "Beep", "additional": "A1"}]
+        out = me_mod.shuffle_group_order(head, rng=_R([[1, 0]]))
+        self.assertEqual([r["additional"] for r in out], ["A", "A1", "P"])  # แถวก่อนหัวข้อ = ก้อนหัว
+        self.assertEqual(me_mod.shuffle_group_order([]), [])
+
+    def test_shuffle_group_order_does_not_mutate(self):
+        rows = [dict(r) for r in self.ROWS]
+        snap = [dict(r) for r in rows]
+        me_mod.shuffle_group_order(rows)
+        self.assertEqual(rows, snap)
+
+    # ---------------- CLI ----------------
+    def _write_script(self, tmp):
+        path = os.path.join(tmp, "g.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(self.ROWS, fh, ensure_ascii=False)
+        return path
+
+    def test_cli_only_section_multi_names(self):
+        tmp = tempfile.mkdtemp(prefix="grporder_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = self._write_script(tmp)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path, "--loops", "1", "--no-log",
+                              "--only-section", "เตรียม,งาน"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertIn("เล่นกลุ่ม", outp)
+        for tag in ("A1", "A2", "B1", "B2"):
+            self.assertIn(tag, outp)
+        self.assertNotIn("C1", outp)                    # กลุ่มที่ไม่เลือกไม่เล่น
+
+    def test_cli_only_section_single_name_same_as_before(self):
+        tmp = tempfile.mkdtemp(prefix="grporder_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = self._write_script(tmp)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path, "--loops", "1", "--no-log",
+                              "--only-section", "เตรียม"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertIn("A1", outp)
+        self.assertNotIn("B1", outp)
+        self.assertNotIn("C1", outp)
+
+    def test_cli_only_section_not_found_warns_and_plays_all(self):
+        tmp = tempfile.mkdtemp(prefix="grporder_")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = self._write_script(tmp)
+        out = io.StringIO()
+        with mock.patch.object(am.sys, "stdout", out):
+            rc = am.cli_main([path, "--loops", "1", "--no-log",
+                              "--only-section", "ไม่มีจริง"])
+        self.assertEqual(rc, 0)
+        outp = out.getvalue()
+        self.assertIn("ไม่พบหัวข้อชื่อ", outp)
+        for tag in ("A1", "B1", "C1"):
+            self.assertIn(tag, outp)                     # เล่นทั้งหมดเหมือนเดิม
+
+
+class TestGroupPlayOrderGui(_GuiPlayBase):
+    """v2.18 (Issue #10/#11): GUI — checkbox "สุ่มกลุ่ม" สุ่มลำดับก้อนเล่นจริงทุกรอบ
+    (คุมด้วย rng เดิมของ pick_play_order — กันแบบสุ่มจริงทำเทสต์เปราะ) +
+    คลิกขวาหัวข้อ → Dry-run กลุ่มนี้ (player จริง แถว input ถูกรายงานแทน)"""
+
+    def test_gui_shuffle_groups_rounds_keep_chunks(self):
+        app = self.app
+        app._load_rows([dict(r) for r in TestGroupPlayOrder.ROWS])
+        app.ent_loops.delete(0, "end")
+        app.ent_loops.insert(0, "2")
+        app.chk_shuffle_groups.set(True)
+        self.addCleanup(app.chk_shuffle_groups.set, False)
+        app.chk_shuffle.set(False)
+        app.ent_pct.delete(0, "end")
+        app.ent_pct.insert(0, "100")
+        calls = []
+        self.addCleanup(setattr, app, "_shuffle_groups", False)
+
+        class _R:
+            def __init__(self, perms):
+                self.perms = list(perms)
+
+            def shuffle(self, lst):
+                lst[:] = [lst[i] for i in self.perms.pop(0)]
+
+        # สุ่มแบบกำหนดได้: จับ random.shuffle ระดับ module ที่ shuffle_group_order ใช้จริง —
+        # รอบแรกกลับลำดับก้อน (reverse) · รอบสอง identity — ต่างกันแน่นอน
+        # และทุกก้อนยังครบทุกแถวในลำดับเดิมของก้อน
+        acts = ["rev", "same"]
+        calls = {"n": 0}
+
+        def _det_shuffle(lst):
+            a = acts[min(calls["n"], len(acts) - 1)]
+            calls["n"] += 1
+            if a == "rev":
+                lst.reverse()
+
+        self._r2_patch = mock.patch.object(am.random, "shuffle", side_effect=_det_shuffle)
+        self._r2_patch.start()
+        self.addCleanup(self._r2_patch.stop)
+        app._start_player(False)
+        self.assertTrue(self._wait_done())
+        beeps = [s for s in self.steps if "Beep" in s]
+        self.assertEqual(len(beeps), 12, beeps)          # 2 รอบ × 6 แถว Beep (หัวข้อไม่ถูกเล่น)
+        tags1 = [next(t for t in ("P1", "A1", "A2", "B1", "B2", "C1") if t in s)
+                 for s in beeps[:6]]
+        tags2 = [next(t for t in ("P1", "A1", "A2", "B1", "B2", "C1") if t in s)
+                 for s in beeps[6:]]
+        self.assertEqual(tags1, ["B2", "C1", "B1", "A1", "A2", "P1"])  # ก้อนกลับลำดับ
+        self.assertEqual(tags2, ["P1", "A1", "A2", "B1", "C1", "B2"])  # รอบสองลำดับเดิม
+        self.assertNotEqual(tags1, tags2)                # สุ่มกลุ่มเปลี่ยนลำดับจริงทุกรอบ
+        for tags in (tags1, tags2):                      # ก้อนเตรียม (A1→A2) ติดกันทุกรอบ
+            self.assertLess(tags.index("A1"), tags.index("A2"))
+            self.assertEqual(tags.index("A2"), tags.index("A1") + 1)
+
+    def test_gui_dry_run_group_reports_not_injects(self):
+        app = self.app
+        app._load_rows([dict(r) for r in TestGroupPlayOrder.ROWS])
+        kids = list(app.tree.get_children())
+        msgs = []
+        self._dry_patch = mock.patch.object(
+            app._ui_state, "__setitem__",
+            side_effect=lambda k, v: msgs.append(v) if k == "msg" and isinstance(v, tuple)
+            else dict.__setitem__(app._ui_state, k, v))
+        # เก็บข้อความ DRY-RUN จาก runner โดยตรง (on_message ผูก _ui_state["msg"])
+        orig = app._action_runner.on_message
+        caught = []
+        app._action_runner.on_message = lambda t, c="#080": (caught.append(t),
+                                                             orig(t, c))[1]
+        app._play_section(kids[4], dry=True)             # กลุ่ม "งาน"
+        self.assertTrue(app.running)
+        self.assertTrue(self._wait_done())
+        self.assertTrue(caught, "dry-run กลุ่มต้องมีข้อความรายงาน")
+        self.assertTrue(all(t.startswith("DRY-RUN:") for t in caught), caught)
+        # แถว Beep เป็น input จริง — ต้องถูก "รายงาน" ไม่เล่นจริง → log ไม่มี [STEP] Beep
+        self.assertFalse(any("Beep" in s for s in self.steps), self.steps)
 
 
 if __name__ == "__main__":

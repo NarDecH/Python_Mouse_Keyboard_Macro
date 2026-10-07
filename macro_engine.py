@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.17.1"
+__version__ = "2.18.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -275,6 +275,49 @@ _DRY_VERB = {"Left Click": "คลิก", "Right Click": "คลิก", "Middl
              "Type Text": "พิมพ์", "Launch App": "เปิด", "Beep": "ส่งเสียง",
              "Set Clipboard": "ตั้งคลิปบอร์ด", "Read Clipboard": "อ่านคลิปบอร์ด",
              "Move Mouse": "ย้ายเมาส์", "Save Cursor": "จำตำแหน่งเมาส์"}
+
+# --------------------------------------- ลำดับการเล่นระดับกลุ่ม (v2.18) ----
+def select_groups(rows, names=None):
+    """เลือกแถวของกลุ่มหัวข้อที่ระบุ (v2.18 — Issue #10) — จัดแบบ --only-section เดิม
+    names = ชื่อหัวข้อหลายชื่อ เช่น ["เตรียม", "งาน"] — แต่ละกลุ่ม = หัวข้อถึงก่อนหัวข้อถัดไป (ขอบเขตเดิม)
+    ชื่อซ้ำหลายกลุ่ม = เอาทุกกลุ่มที่ชื่อตรง · ชื่อไม่พบ = ข้ามโดยไม่มีผล · ไม่ระบุชื่อใดเลย =
+    คืนแถวที่ไม่ใช่หัวข้อทั้งหมด (เหมือนเล่นทั้งสคริปต์)
+    คืนเฉพาะ "แถวสมาชิก" (ตัดหัวข้อออก — หัวข้อไม่ทำอะไรตอนเล่นอยู่แล้ว) เรียงตามลำดับตาราง —
+    คืนแถวใหม่ ไม่แก้ลิสต์เดิม"""
+    wanted = set(str(n or "").strip() for n in (names or []) if str(n or "").strip())
+    if not wanted:
+        return [r for r in rows if str(r.get("button")) != SECTION_HEADER]
+    out = []
+    in_group = False
+    for r in rows:
+        if str(r.get("button")) == SECTION_HEADER:
+            in_group = str(r.get("additional") or "").strip() in wanted
+            continue                        # หัวข้อไม่เล่น — ใช้แค่เปิด/ปิดขอบเขตกลุ่ม
+        if in_group:
+            out.append(r)
+    return out
+
+
+def shuffle_group_order(items, rng=None):
+    """สุ่มลำดับ "กลุ่มหัวข้อ" (v2.18 — Issue #10) — ต่างจาก pick_play_order(shuffle=True)
+    ที่สุ่มแถวลอย ๆ: แยก items เป็นก้อน (หัวข้อ + สมาชิกจนถึงหัวข้อถัดไป) แล้วสุ่มลำดับก้อน —
+    แถวก่อนหัวข้อแรก = ก้อนหัว (สุ่มรวมไปด้วย) · ลำดับแถวในก้อนคงเดิมเสมอ
+    เหมาะกับงานหลักที่จัดเป็นกลุ่มแล้วต้องการสลับ "ท่อนการเล่น" ไม่ใช่แถวเดี่ยว
+    คืนแถวใหม่ เรียกซ้ำทุกรอบได้ (สุ่มใหม่ทุกรอบ) — ไม่แก้ลิสต์เดิม"""
+    if not items:
+        return []
+    r = rng if rng is not None else random
+    groups, cur = [], []
+    for it in items:
+        if str(it.get("button")) == SECTION_HEADER and cur:
+            groups.append(cur)
+            cur = [it]
+        else:
+            cur.append(it)
+    if cur:
+        groups.append(cur)
+    r.shuffle(groups)
+    return [it for g in groups for it in g]
 BLOCK_MAX_DEPTH = 8          # v2.6: จำกัดความลึกบล็อกซ้อน (กันสคริปต์ผิดโครงสร้าง)
 BLOCK_MAX_ROUNDS = 1000      # v2.6: ลูปย่อยไม่ใส่ max = วนได้สูงสุดเท่านี้ (กันอนันต์)
 

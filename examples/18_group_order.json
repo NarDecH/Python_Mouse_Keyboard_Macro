@@ -1,0 +1,22 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "เตรียม — ลำดับเดิมที่ 1",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่มเตรียม: เสียงที่ 1",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่มเตรียม: เสียงที่ 2",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "งานหลัก — ลำดับเดิมที่ 2",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่มงานหลัก: เสียงที่ 1",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่มงานหลัก: เสียงที่ 2",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่มงานหลัก: เสียงที่ 3",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "ล้าง — ลำดับเดิมที่ 3",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "กลุ่มล้าง: จบการเดโม่",
+   "mins": 0, "secs": 0, "repeat": 1}
+]

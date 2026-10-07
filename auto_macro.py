@@ -121,7 +121,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.17.1"
+__version__ = "2.18.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -367,6 +367,49 @@ _DRY_VERB = {"Left Click": "คลิก", "Right Click": "คลิก", "Middl
              "Type Text": "พิมพ์", "Launch App": "เปิด", "Beep": "ส่งเสียง",
              "Set Clipboard": "ตั้งคลิปบอร์ด", "Read Clipboard": "อ่านคลิปบอร์ด",
              "Move Mouse": "ย้ายเมาส์", "Save Cursor": "จำตำแหน่งเมาส์"}
+
+# --------------------------------------- ลำดับการเล่นระดับกลุ่ม (v2.18) ----
+def select_groups(rows, names=None):
+    """เลือกแถวของกลุ่มหัวข้อที่ระบุ (v2.18 — Issue #10) — จัดแบบ --only-section เดิม
+    names = ชื่อหัวข้อหลายชื่อ เช่น ["เตรียม", "งาน"] — แต่ละกลุ่ม = หัวข้อถึงก่อนหัวข้อถัดไป (ขอบเขตเดิม)
+    ชื่อซ้ำหลายกลุ่ม = เอาทุกกลุ่มที่ชื่อตรง · ชื่อไม่พบ = ข้ามโดยไม่มีผล · ไม่ระบุชื่อใดเลย =
+    คืนแถวที่ไม่ใช่หัวข้อทั้งหมด (เหมือนเล่นทั้งสคริปต์)
+    คืนเฉพาะ "แถวสมาชิก" (ตัดหัวข้อออก — หัวข้อไม่ทำอะไรตอนเล่นอยู่แล้ว) เรียงตามลำดับตาราง —
+    คืนแถวใหม่ ไม่แก้ลิสต์เดิม"""
+    wanted = set(str(n or "").strip() for n in (names or []) if str(n or "").strip())
+    if not wanted:
+        return [r for r in rows if str(r.get("button")) != SECTION_HEADER]
+    out = []
+    in_group = False
+    for r in rows:
+        if str(r.get("button")) == SECTION_HEADER:
+            in_group = str(r.get("additional") or "").strip() in wanted
+            continue                        # หัวข้อไม่เล่น — ใช้แค่เปิด/ปิดขอบเขตกลุ่ม
+        if in_group:
+            out.append(r)
+    return out
+
+
+def shuffle_group_order(items, rng=None):
+    """สุ่มลำดับ "กลุ่มหัวข้อ" (v2.18 — Issue #10) — ต่างจาก pick_play_order(shuffle=True)
+    ที่สุ่มแถวลอย ๆ: แยก items เป็นก้อน (หัวข้อ + สมาชิกจนถึงหัวข้อถัดไป) แล้วสุ่มลำดับก้อน —
+    แถวก่อนหัวข้อแรก = ก้อนหัว (สุ่มรวมไปด้วย) · ลำดับแถวในก้อนคงเดิมเสมอ
+    เหมาะกับงานหลักที่จัดเป็นกลุ่มแล้วต้องการสลับ "ท่อนการเล่น" ไม่ใช่แถวเดี่ยว
+    คืนแถวใหม่ เรียกซ้ำทุกรอบได้ (สุ่มใหม่ทุกรอบ) — ไม่แก้ลิสต์เดิม"""
+    if not items:
+        return []
+    r = rng if rng is not None else random
+    groups, cur = [], []
+    for it in items:
+        if str(it.get("button")) == SECTION_HEADER and cur:
+            groups.append(cur)
+            cur = [it]
+        else:
+            cur.append(it)
+    if cur:
+        groups.append(cur)
+    r.shuffle(groups)
+    return [it for g in groups for it in g]
 BLOCK_MAX_DEPTH = 8          # v2.6: จำกัดความลึกบล็อกซ้อน (กันสคริปต์ผิดโครงสร้าง)
 BLOCK_MAX_ROUNDS = 1000      # v2.6: ลูปย่อยไม่ใส่ max = วนได้สูงสุดเท่านี้ (กันอนันต์)
 
@@ -4057,6 +4100,10 @@ class MacroApp:
         self.chk_shuffle_btn = tk.Checkbutton(bot, text=self._t("shuffle"),
                                               variable=self.chk_shuffle)
         self.chk_shuffle_btn.pack(side="left", padx=6)
+        self.chk_shuffle_groups = tk.BooleanVar(value=False)          # v2.18: สุ่มลำดับกลุ่ม (Issue #10)
+        self.chk_shuffle_groups_btn = tk.Checkbutton(bot, text=self._t("shuffle_groups"),
+                                                     variable=self.chk_shuffle_groups)
+        self.chk_shuffle_groups_btn.pack(side="left", padx=6)
         self.lbl_pct = tk.Label(bot, text=self._t("pct"))
         self.lbl_pct.pack(side="left", padx=(10, 2))
         self.ent_pct = tk.Spinbox(bot, from_=5, to=100, increment=5, width=5)
@@ -4709,6 +4756,8 @@ class MacroApp:
             if str(self.tree.item(iid, "values")[4]) == SECTION_HEADER:
                 menu.add_command(label=self._t("ctx_play_group"),      # v2.15: เล่นกลุ่มนี้อย่างเดียว
                                  command=lambda: self._play_section(iid))
+                menu.add_command(label=self._t("ctx_dry_group"),       # v2.18: Dry-run เฉพาะกลุ่ม (Issue #11)
+                                 command=lambda: self._play_section(iid, dry=True))
                 menu.add_command(label=self._t("ctx_group_up"),        # v2.15.1: ย้ายกลุ่มทั้งก้อน (Group order)
                                  command=lambda: self._move_section_group(iid, -1))
                 menu.add_command(label=self._t("ctx_group_down"),
@@ -5225,11 +5274,12 @@ class MacroApp:
                 return i, j - 1
         return None, None
 
-    def _play_section(self, head_iid):
+    def _play_section(self, head_iid, dry=False):
         """v2.15: เล่นกลุ่มหัวข้อนี้อย่างเดียว — หัวข้อถัดไป/จบตารางคือขอบเขต
         เล่นเฉพาะแถว ☑ ในกลุ่ม (หัวข้อไม่เล่นอยู่แล้ว) · แถวย่อใน stash ถูกเลือกรวมด้วย
         (สัญญาเดิม: ย่อแล้วเล่นได้) · ตรวจแล้วเล่นผ่าน _start_player_inner(items=) —
-        สายเดียวกับเล่นทั้งหมด: validate/STOP/เลขรอบ/คิวเหมือนเดิมทุกอย่าง"""
+        สายเดียวกับเล่นทั้งหมด: validate/STOP/เลขรอบ/คิวเหมือนเดิมทุกอย่าง
+        v2.18: dry=True = Dry-run เฉพาะกลุ่มนี้ (Issue #11) — กลไกเดียวกัน ไม่แตะเมาส์/คีย์"""
         kids = list(self.tree.get_children())
         a, b = self._section_range(head_iid)
         if a is None:
@@ -5249,7 +5299,8 @@ class MacroApp:
         if not items:
             self._ui_state["msg"] = (self._t("grp_empty"), "#a60")
             return
-        self._start_player_inner(False, items=items, src_name="กลุ่ม: %s" % name)
+        self._start_player_inner(False, dry=dry, items=items,
+                                 src_name=("Dry-run กลุ่ม: %s" if dry else "กลุ่ม: %s") % name)
 
     def _plugin_module(self, name):
         """คืน module ของ plugin ตามชื่อ Action (ไม่พบ = None)"""
@@ -5367,6 +5418,7 @@ class MacroApp:
             loop, self._script_loops = False, 1   # schedule: เล่นรอบเดียวต่อการเรียก
         self._restore_pos = self.chk_restore.get()
         self._shuffle = self.chk_shuffle.get()
+        self._shuffle_groups = self.chk_shuffle_groups.get()
         self._pct = self._play_options()
         self._vars = {}                   # ตัวแปรเริ่มใหม่ทุกครั้งที่เริ่มเล่น (v1.19)
         self._action_runner.variables = self._vars   # v2.1: runner ใช้ dict ใหม่นี้
@@ -5375,7 +5427,8 @@ class MacroApp:
         if src_name:                      # v2.15: เล่นกลุ่มหัวข้อ — log ระบุกลุ่มที่เล่นชัดเจน
             self._log_src = src_name
         if self._log_enabled:
-            extra = " สุ่มลำดับ" if self._shuffle else ""
+            extra = ((" สุ่มลำดับ" if self._shuffle else "")
+                     + (" สุ่มกลุ่ม" if self._shuffle_groups else ""))
             if self._pct < 100:
                 extra += " %d%%" % self._pct
             if dry:
@@ -5481,7 +5534,15 @@ class MacroApp:
             while outer:
                 loop_no += 1
                 # _script_loops: 0 = ไม่จำกัด, 1 = ครั้งเดียว, N = N รอบ
-                play_items = pick_play_order(items, pct=self._pct, shuffle=self._shuffle)
+                # v2.18: สุ่มกลุ่ม (Issue #10) — จัดก้อนสุ่มหลังเลือก % — เมื่อเปิดสุ่มกลุ่ม
+                # จะไม่สุ่มแถวลอยพร้อมกัน (แถวในก้อนต้องคงลำดับเดิม)
+                # items เป็นคู่ (แถว, iid) — สุ่มที่แถวแล้วจับคู่ iid กลับด้วย id ของ dict เดิม
+                play_items = pick_play_order(items, pct=self._pct,
+                                             shuffle=self._shuffle and not self._shuffle_groups)
+                if self._shuffle_groups:
+                    _iid_of = {id(r): iid for r, iid in play_items}
+                    play_items = [(r, _iid_of.get(id(r)))
+                                  for r in shuffle_group_order([r for r, _ in play_items])]
                 block_rounds = {}             # v2.6 (ชุด N2): ตัวนับรอบลูปย่อยรีเซ็ตทุกรอบสคริปต์
                 block_head_add = {}           # v2.6: Additional ของ Block Start ที่แทนค่า {ตัวแปร} แล้ว
                 pi = 0
@@ -5558,7 +5619,9 @@ class MacroApp:
                             if self._execute_condition_row(r, loop_no, i, total, step_t0):
                                 break                   # เงื่อนไขทำงานรอบเดียว (ไม่อ่าน Repeat ซ้ำ)
                         do_step(r)
-                        if self._log_enabled:
+                        # v2.18: โหมด dry-run ไม่เขียน [STEP] ลง log — แถวไม่ได้ทำจริง
+                        # กันสถิติ (📊) นับการซ้อมเป็นของจริง (ร่องรอยจริงอยู่ในไฟล์รายงาน Dry-run)
+                        if self._log_enabled and not dry:
                             log_write("STEP", "รอบ %d แถว %d/%d %s %s (%.1f วิ)" %
                                       (loop_no, i + 1, total, r["button"],
                                        r["additional"] or "", time.time() - step_t0),
@@ -6127,6 +6190,7 @@ class MacroApp:
                     self.chk_forever.set(bool(data.get("forever", False)))
                     self.chk_restore.set(bool(data.get("restore", False)))
                     self.chk_shuffle.set(bool(data.get("shuffle", False)))
+                    self.chk_shuffle_groups.set(bool(data.get("shuffle_groups", False)))
                     try:
                         pc = max(5, min(100, int(data.get("pct", 100))))
                         self.ent_pct.delete(0, "end")
@@ -6191,6 +6255,7 @@ class MacroApp:
                            "forever": self.chk_forever.get(),
                            "restore": self.chk_restore.get(),
                            "shuffle": self.chk_shuffle.get(),
+                           "shuffle_groups": self.chk_shuffle_groups.get(),
                            "pct": self._play_options(),
                            # นัดหมายหลายชุด (v2.7) — dict เดียวแทน sched_mode/every/at/profile เดิม
                            "sched": dict(getattr(self, "_sched", None)
@@ -6545,6 +6610,7 @@ class MacroApp:
         self.chk_forever_btn.config(text=self._t("forever"))
         self.chk_restore_btn.config(text=self._t("restore"))
         self.chk_shuffle_btn.config(text=self._t("shuffle"))
+        self.chk_shuffle_groups_btn.config(text=self._t("shuffle_groups"))
         self.lbl_pct.config(text=self._t("pct"))
         self.lbl_speed.config(text=self._t("speed"))
         self.lbl_loops.config(text=self._t("loops"))
@@ -7263,8 +7329,9 @@ def cli_main(argv):
                     help="แสดงเวอร์ชันโปรแกรมแล้วจบ")
     ap.add_argument("--loop", action="store_true", help="เล่นวนซ้ำไม่จำกัด")
     ap.add_argument("--loops", type=int, default=1, help="จำนวนรอบ (ค่าเริ่มต้น 1; 0=ไม่จำกัด)")
-    ap.add_argument("--only-section", default=None, metavar="ชื่อ",
-                    help="v2.15: เล่นเฉพาะกลุ่มหัวข้อที่ชื่อตรงกัน (กลุ่ม = หัวข้อนี้ถึงก่อนหัวข้อถัดไป)")
+    ap.add_argument("--only-section", default=None, metavar="ชื่อ1,ชื่อ2",
+                    help="v2.15: เล่นเฉพาะกลุ่มหัวข้อ (v2.18: รับหลายชื่อคั่น comma เช่น เตรียม,งาน — "
+                         "เล่นต่อกันตามลำดับในตาราง; ชื่อเดียวเหมือนเดิม)")
     ap.add_argument("--speed", type=float, default=1.0, help="ตัวคูณความเร็ว (ค่าเริ่มต้น 1)")
     ap.add_argument("--no-log", action="store_true",
                     help="ไม่บันทึก log การเล่นลงไฟล์ macro_log_วันที่.txt")
@@ -7276,6 +7343,8 @@ def cli_main(argv):
                     help="ถ้าไฟล์นี้ถูกสร้าง โปรแกรมจะหยุดทันที (ใช้ควบคุมจากภายนอก/ทดสอบ)")
     ap.add_argument("--shuffle", action="store_true",
                     help="สุ่มลำดับแถวทุกรอบ (v1.10)")
+    ap.add_argument("--shuffle-groups", action="store_true",
+                    help="สุ่มลำดับกลุ่มหัวข้อทุกรอบ — ลำดับแถวในกลุ่มคงเดิม (v2.18)")
     ap.add_argument("--rows-pct", type=int, default=100, metavar="5-100",
                     help="เล่นแค่กี่เปอร์เซ็นต์ของแถว — สุ่มเลือกชุดแถวใหม่ทุกรอบ (v1.10)")
     ap.add_argument("--watchdog", nargs="?", const=3.0, default=0.0, type=float,
@@ -7520,29 +7589,25 @@ def cli_main(argv):
             # v2.15: --only-section ชื่อ — เลือกเฉพาะกลุ่มของหัวข้อที่ชื่อตรงกัน (จบที่หัวข้อถัดไป)
             sec = getattr(args, "only_section", None)
             if sec:
-                si, se = None, -1
-                for k, rr in enumerate(rows):
-                    if (rr.get("button") == SECTION_HEADER
-                            and str(rr.get("additional") or "").strip() == sec):
-                        si = k
-                        break
-                if si is None:
+                # v2.18 (Issue #10): รับหลายชื่อคั่น comma — เลือกผ่าน engine select_groups
+                # (กลุ่ม = หัวข้อถึงก่อนหัวข้อถัดไป เหมือนเดิม · ชื่อซ้ำ = ทุกกลุ่มที่ตรง ·
+                #  ไม่มีชื่อใดตรงเลย = เล่นทั้งหมดเหมือนเดิม — คงข้อความเตือนเดิม)
+                sec_names = [p.strip() for p in str(sec).split(",") if p.strip()]
+                found = any(str(rr.get("button")) == SECTION_HEADER
+                            and str(rr.get("additional") or "").strip() in sec_names
+                            for rr in rows)
+                if not found:
                     print("ไม่พบหัวข้อชื่อ '%s' — เล่นทั้งหมด" % sec)
                     active = [r for i, r in enumerate(rows, 1)
                               if r.get("enabled", True) is not False and i not in cli_issue_rows]
                 else:
-                    se = len(rows)
-                    for k in range(si + 1, len(rows)):
-                        if rows[k].get("button") == SECTION_HEADER:
-                            se = k
-                            break
-                    # si+1 > se = หัวข้อว่าง (อยู่ติดกัน) — ก็ต้องไม่เล่นอะไรเหมือนกัน
-                    active = ([r for k, r in enumerate(rows, 1)
-                               if si <= k - 1 < se and k != si + 1
-                               and r.get("enabled", True) is not False
-                               and (k - 1) not in cli_issue_rows]
-                              if si + 1 <= se else [])
-                    print("เล่นกลุ่ม '%s' (แถว %d-%d) — %d แถว" % (sec, si + 1, se, len(active)))
+                    # กรอง disabled/แถวพังก่อน แล้วค่อยเลือกกลุ่มผ่าน engine select_groups
+                    # (แหล่งเดียวกับกลไกเล่นกลุ่ม · ชื่อเดียว = พฤติกรรม v2.15,
+                    #  หลายชื่อ = เล่นต่อกันตามลำดับในตาราง — ลำดับตารางชนะ)
+                    clean = [r for i, r in enumerate(rows, 1)
+                             if r.get("enabled", True) is not False and i not in cli_issue_rows]
+                    active = select_groups(clean, sec_names)
+                    print("เล่นกลุ่ม '%s' — %d แถว" % (sec, len(active)))
             else:
                 active = [r for i, r in enumerate(rows, 1)
                           if r.get("enabled", True) is not False and i not in cli_issue_rows]
@@ -7552,7 +7617,11 @@ def cli_main(argv):
             while True:
                 n_loop += 1
                 sk0 = skipped[0]             # v2.9.1: จุดตั้งต้นนับข้ามของรอบนี้ (สรุปท้ายรอบใช้ delta)
-                play_rows = pick_play_order(active, pct=pct, shuffle=args.shuffle)
+                # v2.18: --shuffle-groups สุ่มลำดับกลุ่ม (Issue #10) — ระหว่างนั้นปิดสุ่มแถวลอย
+                play_rows = pick_play_order(active, pct=pct,
+                                            shuffle=args.shuffle and not args.shuffle_groups)
+                if args.shuffle_groups:
+                    play_rows = shuffle_group_order(play_rows)
                 print("— รอบที่ %d —" % n_loop)
                 block_rounds = {}             # v2.6 (ชุด N2): ตัวนับรอบลูปย่อยรีเซ็ตทุกรอบสคริปต์
                 block_head_add = {}           # v2.6: Additional ของ Block Start ที่แทนค่าแล้ว

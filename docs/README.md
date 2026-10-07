@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.17.1
+# 🖱️ Auto Mouse & Keyboard Macro v2.18.0
 
 <div align="center">
 
@@ -128,6 +128,8 @@ If Image ทางแยก A/B → Wait for Image (สร้างด้วย 
 | 🧩 **เงื่อนไข plugin ชุมชน 3 ตัวใหม่ (v2.17)** | **Disk Space Low** (`D: 2GB` — พื้นที่เหลือน้อย = จริง), **Process CPU** (`chrome 5% 3s` — โปรเซสใช้ CPU เกินเกณฑ์), **Window Closed** (ปิดหน้าต่างเป้าหมายแล้ว = จริง — ตรงข้าม Window Exists) |
 | 📅 **คู่มือ Task Scheduler (v2.17)** | TUTORIAL บทที่ 21: สคริปต์ + 🚀 Launcher + Task Scheduler = งานตั้งเวลาทำงานเอง — หยุดผ่าน `--stop-file` ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงานจริง |
 | 🔊 **Beep ตั้งค่าได้ (v2.17.1)** | Additional ของแถว Beep รับ `freq=1000 dur=200 count=3` (ความถี่ Hz / ระยะ ms / จำนวนครั้ง — ใส่เฉพาะตัวที่ต้องการ) — ไม่ใส่ = เสียงระบบเดิมเหมือนเดิม · Windows เสียงจริงผ่าน winsound, OS อื่น bell · STOP หยุดกลางชุดได้ · .ahk export ตามค่าที่ตั้ง |
+| 🎲 **ลำดับการเล่นระดับกลุ่ม (v2.18)** | สุ่มลำดับกลุ่มหัวข้อทั้งก้อน (checkbox "สุ่มลำดับกลุ่ม" / CLI `--shuffle-groups`) — แถวภายในกลุ่มเรียงเดิมเสมอ · `--only-section` รับหลายกลุ่มคั่น comma (`--only-section "เตรียม,ล้าง"`) |
+| 🧪 **Dry-run ระดับกลุ่ม (v2.18)** | คลิกขวาหัวข้อ Section → "🧪 Dry-run กลุ่มนี้" — ซ้อมเดินเฉพาะกลุ่ม ไม่แตะเมาส์/คีย์จริง (เงื่อนไข/ตัวแปร/บล็อกเดินจริง) + แก้ dry-run เดิมเขียน [STEP] ลง log |
 | 🧩 **เงื่อนไข plugin สำเร็จรูป (v2.14)** | มาให้ 4 ตัว: `File Exists` · `Internet Up` (เช็คเน็ต — `host[:port]` และ/หรือ `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — ใช้เป็น Action หรือ `if ชื่อ [อาร์กิวเมนต์]` ใน Block Start (ผสม `&&` ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI `--dry-report PATH` เลือกไฟล์รายงาน dry-run เอง (`{date}` = วันที่) |
 | 🔌 **Plugin API v3 — เงื่อนไข plugin (v2.13)** | plugin ประกาศ `CONDITION_NAME` + `check(ctx, row) -> bool` ใช้เป็นเงื่อนไขได้ทั้งคอลัมน์ Action และ Block Start/End (`if ชื่อ [อาร์กิวเมนต์]`, ผสม `&&` ได้) — จริง = เล่นต่อ ไม่จริง = ข้าม N แถว (N = Repeat) · validate/dry-run/.ahk รองรับครบ (ดู [PLUGINS.md](PLUGINS.md)) |
 | 🗃️ **เครื่องมือ log (v2.11)** | เมนู 📝 เพิ่มปุ่มเก็บถาวรวันเก่า (ย้ายลง `log_archive/` รายเดือน) / ล้างวันเก่า + เห็นรายงาน dry-run · ตั้งจัดการอัตโนมัติตอนปิดโปรแกรมได้ใน Settings (เก็บย้อนหลัง 1–365 วัน) |
