@@ -104,7 +104,7 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `14_dry_run_cond_vars.json` | **v2.10**: เก็บผลเงื่อนไขเป็นตัวแปร (โทเคน `>ชื่อ`) + ลอง 🧪 Dry-run ซ้อมเดินสคริปต์ไม่แตะเมาส์/คีย์ | ✅ ไม่คลิก |
 | `14_condition_plugin.json` | **v2.13**: เงื่อนไข plugin จาก `plugins/file_exists.py` (File Exists) — ใช้เป็น Action + Block Start | ✅ ไม่คลิก |
 | `15_system_conditions.json` | **v2.14**: เงื่อนไขระบบ Internet Up / Process Running / Window Exists + Block Start ผสม `&&` | ✅ ไม่คลิก |
-| `16_condition_plugins_v216.json` | **v2.16**: เงื่อนไขใหม่ File Newer Than / Window Focused / HTTP Status — รันจากโฟลเดอร์ examples (`cd examples` ก่อน) แล้วเปิด ⏱ ไทม์ไลน์ดูผลทีละแถว | ✅ ไม่คลิก |
+| `16_condition_plugins_v216.json` | **v2.16**: เงื่อนไขใหม่ File Newer Than / Window Focused / HTTP Status — รันจากโฟลเดอร์ examples (`cd examples` ก่อน เพื่อให้เจอ README.md) แล้วเปิด ⏱ ไทม์ไลน์ดูผลทีละแถว | ✅ ไม่คลิก |
 | `queue_sample.txt` | ลิสต์ตัวอย่าง `--queue` — `py auto_macro.py --queue examples/queue_sample.txt` เล่น 13+14 ต่อกัน | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 

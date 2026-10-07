@@ -7620,8 +7620,9 @@ class TestFrozenPaths(unittest.TestCase):
 class TestExample16PluginsV216(unittest.TestCase):
     """v2.16.1: ตัวอย่าง 16 — เงื่อนไข plugin ใหม่ 3 ตัว (File Newer Than /
     Window Focused / HTTP Status) — ผลตัดสิน deterministic ทุก OS:
-    จริงจากไฟล์ที่ commit มา + เท็จจากชื่อที่ไม่มีจริง · แถวเท็จกิน Beep ของตัวเอง
-    (ไม่มี skip cascade กลืนแถวอื่น) · รันจากโฟลเดอร์ examples (target.png)"""
+    จริงจากไฟล์ที่ commit มา (README.md — ห้ามพึ่ง target.png เพราะโดนกฎ *.png
+    ใน .gitignore ไม่ได้ commit) + เท็จจากชื่อที่ไม่มีจริง · แถวเท็จกิน Beep ของตัวเอง
+    (ไม่มี skip cascade กลืนแถวอื่น) · รันจากโฟลเดอร์ examples"""
 
     def test_example_16_validates_and_flows(self):
         import contextlib
@@ -7635,7 +7636,7 @@ class TestExample16PluginsV216(unittest.TestCase):
                                               condition_names=cond_names), [])
         ex_abs = os.path.abspath(ex)
         old = os.getcwd()
-        os.chdir(os.path.dirname(ex_abs))       # target.png อยู่ในโฟลเดอร์ตัวอย่าง
+        os.chdir(os.path.dirname(ex_abs))       # README.md อยู่ในโฟลเดอร์ตัวอย่าง
         try:
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
@@ -7645,7 +7646,8 @@ class TestExample16PluginsV216(unittest.TestCase):
         out = buf.getvalue()
         self.assertEqual(rc, 0)
         self.assertIn("จบแล้ว ✔", out)                     # ครบทุกแถว — skip ไม่กลืนเกิน
-        self.assertIn("File Newer Than → เงื่อนไขจริง เล่นต่อ", out)   # target.png มีจริง
+        self.assertIn("File Newer Than → เงื่อนไขจริง เล่นต่อ", out)   # README.md มีจริงใน examples
+        # ⚠️ บทเรียน CI: ห้ามอ้างไฟล์ที่ไม่ได้ commit — target.png โดนกฎ *.png ใน .gitignore
         self.assertIn("File Newer Than → เงื่อนไขไม่จริง ข้าม 1 แถว", out)
         self.assertIn("Window Focused → เงื่อนไขไม่จริง ข้าม 1 แถว", out)
         self.assertIn("HTTP Status →", out)               # เท็จทั้งเครือข่ายปกติ/จริงก็ไม่กินแถวอื่น

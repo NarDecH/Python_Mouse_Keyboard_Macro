@@ -370,7 +370,9 @@
   เหมือน PyInstaller — set หลัง import แล้ว CONF ที่เป็น import-time constant ไม่เปลี่ยน) ·
   ตัวอย่างใหม่ `examples/16_condition_plugins_v216.json` (เงื่อนไขใหม่ 3 ตัว แบบกลาง platform —
   แถวเท็จกิน Beep ของตัวเอง ไม่มี skip cascade · รันจากโฟลเดอร์ examples เพื่อเจอ target.png —
-  ⚠️ พาธ relative ในเงื่อนไขไฟล์ resolve กับ **cwd ของโปรเซส** ไม่ใช่โฟลเดอร์สคริปต์) ·
+  ⚠️ พาธ relative ในเงื่อนไขไฟล์ resolve กับ **cwd ของโปรเซส** ไม่ใช่โฟลเดอร์สคริปต์ ·
+  ⚠️ ตัวอย่าง/เทสต์ห้ามอ้างไฟล์ที่ไม่ได้ commit — target.png โดนกฎ `*.png` ใน .gitignore
+  (ไฟล์มีแค่ในเครื่อง dev CI checkout ไม่มี = พังทั้ง 5 job) เช็คด้วย `git ls-files` เสมอ) ·
   LANDING.html ฟีเจอร์ v2.16 · เปิด milestone v2.17 (No.2) + issues #6–#9 + แผนใน ROADMAP ·
   เทสต์เพิ่ม 3 ตัว (TestFrozenPaths 2 + TestExample16PluginsV216 1) → 544 unit + 20 E2E = 564
 
