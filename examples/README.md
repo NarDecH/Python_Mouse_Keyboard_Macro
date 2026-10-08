@@ -122,6 +122,7 @@ py auto_macro.py examples/05_watchdog_monitor.json --watchdog 5
 | `16_condition_plugins_v216.json` | **v2.16**: เงื่อนไขใหม่ File Newer Than / Window Focused / HTTP Status — รันจากโฟลเดอร์ examples (`cd examples` ก่อน เพื่อให้เจอ README.md) แล้วเปิด ⏱ ไทม์ไลน์ดูผลทีละแถว | ✅ ไม่คลิก |
 | `17_condition_plugins_v217.json` | **v2.17**: เงื่อนไขใหม่ Disk Space Low / Process CPU / Window Closed — ตัวอย่างขอบเขตตัดสินแน่นอนทุกเครื่อง + เปิด ⏱ ไทม์ไลน์ดูผลทีละแถว | ✅ ไม่คลิก |
 | `18_group_order.json` | **v2.18**: ลำดับกลุ่ม — `--shuffle-groups` สุ่มลำดับกลุ่ม + `--only-section "เตรียม,ล้าง"` เลือกหลายกลุ่ม + คลิกขวาหัวข้อ Dry-run กลุ่ม | ✅ ไม่คลิก |
+| `19_or_conditions.json` | **v2.19**: เงื่อนไขรวม OR (`||`) — If Variable หลายสาย (short-circuit) + โทเคน `>ผล` เก็บผลรวม + If Loop `3 || 5` รอบสคริปต์ที่ 3 เล่นต่อ | ✅ ไม่คลิก |
 | `queue_sample.txt` | ลิสต์ตัวอย่าง `--queue` — `py auto_macro.py --queue examples/queue_sample.txt` เล่น 13+14 ต่อกัน | ✅ ไม่คลิก |
 | `run_watchdog.bat` | ดับเบิลคลิกรัน 05 แบบ watchdog (จบ = พัก 5 วิ = เริ่มใหม่เอง) | ✅ |
 

@@ -29,7 +29,7 @@ try:
 except ImportError:
     HAS_CV = False
 
-__version__ = "2.18.0"
+__version__ = "2.19.0"
 APP_TITLE = "Auto Mouse & Keyboard Macro v" + __version__
 PLUGINS_DIR = "plugins"         # โฟลเดอร์เก็บ Custom Action plugins (v1.16)
 BACKUP_DIR = "backups"          # โฟลเดอร์เก็บ backup อัตโนมัติ
@@ -376,8 +376,21 @@ def parse_cond_store(txt):
     return s[:m.start()].rstrip(), m.group(1)
 
 
-# ------------------------------------------------ เงื่อนไขรวม AND (v2.5.4) ----
+# ------------------------------------------------ เงื่อนไขรวม AND/OR (v2.5.4/v2.19) ----
 _COND_SPLIT = re.compile(r"\s*&&\s*")
+_COND_OR_SPLIT = re.compile(r"\s*\|\|\s*")
+
+
+def split_condition_or(txt):
+    """แตก Additional เงื่อนไขที่ใช้ || เป็นสายย่อย (v2.19 — OR)
+    คืน list ของสาย (list ว่างเมื่อไม่มี || — แถวเงื่อนไขเดี่ยวใช้ parser เดิม)
+    Precedence: && แน่นกว่า || — A || B && C = A หรือ (B และ C) (ดีไซน์ DESIGN-nested-if §6)
+    โทเคน '>ชื่อ' (ผลเงื่อนไขเป็นตัวแปร) ถูกตัดออกก่อนแตกเสมอ — เก็บผลรวมนิพจน์ทั้งหมด"""
+    s, _store = parse_cond_store(str(txt or ""))
+    if "||" not in s:
+        return []
+    parts = [p.strip() for p in _COND_OR_SPLIT.split(s.strip())]
+    return [p for p in parts if p]
 
 
 def split_condition_and(txt):
@@ -1014,11 +1027,23 @@ def rows_to_ahk(rows, condition_names=()):
 
     def _ahk_block_cond(txt):
         """เงื่อนไข Block Start → นิพจน์ AHK หรือ None (ภาพ/สีจุด/ผสม/เงื่อนไข plugin = แปลไม่ได้)
-        คืน "" เมื่อไม่มีเงื่อนไข (บล็อกเปล่า) — รองรับ && หลายเงื่อนไข (v2.9)"""
+        คืน "" เมื่อไม่มีเงื่อนไข (บล็อกเปล่า) — รองรับ && หลายเงื่อนไข (v2.9) · || ได้ (v2.19)
+        Precedence เดียวกับ engine: || แตกระดับบนสุด แล้ว && ภายในสาย"""
         s = str(txt or "").strip()
         if not s:
             return ""
+        ors = split_condition_or(s)
+        if len(ors) > 1:
+            exprs = []
+            for ob in ors:                       # สาย || — สายใดแปลไม่ได้ = ทั้งบล็อก comment
+                e = _ahk_block_cond(ob)
+                if e is None or not e:
+                    return None
+                exprs.append("(%s)" % e)
+            return " || ".join(exprs)
         parts = split_condition_and(s) or [s]
+        if any("||" in p for p in parts):
+            return None                          # || ที่เหลือในชิ้นย่อย (พัง) = แปลไม่ได้
         if any(match_condition_name(p, condition_names) for p in parts):
             return None                        # v2.13: เงื่อนไข plugin → ทั้งบล็อกเป็น comment
         exprs = []
@@ -1115,18 +1140,47 @@ def rows_to_ahk(rows, condition_names=()):
                     lines = ["%s %s= %s" % (name, op[0], _ahk_var_expr(val))]
         elif btn == IF_VAR:
             # v2.8: เงื่อนไขตัวแปร → if (name op ค่า) / if name contains ข้อความ
-            fv = parse_if_var(add)
-            if not fv:
-                lines = ["; (If Variable รูปแบบไม่ถูก: %s)" % add]
-            else:
+            # v2.19: || ระดับบนสุด — สายใดแปลไม่ได้ = comment ทั้งแถว
+            def _var_expr(p):
+                fv = parse_if_var(p)
+                if not fv:
+                    return None
                 name, op, val = fv
                 if op == "~":
-                    lines = ["if %s contains %s" % (name, _ahk_var_expr(val))]
+                    return "InStr(%s, %s)" % (name, _ahk_var_expr(val))
+                return "%s %s %s" % (name, op, _ahk_var_expr(val))
+            ors = split_condition_or(add)
+            if ors:
+                exprs = [_var_expr(p) for ob in ors for p in (split_condition_and(ob) or [ob])]
+                if any(e is None for e in exprs):
+                    lines = ["; (If Variable รูปแบบไม่ถูก: %s)" % add]
                 else:
-                    lines = ["if (%s %s %s)" % (name, op, _ahk_var_expr(val))]
+                    # && ภายในสาย แน่นกว่า || — ครอบวงเล็บสายที่มี &&
+                    grouped = []
+                    k = 0
+                    for ob in ors:
+                        n = len(split_condition_and(ob) or [ob])
+                        grp = exprs[k:k + n]
+                        k += n
+                        grouped.append(grp[0] if n == 1 else "(%s)" % " && ".join(grp))
+                    lines = ["if (%s)" % " || ".join(grouped)]
+            else:
+                e = _var_expr(add)
+                if e is None:
+                    lines = ["; (If Variable รูปแบบไม่ถูก: %s)" % add]
+                elif parse_if_var(add)[1] == "~":
+                    lines = ["if %s contains %s" % (parse_if_var(add)[0],
+                                                    _ahk_var_expr(parse_if_var(add)[2]))]
+                else:
+                    lines = ["if (%s)" % e]
         elif btn == BLOCK_START:
             # v2.9: บล็อก → { } ของ AHK — if/max/until (เงื่อนไขแปลไม่ได้ = comment ทั้งคู่)
+            # v2.19: until ก็รับ || ได้ (ถ้าทุกสายเป็นเงื่อนไขตัวแปร)
             spec = parse_block_spec(add)
+            if spec is not None and spec["until"]:
+                u = _ahk_block_cond(spec["until"])
+                if u is None:
+                    spec = None                  # until แปลไม่ได้ = ทั้งบล็อก comment เหมือน if
             cond = _ahk_block_cond(spec["if"]) if spec else None
             if cond is None:
                 lines = ["; (Block Start แปลไม่ได้ตรง ๆ: %s — จัดบล็อก/ค้นภาพใน AHK เอง)" % add]
@@ -1312,7 +1366,14 @@ def ahk_to_rows(text):
         if m:
             cond = (m.group(1) or m.group(2) or "").strip()
             add_txt = ahk_cond_to_macro(cond)
-            if "&&" in add_txt:
+            # v2.19: รับ || ระดับบนสุด (&& แน่นกว่า — แต่ละสายยังแตก && ตามเดิม)
+            if "||" in add_txt:
+                add_txt = " || ".join(
+                    " && ".join(ahk_cond_to_macro(p.strip())
+                                for p in piece.split("&&")) if "&&" in piece
+                    else ahk_cond_to_macro(piece.strip())
+                    for piece in add_txt.split("||"))
+            elif "&&" in add_txt:
                 add_txt = " && ".join(ahk_cond_to_macro(p.strip())
                                       for p in add_txt.split("&&"))
             add_txt = add_txt.strip()
@@ -1341,9 +1402,25 @@ def ahk_to_rows(text):
             cond = (m.group(1) or m.group(2) or "").strip()
             if cond:
                 add_txt = ahk_cond_to_macro(cond)
+                # v2.19: รับ || ระดับบนสุด (&& แน่นกว่า) — แต่ละสายแปลตามเดิม
+                if "||" in add_txt:
+                    add_txt = " || ".join(
+                        " && ".join(ahk_cond_to_macro(p.strip())
+                                    for p in piece.split("&&")) if "&&" in piece
+                        else ahk_cond_to_macro(piece.strip())
+                        for piece in add_txt.split("||"))
+                elif "&&" in add_txt:
+                    add_txt = " && ".join(ahk_cond_to_macro(p.strip())
+                                          for p in add_txt.split("&&"))
                 # รับเฉพาะรูปแบบ If Variable (ชื่อ + ตัวดำเนินการ + ค่า) — นิพจน์อื่นข้าม
-                if re.fullmatch(r"\s*%s\s*(==|!=|>=|<=|>|<|=|~)\s*\S.*" % _VAR_NAME,
-                                add_txt, re.UNICODE | re.S):
+                # v2.19: ทุกสาย || ต้องตรงรูปแบบเดียวกัน
+                if re.fullmatch(
+                        r"(?:\s*%s\s*(?:==|!=|>=|<=|>|<|=|~)\s*\S.*\s*(?:\|\|\s*)?)+"
+                        % _VAR_NAME, add_txt, re.UNICODE | re.S) and \
+                        all(re.fullmatch(r"\s*%s\s*(==|!=|>=|<=|>|<|=|~)\s*\S.*"
+                                         % _VAR_NAME, p.strip(),
+                                         re.UNICODE | re.S)
+                            for p in add_txt.split("||")):
                     rows.append(dict(x="", y="", button=IF_VAR, additional=add_txt,
                                      **pending))
                     pending = {}
@@ -1354,7 +1431,8 @@ def ahk_to_rows(text):
 
 def ahk_cond_to_macro(cond):
     """แปลงเงื่อนไข AHK (v2.8) → Additional ของ If Variable — แปลไม่ได้คืนข้อความเดิม
-    รองรับ: n > 5 / n = "ข้อความ" / x == y / n contains "ข้อความ" / InStr(n, "ข้อความ")"""
+    รองรับ: n > 5 / n = "ข้อความ" / x == y / n contains "ข้อความ" / InStr(n, "ข้อความ")
+    v2.19: ส่ง || ผ่านตรง ๆ — caller ต้องแยกสาย || ก่อนเรียก (parse_if_var ไม่รับ ||)"""
     s = str(cond or "").strip()
     m = re.fullmatch(r"InStr\(\s*(%s)\s*,\s*(.+?)\s*\)" % _VAR_NAME, s, re.I | re.UNICODE)
     if m:
@@ -1434,39 +1512,62 @@ def validate_rows(rows, plugin_names=(), condition_names=()):
         elif btn in (IMAGE_ACTION, "Wait for Image", IF_IMAGE, ELSE_IMAGE):
             # v2.5.4: If Image ใช้ && ได้ — ตรวจภาพชิ้นแรก (ตัด timeout token ก่อน)
             # แล้วตรวจชิ้นย่อยที่เหลือตามประเภท (สีจุด / ตัวแปร)
+            # v2.19: รองรับ || — ตรวจทุกสายแยกกัน (ชิ้นไหนพังรายงาน "สายที่ N")
             head, extra = add, []
             if btn in (IF_IMAGE, ELSE_IMAGE):
-                raw, _w = parse_wait_timeout(add, 0)
-                parts = split_condition_and(raw)
-                head = parts[0] if parts else raw
-                extra = parts[1:]
+                bad_branch = None
+                for bi, ob in enumerate(split_condition_or(add) or [add], 1):
+                    raw, _w = parse_wait_timeout(ob, 0)
+                    parts = split_condition_and(raw)
+                    head_b = parts[0] if parts else raw
+                    extra_b = parts[1:]
+                    p = parse_search_area(head_b)[0] if head_b.strip() else ""
+                    p = resolve_image_path(p) if p else ""
+                    if not p or not os.path.isfile(p):
+                        bad_branch = (bi, "ไม่พบไฟล์ภาพ: %s" % (head_b or "-"))
+                        break
+                    bad = [q for q in extra_b if parse_if_var(q) is None
+                           and not parse_pixel_spec(q)]
+                    if bad:
+                        bad_branch = (bi, "If Image เงื่อนไขรวมรูปแบบไม่ถูก: %s" % bad[0])
+                        break
+                if bad_branch:
+                    issues.append((i, ("สายที่ %d (||): %s" % bad_branch)
+                                   if len(split_condition_or(add)) > 1 else bad_branch[1]))
+                continue
             p = parse_search_area(head)[0] if head.strip() else ""
             p = resolve_image_path(p) if p else ""
             if not p or not os.path.isfile(p):
                 issues.append((i, "ไม่พบไฟล์ภาพ: %s" % (add or "-")))
-            elif btn == IF_IMAGE:
-                bad = [q for q in extra if parse_if_var(q) is None
-                       and not parse_pixel_spec(q)]
-                if bad:
-                    issues.append((i, "If Image เงื่อนไขรวมรูปแบบไม่ถูก: %s" % bad[0]))
         elif btn == IF_PIXEL:
             # v2.5.4: ชิ้นแรกต้องเป็นสีจุด, ชิ้นถัดไปเป็นสีจุดหรือตัวแปรก็ได้ (ตาม runner)
-            parts = split_condition_and(add) or [add]
-            bad = (not parse_pixel_spec(parts[0])
-                   or any(parse_if_var(p) is None and not parse_pixel_spec(p)
-                          for p in parts[1:]))
+            # v2.19: รองรับ || — ตรวจทุกสายแยกกัน
+            bad = None
+            for ob in (split_condition_or(add) or [add]):
+                parts = split_condition_and(ob) or [ob]
+                if (not parse_pixel_spec(parts[0])
+                        or any(parse_if_var(p) is None and not parse_pixel_spec(p)
+                               for p in parts[1:])):
+                    bad = parts[0]
+                    break
             if bad:
-                issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb คั่น && ได้)"))
+                issues.append((i, "If Pixel Color รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb คั่น && / || ได้)"))
         elif btn == IF_VAR:
-            if not all(parse_if_var(p) for p in (split_condition_and(add) or [add])):
+            if not all(parse_if_var(p)
+                       for ob in (split_condition_or(add) or [add])
+                       for p in (split_condition_and(ob) or [ob])):
                 issues.append((i, "If Variable รูปแบบไม่ถูก (name = ค่า / name > ค่า / "
-                                  "name ~ ข้อความ คั่น && ได้)"))
+                                  "name ~ ข้อความ คั่น && / || ได้)"))
         elif btn == IF_LOOP:
-            if not all(parse_if_loop(p) for p in (split_condition_and(add) or [add])):
-                issues.append((i, "If Loop รูปแบบไม่ถูก (ต้องเป็นเลข >= 1 คั่น && ได้)"))
+            if not all(parse_if_loop(p)
+                       for ob in (split_condition_or(add) or [add])
+                       for p in (split_condition_and(ob) or [ob])):
+                issues.append((i, "If Loop รูปแบบไม่ถูก (ต้องเป็นเลข >= 1 คั่น && / || ได้)"))
         elif btn == IF_TIME:
-            if not all(parse_if_time(p) for p in (split_condition_and(add) or [add])):
-                issues.append((i, "If Time รูปแบบไม่ถูก (ต้องเป็น HH:MM คั่น && ได้)"))
+            if not all(parse_if_time(p)
+                       for ob in (split_condition_or(add) or [add])
+                       for p in (split_condition_and(ob) or [ob])):
+                issues.append((i, "If Time รูปแบบไม่ถูก (ต้องเป็น HH:MM คั่น && / || ได้)"))
         elif btn == READ_PIXEL:
             parts = add.split()
             ok = (len(parts) == 2 and re.fullmatch(_VAR_NAME, parts[0])
@@ -2441,7 +2542,8 @@ class ActionRunner:
 
     def evaluate_block_condition(self, spec_text):
         """ตัดสินเงื่อนไขของ Block Start/End ให้ BlockRunner (v2.6 — ชุด N2)
-        รองรับชุดเดียวกับเงื่อนไขทั้งหมด: สีจุด / ตัวแปร / ภาพ (&& ผสมได้ตาม N1)
+        รองรับชุดเดียวกับเงื่อนไขทั้งหมด: สีจุด / ตัวแปร / ภาพ (&& ผสมได้ตาม N1 ·
+        || ระดับบนสุดได้ตาม v2.19 — สายใดจริงก่อน = จริงทันที short-circuit)
         จำแนกจากชิ้นแรก: parse_pixel_spec → สายสี, parse_if_var → สายตัวแปร,
         อื่น ๆ = สายภาพ (ไม่เจอไฟล์/ไม่เจอบนจอ = False — เหมือน If Image)
         ชิ้นใด "รูปแบบไม่ถูก" (None) = แถวนี้ไม่จริง (False) — เหมือน If Variable ไม่มีตัวแปร
@@ -2449,6 +2551,18 @@ class ActionRunner:
         s = str(spec_text or "").strip()
         if not s:
             return True
+        ors = split_condition_or(s)
+        if len(ors) > 1:
+            for ob in ors:                 # สาย || ใดจริง = จริงทันที (short-circuit)
+                hit = self._eval_block_branch(ob)
+                if hit is True:
+                    return True
+            return False                   # ทุกสายไม่จริง — สายพัง (None) ไม่กลืน
+        return self._eval_block_branch(s)
+
+    def _eval_block_branch(self, s):
+        """ตัดสินสายเดียวของ || ใน evaluate_block_condition (v2.19) — เดิมคือเนื้อ
+        evaluate_block_condition ทั้งหมด (แตก && ภายในสายตาม N1) คืน True/False/None"""
         parts = split_condition_and(s) or [s]
         head = parts[0]
         if parse_pixel_spec(head):                     # สายสีจุด (ผสมตัวแปรได้)
@@ -2515,6 +2629,24 @@ class ActionRunner:
 
         if btn == IF_LOOP:
             # v2.5.4 (ชุด N1): รองรับ && เช่น "3 && 10" — ถึงรอบตามทุกเลขจึงข้าม
+            # v2.19 (OR): รองรับ || ระดับบนสุด — สายใดจริงก่อน = ข้ามทันที (short-circuit)
+            ors = split_condition_or(additional) or [additional]
+            if len(ors) > 1:
+                for oi, ob in enumerate(ors, 1):
+                    nums = []
+                    for p in (split_condition_and(ob) or [ob]):
+                        n = parse_if_loop(p)
+                        if n is None:
+                            return 0, ("If Loop %s → Additional ไม่ถูก (ต้องเป็นเลข >= 1 "
+                                       "คั่น && / || ได้) เล่นต่อ" % (additional or ""))
+                        nums.append(n)
+                    if all(n_loop >= n for n in nums):   # สายนี้จริง → ข้ามทันที
+                        skip = parse_int(repeat, 1)
+                        _store(True)
+                        return skip, ("If Loop %s → สายที่ %d จริง (||) ข้าม %d แถว"
+                                      % (additional, oi, skip))
+                _store(False)
+                return 0, ("If Loop %s → ยังไม่มีสายใดจริง (||) เล่นต่อ" % additional)
             parts = split_condition_and(additional) or [additional]
             nums = []
             for p in parts:
@@ -2534,7 +2666,26 @@ class ActionRunner:
                 additional, n_loop, min(nums), skip)
         if btn == IF_TIME:
             # v2.5.4 (ชุด N1): รองรับ && เช่น "08:00 && 22:30" — ผ่านทุกเวลาจึงข้าม
+            # v2.19 (OR): รองรับ || ระดับบนสุด — สายใดผ่านก่อน = ข้ามทันที (short-circuit)
             lt = now or time.localtime()
+            ors = split_condition_or(additional) or [additional]
+            if len(ors) > 1:
+                for oi, ob in enumerate(ors, 1):
+                    specs = []
+                    for p in (split_condition_and(ob) or [ob]):
+                        spec = parse_if_time(p)
+                        if spec is None:
+                            return 0, ("If Time %s → Additional ไม่ถูก (ต้องเป็น HH:MM "
+                                       "คั่น && / || ได้) เล่นต่อ" % (additional or ""))
+                        specs.append(spec)
+                    if not any((lt.tm_hour, lt.tm_min) < s for s in specs):
+                        skip = parse_int(repeat, 1)
+                        s = max(specs)
+                        _store(True)
+                        return skip, ("If Time %s → สายที่ %d ผ่านกำหนดแล้ว (||) ข้าม %d แถว"
+                                      % (additional, oi, skip))
+                _store(False)
+                return 0, ("If Time %s → ยังไม่มีสายใดผ่านกำหนด (||) เล่นต่อ" % additional)
             parts = split_condition_and(additional) or [additional]
             specs = []
             for p in parts:
@@ -2556,6 +2707,29 @@ class ActionRunner:
                 s[0], s[1], skip)
         if btn == IF_VAR:
             # v2.5.4 (ชุด N1): รองรับ && เช่น "n > 5 && code = A-1" — ทุกเงื่อนไขต้องจริง
+            # v2.19 (OR): รองรับ || ระดับบนสุด — สายใดจริงก่อน = เล่นต่อทันที (short-circuit)
+            ors = split_condition_or(additional) or [additional]
+            if len(ors) > 1:
+                details_all = []
+                for oi, ob in enumerate(ors, 1):
+                    det_b, ok_b = [], True
+                    for p in (split_condition_and(ob) or [ob]):
+                        hit, detail = ActionRunner.evaluate_if_var(p, variables)
+                        if hit is None:            # ชิ้นใดรูปแบบไม่ถูก → เตือนเล่นต่อ (เดิม)
+                            return 0, detail + " เล่นต่อ"
+                        det_b.append(detail)
+                        if not hit:
+                            ok_b = False
+                            break                  # short-circuit ภายในสาย (&&)
+                    if ok_b:
+                        _store(True)
+                        return 0, ("If Variable สายที่ %d จริง (||): %s เล่นต่อ"
+                                   % (oi, " ".join(det_b)))
+                    details_all.append("สายที่ %d ไม่จริง" % oi)
+                skip = parse_int(repeat, 1)
+                _store(False)
+                return skip, ("If Variable %s → ข้าม %d แถว"
+                              % (" · ".join(details_all), skip))
             parts = split_condition_and(additional) or [additional]
             details = []
             for p in parts:
@@ -2645,39 +2819,58 @@ class ActionRunner:
             add0, _store_name = parse_cond_store(r.get("additional"))
             self.cond_store = _store_name
             raw, wait = parse_wait_timeout(add0, 0)
-            parts = split_condition_and(raw)
-            rr = dict(r, additional=(parts[0] if parts else raw))
-            extra_parts = parts[1:] if parts else []
-            deadline = time.time() + wait
-            pos = self._find_image_pos(rr)
-            while pos is None and time.time() < deadline and self.stop_check():
-                time.sleep(0.25)
+            # v2.19 (OR): แตก || ระดับบนสุด — สายแรก = ภาพหลัก, สายที่เหลือตรวจเมื่อสายก่อนหน้าล้มเหลว
+            # (short-circuit: สายใดจริงก่อน = หยุดค้นภาพ/เช็คสายที่เหลือทันที)
+            ors = split_condition_or(raw)
+            branches = []
+            for ob in (ors or [raw]):
+                ob_raw, ob_wait = (ob, wait) if ors else (ob, wait)
+                # timeout token ต่อสาย (เฉพาะสายแรกถือ wait ทั้งแถว — แบบเดียวกับ && เดิม)
+                b_raw, _bw = parse_wait_timeout(ob_raw, 0) if ors else (ob_raw, wait)
+                parts = split_condition_and(b_raw)
+                branches.append((parts[0] if parts else b_raw, parts[1:] if parts else []))
+            def _img_branch_hit(head, extra_parts):
+                """ค้นภาพ + ชิ้นย่อย (สี/ตัวแปร) ของสายเดียว — คืน (hit, pos)"""
+                rr = dict(r, additional=head)
+                deadline = time.time() + wait
                 pos = self._find_image_pos(rr)
-            hit = pos is not None
-            if hit and extra_parts:               # ส่วนย่อยอื่น ๆ ต้องจริงทุกชิ้น (AND)
-                _pix = []                          # ชิ้นสีรวมกันตรวจครั้งเดียว
-                for _p in extra_parts:
-                    if parse_pixel_spec(_p):
-                        _pix.append(_p)
-                        continue
-                    _h, _d2 = self.evaluate_if_var(_p, self.variables)
-                    if _h is not True:            # ตัวแปรชิ้นไหนไม่จริง/พัง = ทั้งแถวไม่จริง
-                        hit = False
-                        break
-                if hit and _pix:
-                    _h, _d2 = self.evaluate_if_pixel(_pix, self.variables)
-                    hit = (_h is True)
+                while pos is None and time.time() < deadline and self.stop_check():
+                    time.sleep(0.25)
+                    pos = self._find_image_pos(rr)
+                hit = pos is not None
+                if hit and extra_parts:           # ส่วนย่อยอื่น ๆ ต้องจริงทุกชิ้น (AND)
+                    _pix = []                     # ชิ้นสีรวมกันตรวจครั้งเดียว
+                    for _p in extra_parts:
+                        if parse_pixel_spec(_p):
+                            _pix.append(_p)
+                            continue
+                        _h, _d2 = self.evaluate_if_var(_p, self.variables)
+                        if _h is not True:        # ตัวแปรชิ้นไหนไม่จริง/พัง = สายนี้ไม่จริง
+                            hit = False
+                            break
+                    if hit and _pix:
+                        _h, _d2 = self.evaluate_if_pixel(_pix, self.variables)
+                        hit = (_h is True)
+                return hit, pos
+            hit = False
+            pos = None
+            for bi, (head, extra_parts) in enumerate(branches, 1):
+                hit, pos = _img_branch_hit(head, extra_parts)
+                if hit:
+                    break                         # short-circuit สาย || ที่เหลือ
             self.last_if_found = hit
             self._save_cond_result(hit)           # v2.10: '>ชื่อ' เก็บผลลงตัวแปร
             if hit:
-                self.on_message("If Image เจอ → เล่นต่อ")
+                self.on_message(("If Image เจอ (สายที่ %d — ||)" % bi) if len(branches) > 1
+                                else "If Image เจอ → เล่นต่อ")
                 if pos is not None:               # ภาพที่เจอ (เฉพาะสายหลัก) ตั้ง {img_x}/{img_y}
                     self.variables["img_x"] = pos[0]
                     self.variables["img_y"] = pos[1]
             else:
                 self.skip_n = parse_int(r.get("repeat"), 1)   # จำนวนแถวที่ข้าม = Repeat (กฎเดียว v1.21)
-                self.on_message(("If Image ไม่เจอ" if not parts else
-                                 "If Image ไม่เจอ/เงื่อนไขรวมไม่ครบ") + " → ข้าม %d แถว"
+                self.on_message(("If Image ไม่เจอ (ทุกสาย — ||)" if len(branches) > 1 else
+                                 ("If Image ไม่เจอ" if not parts else
+                                  "If Image ไม่เจอ/เงื่อนไขรวมไม่ครบ")) + " → ข้าม %d แถว"
                                 % self.skip_n, "#a60")
         elif btn == ELSE_IMAGE:                                      # ตัวแบ่งกลุ่ม A/B (v2.2)
             n = parse_int(r.get("repeat"), 1)
@@ -2692,15 +2885,30 @@ class ActionRunner:
             add0, _store_name = parse_cond_store(r.get("additional"))
             self.cond_store = _store_name
             raw, wait = parse_wait_timeout(add0, 0)
-            parts = split_condition_and(raw) or [raw]
-            if not parse_pixel_spec(parts[0]):
-                self.on_message("If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)", "#c00")
-                return
+            # v2.19 (OR): แตก || ระดับบนสุด — สายใดสีตรงก่อน = จริงทันที (short-circuit)
+            ors = split_condition_or(raw)
+            branches = []
+            for ob in (ors or [raw]):
+                b_raw, _bw = parse_wait_timeout(ob, 0) if ors else (ob, wait)
+                branches.append(split_condition_and(b_raw) or [b_raw])
+            def _pix_branch_hit(branch):
+                if not parse_pixel_spec(branch[0]):
+                    return None, "If Pixel Color: รูปแบบไม่ถูก (ต้องเป็น x,y #rrggbb)"
+                return self.evaluate_if_pixel(branch, self.variables)
             deadline = time.time() + wait
-            hit, det = self.evaluate_if_pixel(parts, self.variables)
+            hit, det = None, ""
+            for branch in branches:               # สาย || ลำดับแรกจริงก่อน = จริงทั้งแถว
+                hit, det = _pix_branch_hit(branch)
+                if hit is True:
+                    break
+                if hit is None:                   # รูปแบบไม่ถูกที่สายแรก = เตือน (เดิม)
+                    break
             while hit is False and time.time() < deadline and self.stop_check():
                 time.sleep(0.25)
-                hit, det = self.evaluate_if_pixel(parts, self.variables)
+                for branch in branches:
+                    hit, det = _pix_branch_hit(branch)
+                    if hit is True or hit is None:
+                        break
             if hit is None:                       # รูปแบบไม่ถูก → เตือนแล้วเล่นต่อ (เดิม)
                 self.on_message(det, "#c00")
                 return

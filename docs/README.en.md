@@ -1,4 +1,4 @@
-# 🖱️ Auto Mouse & Keyboard Macro v2.18.0
+# 🖱️ Auto Mouse & Keyboard Macro v2.19.0
 
 <div align="center">
 
@@ -121,6 +121,7 @@
 | 🧩 **3 new community condition plugins** (v2.17) | **Disk Space Low** (`D: 2GB` — low free space = true), **Process CPU** (`chrome 5% 3s` — process CPU above the limit), **Window Closed** (target window closed = true — inverse of Window Exists) |
 | 📅 **Task Scheduler guide** (v2.17) | TUTORIAL chapter 21: script + 🚀 Launcher + Task Scheduler = a self-running scheduled job — stop via `--stop-file`, review with the ⏱ timeline, plus a go-live checklist |
 | 🔊 **Configurable Beep** (v2.17.1) | The Beep row's Additional accepts `freq=1000 dur=200 count=3` (Hz / ms / count — any subset) — empty = the same system-default sound as before · Windows plays a real tone via winsound, other OSes fall back to the bell · STOP stops between beeps · .ahk export follows the settings |
+| 🔀 **OR conditions** (v2.19) | Every condition accepts `||` — first true branch wins (short-circuit) · `&&` binds tighter than `||` · `>name` token stores the combined result · .ahk export/import both ways |
 | 🎲 **Group-level play order** (v2.18) | Shuffle whole section groups ("Shuffle groups" checkbox / CLI `--shuffle-groups`) — rows inside a group keep their order · `--only-section` accepts several comma-separated groups (`--only-section "เตรียม,ล้าง"`) |
 | 🧪 **Group-level Dry-run** (v2.18) | Right-click a section header → "Dry-run this group" — rehearse just that group without touching the real mouse/keys (conditions/variables/blocks still run) + fixed dry-run writing [STEP] to the log |
 | 🧩 **Built-in condition plugins** (v2.14) | ship with 4: `File Exists` · `Internet Up` (net check — `host[:port]` and/or `Ns`) · `Process Running` (tasklist/pgrep) · `Window Exists` (ctypes/xdotool) — use as an Action or `if name [argument]` in Block Start (mixable with `&&`) + 🧩 button inserts a condition row for you + CLI `--dry-report PATH` picks the dry-run report file (`{date}` = today) |

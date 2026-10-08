@@ -3,6 +3,31 @@
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Thai, the authoritative full history).
 > Newer versions appear in the Thai original first — this file covers the recent releases.
 
+## [2.19.0] — 2026-10-09
+
+### 🔀 Combined-condition OR (`||`) — closes [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9)
+- **Every condition type accepts `||`** — If Variable / If Loop / If Time / If Pixel Color /
+  If Image / Block Start-End — the first true branch makes the whole expression true
+  (**short-circuit** — remaining branches are never evaluated) · e.g. `x = A || x = B`,
+  `08:00 || 22:00`, `a.png || b.png`, `if n > 5 || n < 0` (block) — skip rule unchanged:
+  all branches false = skip N rows (Repeat)
+- **Standard precedence: `&&` binds tighter than `||`** — `n > 5 || n = 3 && n > 1` =
+  `n > 5` or (`n = 3` and `n > 1`) — split `||` at top level, then `&&` inside each branch
+- **`>name` token stores the whole expression's result** — `1` if any branch is true, `0`
+  if all false (same single source as the single-condition v2.10 mechanism)
+- **Complete coverage** — GUI / CLI / engine_cli / 🔍 Validate / pre-START check / Dry-run /
+  condition row colors / Additional-field hints now mention `&& / ||`
+- **.ahk both ways** — export: direct `if (n > 5 || n < 0)` + auto-parenthesized `&&` inside
+  branches · any untranslatable branch (image/pixel) = whole block becomes a comment (no
+  floating braces, v2.9 prescan rule) · import: `if (a || b)` and `if (a) {` translate back
+  to `||` for both If Variable and blocks — full roundtrip
+
+### 📚 Docs + tests
+- **New example `examples/19_or_conditions.json`** — platform-neutral OR demo (all-false →
+  skip 2 / second branch true → continue / `>ผล` result token / If Loop `3 || 5`)
+- **21 new tests** (TestOrConditions 20 + TestExample19OrConditions 1) → **589 unit + 20 E2E = 609**
+
+
 ## [2.18.0] — 2026-10-08
 
 ### 🎲 Group-level play order (closes [Issue #10](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10) — milestone v2.18)

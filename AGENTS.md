@@ -1,6 +1,6 @@
 # AGENTS.md — Python Mouse Keyboard Macro
 
-> เวอร์ชันปัจจุบัน: v2.18.0 — ดู `docs/CHANGELOG.md`
+> เวอร์ชันปัจจุบัน: v2.19.0 — ดู `docs/CHANGELOG.md`
 
 แนวทางการทำงานสำหรับ AI agent และนักพัฒนาในโปรเจกต์นี้
 
@@ -410,6 +410,24 @@
   (mock.patch.object(am.random, "shuffle", side_effect=...)) · เทสต์ GUI สุ่มต้อง
   deterministic — side_effect ทำ reverse รอบแรก / identity รอบสอง แล้ว assert ก้อนครบ
   แทนการ assert perm ตายตัว
+
+- **ฟีเจอร์เสริม v2.19.0 (ปิด Issue #9 — OR ในเงื่อนไขรวม):** **เงื่อนไขทุกชนิดคั่น `||` ได้**
+  (If Variable/If Loop/If Time/If Pixel/If Image/Block Start) — engine `split_condition_or(txt)`
+  (แตกสายระดับบนสุด · โทเคน `>ชื่อ` ถูกตัดก่อนแตก · ไม่มี `||` = คืน [] เดิน parser เดิมทุกเส้นทาง)
+  → แต่ละสายแตก `&&` ต่อ (`&&` แน่นกว่า `||` ตามมาตรฐาน) · short-circuit: สายใดจริงก่อน =
+  จริงทั้งนิพจน์ ไม่ประเมินสายที่เหลือ · กติกา skip เดิม: ทุกสายไม่จริง = ข้าม N แถว (Repeat) ·
+  โทเคน `>ชื่อ` เก็บผลรวม (1 ถ้ามีสายใดจริง / 0 ถ้าทุกสายไม่จริง — evaluate_condition เขียนผ่าน
+  dict variables, runner ผ่าน _save_cond_result) · ครบทุกจุด: `evaluate_block_condition`
+  (สายพัง None ไม่กลืนจริง), สาขา IF_IMAGE/IF_PIXEL ของ runner.execute (ค้นภาพทีละสาย),
+  validate_rows (รายงาน "สายที่ N (||): เหตุผล"), .ahk สองทิศ (export: ครอบวงเล็บสายที่มี &&
+  + สายแปลไม่ได้ = comment ทั้งบล็อก, import: `if (a || b)` และ `if (a) {` แปลกลับได้),
+  สีแถว/ค้นหา/hint บอก `คั่น && / || ได้` · ตัวอย่าง examples/19 + เทสต์ TestOrConditions 20
+  + TestExample19OrConditions 1 → 589 unit + 20 E2E = 609
+  ⚠️ ลำดับความสำคัญ: `&&` แน่นกว่า `||` — เทสต์ลำดับต้อง assert ตาม "สาย && ครบก่อนค่อย OR"
+  ⚠️ ตัวอย่างสคริปต์เงื่อนไขต้องระวัง skip กิน Set Variable — ตั้งตัวแปรก่อนเงื่อนไขเสมอ
+  (skip กินแถวลำดับตรงรวม Set Variable — พิสูจน์จากการเล่นจริง examples/19 รอบแรก)
+  ⚠️ เทสต์ .ahk import regex กับ `(n > 5 || …)` — ปีกกา escape ต้องมีช่องว่างจริงตามเอาต์พุต
+  (r"\s" กับบาง pattern ไม่ตรง — ใช้ raw string ตรง ๆ ตามเอาต์พุตจริงจาก engine)
 
 ## เทคโนโลยี
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auto Mouse &amp; Keyboard Macro v2.18.0 — คู่มือการใช้งาน</title>
+<title>Auto Mouse &amp; Keyboard Macro v2.19.0 — คู่มือการใช้งาน</title>
 <style>
   :root {
     --green: #2e9e46; --green-dark: #1f7a34; --green-bg: #e9f7ec;
@@ -89,7 +89,7 @@
 
 <div class="hero">
   <h1>🖱️ Auto Mouse &amp; Keyboard Macro</h1>
-  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.18.0</p>
+  <p>โปรแกรมสั่งให้เมาส์และคีย์บอร์ดทำงานอัตโนมัติตามสคริปต์ที่เราตั้งไว้ — v2.19.0</p>
   <div class="badges">
     <span class="badge">Python 3.8+</span>
     <span class="badge">Tkinter GUI</span>
@@ -162,6 +162,7 @@
       <tr><td>🧩 <b>เงื่อนไข plugin ชุมชน 3 ตัวใหม่ v2.17</b></td><td><b>Disk Space Low</b> (D: 2GB — พื้นที่เหลือน้อย = จริง), <b>Process CPU</b> (chrome 5% 3s — โปรเซสใช้ CPU เกินเกณฑ์), <b>Window Closed</b> (ปิดหน้าต่างเป้าหมายแล้ว = จริง — ตรงข้าม Window Exists)</td></tr>
       <tr><td>📅 <b>คู่มือ Task Scheduler v2.17</b></td><td>TUTORIAL บทที่ 21: สคริปต์ + 🚀 Launcher + Task Scheduler = งานตั้งเวลาทำงานเอง — หยุดผ่าน --stop-file ตรวจย้อนหลังด้วย ⏱ ไทม์ไลน์ + เช็คลิสต์ก่อนปล่อยงานจริง</td></tr>
       <tr><td>🔊 <b>Beep ตั้งค่าได้ v2.17.1</b></td><td>Additional ของแถว Beep รับ freq=1000 dur=200 count=3 (ความถี่ Hz / ระยะ ms / จำนวนครั้ง) — ไม่ใส่ = เสียงระบบเดิม · Windows เสียงจริงผ่าน winsound, OS อื่น bell · .ahk export ตามค่าที่ตั้ง</td></tr>
+      <tr><td>🔀 <b>เงื่อนไขรวม OR v2.19</b></td><td>เงื่อนไขทุกชนิดคั่น || ได้ — สายใดจริงก่อน = จริงทั้งนิพจน์ (short-circuit) · &amp;&amp; แน่นกว่า || · โทเคน &gt;ชื่อ เก็บผลรวม · .ahk สองทิศ</td></tr>
       <tr><td>🎲 <b>ลำดับการเล่นระดับกลุ่ม v2.18</b></td><td>สุ่มลำดับกลุ่มหัวข้อทั้งก้อน (checkbox "สุ่มลำดับกลุ่ม" / CLI --shuffle-groups) — แถวภายในกลุ่มเรียงเดิมเสมอ · --only-section รับหลายกลุ่มคั่น comma</td></tr>
       <tr><td>🧪 <b>Dry-run ระดับกลุ่ม v2.18</b></td><td>คลิกขวาหัวข้อ Section → "🧪 Dry-run กลุ่มนี้" — ซ้อมเดินเฉพาะกลุ่ม ไม่แตะเมาส์/คีย์จริง (เงื่อนไข/ตัวแปร/บล็อกเดินจริง) + แก้ dry-run เดิมเขียน [STEP] ลง log</td></tr>
       <tr><td>🧩 <b>เงื่อนไข plugin สำเร็จรูป v2.14</b></td><td>มาให้ 4 ตัว: <code>File Exists</code> · <code>Internet Up</code> (เช็คเน็ต — <code>host[:port]</code> และ/หรือ <code>Ns</code>) · <code>Process Running</code> (tasklist/pgrep) · <code>Window Exists</code> (ctypes/xdotool) — ใช้เป็น Action หรือ <code>if ชื่อ [อาร์กิวเมนต์]</code> ใน Block Start (ผสม <code>&amp;&amp;</code> ได้) + ปุ่ม 🧩 แทรกแถวเงื่อนไขให้ + CLI <code>--dry-report PATH</code> เลือกไฟล์รายงาน dry-run เอง (<code>{date}</code> = วันที่)</td></tr>
@@ -394,7 +395,7 @@ py -m unittest test_e2e -v           # 15 E2E tests (รัน CLI จริง)
 
 </div>
 
-<footer>Auto Mouse &amp; Keyboard Macro v2.18.0 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
+<footer>Auto Mouse &amp; Keyboard Macro v2.19.0 • สร้างด้วย Python + Tkinter + pynput • ทำงานบน Windows (รองรับ Linux/macOS)</footer>
 
 </body>
 </html>

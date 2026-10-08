@@ -149,10 +149,10 @@
 > โหวต/เสนอเพิ่มได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
 > — ลำดับข้างล่างเรียงตามความพร้อมและผลโหวต เปลี่ยนได้ตาม feedback จริง
 
-1. **OR (`||`) ในเงื่อนไขรวม** ([Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9) —
-   ของค้างคำถามข้อ 1 จาก RFC) — ต่อยอด `&&` ของชุด N1: แตกชิ้นด้วย `||` ก่อน แล้วแตกชิ้นย่อยด้วย `&&`
-   (ทั้งแถวเงื่อนไขและ Block Start) · validate/dry-run/สีแถว/.ahk ตามให้ครบ · กติกาเหล็กเดิม:
-   สคริปต์เดิมเล่นผลเดิม 100% + skip = ข้าม N แถวเหมือนเดิม — **เริ่มได้เมื่อมีโหวตสมควร**
+1. ~~**OR (`||`) ในเงื่อนไขรวม**~~ ✅ v2.19.0 — เงื่อนไขทุกชนิดคั่น `||` ได้ (If Variable/
+   If Loop/If Time/If Pixel/If Image/Block Start) — สายใดจริงก่อน = จริง (short-circuit),
+   `&&` แน่นกว่า `||`, โทเคน `>ชื่อ` เก็บผลรวม · validate/dry-run/สีแถว/.ahk สองทิศ ครบ ·
+   **[Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9) ปิดครบ**
 2. ~~**ลำดับการเล่นระดับกลุ่ม**~~ ✅ v2.18.0 — สุ่มลำดับกลุ่มหัวข้อ (checkbox "สุ่มลำดับกลุ่ม" /
    CLI `--shuffle-groups`) + `--only-section` รับหลายกลุ่มคั่น comma — สลับก้อนทั้งก้อน
    แถวภายในกลุ่มเรียงเดิมเสมอ (engine `select_groups` + `shuffle_group_order` แหล่งเดียว) —

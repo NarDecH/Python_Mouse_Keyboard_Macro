@@ -4917,6 +4917,274 @@ class TestN1AndLoopTime(unittest.TestCase):
         self.assertEqual([i for i, _m in issues], [1, 2, 3])
 
 
+class TestOrConditions(unittest.TestCase):
+    """v2.19 (OR — Issue #9): เงื่อนไขรวม OR (||) — ทุกชนิดเงื่อนไข ครบทุกจุดที่ && อยู่
+    ดีไซน์ DESIGN-nested-if §6: แตก || ก่อน (ระดับบนสุด) แล้วแตก && ภายในสาย (&& แน่นกว่า)
+    · short-circuit — สายใดจริงก่อน = จริงทั้งนิพจน์ ไม่ประเมินสายที่เหลือ
+    · กติกา skip เดิม: ไม่จริง = ข้าม N แถว (Repeat) เหมือนเดิม · '>ชื่อ' เก็บผลรวม
+    ⚠️ สคริปต์เดิม (ไม่มี ||) ต้องเดิน parser เดิมทุกเส้นทาง — เทสต์เดิมครอบอยู่แล้ว"""
+
+    def _runner(self, find_cb=None, variables=None):
+        return me_mod.ActionRunner(mock.MagicMock(), mock.MagicMock(),
+                                   find_image_cb=find_cb, variables=variables)
+
+    def _ev(self, *args, **kw):
+        return me_mod.ActionRunner.evaluate_condition(*args, **kw)
+
+    # ---------- parser ----------
+
+    def test_split_condition_or(self):
+        f = me_mod.split_condition_or
+        self.assertEqual(f("n > 5 || n < 0"), ["n > 5", "n < 0"])
+        self.assertEqual(f("a.png || b.png"), ["a.png", "b.png"])
+        self.assertEqual(f("a || b || c"), ["a", "b", "c"])      # หลายสาย
+        self.assertEqual(f("เดี่ยว ๆ"), [])                        # ไม่มี || → []
+        self.assertEqual(f("  x  ||  y "), ["x", "y"])            # เว้นวรรคยืดหยุ่น
+
+    def test_split_or_strips_cond_store_token(self):
+        f = me_mod.split_condition_or
+        # โทเคน '>ชื่อ' ถูกตัดก่อนแตกเสมอ (เก็บผลรวมนิพจน์ทั้งหมด)
+        self.assertEqual(f("n > 5 || n < 0 >ผล"), ["n > 5", "n < 0"])
+        self.assertEqual(f("a.png >img_ok"), [])                   # ไม่มี || → []
+
+    def test_or_precedence_and_binds_tighter(self):
+        # A || B && C = A หรือ (B และ C) — สายที่ 2 จริงต่อเมื่อทั้งคู่จริง
+        V = {"n": "3"}
+        self.assertEqual(self._ev(me_mod.IF_VAR, "n > 5 || n = 3 && n > 1",
+                                  1, 1, variables=dict(V))[0], 0)   # สาย 2 จริง → เล่นต่อ
+        self.assertEqual(self._ev(me_mod.IF_VAR, "n > 5 || n = 4 && n > 1",
+                                  1, 1, variables=dict(V))[0], 1)   # สาย 2 ไม่ครบ AND → ข้าม
+
+    # ---------- If Variable ----------
+
+    def test_if_var_or_true_short_circuits(self):
+        calls = []
+        orig = me_mod.ActionRunner.__dict__["evaluate_if_var"]
+        try:
+            def spy(txt, variables=None):
+                calls.append(txt)
+                return orig(txt, variables)
+            me_mod.ActionRunner.evaluate_if_var = staticmethod(spy)
+            # สาย 1 จริงตั้งแต่ชิ้นแรก = ไม่ประเมินชิ้น/สายที่เหลือ (short-circuit && ภายในสาย)
+            skip, msg = self._ev(me_mod.IF_VAR, "n > 5 || n < 0", 2, 1,
+                                 variables={"n": "9"})
+            self.assertEqual(skip, 0)
+            self.assertIn("เล่นต่อ", msg)
+            self.assertEqual(calls, ["n > 5"])    # ชิ้นเดียวจริง = หยุดทันที
+        finally:
+            me_mod.ActionRunner.evaluate_if_var = staticmethod(orig)
+
+    def test_if_var_or_all_false_skips(self):
+        skip, msg = self._ev(me_mod.IF_VAR, "n > 5 || n < 0", 3, 1,
+                             variables={"n": "3"})
+        self.assertEqual(skip, 3)             # กติกาเดิม: ไม่จริง = ข้าม Repeat
+        self.assertIn("ข้าม 3 แถว", msg)
+
+    def test_if_var_or_bad_format_warns(self):
+        # รูปแบบไม่ถูก (สายใดก็ได้) → เตือนเล่นต่อ (เดิม)
+        skip, msg = self._ev(me_mod.IF_VAR, "n > 5 || (พัง)", 2, 1,
+                             variables={"n": "3"})
+        self.assertEqual(skip, 0)
+        self.assertIn("ไม่ถูก", msg)
+
+    # ---------- If Loop / If Time ----------
+
+    def test_if_loop_or(self):
+        self.assertEqual(self._ev(me_mod.IF_LOOP, "3 || 5", 1, 2)[0], 0)   # ยังไม่ถึงทั้งคู่
+        skip, msg = self._ev(me_mod.IF_LOOP, "3 || 5", 1, 3)
+        self.assertEqual(skip, 1)             # สายแรกจริงก่อน → ข้ามตาม Repeat
+        self.assertIn("สายที่ 1", msg)
+        skip, msg = self._ev(me_mod.IF_LOOP, "3 || 5", 1, 5)
+        self.assertEqual(skip, 1)
+
+    def test_if_time_or(self):
+        t = time.struct_time((2026, 9, 30, 9, 0, 0, 2, 273, 0))
+        # 09:00 ผ่าน 08:00 แล้ว → สาย 1 จริง (short-circuit) ข้ามตาม Repeat:
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00 || 22:00", 3, 1, now=t)
+        self.assertEqual(skip, 3)
+        self.assertIn("สายที่ 1", msg)
+        t2 = time.struct_time((2026, 9, 30, 23, 0, 0, 2, 273, 0))
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00 || 22:00", 3, 1, now=t2)
+        self.assertEqual(skip, 3)             # สาย 1 จริงก่อน (short-circuit)
+
+    def test_if_time_or_all_pending(self):
+        t = time.struct_time((2026, 9, 30, 7, 0, 0, 2, 273, 0))
+        skip, msg = self._ev(me_mod.IF_TIME, "08:00 || 22:00", 3, 1, now=t)
+        self.assertEqual(skip, 0)
+        self.assertIn("ยังไม่มีสายใดผ่าน", msg)
+
+    # ---------- เก็บผลเงื่อนไข ('>ชื่อ') เป็นผลรวม ----------
+
+    def test_or_cond_store_total(self):
+        V = {"n": "3"}
+        self._ev(me_mod.IF_VAR, "n > 5 || n < 0 >ผล", 1, 1, variables=V)
+        self.assertEqual(V["ผล"], "0")       # ทุกสายไม่จริง = ผลรวม 0
+        self._ev(me_mod.IF_VAR, "n > 5 || n = 3 >ผล", 1, 1, variables=V)
+        self.assertEqual(V["ผล"], "1")       # มีสายใดจริง = ผลรวม 1
+
+    # ---------- If Image / If Pixel ผ่าน runner ----------
+
+    def test_if_image_or_second_branch(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี")
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3])
+        calls = []
+
+        def cb(r):
+            calls.append(r["additional"])
+            return (10, 10) if r["additional"] == "b.png" else None   # สาย 2 เท่านั้นเจอ
+
+        r = self._runner(cb, variables={})
+        r.execute({"button": me_mod.IF_IMAGE,
+                   "additional": "a.png || b.png && %s" % good, "repeat": 4})
+        self.assertTrue(r.last_if_found)
+        self.assertEqual(r.skip_n, 0)
+        self.assertEqual(calls, ["a.png", "b.png"])   # short-circuit — ค้น 2 สายตามลำดับ
+        self.assertEqual(r.variables.get("img_x"), 10)
+
+        r = self._runner(cb, variables={})               # ไม่มีสายใดเจอ → ข้ามตาม Repeat
+        r.execute({"button": me_mod.IF_IMAGE,
+                   "additional": "a.png || c.png", "repeat": 7})
+        self.assertFalse(r.last_if_found)
+        self.assertEqual(r.skip_n, 7)
+
+    def test_if_pixel_or(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        if rgb is None:
+            self.skipTest("จอไม่พร้อมอ่านสี")
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3])
+        bad = "5,5 #%02x%02x%02x" % tuple(255 - c for c in rgb[:3])
+        r = self._runner()
+        r.execute({"button": me_mod.IF_PIXEL,
+                   "additional": "%s || %s" % (bad, good), "repeat": 2})
+        self.assertEqual(r.skip_n, 0)         # สาย 2 จริง → เล่นต่อ
+        r.execute({"button": me_mod.IF_PIXEL,
+                   "additional": "%s || %s" % (bad, bad), "repeat": 6})
+        self.assertEqual(r.skip_n, 6)
+
+    # ---------- Block Start (evaluate_block_condition) ----------
+
+    def test_block_condition_or(self):
+        r = self._runner(None, variables={"n": "3"})
+        self.assertTrue(r.evaluate_block_condition("n > 5 || n = 3"))     # สาย 2 จริง
+        self.assertFalse(r.evaluate_block_condition("n > 5 || n < 0"))    # ทุกสายไม่จริง
+        # สายที่ไม่ใช่เงื่อนไขรูปแบบ = สายภาพ (ไม่มี cb → ไม่เจอ = False) — ไม่กลืนจริง
+        self.assertFalse(r.evaluate_block_condition("พัง || n < 0"))
+        self.assertTrue(r.evaluate_block_condition("n = 3 || พัง"))       # short-circuit
+
+    def test_block_condition_or_image_branch(self):
+        def cb(r):
+            return (10, 10) if r["additional"] == "b.png" else None
+        r = self._runner(cb, variables={})
+        self.assertTrue(r.evaluate_block_condition("a.png || b.png"))
+        self.assertFalse(r.evaluate_block_condition("a.png || c.png"))
+
+    # ---------- --validate เข้าใจ || ----------
+
+    def test_validate_understands_or(self):
+        rgb = me_mod.pixel_color_at(5, 5)
+        good = "5,5 #%02x%02x%02x" % tuple(rgb[:3]) if rgb else "5,5 #ffffff"
+        rows = [
+            {"button": me_mod.IF_VAR, "additional": "n > 5 || n < 0"},
+            {"button": me_mod.IF_PIXEL, "additional": "%s || %s" % (good, good)},
+            {"button": me_mod.IF_LOOP, "additional": "3 || 5"},
+            {"button": me_mod.IF_TIME, "additional": "08:00 || 22:00"},
+        ]
+        self.assertEqual(me_mod.validate_rows(rows), [])
+        rows_bad = [
+            {"button": me_mod.IF_VAR, "additional": "n > 5 || พัง"},
+            {"button": me_mod.IF_PIXEL, "additional": "พัง || %s" % good},
+            {"button": me_mod.IF_LOOP, "additional": "3 || พัง"},
+            {"button": me_mod.IF_TIME, "additional": "08:00 || พัง"},
+        ]
+        issues = me_mod.validate_rows(rows_bad)
+        self.assertEqual(len(issues), 4)
+        self.assertEqual([i for i, _m in issues], [1, 2, 3, 4])
+
+    def test_validate_or_image_reports_branch(self):
+        rows = [
+            {"button": me_mod.IF_IMAGE,
+             "additional": "หายไปเลย.png || a.png", "repeat": 1},
+        ]
+        issues = me_mod.validate_rows(rows)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("สายที่ 1", issues[0][1])   # สายพังเป็นสายแรก — รายงานลำดับชัดเจน
+
+    # ---------- .ahk สองทิศ ----------
+
+    def test_ahk_export_or(self):
+        rows = [
+            {"enabled": True, "x": "", "y": "", "button": me_mod.IF_VAR,
+             "additional": "n > 5 || n < 0", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "x": "", "y": "", "button": me_mod.IF_VAR,
+             "additional": "n > 5 || n = 4 && n < 3", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "x": "", "y": "", "button": me_mod.BLOCK_START,
+             "additional": "if n > 5 || n < 0", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "x": "", "y": "", "button": me_mod.TAP_KEY if hasattr(
+                me_mod, "TAP_KEY") else "Tap Key", "additional": "a",
+             "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "x": "", "y": "", "button": me_mod.BLOCK_END,
+             "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+        ]
+        out = me_mod.rows_to_ahk(rows)
+        self.assertIn("if (n > 5 || n < 0)", out)
+        self.assertIn("if (n > 5 || (n = 4 && n < 3))", out)   # && ครอบวงเล็บในสาย
+        self.assertIn("if ((n > 5) || (n < 0)) {", out)        # บล็อกแปลตรง
+
+    def test_ahk_export_or_unconvertible_branch_comments(self):
+        rows = [
+            {"enabled": True, "x": "", "y": "", "button": me_mod.BLOCK_START,
+             "additional": "if n > 5 || ภาพ.png", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "x": "", "y": "", "button": "Tap Key",
+             "additional": "a", "mins": 0, "secs": 0, "repeat": 1},
+            {"enabled": True, "x": "", "y": "", "button": me_mod.BLOCK_END,
+             "additional": "", "mins": 0, "secs": 0, "repeat": 1},
+        ]
+        out = me_mod.rows_to_ahk(rows)
+        # สายแปลไม่ได้ = ทั้งบล็อก comment — ไม่มี if/ปีกกาจริง (|| ที่เห็นเป็นแค่
+        # ข้อความเดิมในคอมเมนต์ เพื่อให้ผู้ใช้เห็นว่าแปลไม่ได้เพราะอะไร)
+        self.assertNotIn("if (n > 5 ||", out)
+        self.assertNotIn("{", out.split("\n", 2)[-1].replace(
+            "; (Block Start แปลไม่ได้ตรง ๆ: if n > 5 || ภาพ.png — จัดบล็อก/ค้นภาพใน AHK เอง)", ""))
+        self.assertIn("แปลไม่ได้", out)
+
+    def test_ahk_import_or(self):
+        ahk = "\n".join([
+            "n := 5",
+            "if (n > 5 || n < 0)",
+            "{",
+            "  Send a",
+            "}",
+            "if (n > 5 || n = 4 && n < 3)",
+            "{",
+            "  Send b",
+            "}",
+        ])
+        rows = me_mod.ahk_to_rows(ahk)
+        conds = [r["additional"] for r in rows if r["button"] == me_mod.IF_VAR]
+        self.assertIn("n > 5 || n < 0", conds)
+        self.assertIn("n > 5 || n = 4 && n < 3", conds)
+        # if (...) ที่มี { บรรทัดเดียวกัน = Block Start (if ที่แยกบรรทัด = If Variable เดิม)
+        ahk2 = "\n".join([
+            "if (n > 5 || n < 0) {",
+            "  Send a",
+            "}",
+        ])
+        rows2 = me_mod.ahk_to_rows(ahk2)
+        blocks = [r["additional"] for r in rows2 if r["button"] == me_mod.BLOCK_START]
+        self.assertIn("if n > 5 || n < 0", blocks)
+
+    def test_ahk_roundtrip_or(self):
+        rows = [
+            {"enabled": True, "x": "", "y": "", "button": me_mod.IF_VAR,
+             "additional": "n > 5 || n < 0", "mins": 0, "secs": 0, "repeat": 1},
+        ]
+        back = me_mod.ahk_to_rows(me_mod.rows_to_ahk(rows))
+        self.assertEqual([r["additional"] for r in back if r["button"] == me_mod.IF_VAR],
+                         ["n > 5 || n < 0"])
+
+
 class TestN2Blocks(unittest.TestCase):
     """v2.6 (ชุด N2): Block Start/End + ลูปย่อย (until/max) ตาม docs/DESIGN-nested-if.md
     กติกาเหล็ก: สคริปต์เดิม (ไม่มีแถวบล็อก) เล่นผลเดิม 100% · --validate ตรวจคู่เปิด/ปิด"""
@@ -7752,6 +8020,37 @@ class TestExample17PluginsV217(unittest.TestCase):
         self.assertIn("Process CPU → เงื่อนไขไม่จริง ข้าม 1 แถว", out)     # ไม่มีโปรเซส
         self.assertIn("Window Closed → เงื่อนไขจริง เล่นต่อ", out)        # ไม่มีหน้าต่างนี้
         self.assertNotIn("แถวนี้ถูกข้าม — พื้นที่เหลือ", out)              # แถวถูกกินไม่โดนเล่น
+
+
+class TestExample19OrConditions(unittest.TestCase):
+    """v2.19 (Issue #9): ตัวอย่าง 19 — เงื่อนไขรวม OR (||) แบบกลาง platform:
+    ตัดสินจากตัวแปรที่สคริปต์ตั้งเอง + If Loop รอบสคริปต์ — ไม่พึ่งจอ/เน็ต/OS ·
+    ผ่าน validate + เล่นจริงผ่าน CLI (cli_main) — ข้อความบี๊บตรงผลเงื่อนไขทุกแถว"""
+
+    def test_example_19_validates_and_flows(self):
+        import contextlib
+        ex = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "examples", "19_or_conditions.json")
+        with open(ex, encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual(me_mod.validate_rows(rows, plugin_names=[],
+                                              condition_names=[]), [])
+        ex_abs = os.path.abspath(ex)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = am.cli_main([ex_abs, "--no-log"])
+        out = buf.getvalue()
+        self.assertEqual(rc, 0)
+        self.assertIn("จบแล้ว ✔", out)
+        # ทุกสายไม่จริง → ข้าม 2 (บี๊บกลุ่มแรกถูกกินก่อนหน้า — ผลคือเล่นจนจบครบ)
+        self.assertIn("If Variable สายที่ 1 ไม่จริง · สายที่ 2 ไม่จริง → ข้าม 2 แถว", out)
+        # สายที่ 2 จริง (OR ตัดสิน — short-circuit แถว x = งานA ไม่ถูกประเมินซ้ำ)
+        self.assertIn("สายที่ 2 จริง (||)", out)
+        # โทเคน '>ผล' เก็บผลรวม = 1 แล้ว If Variable อ่านต่อได้ (ห่วงโซ่ตัวแปร)
+        self.assertIn("Set Variable y = 1", out)
+        self.assertIn("If Variable: ผล = 1 → จริง เล่นต่อ", out)
+        # If Loop 3 || 5 — รอบที่ 1 ยังไม่มีสายใดจริง = เล่นต่อ (ข้อความ OR)
+        self.assertIn("If Loop 3 || 5 → ยังไม่มีสายใดจริง (||) เล่นต่อ", out)
 
 
 class TestBeepSettings(unittest.TestCase):

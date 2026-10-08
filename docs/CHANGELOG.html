@@ -65,9 +65,45 @@
 
   <div class="card">
     <div class="version">
-      <h2>เวอร์ชัน 2.18.0</h2>
+      <h2>เวอร์ชัน 2.19.0</h2>
       <span class="tag latest">ล่าสุด</span>
-      <span class="date">8 ตุลาคม 2026</span>
+      <span class="date">9 ตุลาคม 2026</span>
+    </div>
+
+    <h3>🔀 เงื่อนไขรวม OR (<code>||</code>) — ปิด <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9">Issue #9</a></h3>
+    <ul>
+      <li><b>เงื่อนไขทุกชนิดเขียน OR ได้ด้วย <code>||</code></b> — If Variable / If Loop / If Time /
+        If Pixel Color / If Image / Block Start-End — สายใดจริงก่อน = จริงทั้งนิพจน์
+        (<b>short-circuit</b> — สายที่เหลือไม่ถูกประเมิน) · เช่น <code>x = งานA || x = งานB</code>,
+        <code>08:00 || 22:00</code>, <code>a.png || b.png</code>, <code>if n &gt; 5 || n &lt; 0</code> (บล็อก) —
+        กติกา skip เดิม: ทุกสายไม่จริง = ข้าม N แถว (Repeat) เหมือนเดิม</li>
+      <li><b>จัดลำดับความสำคัญมาตรฐาน: <code>&amp;&amp;</code> แน่นกว่า <code>||</code></b> —
+        <code>n &gt; 5 || n = 3 &amp;&amp; n &gt; 1</code> = <code>n &gt; 5</code> หรือ (<code>n = 3</code> และ <code>n &gt; 1</code>)</li>
+      <li><b>โทเคน <code>&gt;ชื่อ</code> เก็บผลรวมนิพจน์</b> — มีสายใดจริง = <code>1</code>, ทุกสายไม่จริง = <code>0</code></li>
+      <li><b>ครบทุกเส้นทาง</b> — GUI / CLI / engine_cli / 🔍 Validate / ตรวจก่อน START / Dry-run /
+        สีแถวหมวดเงื่อนไข / hint ช่อง Additional บอก "คั่น &amp;&amp; / || ได้"</li>
+      <li><b>.ahk สองทิศ</b> — export <code>if (n &gt; 5 || n &lt; 0)</code> + ครอบวงเล็บสายที่มี <code>&amp;&amp;</code>
+        · สายแปลไม่ได้ = comment ทั้งบล็อก (กติกา prescan v2.9) · import <code>if (a || b)</code>
+        และ <code>if (a) {</code> แปลกลับได้ครบ — roundtrip ผ่าน</li>
+    </ul>
+
+    <h3>📚 เอกสาร + เทสต์</h3>
+    <ul>
+      <li><b>ตัวอย่างใหม่ <code>examples/19_or_conditions.json</code></b> — สาธิต OR ทุกแบบกลาง platform
+        (ทุกสายไม่จริง → ข้าม 2 / สายที่ 2 จริง → เล่นต่อ / <code>&gt;ผล</code> เก็บผลรวม /
+        If Loop <code>3 || 5</code> — รอบ 3 ขึ้นไปจริง)</li>
+      <li><b>เทสต์เพิ่ม 21 ตัว</b> (TestOrConditions 20 + TestExample19OrConditions 1) →
+        <b>589 unit + 20 E2E = 609</b></li>
+      <li>เอกสารหลักอัพเดต 2.19.0 ครบ (README/TUTORIAL ทุกภาษา + LANDING) ·
+        TUTORIAL ไทยเพิ่มบทที่ 23 (OR + ผสม AND + โทเคนเก็บผล) · ROADMAP ปิดข้อสุดท้าย
+        ของแผน v2.18 · อัพเดต hint ตาราง + Help</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="version">
+      <h2>เวอร์ชัน 2.18.0</h2>
+      <span class="tag">8 ตุลาคม 2026</span>
     </div>
 
     <h3>🎲 ลำดับการเล่นระดับกลุ่ม (ปิด <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10">Issue #10</a> — milestone v2.18)</h3>

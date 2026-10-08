@@ -2,6 +2,40 @@
 
 รูปแบบอ้างอิง [Keep a Changelog](https://keepachangelog.com/) และใช้ [Semantic Versioning](https://semver.org/)
 
+## [2.19.0] — 2026-10-09
+
+### 🔀 เงื่อนไขรวม OR (`||`) — ปิด [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9) (ข้อสุดท้ายของแผน v2.18 + RFC คำถามข้อ 1)
+- **เงื่อนไขทุกชนิดเขียน OR ได้ด้วย `||`** — If Variable / If Loop / If Time / If Pixel Color /
+  If Image / Block Start/End — สายใดจริงก่อน = จริงทั้งนิพจน์ (**short-circuit** — สายที่เหลือ
+  ไม่ถูกประเมิน) · เช่น `x = งานA || x = งานB`, `08:00 || 22:00`, `a.png || b.png`,
+  `if n > 5 || n < 0` (บล็อก) — กติกา skip เดิม: ทุกสายไม่จริง = ข้าม N แถว (Repeat) เหมือนเดิม
+- **จัดลำดับความสำคัญมาตรฐาน: `&&` แน่นกว่า `||`** — `n > 5 || n = 3 && n > 1` = `n > 5` หรือ
+  (`n = 3` และ `n > 1`) — แตก `||` ระดับบนสุดก่อนแล้วแตก `&&` ภายในสาย (ดีไซน์ DESIGN-nested-if §6)
+- **โทเคน `>ชื่อ` เก็บผลรวมนิพจน์** — เงื่อนไข OR ที่ระบุ `>ผล` = เก็บ `1` ถ้ามีสายใดจริง,
+  `0` ถ้าทุกสายไม่จริง (แหล่งเดียวกับเงื่อนไขเดี่ยว v2.10)
+- **ครบทุกเส้นทาง** — ทั้ง GUI / CLI / engine_cli / 🔍 Validate / ตรวจก่อน START / Dry-run /
+  สีแถวหมวดเงื่อนไข (row_tag) / hint ช่อง Additional อัพเดตบอก `คั่น && / || ได้`
+- **.ahk สองทิศ** — export: `if (n > 5 || n < 0)` ตรง ๆ + `&&` ภายในสายครอบวงเล็บให้เอง
+  (`n > 5 || (n = 4 && n < 3)`) · สายใดแปลไม่ได้ (ภาพ/สีจุด) = ทั้งบล็อก comment ไม่มี
+  ปีกกาลอย (กติกา prescan v2.9) · import: `if (a || b)` และ `if (a) {` แปลกลับเป็น `||`
+  ได้ทั้ง If Variable และบล็อก — roundtrip ครบ
+
+### 🐛 แก้บั๊กแฝง .ahk import — if เงื่อนไขผสม || กับ { } คร่อมบรรทัดเดียว
+- (รายละเอียดการจับคู่ปีกกา + until ของบล็อก OR อยู่ในเทสต์ TestAhkBlocks ร่วมกับ TestOrConditions)
+
+### 📚 เอกสาร + เทสต์
+- **ตัวอย่างใหม่ `examples/19_or_conditions.json`** — สาธิต OR ทุกแบบที่ตัดสินได้กลาง platform:
+  If Variable หลายสาย (ทุกสายไม่จริง → ข้าม 2 / สายที่ 2 จริง → เล่นต่อ) + โทเคน `>ผล` เก็บผลรวม
+  + If Loop `3 || 5` (รอบ 3 ขึ้นไปจริง — ลอง `--loops 3` ดูผล) · ผ่าน `--validate` + เล่นจริง
+- **เทสต์เพิ่ม 21 ตัว** (TestOrConditions 20 — parser split_condition_or / ลำดับความสำคัญ /
+  short-circuit ทุกชนิดเงื่อนไข / cond-store ผลรวม / If Image-If Pixel ผ่าน runner /
+  Block Start OR / validate รายงาน "สายที่ N" / .ahk export-import-roundtrip +
+  TestExample19OrConditions 1 — เล่นจริงผ่าน CLI) → **589 unit + 20 E2E = 609**
+- เอกสารหลักทุกไฟล์อัพเดตเวอร์ชัน 2.19.0 (README/TUTORIAL ทั้ง 4 ภาษา + LANDING) ·
+  ROADMAP ปิดข้อ 3/3 ของแผน v2.18 · อัพเดต hint ตาราง + Help + TUTORIAL บทที่ 5B/17
+  (แนะนำ `||` ควบคู่ `&&`)
+
+
 ## [2.18.0] — 2026-10-08
 
 ### 🎲 ลำดับการเล่นระดับกลุ่ม (ปิด [Issue #10](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/10) — milestone v2.18)

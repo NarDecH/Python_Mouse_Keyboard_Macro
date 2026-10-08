@@ -1,0 +1,37 @@
+[
+  {"enabled": true, "x": "", "y": "", "button": "⬛ หัวข้อ", "additional": "เงื่อนไข OR (||)",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "x = งานC",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Variable", "additional": "x = งานA || x = งานB",
+   "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "ข้ามมาถึงนี่ (x = งานC — ทุกสายไม่จริง ข้าม 2 แถว)",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "x = งานB",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Variable", "additional": "x = งานA || x = งานB",
+   "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "สายที่ 2 จริง → เล่นต่อ (OR ตัดสิน)",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "x = งานC",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Variable", "additional": "x = งานC >ผล",
+   "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Set Variable", "additional": "y = {ผล}",
+   "mins": 0, "secs": 0, "repeat": 1},
+  {"enabled": true, "x": "", "y": "", "button": "If Variable", "additional": "y = 0 || ผล = 1",
+   "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "ผลเงื่อนไขเป็นตัวแปร: >ผล = 1 (สาย x = งานC จริง) → สายที่ 2 จริง → เล่นต่อ",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "If Loop", "additional": "3 || 5",
+   "mins": 0, "secs": 0, "repeat": 2},
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "รอบที่ 1 ยังไม่ถึง 3/5 → ข้าม 2 แถวถึงนี่ (รอบถัดไปจะเล่น)",
+   "mins": 0, "secs": 0, "repeat": 1},
+
+  {"enabled": true, "x": "", "y": "", "button": "Beep", "additional": "จบเดโม่ OR — เปิด ⏱ ไทม์ไลน์ดูผลทีละแถว",
+   "mins": 0, "secs": 0, "repeat": 1}
+]

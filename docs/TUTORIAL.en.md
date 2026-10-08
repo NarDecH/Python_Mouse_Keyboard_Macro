@@ -692,6 +692,10 @@ chunks move together, rows inside keep their order), pick several groups with
 `--only-section "A,B"`, and right-click a section header → "Dry-run this group" to rehearse
 just that group without touching the real mouse/keyboard (conditions/variables/blocks still run).
 
-*Guide for code v2.18.0 · Chapter 21 (Task Scheduler guide, Thai): [TUTORIAL.md](TUTORIAL.md) ·
+**v2.19 — OR conditions (`||`): every condition type accepts `||` — first true branch wins
+(short-circuit); `&&` binds tighter; `>name` token stores the combined result. See the full
+Thai guide, chapter 23.**
+
+*Guide for code v2.19.0 · Chapter 21 (Task Scheduler guide, Thai): [TUTORIAL.md](TUTORIAL.md) ·
 Complete Thai tutorial with more exercises: [TUTORIAL.md](TUTORIAL.md) ·
 Project docs: [README.md](README.md) · Plugin marketplace: [PLUGINS.md](PLUGINS.md)*
