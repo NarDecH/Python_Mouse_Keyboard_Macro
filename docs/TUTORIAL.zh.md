@@ -389,6 +389,19 @@ max 10              无条件 — 把块体重复 10 次
   拒绝并警告（防止块损坏）· Ctrl+Z 可撤销。
 - 详细教程（泰语 / 英语）见 [TUTORIAL.md](TUTORIAL.md) 第 19 章 19.3 · [TUTORIAL.en.md](TUTORIAL.en.md)。
 
+## v2.19.0 — 新增
+
+- **组合条件支持 OR（`||`）** — If Variable / If Loop / If Time / If Pixel Color /
+  If Image / Block Start 全部可以在附加栏用 `||` 串接多个条件，例如
+  `n > 5 || code = "A-1"`、`img.png || 300,300 #ffffff`。
+- **优先级与短路求值** — `&&` 比 `||` 绑得更紧（先算各条 `&&` 链，再算 OR），短路求值：
+  首个成立的分支即为真，不再评估其余分支（节省图像搜索/HTTP/CPU 检查）。
+- 条件全部不成立 = 照旧跳过 Repeat 行（同一规则）· `>名字` 记号保存**整个**表达式的
+  结果（1 = 有一条成立 / 0 = 全部不成立），后续行用 `{名字}` 使用。
+- 验证 / START 前检查 / Dry-run / 行颜色 / 提示全部支持 · .ahk 导出/导入也能读写
+  `if (a || b)` 与 `if (a) { ... }` 块 · 示例：`examples/19_or_conditions.json` ·
+  详细教程见第 23 章（[TUTORIAL.md](TUTORIAL.md) / [TUTORIAL.en.md](TUTORIAL.en.md)）。
+
 ## v2.18.0 — 新增
 
 - **🎲 分组播放顺序** — 勾选"随机分组顺序"（或 CLI `--shuffle-groups`）：整块分区
@@ -420,16 +433,6 @@ max 10              无条件 — 把块体重复 10 次
 - 新示例 `examples/16_condition_plugins_v216.json`（新的 3 个条件插件，平台中立）·
   LANDING.html 展示 v2.16 新功能 · 开启 [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
   + issues #6–#9。
-
-**⇧ 組合條件也可用 OR（`||`）** （v2.19.0 起）— If Variable / If Loop / If Time /
-If Pixel Color / If Image / Block Start 全部可以在附加欄用 `||` 串接多個條件，例如
-`n > 5 || code = "A-1"`、`img.png || 300,300 #ffffff`。規則：`&&` 比 `||` 綁得更緊
-（先算每條 `&&` 鏈，再算 OR），短路求值 — 首個成立的分支即為真，不再檢查其餘分支
-（節省圖像搜索/HTTP/CPU 檢查）；未成立的分支在 Dry-run 裡會顯示 "未檢查（OR 短路）"。
-條件全部不成立 = 照舊跳過 Repeat 行（同一條規則）。`>名字` 記號保存**整個**表達式的
-結果（1 = 有一條成立 / 0 = 全部不成立），後續行用 `{名字}` 使用。驗證 / Dry-run /
-行顏色/提示全部支援，.ahk 導出/導入也能讀寫 `if (a || b)` 與 `if (a) { ... }` 塊。
-示例：`examples/19_or_conditions.json` · 完整教程見第 23 章（泰語）。
 
 ## v2.16.0 — 新增
 
