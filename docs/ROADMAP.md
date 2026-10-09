@@ -173,6 +173,11 @@
 > (คอมเมนต์ retro ล่าสุด 2026-10-09) — ต่อยอดบทเรียน N1 (`&&`) → N2 (Block/ลูปย่อย) →
 > OR (`||`) — หลักการเดิมทุกข้อ: สคริปต์เดิมเล่นผลเดิม 100% (กฎเหล็ก skip N แถวไม่เปลี่ยน) ·
 > STOP หยุดได้ทุกชั้น · validate ตรวจก่อนเล่นเสมอ · engine แหล่งเดียว (ActionRunner)
+>
+> 🧭 **ปรับปรุงล่าสุด (2026-10-09 — จากการวิเคราะห์ SWOT):** เหล็กเพิ่มของชุด N3 — STOP
+> ตรวจก่อนทุกสลีป 0.5 วิ · ห้ามบล็อก main thread (GUI) · timeout/token ต่อสายระดมผลมาจาก
+> v2.19.0 (สายแรกถือ) · If Changed แยก snapshot เอง (ไม่แชร์กับ `>ชื่อ`) ·
+> เพิ่ม issue spec ภาษา ([#17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/17) — docs/LANGUAGE.md ร่าง BNF, อยูท้ายชุด N3)
 
 1. **Wait Until** ([#12](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/12)) —
    รอเงื่อนไขจริงก่อนเดินต่อ ("รอปุ่มขึ้นมา สูงสุด 30 วิ แล้วค่อยคลิก") — เงื่อนไขชุดเดิม
@@ -188,6 +193,8 @@
 5. *(ทางเลือก)* **Block Start ตั้งชื่อบล็อกได้** ([#16](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/16)) —
    จากคำถามข้อ 2 ของ RFC — ยังไม่ผูกว่าจะทำ (ตามหลัก "ไม่เพิ่มกลไก" — Section คู่บล็อกใช้ได้จริงแล้ว) ·
    รอโหวต/use case จริง
+6. **ถอดภาษาสคริปต์เป็น spec เอกสารเดียว** — docs/LANGUAGE.md ร่าง BNF (ทำหลังชุด N3 ครบ —
+   ทำให้ plugin/LLM/ผู้เริ่มต้นอ้างกติกาที่แหล่งเดียว) — ([Issue #17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/17))
 
 ## 🎯 หลักการที่ห้ามฝ่าฝืน
 
