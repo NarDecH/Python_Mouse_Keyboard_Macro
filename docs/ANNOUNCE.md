@@ -220,6 +220,51 @@ Feedback welcome! (Note: don't use it with games/services that prohibit bots.)
 
 ---
 
+## 🆕 ข่าวเวอร์ชัน v2.19 (โพสต์ต่อท้ายหรือโพสต์เดี่ยว)
+
+```
+🧠 v2.19 — รวมเงื่อนไขด้วย OR (||) ได้แล้ว — ปิดครบ 3 ชุดเงื่อนไข
+
+• เงื่อนไขทุกชนิดคั่น || ได้
+  If Variable / If Loop / If Time / If Pixel Color / If Image / Block Start
+  เช่น `n > 5 || code = "A-1"` · `img.png || 300,300 #ffffff`
+• สายใดจริงก่อน = จริงทั้งนิพจน์ (short-circuit — ไม่ค้นภาพ/ยิงเน็ต
+  /วัด CPU ของสายที่เหลือ) · && แน่นกว่า || ตามมาตรฐาน
+• โทเคน `>ชื่อ` เก็บผลรวมทั้งนิพจน์ (1 = มีสายใดจริง / 0 = ทุกสายไม่จริง) —
+  แถวถัดไปใช้ `{ชื่อ}` ต่อได้เลย
+• ครบทุกเส้นทาง: 🔍 Validate / ตรวจก่อน START / Dry-run / สีแถว / hint /
+  .ahk สองทิศ (export/import if (a || b) และบล็อก if (a) { ... })
+• ตัวอย่างใหม่ examples/19_or_conditions.json ลองได้ทันที
+
+โหลด: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+```
+
+---
+
+## 🆕 News version v2.19 (English — Reddit/Discord EN)
+
+```
+🆕 v2.19.0 — OR (||) in composite conditions!
+
+Every condition type now accepts || — If Variable / If Loop / If Time /
+If Pixel Color / If Image / Block Start (if/until). Examples:
+- n > 5 || code = "A-1"
+- img.png || 300,300 #ffffff
+- Block Start: if (img.png || n > 5) { ... } — skip the block if none is true
+
+Priorities: && binds tighter than ||, short-circuit evaluation (the first
+true branch wins — no extra image search/HTTP/CPU checks for the rest),
+and the `>name` token stores the overall result (1/0) for later rows.
+Everything is covered: 🔍 Validate / START pre-check / Dry-run / row colors /
+hints — and both-direction .ahk export+import for `if (a || b)` and
+`if (a) { ... }` blocks.
+
+Download: https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/releases/latest
+Demo script: examples/19_or_conditions.json
+```
+
+---
+
 ## 💡 เคล็ดลับตอนโพสต์
 
 - แนบ `screenshot.png` หรือเปิด [LANDING.html](LANDING.html) เป็นลิงก์หลัก (สวย อ่านง่าย มี CTA)

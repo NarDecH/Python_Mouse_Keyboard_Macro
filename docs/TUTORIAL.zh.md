@@ -421,6 +421,16 @@ max 10              无条件 — 把块体重复 10 次
   LANDING.html 展示 v2.16 新功能 · 开启 [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
   + issues #6–#9。
 
+**⇧ 組合條件也可用 OR（`||`）** （v2.19.0 起）— If Variable / If Loop / If Time /
+If Pixel Color / If Image / Block Start 全部可以在附加欄用 `||` 串接多個條件，例如
+`n > 5 || code = "A-1"`、`img.png || 300,300 #ffffff`。規則：`&&` 比 `||` 綁得更緊
+（先算每條 `&&` 鏈，再算 OR），短路求值 — 首個成立的分支即為真，不再檢查其餘分支
+（節省圖像搜索/HTTP/CPU 檢查）；未成立的分支在 Dry-run 裡會顯示 "未檢查（OR 短路）"。
+條件全部不成立 = 照舊跳過 Repeat 行（同一條規則）。`>名字` 記號保存**整個**表達式的
+結果（1 = 有一條成立 / 0 = 全部不成立），後續行用 `{名字}` 使用。驗證 / Dry-run /
+行顏色/提示全部支援，.ahk 導出/導入也能讀寫 `if (a || b)` 與 `if (a) { ... }` 塊。
+示例：`examples/19_or_conditions.json` · 完整教程見第 23 章（泰語）。
+
 ## v2.16.0 — 新增
 
 - **🚀 脚本启动器（.bat + .lnk）** — 保存脚本后点 🚀 Launcher 菜单，在脚本旁生成一对启动文件：

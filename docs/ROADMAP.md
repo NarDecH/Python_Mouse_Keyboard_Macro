@@ -165,6 +165,30 @@
    [PLUGINS.md](PLUGINS.md) + issue template) · พร้อมกัน: เพิ่มตัวอย่าง/บทเรียนให้ครอบคลุม use case จริง
    ที่ชุมชนส่งมา
 
+---
+
+## 🚀 v2.20 — เงื่อนไข Event/Trigger (ชุด N3 — เปิด [milestone No.3](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/4) แล้ว — issues #12–#16)
+
+> จากการทบทวน [RFC Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
+> (คอมเมนต์ retro ล่าสุด 2026-10-09) — ต่อยอดบทเรียน N1 (`&&`) → N2 (Block/ลูปย่อย) →
+> OR (`||`) — หลักการเดิมทุกข้อ: สคริปต์เดิมเล่นผลเดิม 100% (กฎเหล็ก skip N แถวไม่เปลี่ยน) ·
+> STOP หยุดได้ทุกชั้น · validate ตรวจก่อนเล่นเสมอ · engine แหล่งเดียว (ActionRunner)
+
+1. **Wait Until** ([#12](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/12)) —
+   รอเงื่อนไขจริงก่อนเดินต่อ ("รอปุ่มขึ้นมา สูงสุด 30 วิ แล้วค่อยคลิก") — เงื่อนไขชุดเดิม
+   + `||`/`&&` ผสมได้ · timeout default 30 วิ ระบุทับด้วย `60s` · หมดเวลา = ข้าม N แถว (กฎเหล็ก)
+2. **Repeat Until — โทเคน `until` แถวเดียว** ([#13](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/13)) —
+   วนแถว Action อะไรก็ได้ (ไม่ใช่ Action ใหม่!) จนเงื่อนไขจริง เช่น แถว Tap F5 +
+   `until หน้าโหลดแล้ว = 1` — max รอบคุมเช่นเดิม · เดินผ่าน ActionRunner แหล่งเดียว
+3. **If Changed** ([#14](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/14)) —
+   ตัดสิน "จอ/ค่าเปลี่ยนไหม" จากผลล่าสุดของเงื่อนไขแถวเดียวกัน (ไม่ต้องถ่าย 2 ภาพมาเทียบเอง) —
+   รอบแรกไม่เคยตรวจ = ถือเป็น "เปลี่ยน" (เล่นแรกเสมอ) — ใช้คลังแหล่งเดียวกับ `>ชื่อ`
+4. **ตัวอย่าง + บทเรียนชุด N3** ([#15](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/15)) —
+   `examples/20` + `21` กลาง platform เล่นผ่าน CLI ได้เลย · TUTORIAL (th/en/zh/ja) บทที่ 24
+5. *(ทางเลือก)* **Block Start ตั้งชื่อบล็อกได้** ([#16](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/16)) —
+   จากคำถามข้อ 2 ของ RFC — ยังไม่ผูกว่าจะทำ (ตามหลัก "ไม่เพิ่มกลไก" — Section คู่บล็อกใช้ได้จริงแล้ว) ·
+   รอโหวต/use case จริง
+
 ## 🎯 หลักการที่ห้ามฝ่าฝืน
 
 1. **ความปลอดภัยผู้ใช้มาก่อน** — ฟีเจอร์ใหม่ห้ามทำให้ STOP ใช้ไม่ได้ทุกช่องทาง
@@ -194,6 +218,5 @@
       ([Issue #5](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/5) ปิดครบ)
 
 ---
-*อัพเดตล่าสุด: v2.18.0 — ถอดจาก CHANGELOG · [milestone v2.18](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/3)
-ปิด #10 #11 แล้ว เหลือ #9 (OR — ดีไซน์ร่างแล้วใน DESIGN-nested-if.md รอโหวต) ·
-ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)*
+*อัพเดตล่าสุด: v2.20.0 — เปิด milestone No.3 (issues #12–#16 — ชุด N3 ตาม retro RFC Issue #1) ·
+ปิดครบ milestone ก่อนหน้าทั้งหมด (#2–#11) · ข้อเสนอใหม่ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1) ตลอด*

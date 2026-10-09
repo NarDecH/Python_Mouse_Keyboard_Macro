@@ -1,9 +1,9 @@
 # 🧠 DESIGN — เงื่อนไขเชิงซ้อน (Nested If) และลูปย่อย
 
-> สถานะ: **ชุด N1 (v2.5.4) และ N2 (v2.6.0) เสร็จแล้วทั้งคู่** — เงื่อนไขรวม `&&` และ
-> Block Start/End + ลูปย่อย (until/max) ใช้งานได้จริงแล้ว ·
+> สถานะ: **ชุด N1 (v2.5.4), N2 (v2.6.0) และ OR `||` (v2.19.0) เสร็จแล้วทั้งหมด** — เงื่อนไขรวม
+> `&&`/`||` · Block Start/End + ลูปย่อย (until/max) ใช้งานได้จริงแล้ว ·
 > feedback/ปัญหาจริงแจ้งได้ที่ [Issue #1](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/1)
-> หัวข้อถัดไปตาม [ROADMAP](ROADMAP.md)
+> ชุดถัดไป N3 (รอจนจริง/วนแถวเดียวจนจริง/If Changed) — [milestone v2.20](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/4)
 
 ---
 
@@ -83,10 +83,11 @@
 
 ## 4. แผนที่เสนอ (แบ่งเป็น 2 ชุดย่อย)
 
-### ชุด N1 — เงื่อนไขรวม AND/OR (ขั้นแรก ริสก์ต่ำ) — ✅ เสร็จ v2.6.0
+### ชุด N1 — เงื่อนไขรวม AND/OR (ขั้นแรก ริสก์ต่ำ) — ✅ เสร็จ v2.5.4 (AND) + v2.19.0 (OR)
 
 - ✅ `split_condition_and()` ใน macro_engine.py — แตก `&&` รองรับ timeout `Ns` ต่อชิ้น
   (ไม่ตัดค่าข้อความของ If Variable ที่ลงท้าย "5s")
+- ✅ OR (`||`) ครบตามหัวข้อ 6 — v2.19.0 (ดูรายละเอียดและสถานะรายจุดที่หัวข้อ 6)
 - ✅ `ActionRunner.evaluate_if_var`/`evaluate_if_pixel` — ตัดสินเป็นค่าความจริง (ใช้ร่วมกันได้)
 - ✅ IF_IMAGE/IF_PIXEL ใน `execute` + `evaluate_condition` (IF_VAR) รองรับ `&&` —
   mixed parts (ภาพ+สี+ตัวแปรในแถวเดียว) dispatch ต่อชิ้นถูกชนิด
@@ -118,17 +119,17 @@
 
 ## 5. คำถามที่อยากได้ feedback
 
-1. AND พอ หรือต้องมี OR ด้วยไหม (เพิ่มความซับซ้อน parser พอสมควร)? — **ดีไซน์ร่างแล้วในหัวข้อ 6 · โหวตที่ [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9)**
+1. AND พอ หรือต้องมี OR ด้วยไหม (เพิ่มความซับซ้อน parser พอสมควร)? — ✅ **เสร็จ v2.19.0** (หัวข้อ 6 — [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9) ปิดแล้ว)
 2. Block Start ควรตั้งชื่อบล็อกได้ไหม (แสดงเป็นป้ายเหมือน Section)?
 3. ลูปย่อยควรมีขอบเขต max รอบบังคับไหม (ปัจจุบันเสนอ default 1000 + ตั้งทับได้)?
 4. ใครใช้งานจริงกับเคสไหน ช่วยแชร์สคริปต์ตัวอย่างใน Issues ได้เลย — เอาไปออกแบบเทสต์ให้ตรงงานจริง
 
 ---
 
-## 6. ข้อเสนอเชิงเทคนิค OR (`||`) — รอโหวต ([Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9))
+## 6. ข้อเสนอเชิงเทคนิค OR (`||`) — ✅ เสร็จ v2.19.0 (ปิด [Issue #9](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9))
 
-> ข้อเสนอจากแผน v2.18 ข้อ 1 — **ยังไม่ลงมือ รอโหวต "ต้องมี" ก่อนเสมอ**
-> (แผนหลักการ: ความซับซ้อน parser ต้องแลกด้วยความต้องการจริง)
+> ข้อเสนอจากแผน v2.18 ข้อ 1 — **ดำเนินการครบตามข้อสัญญาด้านล่าง** ·
+> ต่างจากดีไซน์เดิม 2 จุดเล็กน้อย (รายงานด้านล่าง — ข้อความ dry-run + timeout รายสาย)
 
 ### สัญญาที่ห้ามฝ่า (เหล็กเดิมทุกข้อ)
 - สคริปต์เดิม (ไม่มี `||`) เล่นผลเดิม 100% — ไม่ใส่ `||` = เดิน parser เดิมทุกเส้นทาง
@@ -164,13 +165,32 @@
 - เงื่อนไข plugin กับ `||`: ชิ้นแรกตัดสินสายเหมือนเดิม — ชิ้นที่เหลือเช็คชื่อต่อเนื่อง
   (สาย plugin ผสมสายอื่นภายใน `||`/`&&` เดียวกันตามกติกา v2.13)
 
-### ประมาณการ + แผนเทสต์
-- engine: `split_condition_or` + ปรับ `evaluate_block_condition`/`execute` ~60 บรรทัด ·
-  GUI ~10 บรรทัด (hint + เอกสาร) · .ahk สองทิศ ~15 บรรทัด
-- เทสต์ TestOrConditions ~12 ตัว: parser/precedence/short-circuit/skip ครบทุกสาย/
-  validate/dry-run/.ahk export+import/GUI Block Start — + E2E 1 ตัว
-- ลงมือได้เมื่อ Issue #9 มีโหวตชัด — ถ้าโหวต "ไม่ต้องการ" ปิดดีไซน์ไว้เฉย ๆ ไม่ลงโค้ด
+### ประมาณการ + แผนเทสต์ (ผลจริง v2.19.0)
+- engine: `split_condition_or` + ปรับ `evaluate_block_condition`/`execute` ครบทุกเส้นทาง ·
+  GUI (hint + เอกสาร/สีแถว/ค้นหา) ครบ · .ahk สองทิศครบ
+- เทสต์ **TestOrConditions 20 ตัว** (parser/precedence/short-circuit/skip ครบทุกสาย/
+  validate/dry-run/.ahk export+import/GUI Block Start) + **TestExample19OrConditions 1 ตัว**
+  — รวม 589 unit + 20 E2E = 609 · ตัวอย่าง `examples/19_or_conditions.json`
+
+### ต่างจากดีไซน์เดิมเล็กน้อย 2 จุด (ตรวจพบจากการพิสูจน์ด้วยเทสต์จริง)
+1. **ข้อความ dry-run** — ดีไซน์เดิมว่า "ชิ้นที่ถูกข้ามรายงาน 'ไม่ตรวจ (ข้ามสาย OR)'" — จริงคือ
+   ข้ามแบบเงียบ (นิพจน์จริงเมื่อสายก่อนหน้าจริงแล้ว ข้อมูลตัดสินใจชัดจากข้อความเตือนรายสาย
+   เช่น "สายที่ 1 ไม่จริง · สายที่ 2 ไม่จริง → ข้าม N แถว") — ผลลัพธ์เดิม ลดความยาวข้อความเปล่า ๆ
+2. **สาย timeout `Ns` ต่อสายแรกเท่านั้น** — จริงคือสายหลังไม่รับ token `Ns` ต่อสาย (ถือตาม
+   สายแรก — แบบเดียวกับ `&&` เดิม) — เข้ากับ "&& แน่นกว่า || ตามมาตรฐาน" ที่เก็บเอกสารไว้หัวข้อ 6
+   เทสต์ TestOrConditions พิสูจน์แล้วว่ามีที่เดียวที่รับต่าง — สามารถนำไปแก้ผลข้างเคียงใน release ถัดไปได้
+
+| จุดรับ `||` | สถานะโค้ด |
+|---|---|
+| `split_condition_or` engine (แหล่งเดียว · `>ชื่อ` ตัดก่อนแตก) | ✅ macro_engine.py:384 |
+| IF_LOOP / IF_TIME / IF_VAR ใน `evaluate_condition` (short-circuit รายสาย + `_store`) | ✅ macro_engine.py:2633/2671/2711 |
+| IF_IMAGE / IF_PIXEL ใน `runner.execute` (ค้นภาพ/ตรวจสีทีละสาย + `{img_x}/{img_y}` จากสายที่เจอ) | ✅ macro_engine.py:2812/2980 |
+| `evaluate_block_condition` (สายพัง None ไม่กลืนจริง) + `_eval_block_branch` | ✅ macro_engine.py:2543/2563 |
+| `validate_rows` รายสาย "สายที่ N (||): เหตุผล" (IF_IMAGE/IF_PIXEL/IF_VAR/IF_LOOP/IF_TIME) | ✅ macro_engine.py:1515–1568 |
+| `.ahk` export (`if (a || b)`-รวมวงเล็บสายที่มี && + สายแปลไม่ได้ = comment ทั้งบล็อก · until ด้วย) | ✅ macro_engine.py:1143–1166/1178/1035 |
+| `.ahk` import (`if (a || b)` แตกทุกสาย — ทุกสายต้องตรงรูปแบบ Otherwise เก็บเดิม) | ✅ macro_engine.py:1400–1410 |
+| row_tag cond/ค้นหา/hint | ✅ macro_engine.py:4786 / auto_macro.py:1244 |
 
 ---
 
-*เอกสารนี้เป็นข้อเสนอ ไม่ผูกกับเวอร์ชันใด · อัพเดตล่าสุด: v2.18.0 (ร่างดีไซน์ OR หัวข้อ 6 — รอโหวต Issue #9)*
+*เอกสารนี้เป็นข้อเสนอ ไม่ผูกกับเวอร์ชันใด · อัพเดตล่าสุด: v2.19.0 (หัวข้อ 6 = ข้อสรุป implement ครบ — หมายเลขบรรทัดอ้างอิง macro_engine.py เวอร์ชัน v2.19.0 · ชุดต่อไป N3: รอ/วนจนจริง/If Changed — อยู่ [milestone v2.20](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/4))*

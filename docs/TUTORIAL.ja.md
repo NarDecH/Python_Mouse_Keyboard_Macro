@@ -447,6 +447,23 @@ If Image と違い**行数を数える必要は一切ない** — スキップ/�
   LANDING.html に v2.16 の機能を追加 · [milestone v2.17](https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/2)
   + issues #6–#9 を作成。
 
+## v2.19.0 — 新机能：OR（`||`）で複合条件
+
+- **すべての条件種別で `||` 区切りが使えます** — If Variable / If Loop / If Time /
+  If Pixel Color / If Image / Block Start（if/until）。例:
+  `n > 5 || code = "A-1"` · `img.png || 300,300 #ffffff`。
+- **優先順位と短絡評価** — `&&` は `||` より強く結合（まず各 `&&` チェーンを評価し、
+  その後 OR）。最初に真になった分岐で全体が真 — 残りの分岐は評価しない
+  （画像検索/HTTP/CPU 測定を節約）。Dry-run では未評価の分岐が「OR 短絡で未チェック」と
+  表示されます。すべての分岐が偽 = 従来どおり Repeat 行をスキップ（同一ルール）。
+- **`>名前` トークン** — 式全体の結果を保存（1 = どれか真 / 0 = 全部偽）。
+  後続行で `{名前}` として利用可能。
+- 検証（🔍 Validate）/ START 前チェック / Dry-run / 行色 / ヒントすべて対応。
+  .ahk 双方向（エクスポート/インポート）も `if (a || b)` と `if (a) { ... }` ブロックを
+  そのまま読み書きできます。
+- サンプル: `examples/19_or_conditions.json` · 詳細チュートリアル（タイ語/英語）は
+  [TUTORIAL.md](TUTORIAL.md) 第23章 · [TUTORIAL.en.md](TUTORIAL.en.md) を参照。
+
 ## v2.16.0 — 新機能
 
 - **🚀 スクリプトランチャー（.bat + .lnk）** — スクリプト保存後に 🚀 Launcher メニューを押すと、

@@ -137,7 +137,7 @@
     <table>
       <tr><th>ชุด</th><th>ขอบเขต</th><th>จุดเสี่ยง/เทสต์สำคัญ</th></tr>
       <tr>
-        <td><b>N1</b> — AND/OR ✅ เสร็จ v2.6.0</td>
+        <td><b>N1</b> — AND ✅ v2.5.4 · OR <code>||</code> ✅ v2.19.0</td>
         <td>parser ใน engine (<code>split_condition_and</code> + parser เดิม) รองรับ
           <code>&amp;&amp;</code> · evaluate_condition ประเมินแบบ short-circuit —
           ครบ If Image/If Pixel/If Variable/If Loop/If Time + <code>--validate</code>
@@ -159,9 +159,34 @@
   </div>
 
   <div class="card">
+    <h2>6. OR (||) — ✅ เสร็จ v2.19.0 (สรุป)</h2>
+    <p class="note">หัวข้อนี้พูดถึง v2.19 เท่านั้น — ชุดถัดไป N3 (รอจนจริง/วนแถวเดียวจนจริง/
+    If Changed) อยู่ <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/milestone/4">milestone v2.20</a></p>
+    <p>เงื่อนไขทุกชนิดคั่น <code>||</code> ได้ (If Variable / If Loop / If Time / If Pixel Color /
+    If Image / Block Start if/until) — engine <code>split_condition_or()</code> แตกสายระดับบนสุด
+    (โทเคน <code>&gt;ชื่อ</code> ตัดก่อนแตก) แล้วแต่ละสายแตก <code>&amp;&amp;</code> ต่อ
+    (<b>&amp;&amp; แน่นกว่า || ตามมาตรฐาน</b>) · short-circuit: สายใดจริงก่อน = จริงทั้งนิพจน์
+    ไม่ประเมินสายที่เหลือ · ทุกสายไม่จริง = ข้าม N แถว (กฎเหล็กเดิม)</p>
+    <ul>
+      <li>โทเคน <code>&gt;ชื่อ</code> เก็บผลรวม (1 = มีสายใดจริง / 0 = ทุกสายไม่จริง)</li>
+      <li>ครบทุกเส้นทาง: <code>evaluate_condition</code> (IF_VAR/IF_LOOP/IF_TIME) ·
+      <code>runner.execute</code> (IF_IMAGE/IF_PIXEL — ค้นภาพทีละสาย + {img_x}/{img_y}) ·
+      <code>evaluate_block_condition</code> (สายพัง None ไม่กลืนจริง) ·
+      <code>validate_rows</code> รายงาน "สายที่ N (||)" · row_tag/ค้นหา/hint</li>
+      <li><code>.ahk</code> สองทิศ — export/import <code>if (a || b)</code> และบล็อก
+      <code>if (a) { … }</code> roundtrip ครบ (สายแปลไม่ได้ = comment ทั้งบล็อก)</li>
+      <li>เทสต์ <b>TestOrConditions 20 ตัว</b> + TestExample19OrConditions — รวม 589 unit +
+      20 E2E = 609 · เดโม่ <code>examples/19_or_conditions.json</code></li>
+      <li>รายละเอียดฉบับเต็ม + สถานะรายจุด (กับหมายเลขบรรทัด): ดูหัวข้อ 6 ใน
+      DESIGN-nested-if.md (ฉบับ .md สรุปเชิงลึกกว่า)</li>
+    </ul>
+  </div>
+
+  <div class="card">
     <h2>5. คำถามที่อยากได้ feedback</h2>
     <ol>
-      <li>AND พอ หรือต้องมี OR ด้วยไหม (ความซับซ้อน parser เพิ่มพอสมควร)?</li>
+      <li>AND พอ หรือต้องมี OR ด้วยไหม (ความซับซ้อน parser เพิ่มพอสมควร)? —
+          <b>✅ เสร็จ v2.19.0</b> (ดูหัวข้อ 6 · <a href="https://github.com/NarDecH/Python_Mouse_Keyboard_Macro/issues/9">Issue #9</a> ปิดแล้ว)</li>
       <li>Block Start ควรตั้งชื่อบล็อกได้ไหม (แสดงเป็นป้ายเหมือน Section)?</li>
       <li>ลูปย่อยควรมี max รอบบังคับไหม (เสนอ default 1000 + ตั้งทับได้)?</li>
       <li>ใครมี use case จริง ช่วยแชร์สคริปต์ตัวอย่างใน Issues — เอาไปออกแบบเทสต์ให้ตรงงานจริง</li>
